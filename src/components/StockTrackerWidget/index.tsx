@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toNoteList } from '@/lib/link'
 import { cn } from '@/lib/utils'
+import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import { AVAILABLE_WIDGETS, useWidgets } from '@/providers/WidgetsProvider'
 import {
   isValidStockSymbol,
@@ -24,6 +25,7 @@ type TStockTrackerQuoteState =
 
 export default function StockTrackerWidget() {
   const { t } = useTranslation()
+  const { isSmallScreen } = useScreenSize()
   const {
     toggleWidget,
     hideWidgetTitles,
@@ -37,6 +39,7 @@ export default function StockTrackerWidget() {
 
   const widgetName =
     AVAILABLE_WIDGETS.find((widget) => widget.id === 'stock-tracker')?.name || 'Stock Tracker'
+  const isInputMuted = !isSmallScreen && !inputValue.trim() && !error
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -90,28 +93,35 @@ export default function StockTrackerWidget() {
       )}
 
       <div className={cn('space-y-3 p-4', hideWidgetTitles && 'pt-4')}>
-        <form className="flex items-center gap-2" onSubmit={handleSubmit}>
-          <Input
-            value={inputValue}
-            onChange={(event) => {
-              setInputValue(event.target.value)
-              if (error) {
-                setError(null)
-              }
-            }}
-            placeholder="$TSLA"
-            aria-label={t('Add stock symbol', { defaultValue: 'Add stock symbol' })}
-            className="h-9"
-          />
-          <Button type="submit" size="icon" className="h-9 w-9 shrink-0 rounded-full">
-            <Plus className="h-4 w-4" />
-          </Button>
-        </form>
+        <div
+          className={cn(
+            'transition-opacity duration-200',
+            isInputMuted && 'opacity-10 hover:opacity-60 focus-within:opacity-100'
+          )}
+        >
+          <form className="flex items-center gap-2" onSubmit={handleSubmit}>
+            <Input
+              value={inputValue}
+              onChange={(event) => {
+                setInputValue(event.target.value)
+                if (error) {
+                  setError(null)
+                }
+              }}
+              placeholder="$TSLA"
+              aria-label={t('Add stock symbol', { defaultValue: 'Add stock symbol' })}
+              className="h-9"
+            />
+            <Button type="submit" size="icon" className="h-9 w-9 shrink-0 rounded-full">
+              <Plus className="h-4 w-4" />
+            </Button>
+          </form>
+        </div>
 
         {error ? <p className="text-xs text-destructive">{error}</p> : null}
 
         {stockTrackerSymbols.length ? (
-          <div className="space-y-2">
+          <div className="divide-y divide-border/70">
             {stockTrackerSymbols.map((symbol) => (
               <StockTrackerRow
                 key={symbol}
@@ -172,27 +182,14 @@ function StockTrackerRow({
   const isNegative = (quote?.change ?? 0) < 0
 
   return (
-    <div className="flex items-center gap-2 rounded-xl border bg-background/70 px-3 py-2 shadow-sm">
+    <div className="flex items-center gap-2 py-3">
       <SecondaryPageLink
         to={toNoteList({ stockSymbol: symbol })}
         className="min-w-0 flex-1"
       >
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold leading-none">${symbol}</div>
-            {state.status === 'success' && quote?.latestTradingDay ? (
-              <div className="mt-1 truncate text-[11px] text-muted-foreground">
-                {formatTradingDay(quote.latestTradingDay)}
-              </div>
-            ) : state.status === 'error' ? (
-              <div className="mt-1 truncate text-[11px] text-muted-foreground">
-                {t('Unavailable', { defaultValue: 'Unavailable' })}
-              </div>
-            ) : (
-              <div className="mt-1">
-                <Skeleton className="h-3 w-16" />
-              </div>
-            )}
+            <div className="truncate text-base font-semibold leading-none">${symbol}</div>
           </div>
 
           <div className="shrink-0 text-right">
@@ -262,13 +259,4 @@ function formatCompactPercent(value: number | null) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(Math.abs(value))}%`
-}
-
-function formatTradingDay(value: string) {
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) {
-    return value
-  }
-
-  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(parsed)
 }

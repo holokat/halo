@@ -13,6 +13,8 @@ import {
   cloneElement,
   createContext,
   createRef,
+  forwardRef,
+  HTMLAttributes,
   ReactNode,
   RefObject,
   useContext,
@@ -487,33 +489,34 @@ export function PageManager({ maxStackSize = 5 }: { maxStackSize?: number }) {
   )
 }
 
-export function SecondaryPageLink({
-  to,
-  children,
-  className,
-  onClick
-}: {
+type SecondaryPageLinkProps = HTMLAttributes<HTMLSpanElement> & {
   to: string
   children: React.ReactNode
-  className?: string
-  onClick?: (e: React.MouseEvent) => void
-}) {
-  const { push } = useSecondaryPage()
-
-  return (
-    <span
-      className={cn('cursor-pointer', className)}
-      onClick={(e) => {
-        if (onClick) {
-          onClick(e)
-        }
-        push(to)
-      }}
-    >
-      {children}
-    </span>
-  )
 }
+
+export const SecondaryPageLink = forwardRef<HTMLSpanElement, SecondaryPageLinkProps>(
+  ({ to, children, className, onClick, ...props }, ref) => {
+    const { push } = useSecondaryPage()
+
+    return (
+      <span
+        ref={ref}
+        className={cn('cursor-pointer', className)}
+        onClick={(e) => {
+          onClick?.(e)
+          if (!e.defaultPrevented) {
+            push(to)
+          }
+        }}
+        {...props}
+      >
+        {children}
+      </span>
+    )
+  }
+)
+
+SecondaryPageLink.displayName = 'SecondaryPageLink'
 
 function isCurrentPage(stack: TStackItem[], url: string) {
   const currentPage = stack[stack.length - 1]
