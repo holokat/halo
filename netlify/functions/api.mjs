@@ -197,6 +197,7 @@ const TRANSLATION_MAX_CHARS_PER_REQUEST = toPositiveNumber(
 const ALPHAVANTAGE_API_KEY = process.env.ALPHAVANTAGE_API_KEY || ''
 const STOCK_QUOTE_TTL_MS = 15 * 60 * 1000
 const STOCK_QUOTE_CACHE_MAX = 200
+const STOCK_QUOTE_CACHE_CONTROL = 'public, max-age=60, stale-while-revalidate=300'
 
 const PACKAGE_CHARACTERS = [100_000, 500_000, 1_000_000, 2_500_000, 5_000_000, 10_000_000]
 
@@ -227,6 +228,7 @@ let openRouterStatusCache = {
   }
 }
 const stockQuoteCache = new Map()
+const stockQuoteInflight = new Map()
 
 const headers = {
   'Content-Type': 'application/json'
@@ -708,7 +710,7 @@ async function getStockQuote(request) {
 
   try {
     const quote = await getAlphaVantageStockQuote(symbol)
-    return json(200, quote)
+    return json(200, quote, { 'Cache-Control': STOCK_QUOTE_CACHE_CONTROL })
   } catch (error) {
     if (typeof error?.statusCode === 'number') {
       return json(error.statusCode, { error: error.message || 'Failed to load stock quote' })
@@ -2904,61 +2906,73 @@ async function getAlphaVantageStockQuote(symbol) {
     return cached.data
   }
 
-  const url = new URL('https://www.alphavantage.co/query')
-  url.searchParams.set('function', 'GLOBAL_QUOTE')
-  url.searchParams.set('symbol', symbol)
-  url.searchParams.set('apikey', ALPHAVANTAGE_API_KEY)
+  const inflight = stockQuoteInflight.get(symbol)
+  if (inflight) {
+    return inflight
+  }
 
-  const response = await fetch(url.toString(), {
-    headers: { Accept: 'application/json' }
+  const request = (async () => {
+    const url = new URL('https://www.alphavantage.co/query')
+    url.searchParams.set('function', 'GLOBAL_QUOTE')
+    url.searchParams.set('symbol', symbol)
+    url.searchParams.set('apikey', ALPHAVANTAGE_API_KEY)
+
+    const response = await fetch(url.toString(), {
+      headers: { Accept: 'application/json' }
+    })
+
+    if (!response.ok) {
+      throw createHttpError(502, `Alpha Vantage request failed (${response.status})`)
+    }
+
+    const payload = await response.json()
+    const rateLimitMessage =
+      (typeof payload?.Note === 'string' && payload.Note.trim()) ||
+      (typeof payload?.Information === 'string' && payload.Information.trim()) ||
+      ''
+
+    if (rateLimitMessage) {
+      throw createHttpError(429, rateLimitMessage)
+    }
+
+    if (typeof payload?.['Error Message'] === 'string' && payload['Error Message'].trim()) {
+      throw createHttpError(404, payload['Error Message'].trim())
+    }
+
+    const quote = payload?.['Global Quote']
+    if (!quote || typeof quote !== 'object' || !String(quote['01. symbol'] || '').trim()) {
+      throw createHttpError(404, `No stock quote found for ${symbol}`)
+    }
+
+    const normalizedQuote = {
+      symbol: String(quote['01. symbol'] || symbol).trim().toUpperCase(),
+      price: parseAlphaVantageNumber(quote['05. price']),
+      change: parseAlphaVantageNumber(quote['09. change']),
+      changePercent: parseAlphaVantageNumber(quote['10. change percent']),
+      open: parseAlphaVantageNumber(quote['02. open']),
+      high: parseAlphaVantageNumber(quote['03. high']),
+      low: parseAlphaVantageNumber(quote['04. low']),
+      previousClose: parseAlphaVantageNumber(quote['08. previous close']),
+      volume: parseAlphaVantageNumber(quote['06. volume']),
+      latestTradingDay:
+        typeof quote['07. latest trading day'] === 'string' && quote['07. latest trading day'].trim()
+          ? quote['07. latest trading day'].trim()
+          : null
+    }
+
+    stockQuoteCache.set(symbol, {
+      fetchedAt: Date.now(),
+      data: normalizedQuote
+    })
+    trimMapToMaxEntries(stockQuoteCache, STOCK_QUOTE_CACHE_MAX)
+
+    return normalizedQuote
+  })().finally(() => {
+    stockQuoteInflight.delete(symbol)
   })
 
-  if (!response.ok) {
-    throw createHttpError(502, `Alpha Vantage request failed (${response.status})`)
-  }
-
-  const payload = await response.json()
-  const rateLimitMessage =
-    (typeof payload?.Note === 'string' && payload.Note.trim()) ||
-    (typeof payload?.Information === 'string' && payload.Information.trim()) ||
-    ''
-
-  if (rateLimitMessage) {
-    throw createHttpError(429, rateLimitMessage)
-  }
-
-  if (typeof payload?.['Error Message'] === 'string' && payload['Error Message'].trim()) {
-    throw createHttpError(404, payload['Error Message'].trim())
-  }
-
-  const quote = payload?.['Global Quote']
-  if (!quote || typeof quote !== 'object' || !String(quote['01. symbol'] || '').trim()) {
-    throw createHttpError(404, `No stock quote found for ${symbol}`)
-  }
-
-  const normalizedQuote = {
-    symbol: String(quote['01. symbol'] || symbol).trim().toUpperCase(),
-    price: parseAlphaVantageNumber(quote['05. price']),
-    change: parseAlphaVantageNumber(quote['09. change']),
-    changePercent: parseAlphaVantageNumber(quote['10. change percent']),
-    open: parseAlphaVantageNumber(quote['02. open']),
-    high: parseAlphaVantageNumber(quote['03. high']),
-    low: parseAlphaVantageNumber(quote['04. low']),
-    previousClose: parseAlphaVantageNumber(quote['08. previous close']),
-    volume: parseAlphaVantageNumber(quote['06. volume']),
-    latestTradingDay:
-      typeof quote['07. latest trading day'] === 'string' && quote['07. latest trading day'].trim()
-        ? quote['07. latest trading day'].trim()
-        : null
-  }
-
-  stockQuoteCache.set(symbol, {
-    fetchedAt: Date.now(),
-    data: normalizedQuote
-  })
-  trimMapToMaxEntries(stockQuoteCache, STOCK_QUOTE_CACHE_MAX)
-
-  return normalizedQuote
+  stockQuoteInflight.set(symbol, request)
+  return request
 }
 
 function safeEqualConstantTime(a, b) {
@@ -2976,10 +2990,10 @@ async function parseJson(request) {
   }
 }
 
-function json(status, payload) {
+function json(status, payload, extraHeaders = {}) {
   return new Response(JSON.stringify(payload), {
     status,
-    headers
+    headers: { ...headers, ...extraHeaders }
   })
 }
 

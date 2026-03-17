@@ -2,6 +2,7 @@ import StockQuoteCard from '@/components/StockQuoteCard'
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card'
 import { toNoteList } from '@/lib/link'
 import { SecondaryPageLink } from '@/PageManager'
+import stockQuoteService from '@/services/stock-quote.service'
 import { useMemo, useState } from 'react'
 
 export function EmbeddedStockSymbol({ symbol }: { symbol: string }) {
@@ -14,6 +15,12 @@ export function EmbeddedStockSymbol({ symbol }: { symbol: string }) {
         <SecondaryPageLink
           to={toNoteList({ stockSymbol: normalizedSymbol })}
           className="inline rounded-sm px-0.5 font-medium text-left underline decoration-dotted underline-offset-4 hover:bg-muted/60"
+          onMouseEnter={() => {
+            void stockQuoteService.prefetchQuote(normalizedSymbol)
+          }}
+          onFocus={() => {
+            void stockQuoteService.prefetchQuote(normalizedSymbol)
+          }}
           onClick={(event) => event.stopPropagation()}
         >
           {symbol}

@@ -5,7 +5,8 @@ type TStockQuoteCacheEntry = {
   quote: TStockQuote
 }
 
-const STOCK_QUOTE_TTL_MS = 15 * 60 * 1000
+const STOCK_QUOTE_FRESH_TTL_MS = 15 * 60 * 1000
+const STOCK_QUOTE_STALE_TTL_MS = 24 * 60 * 60 * 1000
 const STOCK_QUOTE_STORAGE_KEY = 'x21:stock-quote-cache'
 const STOCK_QUOTE_STORAGE_MAX_ENTRIES = 100
 const STOCK_QUOTE_API_PATH = '/v1/stocks/quote'
@@ -32,11 +33,54 @@ class StockQuoteService {
       throw new Error('Invalid stock symbol')
     }
 
-    const cached = this.getCachedQuote(symbol)
-    if (cached) {
-      return cached
+    const freshEntry = this.getCachedEntry(symbol)
+    if (freshEntry) {
+      return freshEntry.quote
     }
 
+    const staleEntry = this.getCachedEntry(symbol, { allowStale: true })
+    const inflight = this.inflight.get(symbol)
+    if (inflight) {
+      return staleEntry?.quote ?? inflight
+    }
+
+    if (staleEntry) {
+      void this.refreshQuote(symbol).catch(() => undefined)
+      return staleEntry.quote
+    }
+
+    return this.refreshQuote(symbol)
+  }
+
+  peekQuote(rawSymbol: string, { allowStale = true }: { allowStale?: boolean } = {}) {
+    const symbol = normalizeStockSymbol(rawSymbol)
+    if (!isValidStockSymbol(symbol)) {
+      return null
+    }
+
+    return this.getCachedEntry(symbol, { allowStale })?.quote ?? null
+  }
+
+  prefetchQuote(rawSymbol: string) {
+    const symbol = normalizeStockSymbol(rawSymbol)
+    if (!isValidStockSymbol(symbol)) {
+      return Promise.resolve(null)
+    }
+
+    const freshEntry = this.getCachedEntry(symbol)
+    if (freshEntry) {
+      return Promise.resolve(freshEntry.quote)
+    }
+
+    const inflight = this.inflight.get(symbol)
+    if (inflight) {
+      return inflight
+    }
+
+    return this.refreshQuote(symbol).catch(() => this.peekQuote(symbol))
+  }
+
+  private refreshQuote(symbol: string) {
     const inflight = this.inflight.get(symbol)
     if (inflight) {
       return inflight
@@ -81,22 +125,22 @@ class StockQuoteService {
     }
   }
 
-  private getCachedQuote(symbol: string) {
+  private getCachedEntry(symbol: string, { allowStale = false }: { allowStale?: boolean } = {}) {
     const memoryEntry = this.cache.get(symbol)
-    if (memoryEntry && !isExpired(memoryEntry.fetchedAt)) {
-      return memoryEntry.quote
+    if (memoryEntry && !isExpired(memoryEntry.fetchedAt, allowStale)) {
+      return memoryEntry
     }
-    if (memoryEntry) {
+    if (memoryEntry && isExpired(memoryEntry.fetchedAt, true)) {
       this.cache.delete(symbol)
     }
 
     const storage = this.readStorage()
     const storageEntry = storage[symbol]
-    if (storageEntry && !isExpired(storageEntry.fetchedAt)) {
+    if (storageEntry && !isExpired(storageEntry.fetchedAt, allowStale)) {
       this.cache.set(symbol, storageEntry)
-      return storageEntry.quote
+      return storageEntry
     }
-    if (storageEntry) {
+    if (storageEntry && isExpired(storageEntry.fetchedAt, true)) {
       delete storage[symbol]
       this.writeStorage(storage)
     }
@@ -141,7 +185,7 @@ class StockQuoteService {
 
     try {
       const entries = Object.entries(storage)
-        .filter(([, entry]) => entry && !isExpired(entry.fetchedAt))
+        .filter(([, entry]) => entry && !isExpired(entry.fetchedAt, true))
         .sort((a, b) => b[1].fetchedAt - a[1].fetchedAt)
         .slice(0, STOCK_QUOTE_STORAGE_MAX_ENTRIES)
 
@@ -160,8 +204,8 @@ export function isValidStockSymbol(symbol: string) {
   return VALID_STOCK_SYMBOL_REGEX.test(symbol)
 }
 
-function isExpired(fetchedAt: number) {
-  return Date.now() - fetchedAt > STOCK_QUOTE_TTL_MS
+function isExpired(fetchedAt: number, allowStale = false) {
+  return Date.now() - fetchedAt > (allowStale ? STOCK_QUOTE_STALE_TTL_MS : STOCK_QUOTE_FRESH_TTL_MS)
 }
 
 const stockQuoteService = new StockQuoteService()

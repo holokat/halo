@@ -23,13 +23,17 @@ export default function StockQuoteCard({
   className?: string
 }) {
   const { t } = useTranslation()
-  const [state, setState] = useState<TStockQuoteState>({ status: 'idle' })
-  const requestIdRef = useRef(0)
   const normalizedSymbol = useMemo(() => symbol.replace(/^\$/, '').trim().toUpperCase(), [symbol])
+  const [state, setState] = useState<TStockQuoteState>(() => {
+    const cachedQuote = stockQuoteService.peekQuote(normalizedSymbol)
+    return cachedQuote ? { status: 'success', quote: cachedQuote } : { status: 'idle' }
+  })
+  const requestIdRef = useRef(0)
 
   useEffect(() => {
     requestIdRef.current += 1
-    setState({ status: 'idle' })
+    const cachedQuote = stockQuoteService.peekQuote(normalizedSymbol)
+    setState(cachedQuote ? { status: 'success', quote: cachedQuote } : { status: 'idle' })
   }, [normalizedSymbol])
 
   useEffect(() => {

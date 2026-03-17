@@ -150,12 +150,16 @@ function StockTrackerRow({
   onRemove: () => void
 }) {
   const { t } = useTranslation()
-  const [state, setState] = useState<TStockTrackerQuoteState>({ status: 'loading' })
+  const [state, setState] = useState<TStockTrackerQuoteState>(() => {
+    const cachedQuote = stockQuoteService.peekQuote(symbol)
+    return cachedQuote ? { status: 'success', quote: cachedQuote } : { status: 'loading' }
+  })
   const requestIdRef = useRef(0)
 
   useEffect(() => {
     const requestId = ++requestIdRef.current
-    setState({ status: 'loading' })
+    const cachedQuote = stockQuoteService.peekQuote(symbol)
+    setState(cachedQuote ? { status: 'success', quote: cachedQuote } : { status: 'loading' })
 
     stockQuoteService
       .getQuote(symbol)
