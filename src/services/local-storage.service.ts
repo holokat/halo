@@ -135,6 +135,7 @@ class LocalStorageService {
   private bitcoinTickerTextSize: 'large' | 'small' = 'large'
   private bitcoinTickerShowBlockHeight: boolean = false
   private bitcoinTickerShowSatsMode: boolean = false
+  private stockTrackerSymbols: string[] = []
   private zapSound: TZapSound = ZAP_SOUNDS.NONE
   private customFeeds: TCustomFeed[] = []
   private chargeZapEnabled: boolean = false
@@ -492,6 +493,11 @@ class LocalStorageService {
     )
     if (bitcoinTickerShowSatsMode !== null) {
       this.bitcoinTickerShowSatsMode = bitcoinTickerShowSatsMode === 'true'
+    }
+
+    const stockTrackerSymbols = getStorageJson<string[]>(StorageKey.STOCK_TRACKER_SYMBOLS, [])
+    if (Array.isArray(stockTrackerSymbols)) {
+      this.stockTrackerSymbols = stockTrackerSymbols.filter((symbol) => typeof symbol === 'string')
     }
 
     const zapSound = window.localStorage.getItem(StorageKey.ZAP_SOUND)
@@ -1236,6 +1242,15 @@ class LocalStorageService {
   setBitcoinTickerShowSatsMode(show: boolean) {
     this.bitcoinTickerShowSatsMode = show
     this.setBoolean(StorageKey.BITCOIN_TICKER_SHOW_SATS_MODE, show)
+  }
+
+  getStockTrackerSymbols() {
+    return this.stockTrackerSymbols
+  }
+
+  setStockTrackerSymbols(symbols: string[]) {
+    this.stockTrackerSymbols = symbols
+    this.setJson(StorageKey.STOCK_TRACKER_SYMBOLS, symbols)
   }
 
   getPinnedNoteWidgets() {

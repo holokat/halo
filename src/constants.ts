@@ -74,6 +74,7 @@ export const StorageKey = {
   BITCOIN_TICKER_TEXT_SIZE: 'bitcoinTickerTextSize',
   BITCOIN_TICKER_SHOW_BLOCK_HEIGHT: 'bitcoinTickerShowBlockHeight',
   BITCOIN_TICKER_SHOW_SATS_MODE: 'bitcoinTickerShowSatsMode',
+  STOCK_TRACKER_SYMBOLS: 'stockTrackerSymbols',
   COMPACT_SIDEBAR: 'compactSidebar',
   LOGO_STYLE: 'logoStyle',
   CUSTOM_LOGO_TEXT: 'customLogoText',

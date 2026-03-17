@@ -1,10 +1,16 @@
-import { StorageKey } from '@/constants'
 import localStorageService from '@/services/local-storage.service'
-import { TrendingUp, Bitcoin, Pin, MessageSquare, Sparkles, Users } from 'lucide-react'
+import { TrendingUp, Bitcoin, LineChart, Sparkles, Users } from 'lucide-react'
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react'
 import { TAIMessage } from '@/types'
+import { isValidStockSymbol, normalizeStockSymbol } from '@/services/stock-quote.service'
 
-export type TWidgetId = 'trending-notes' | 'bitcoin-ticker' | 'ai-prompt' | 'invite' | string // Allow dynamic pinned-note-* and ai-prompt-* IDs
+export type TWidgetId =
+  | 'trending-notes'
+  | 'bitcoin-ticker'
+  | 'stock-tracker'
+  | 'ai-prompt'
+  | 'invite'
+  | string // Allow dynamic pinned-note-* and ai-prompt-* IDs
 
 export type TTrendingNotesHeight = 'short' | 'medium' | 'tall' | 'remaining'
 
@@ -54,6 +60,13 @@ export const AVAILABLE_WIDGETS: TWidget[] = [
     icon: <TrendingUp className="h-5 w-5" />
   },
   {
+    id: 'stock-tracker',
+    name: 'Stock Tracker',
+    description: 'Track a compact watchlist of stock symbols in your sidebar',
+    defaultEnabled: false,
+    icon: <LineChart className="h-5 w-5" />
+  },
+  {
     id: 'ai-prompt',
     name: 'AI Prompt',
     description: 'Chat with AI about notes in your sidebar',
@@ -87,6 +100,9 @@ type TWidgetsContext = {
   setBitcoinTickerShowBlockHeight: (show: boolean) => void
   bitcoinTickerShowSatsMode: boolean
   setBitcoinTickerShowSatsMode: (show: boolean) => void
+  stockTrackerSymbols: string[]
+  addStockTrackerSymbol: (symbol: string) => void
+  removeStockTrackerSymbol: (symbol: string) => void
   pinnedNoteWidgets: TPinnedNoteWidget[]
   pinNoteWidget: (eventId: string) => string
   unpinNoteWidget: (widgetId: string) => void
@@ -145,6 +161,10 @@ export function WidgetsProvider({ children }: { children: ReactNode }) {
     return localStorageService.getBitcoinTickerShowSatsMode()
   })
 
+  const [stockTrackerSymbols, setStockTrackerSymbolsState] = useState<string[]>(() => {
+    return localStorageService.getStockTrackerSymbols()
+  })
+
   const [hideWidgetTitles, setHideWidgetTitlesState] = useState<boolean>(() => {
     return localStorageService.getHideWidgetTitles()
   })
@@ -184,6 +204,10 @@ export function WidgetsProvider({ children }: { children: ReactNode }) {
   }, [bitcoinTickerShowSatsMode])
 
   useEffect(() => {
+    localStorageService.setStockTrackerSymbols(stockTrackerSymbols)
+  }, [stockTrackerSymbols])
+
+  useEffect(() => {
     localStorageService.setHideWidgetTitles(hideWidgetTitles)
   }, [hideWidgetTitles])
 
@@ -209,6 +233,24 @@ export function WidgetsProvider({ children }: { children: ReactNode }) {
 
   const setBitcoinTickerShowSatsMode = (show: boolean) => {
     setBitcoinTickerShowSatsModeState(show)
+  }
+
+  const addStockTrackerSymbol = (rawSymbol: string) => {
+    const symbol = normalizeStockSymbol(rawSymbol)
+    if (!isValidStockSymbol(symbol)) {
+      return
+    }
+
+    setStockTrackerSymbolsState((prev) => (prev.includes(symbol) ? prev : [...prev, symbol]))
+  }
+
+  const removeStockTrackerSymbol = (rawSymbol: string) => {
+    const symbol = normalizeStockSymbol(rawSymbol)
+    if (!symbol) {
+      return
+    }
+
+    setStockTrackerSymbolsState((prev) => prev.filter((item) => item !== symbol))
   }
 
   const toggleWidget = (widgetId: TWidgetId) => {
@@ -368,6 +410,9 @@ export function WidgetsProvider({ children }: { children: ReactNode }) {
         setBitcoinTickerShowBlockHeight,
         bitcoinTickerShowSatsMode,
         setBitcoinTickerShowSatsMode,
+        stockTrackerSymbols,
+        addStockTrackerSymbol,
+        removeStockTrackerSymbol,
         pinnedNoteWidgets,
         pinNoteWidget,
         unpinNoteWidget,

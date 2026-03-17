@@ -10,6 +10,7 @@ const STOCK_QUOTE_STORAGE_KEY = 'x21:stock-quote-cache'
 const STOCK_QUOTE_STORAGE_MAX_ENTRIES = 100
 const STOCK_QUOTE_API_PATH = '/v1/stocks/quote'
 const STOCK_QUOTE_TIMEOUT_MS = 8000
+const VALID_STOCK_SYMBOL_REGEX = /^[A-Z][A-Z0-9.-]{0,9}$/
 
 class StockQuoteService {
   static instance: StockQuoteService
@@ -27,7 +28,7 @@ class StockQuoteService {
 
   async getQuote(rawSymbol: string): Promise<TStockQuote> {
     const symbol = normalizeStockSymbol(rawSymbol)
-    if (!symbol) {
+    if (!isValidStockSymbol(symbol)) {
       throw new Error('Invalid stock symbol')
     }
 
@@ -151,8 +152,12 @@ class StockQuoteService {
   }
 }
 
-function normalizeStockSymbol(rawSymbol: string) {
+export function normalizeStockSymbol(rawSymbol: string) {
   return rawSymbol.replace(/^\$/, '').trim().toUpperCase()
+}
+
+export function isValidStockSymbol(symbol: string) {
+  return VALID_STOCK_SYMBOL_REGEX.test(symbol)
 }
 
 function isExpired(fetchedAt: number) {
