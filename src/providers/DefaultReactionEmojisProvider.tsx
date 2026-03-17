@@ -4,6 +4,8 @@ import { createContext, ReactNode, useContext, useEffect, useState } from 'react
 const DEFAULT_REACTION_EMOJIS = ['👍', '❤️', '😂', '🥲', '👀', '🫡', '🫂']
 
 interface DefaultReactionEmojisContextType {
+  reactionOptionsEnabled: boolean
+  setReactionOptionsEnabled: (enabled: boolean) => void
   defaultReactionEmojis: string[]
   setDefaultReactionEmojis: (emojis: string[]) => void
   resetToDefault: () => void
@@ -14,9 +16,17 @@ const DefaultReactionEmojisContext = createContext<DefaultReactionEmojisContextT
 )
 
 export function DefaultReactionEmojisProvider({ children }: { children: ReactNode }) {
-  const [defaultReactionEmojis, setDefaultReactionEmojisState] = useState<string[]>(
-    () => localStorageService.getDefaultReactionEmojis()
+  const [reactionOptionsEnabled, setReactionOptionsEnabledState] = useState<boolean>(() =>
+    localStorageService.getReactionOptionsEnabled()
   )
+  const [defaultReactionEmojis, setDefaultReactionEmojisState] = useState<string[]>(() =>
+    localStorageService.getDefaultReactionEmojis()
+  )
+
+  const setReactionOptionsEnabled = (enabled: boolean) => {
+    setReactionOptionsEnabledState(enabled)
+    localStorageService.setReactionOptionsEnabled(enabled)
+  }
 
   const setDefaultReactionEmojis = (emojis: string[]) => {
     setDefaultReactionEmojisState(emojis)
@@ -29,6 +39,7 @@ export function DefaultReactionEmojisProvider({ children }: { children: ReactNod
 
   useEffect(() => {
     const handleStorageChange = () => {
+      setReactionOptionsEnabledState(localStorageService.getReactionOptionsEnabled())
       setDefaultReactionEmojisState(localStorageService.getDefaultReactionEmojis())
     }
 
@@ -38,7 +49,13 @@ export function DefaultReactionEmojisProvider({ children }: { children: ReactNod
 
   return (
     <DefaultReactionEmojisContext.Provider
-      value={{ defaultReactionEmojis, setDefaultReactionEmojis, resetToDefault }}
+      value={{
+        reactionOptionsEnabled,
+        setReactionOptionsEnabled,
+        defaultReactionEmojis,
+        setDefaultReactionEmojis,
+        resetToDefault
+      }}
     >
       {children}
     </DefaultReactionEmojisContext.Provider>

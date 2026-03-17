@@ -9,6 +9,7 @@ import { ACTUAL_ZAP_SOUNDS, ZAP_SOUNDS } from '@/constants'
 import { useNoteStatsById } from '@/hooks/useNoteStatsById'
 import { getLightningAddressFromProfile } from '@/lib/lightning'
 import { useNostr } from '@/providers/NostrProvider'
+import { useDefaultReactionEmojis } from '@/providers/DefaultReactionEmojisProvider'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import { useUserTrust } from '@/providers/UserTrustProvider'
 import { useZap } from '@/providers/ZapProvider'
@@ -16,7 +17,7 @@ import client from '@/services/client.service'
 import lightning from '@/services/lightning.service'
 import noteStatsService from '@/services/note-stats.service'
 import { TEmoji } from '@/types'
-import { Loader, SmilePlus } from 'lucide-react'
+import { Heart, Loader } from 'lucide-react'
 import { Event } from 'nostr-tools'
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -47,8 +48,10 @@ export default function LikeButton({ event }: { event: Event }) {
   const { t } = useTranslation()
   const { isSmallScreen } = useScreenSize()
   const { pubkey, signEvent, checkLogin } = useNostr()
+  const { reactionOptionsEnabled } = useDefaultReactionEmojis()
   const { hideUntrustedInteractions, isUserTrustedForInteractions } = useUserTrust()
-  const { zapOnReactions, defaultZapSats, defaultZapComment, zapSound, isWalletConnected } = useZap()
+  const { zapOnReactions, defaultZapSats, defaultZapComment, zapSound, isWalletConnected } =
+    useZap()
   const [liking, setLiking] = useState(false)
   const [isEmojiReactionsOpen, setIsEmojiReactionsOpen] = useState(false)
   const [isPickerOpen, setIsPickerOpen] = useState(false)
@@ -155,6 +158,11 @@ export default function LikeButton({ event }: { event: Event }) {
       title={t('Like')}
       disabled={liking}
       onClick={() => {
+        if (!reactionOptionsEnabled) {
+          void like('❤️')
+          return
+        }
+
         if (isSmallScreen) {
           setIsEmojiReactionsOpen(true)
         }
@@ -167,16 +175,34 @@ export default function LikeButton({ event }: { event: Event }) {
       ) : myLastEmoji ? (
         <>
           <Emoji emoji={myLastEmoji} classNames={{ img: 'size-4', text: 'text-base' }} />
-          {!!likeCount && <div className="text-sm ml-1" aria-label={`${likeCount} ${likeCount === 1 ? t('reaction') : t('reactions')}`}>{formatCount(likeCount)}</div>}
+          {!!likeCount && (
+            <div
+              className="text-sm ml-1"
+              aria-label={`${likeCount} ${likeCount === 1 ? t('reaction') : t('reactions')}`}
+            >
+              {formatCount(likeCount)}
+            </div>
+          )}
         </>
       ) : (
         <>
-          <SmilePlus aria-hidden="true" />
-          {!!likeCount && <div className="text-sm ml-1" aria-label={`${likeCount} ${likeCount === 1 ? t('reaction') : t('reactions')}`}>{formatCount(likeCount)}</div>}
+          <Heart aria-hidden="true" />
+          {!!likeCount && (
+            <div
+              className="text-sm ml-1"
+              aria-label={`${likeCount} ${likeCount === 1 ? t('reaction') : t('reactions')}`}
+            >
+              {formatCount(likeCount)}
+            </div>
+          )}
         </>
       )}
     </button>
   )
+
+  if (!reactionOptionsEnabled) {
+    return trigger
+  }
 
   if (isSmallScreen) {
     return (

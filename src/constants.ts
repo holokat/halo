@@ -115,6 +115,7 @@ export const StorageKey = {
   LOW_BANDWIDTH_MODE: 'lowBandwidthMode',
   DISABLE_AVATAR_ANIMATIONS: 'disableAvatarAnimations',
   DEFAULT_REACTION_EMOJIS: 'defaultReactionEmojis',
+  REACTION_OPTIONS_ENABLED: 'reactionOptionsEnabled',
   COLLAPSE_LONG_NOTES: 'collapseLongNotes',
   ALWAYS_SHOW_FULL_MEDIA: 'alwaysShowFullMedia',
   MEDIA_UPLOAD_SERVICE: 'mediaUploadService', // deprecated

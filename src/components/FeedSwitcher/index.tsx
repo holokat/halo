@@ -1,21 +1,33 @@
 import { toRelaySettings } from '@/lib/link'
-import { simplifyUrl } from '@/lib/url'
+import { isWebsocketUrl, normalizeUrl, simplifyUrl } from '@/lib/url'
 import { SecondaryPageLink } from '@/PageManager'
 import { useCustomFeeds } from '@/providers/CustomFeedsProvider'
 import { useFavoriteRelays } from '@/providers/FavoriteRelaysProvider'
 import { useFeed } from '@/providers/FeedProvider'
 import { useNostr } from '@/providers/NostrProvider'
-import { BookmarkIcon, Hash, Highlighter, Search, Trash2, UserRound, UsersRound } from 'lucide-react'
+import {
+  BookmarkIcon,
+  Hash,
+  Highlighter,
+  Loader2,
+  Pin,
+  Search,
+  Trash2,
+  UserRound,
+  UsersRound
+} from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import PinButton from '../PinButton'
 import { Button } from '../ui/button'
+import { Input } from '../ui/input'
 import RelayIcon from '../RelayIcon'
 import RelaySetCard from '../RelaySetCard'
 
 export default function FeedSwitcher({ close }: { close?: () => void }) {
   const { t } = useTranslation()
   const { pubkey } = useNostr()
-  const { relaySets, favoriteRelays } = useFavoriteRelays()
+  const { relaySets, favoriteRelays, addFavoriteRelays } = useFavoriteRelays()
   const { feedInfo, switchFeed } = useFeed()
   const { customFeeds, removeCustomFeed } = useCustomFeeds()
 
@@ -104,6 +116,19 @@ export default function FeedSwitcher({ close }: { close?: () => void }) {
           </div>
         </FeedSwitcherItem>
       )}
+
+      <QuickRelayInput
+        close={close}
+        favoriteRelays={favoriteRelays}
+        pubkey={pubkey}
+        activeRelay={feedInfo.feedType === 'relay' ? feedInfo.id : undefined}
+        onOpenRelay={async (relay) => {
+          await switchFeed('relay', { relay })
+        }}
+        onSaveRelay={async (relay) => {
+          await addFavoriteRelays([relay])
+        }}
+      />
 
       {customFeeds.length > 0 && (
         <>
@@ -203,6 +228,121 @@ export default function FeedSwitcher({ close }: { close?: () => void }) {
           </div>
         </FeedSwitcherItem>
       ))}
+    </div>
+  )
+}
+
+function QuickRelayInput({
+  close,
+  favoriteRelays,
+  pubkey,
+  activeRelay,
+  onOpenRelay,
+  onSaveRelay
+}: {
+  close?: () => void
+  favoriteRelays: string[]
+  pubkey?: string | null
+  activeRelay?: string
+  onOpenRelay: (relay: string) => Promise<void>
+  onSaveRelay: (relay: string) => Promise<void>
+}) {
+  const { t } = useTranslation()
+  const [input, setInput] = useState('')
+  const [errorMsg, setErrorMsg] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+
+  useEffect(() => {
+    if (!activeRelay || favoriteRelays.includes(activeRelay)) return
+    setInput((currentInput) => currentInput || activeRelay)
+  }, [activeRelay, favoriteRelays])
+
+  const normalizedRelay = useMemo(() => normalizeUrl(input.trim()), [input])
+  const isValidRelay = !!normalizedRelay && isWebsocketUrl(normalizedRelay)
+  const isSavedRelay = isValidRelay && favoriteRelays.includes(normalizedRelay)
+
+  const resolveRelay = () => {
+    if (!isValidRelay) {
+      setErrorMsg(t('Invalid URL'))
+      return null
+    }
+    return normalizedRelay
+  }
+
+  const handleOpenRelay = async () => {
+    const relay = resolveRelay()
+    if (!relay) return
+
+    setErrorMsg('')
+    await onOpenRelay(relay)
+    setInput(relay)
+    close?.()
+  }
+
+  const handleSaveRelay = async () => {
+    const relay = resolveRelay()
+    if (!relay || isSavedRelay || !pubkey) return
+
+    setErrorMsg('')
+    setIsSaving(true)
+
+    try {
+      await onSaveRelay(relay)
+      await onOpenRelay(relay)
+      setInput(relay)
+      close?.()
+    } catch (error) {
+      setErrorMsg((error as Error).message || t('Failed to save relay'))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const helperText = isSavedRelay
+    ? t('Already saved')
+    : pubkey
+      ? t('Open now or save it to this dropdown')
+      : t('Open a relay directly')
+
+  return (
+    <div className="rounded-lg border px-3 py-3 space-y-2">
+      <div className="text-xs font-semibold">{t('Browse relay')}</div>
+      <div className="flex gap-2 items-center">
+        <Input
+          placeholder={t('Add relay source URL (wss://...)')}
+          value={input}
+          onChange={(event) => {
+            setInput(event.target.value)
+            setErrorMsg('')
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault()
+              void handleOpenRelay()
+            }
+          }}
+          className={errorMsg ? 'border-destructive' : ''}
+        />
+        <Button onClick={() => void handleOpenRelay()} disabled={!input.trim()}>
+          {t('Open')}
+        </Button>
+      </div>
+      <div className="flex items-center justify-between gap-2 min-h-5">
+        <div className="text-xs text-muted-foreground truncate">{helperText}</div>
+        {pubkey && !isSavedRelay && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+            onClick={() => void handleSaveRelay()}
+            disabled={!isValidRelay || isSaving}
+          >
+            {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Pin className="size-4" />}
+            {t('Save')}
+          </Button>
+        )}
+      </div>
+      {errorMsg && <div className="text-destructive text-sm">{errorMsg}</div>}
     </div>
   )
 }

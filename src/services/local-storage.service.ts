@@ -53,7 +53,10 @@ import {
   TLogoStyle
 } from '@/types'
 import { TMenuItemConfig } from '@/constants/menu-items'
-import { getDefaultMenuItems, mergeMenuItemsWithDefaults } from '@/services/local-storage/menu-items'
+import {
+  getDefaultMenuItems,
+  mergeMenuItemsWithDefaults
+} from '@/services/local-storage/menu-items'
 import {
   getStorageItem,
   getStorageJson,
@@ -149,6 +152,7 @@ class LocalStorageService {
   private textOnlyMode: boolean = false
   private lowBandwidthMode: boolean = false
   private disableAvatarAnimations: boolean = false
+  private reactionOptionsEnabled: boolean = false
   private defaultReactionEmojis: string[] = ['👍', '❤️', '😂', '🥲', '👀', '🫡', '🫂']
 
   constructor() {
@@ -367,7 +371,11 @@ class LocalStorageService {
     }
 
     const postButtonStyle = window.localStorage.getItem(StorageKey.POST_BUTTON_STYLE)
-    if (postButtonStyle && (postButtonStyle === POST_BUTTON_STYLE.FILLED || postButtonStyle === POST_BUTTON_STYLE.OUTLINED)) {
+    if (
+      postButtonStyle &&
+      (postButtonStyle === POST_BUTTON_STYLE.FILLED ||
+        postButtonStyle === POST_BUTTON_STYLE.OUTLINED)
+    ) {
       this.postButtonStyle = postButtonStyle as TPostButtonStyle
     }
 
@@ -395,8 +403,7 @@ class LocalStorageService {
     this.trendingNotesDismissed =
       window.localStorage.getItem(StorageKey.TRENDING_NOTES_DISMISSED) === 'true'
 
-    this.compactSidebar =
-      window.localStorage.getItem(StorageKey.COMPACT_SIDEBAR) === 'true'
+    this.compactSidebar = window.localStorage.getItem(StorageKey.COMPACT_SIDEBAR) === 'true'
 
     const logoStyle = window.localStorage.getItem(StorageKey.LOGO_STYLE)
     if (logoStyle && ['image', 'text'].includes(logoStyle)) {
@@ -456,7 +463,10 @@ class LocalStorageService {
     window.localStorage.removeItem(StorageKey.AI_PROMPT_WIDGETS)
 
     const trendingNotesHeight = window.localStorage.getItem(StorageKey.TRENDING_NOTES_HEIGHT)
-    if (trendingNotesHeight && ['short', 'medium', 'tall', 'remaining'].includes(trendingNotesHeight)) {
+    if (
+      trendingNotesHeight &&
+      ['short', 'medium', 'tall', 'remaining'].includes(trendingNotesHeight)
+    ) {
       this.trendingNotesHeight = trendingNotesHeight as 'short' | 'medium' | 'tall' | 'remaining'
     }
 
@@ -470,12 +480,16 @@ class LocalStorageService {
       this.bitcoinTickerTextSize = bitcoinTickerTextSize as 'large' | 'small'
     }
 
-    const bitcoinTickerShowBlockHeight = window.localStorage.getItem(StorageKey.BITCOIN_TICKER_SHOW_BLOCK_HEIGHT)
+    const bitcoinTickerShowBlockHeight = window.localStorage.getItem(
+      StorageKey.BITCOIN_TICKER_SHOW_BLOCK_HEIGHT
+    )
     if (bitcoinTickerShowBlockHeight !== null) {
       this.bitcoinTickerShowBlockHeight = bitcoinTickerShowBlockHeight === 'true'
     }
 
-    const bitcoinTickerShowSatsMode = window.localStorage.getItem(StorageKey.BITCOIN_TICKER_SHOW_SATS_MODE)
+    const bitcoinTickerShowSatsMode = window.localStorage.getItem(
+      StorageKey.BITCOIN_TICKER_SHOW_SATS_MODE
+    )
     if (bitcoinTickerShowSatsMode !== null) {
       this.bitcoinTickerShowSatsMode = bitcoinTickerShowSatsMode === 'true'
     }
@@ -510,7 +524,8 @@ class LocalStorageService {
 
     this.lowBandwidthMode = window.localStorage.getItem(StorageKey.LOW_BANDWIDTH_MODE) === 'true'
 
-    this.disableAvatarAnimations = window.localStorage.getItem(StorageKey.DISABLE_AVATAR_ANIMATIONS) === 'true'
+    this.disableAvatarAnimations =
+      window.localStorage.getItem(StorageKey.DISABLE_AVATAR_ANIMATIONS) === 'true'
 
     const distractionFreeMode = window.localStorage.getItem(StorageKey.DISTRACTION_FREE_MODE)
     if (
@@ -595,6 +610,9 @@ class LocalStorageService {
         // Keep default
       }
     }
+
+    this.reactionOptionsEnabled =
+      window.localStorage.getItem(StorageKey.REACTION_OPTIONS_ENABLED) === 'true'
 
     // Clean up deprecated data
     window.localStorage.removeItem(StorageKey.ACCOUNT_PROFILE_EVENT_MAP)
@@ -1252,7 +1270,12 @@ class LocalStorageService {
     this.setJson(StorageKey.LIVE_STREAM_WIDGETS, widgets)
   }
 
-  addLiveStreamWidget(payload: { naddr: string; streamingUrl: string; title: string; image?: string }) {
+  addLiveStreamWidget(payload: {
+    naddr: string
+    streamingUrl: string
+    title: string
+    image?: string
+  }) {
     const id = `live-stream-${Date.now()}`
     this.liveStreamWidgets.push({ id, ...payload })
     this.setJson(StorageKey.LIVE_STREAM_WIDGETS, this.liveStreamWidgets)
@@ -1335,9 +1358,11 @@ class LocalStorageService {
   }
 
   getAIServiceConfig(pubkey?: string | null): TAIServiceConfig {
-    return this.aiServiceConfigMap[pubkey ?? '_'] ?? {
-      provider: 'openrouter'
-    }
+    return (
+      this.aiServiceConfigMap[pubkey ?? '_'] ?? {
+        provider: 'openrouter'
+      }
+    )
   }
 
   setAIServiceConfig(config: TAIServiceConfig, pubkey?: string | null) {
@@ -1546,6 +1571,15 @@ class LocalStorageService {
   setDefaultReactionEmojis(emojis: string[]) {
     this.defaultReactionEmojis = emojis
     this.setJson(StorageKey.DEFAULT_REACTION_EMOJIS, emojis)
+  }
+
+  getReactionOptionsEnabled() {
+    return this.reactionOptionsEnabled
+  }
+
+  setReactionOptionsEnabled(enabled: boolean) {
+    this.reactionOptionsEnabled = enabled
+    this.setBoolean(StorageKey.REACTION_OPTIONS_ENABLED, enabled)
   }
 }
 
