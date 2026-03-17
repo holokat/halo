@@ -459,12 +459,6 @@ export function PageManager({ maxStackSize = 5 }: { maxStackSize?: number }) {
                   <HomePageWrapper
                     secondaryStackLength={secondaryStack.length}
                     widgetSidebarDismissed={widgetSidebarDismissed}
-                    flattenTopCorners={
-                      !!secondaryStack.length &&
-                      new URLSearchParams(
-                        secondaryStack[secondaryStack.length - 1].url.split('?')[1] ?? ''
-                      ).has('stock')
-                    }
                   >
                     {secondaryStack.map((item, index) => (
                       <div
@@ -575,13 +569,11 @@ function pushNewPageToStack(
 function HomePageWrapper({
   children,
   secondaryStackLength,
-  widgetSidebarDismissed,
-  flattenTopCorners = false
+  widgetSidebarDismissed
 }: {
   children: ReactNode
   secondaryStackLength: number
   widgetSidebarDismissed: boolean
-  flattenTopCorners?: boolean
 }) {
   const { pageTheme } = usePageTheme()
 
@@ -602,11 +594,7 @@ function HomePageWrapper({
         pageTheme === 'pure-black' && !isHomePage && !isDismissed && 'border border-neutral-900',
         pageTheme === 'white' && !isHomePage && !isDismissed && 'border border-border'
       )}
-      style={{
-        borderRadius: 'var(--card-radius, 8px)',
-        borderTopLeftRadius: flattenTopCorners ? 0 : undefined,
-        borderTopRightRadius: flattenTopCorners ? 0 : undefined
-      }}
+      style={{ borderRadius: 'var(--card-radius, 8px)' }}
     >
       {children}
     </div>
