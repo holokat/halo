@@ -47,7 +47,7 @@ export default function LikeButton({ event }: { event: Event }) {
   const { t } = useTranslation()
   const { isSmallScreen } = useScreenSize()
   const { pubkey, signEvent, checkLogin } = useNostr()
-  const { hideUntrustedInteractions, isUserTrusted } = useUserTrust()
+  const { hideUntrustedInteractions, isUserTrustedForInteractions } = useUserTrust()
   const { zapOnReactions, defaultZapSats, defaultZapComment, zapSound, isWalletConnected } = useZap()
   const [liking, setLiking] = useState(false)
   const [isEmojiReactionsOpen, setIsEmojiReactionsOpen] = useState(false)
@@ -65,10 +65,10 @@ export default function LikeButton({ event }: { event: Event }) {
       return latest
     }, undefined)
     const likes = hideUntrustedInteractions
-      ? stats.likes?.filter((like) => isUserTrusted(like.pubkey))
+      ? stats.likes?.filter((like) => isUserTrustedForInteractions(like.pubkey))
       : stats.likes
     return { myLastEmoji: myLike?.emoji, likeCount: likes?.length }
-  }, [noteStats, pubkey, hideUntrustedInteractions, isUserTrusted])
+  }, [noteStats, pubkey, hideUntrustedInteractions, isUserTrustedForInteractions])
 
   useEffect(() => {
     if (!zapOnReactions || !isWalletConnected) {

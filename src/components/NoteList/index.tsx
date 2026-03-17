@@ -171,10 +171,10 @@ const NoteList = forwardRef(
       ]
     )
 
-    const filteredEvents = useMemo(() => {
+    const visibleEvents = useMemo(() => {
       const idSet = new Set<string>()
 
-      return events.slice(0, showCount).filter((evt) => {
+      return events.filter((evt) => {
         if (shouldHideEvent(evt)) return false
 
         const id = isReplaceableEvent(evt.kind) ? getReplaceableCoordinateFromEvent(evt) : evt.id
@@ -184,7 +184,11 @@ const NoteList = forwardRef(
         idSet.add(id)
         return true
       })
-    }, [events, showCount, shouldHideEvent])
+    }, [events, shouldHideEvent])
+    const filteredEvents = useMemo(
+      () => visibleEvents.slice(0, showCount),
+      [visibleEvents, showCount]
+    )
 
     const filteredNewEvents = useMemo(() => {
       const idSet = new Set<string>()
@@ -327,10 +331,10 @@ const NoteList = forwardRef(
       }
 
       const loadMore = async () => {
-        if (showCount < events.length) {
+        const remainingVisibleEvents = visibleEvents.length - showCount
+        if (remainingVisibleEvents > 0) {
           setShowCount((prev) => prev + showCountIncrement)
-          // preload more
-          if (events.length - showCount > LIMIT / 2) {
+          if (remainingVisibleEvents > showCountIncrement) {
             return
           }
         }
@@ -367,7 +371,7 @@ const NoteList = forwardRef(
           observerInstance.unobserve(currentBottomRef)
         }
       }
-    }, [loading, hasMore, events, showCount, timelineKey])
+    }, [loading, hasMore, events, showCount, showCountIncrement, timelineKey, visibleEvents.length])
 
     const showNewEvents = () => {
       setEvents((oldEvents) => [...newEvents, ...oldEvents])

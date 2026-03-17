@@ -2,6 +2,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { useNoteStatsById } from '@/hooks/useNoteStatsById'
 import { cn } from '@/lib/utils'
 import { useNostr } from '@/providers/NostrProvider'
+import { useUserTrust } from '@/providers/UserTrustProvider'
 import { TEmoji } from '@/types'
 import { Loader } from 'lucide-react'
 import { Event } from 'nostr-tools'
@@ -11,6 +12,7 @@ import { beginOptimisticReaction } from './reaction'
 
 export default function Likes({ event }: { event: Event }) {
   const { pubkey, checkLogin, signEvent } = useNostr()
+  const { hideUntrustedInteractions, isUserTrustedForInteractions } = useUserTrust()
   const noteStats = useNoteStatsById(event.id)
   const [liking, setLiking] = useState<string | null>(null)
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -19,11 +21,14 @@ export default function Likes({ event }: { event: Event }) {
   const [isCompleted, setIsCompleted] = useState<string | null>(null)
 
   const likes = useMemo(() => {
-    const _likes = noteStats?.likes
-    if (!_likes) return []
+    const trustedLikes = hideUntrustedInteractions
+      ? noteStats?.likes?.filter((item) => isUserTrustedForInteractions(item.pubkey))
+      : noteStats?.likes
+
+    if (!trustedLikes) return []
 
     const stats = new Map<string, { key: string; emoji: TEmoji | string; pubkeys: Set<string> }>()
-    _likes.forEach((item) => {
+    trustedLikes.forEach((item) => {
       const key = typeof item.emoji === 'string' ? item.emoji : item.emoji.url
       if (!stats.has(key)) {
         stats.set(key, { key, pubkeys: new Set(), emoji: item.emoji })
@@ -31,7 +36,7 @@ export default function Likes({ event }: { event: Event }) {
       stats.get(key)?.pubkeys.add(item.pubkey)
     })
     return Array.from(stats.values()).sort((a, b) => b.pubkeys.size - a.pubkeys.size)
-  }, [noteStats, event])
+  }, [noteStats, hideUntrustedInteractions, isUserTrustedForInteractions])
 
   if (!likes.length) return null
 

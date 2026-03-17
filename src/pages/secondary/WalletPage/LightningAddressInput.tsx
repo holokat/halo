@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createProfileDraftEvent } from '@/lib/draft-event'
+import { isLnurl, normalizeLightningAddress } from '@/lib/lightning'
 import { isEmail } from '@/lib/utils'
 import { useNostr } from '@/providers/NostrProvider'
 import { Loader } from 'lucide-react'
@@ -29,16 +30,19 @@ export default function LightningAddressInput() {
   const handleSave = async () => {
     setSaving(true)
     const profileContent = profileEvent ? JSON.parse(profileEvent.content) : {}
-    if (lightningAddress.startsWith('lnurl')) {
-      profileContent.lud06 = lightningAddress
-    } else if (isEmail(lightningAddress)) {
-      profileContent.lud16 = lightningAddress
-    } else if (lightningAddress) {
+    const normalizedLightningAddress = normalizeLightningAddress(lightningAddress)
+
+    delete profileContent.lud16
+    delete profileContent.lud06
+
+    if (isLnurl(normalizedLightningAddress)) {
+      profileContent.lud06 = normalizedLightningAddress
+    } else if (isEmail(normalizedLightningAddress)) {
+      profileContent.lud16 = normalizedLightningAddress
+    } else if (normalizedLightningAddress) {
       toast.error(t('Invalid Lightning Address. Please enter a valid Lightning Address or LNURL.'))
       setSaving(false)
       return
-    } else {
-      delete profileContent.lud16
     }
 
     const profileDraftEvent = createProfileDraftEvent(

@@ -18,13 +18,13 @@ export default function RepostList({ event }: { event: Event }) {
   const { t } = useTranslation()
   const { push } = useSecondaryPage()
   const { isSmallScreen } = useScreenSize()
-  const { hideUntrustedInteractions, isUserTrusted } = useUserTrust()
+  const { hideUntrustedInteractions, isUserTrustedForInteractions } = useUserTrust()
   const noteStats = useNoteStatsById(event.id)
   const filteredReposts = useMemo(() => {
     return (noteStats?.reposts ?? [])
-      .filter((repost) => !hideUntrustedInteractions || isUserTrusted(repost.pubkey))
+      .filter((repost) => !hideUntrustedInteractions || isUserTrustedForInteractions(repost.pubkey))
       .sort((a, b) => b.created_at - a.created_at)
-  }, [noteStats, event.id, hideUntrustedInteractions, isUserTrusted])
+  }, [noteStats, event.id, hideUntrustedInteractions, isUserTrustedForInteractions])
 
   const [showCount, setShowCount] = useState(SHOW_COUNT)
   const bottomRef = useRef<HTMLDivElement | null>(null)

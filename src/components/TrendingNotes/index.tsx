@@ -21,10 +21,10 @@ export default function TrendingNotes({ showHeader = true }: { showHeader?: bool
   const [showCount, setShowCount] = useState(10)
   const [loading, setLoading] = useState(true)
   const bottomRef = useRef<HTMLDivElement>(null)
-  const filteredEvents = useMemo(() => {
+  const visibleEvents = useMemo(() => {
     const idSet = new Set<string>()
 
-    return trendingNotes.slice(0, showCount).filter((evt) => {
+    return trendingNotes.filter((evt) => {
       if (isEventDeleted(evt)) return false
       if (mutePubkeySet.has(evt.pubkey)) return false
       if (hideUntrustedNotes && !isUserTrusted(evt.pubkey)) return false
@@ -36,7 +36,8 @@ export default function TrendingNotes({ showHeader = true }: { showHeader?: bool
       idSet.add(id)
       return true
     })
-  }, [trendingNotes, hideUntrustedNotes, isEventDeleted, isUserTrusted, mutePubkeySet, showCount])
+  }, [trendingNotes, hideUntrustedNotes, isEventDeleted, isUserTrusted, mutePubkeySet])
+  const filteredEvents = useMemo(() => visibleEvents.slice(0, showCount), [visibleEvents, showCount])
 
   useEffect(() => {
     const fetchTrendingPosts = async () => {
@@ -51,7 +52,7 @@ export default function TrendingNotes({ showHeader = true }: { showHeader?: bool
   }, [])
 
   useEffect(() => {
-    if (showCount >= trendingNotes.length) return
+    if (showCount >= visibleEvents.length) return
 
     const options = {
       root: null,
@@ -76,7 +77,7 @@ export default function TrendingNotes({ showHeader = true }: { showHeader?: bool
         observerInstance.unobserve(currentBottomRef)
       }
     }
-  }, [loading, trendingNotes, showCount])
+  }, [loading, visibleEvents.length, showCount])
 
   return (
     <div className="min-h-screen">
@@ -88,7 +89,7 @@ export default function TrendingNotes({ showHeader = true }: { showHeader?: bool
       {filteredEvents.map((event) => (
         <NoteCard key={event.id} className="w-full" event={event} />
       ))}
-      {showCount < trendingNotes.length || loading ? (
+      {showCount < visibleEvents.length || loading ? (
         <div ref={bottomRef}>
           <NoteCardLoadingSkeleton />
         </div>

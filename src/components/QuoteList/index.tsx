@@ -5,7 +5,7 @@ import { useUserTrust } from '@/providers/UserTrustProvider'
 import client from '@/services/client.service'
 import dayjs from 'dayjs'
 import { Event, kinds } from 'nostr-tools'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import NoteCard, { NoteCardLoadingSkeleton } from '../NoteCard'
 
@@ -15,13 +15,21 @@ const SHOW_COUNT = 10
 export default function QuoteList({ event, className }: { event: Event; className?: string }) {
   const { t } = useTranslation()
   const { startLogin } = useNostr()
-  const { hideUntrustedInteractions, isUserTrusted } = useUserTrust()
+  const { hideUntrustedInteractions, isUserTrustedForInteractions } = useUserTrust()
   const [timelineKey, setTimelineKey] = useState<string | undefined>(undefined)
   const [events, setEvents] = useState<Event[]>([])
   const [showCount, setShowCount] = useState(SHOW_COUNT)
   const [hasMore, setHasMore] = useState<boolean>(true)
   const [loading, setLoading] = useState(true)
   const bottomRef = useRef<HTMLDivElement | null>(null)
+  const visibleEvents = useMemo(
+    () =>
+      events.filter(
+        (quoteEvent) =>
+          !hideUntrustedInteractions || isUserTrustedForInteractions(quoteEvent.pubkey)
+      ),
+    [events, hideUntrustedInteractions, isUserTrustedForInteractions]
+  )
 
   useEffect(() => {
     async function init() {
@@ -89,10 +97,10 @@ export default function QuoteList({ event, className }: { event: Event; classNam
     }
 
     const loadMore = async () => {
-      if (showCount < events.length) {
+      const remainingVisibleEvents = visibleEvents.length - showCount
+      if (remainingVisibleEvents > 0) {
         setShowCount((prev) => prev + SHOW_COUNT)
-        // preload more
-        if (events.length - showCount > LIMIT / 2) {
+        if (remainingVisibleEvents > SHOW_COUNT) {
           return
         }
       }
@@ -129,18 +137,15 @@ export default function QuoteList({ event, className }: { event: Event; classNam
         observerInstance.unobserve(currentBottomRef)
       }
     }
-  }, [timelineKey, loading, hasMore, events, showCount])
+  }, [timelineKey, loading, hasMore, events, showCount, visibleEvents.length])
 
   return (
     <div className={className}>
       <div className="min-h-[80vh]">
         <div>
-          {events.slice(0, showCount).map((event) => {
-            if (hideUntrustedInteractions && !isUserTrusted(event.pubkey)) {
-              return null
-            }
-            return <NoteCard key={event.id} className="w-full" event={event} />
-          })}
+          {visibleEvents.slice(0, showCount).map((quoteEvent) => (
+            <NoteCard key={quoteEvent.id} className="w-full" event={quoteEvent} />
+          ))}
         </div>
         {hasMore || loading ? (
           <div ref={bottomRef}>

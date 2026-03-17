@@ -1,5 +1,10 @@
-import { BIG_RELAY_URLS, CODY_PUBKEY, JUMBLE_PUBKEY } from '@/constants'
+import { BIG_RELAY_URLS, CODY_PUBKEY, JUMBLE_API_BASE_URL, JUMBLE_PUBKEY } from '@/constants'
 import { getZapInfoFromEvent } from '@/lib/event-metadata'
+import {
+  getLightningAddressCandidatesFromProfile,
+  isLnurl,
+  normalizeLightningAddress
+} from '@/lib/lightning'
 import { TProfile } from '@/types'
 import { init, launchPaymentModal } from '@getalby/bitcoin-connect-react'
 import { Invoice } from '@getalby/lightning-tools'
@@ -68,20 +73,27 @@ class LightningService {
       event = recipientOrEventOrCoordinate
     }
 
-    const [profile, receiptRelayList, senderRelayList] = await Promise.all([
-      client.fetchProfile(recipient, true),
+    const [freshProfile, cachedProfile, receiptRelayList, senderRelayList] = await Promise.all([
+      client.fetchProfile(recipient, true).catch(() => undefined),
+      client.fetchProfile(recipient).catch(() => undefined),
       client.fetchRelayList(recipient),
       sender
         ? client.fetchRelayList(sender)
         : Promise.resolve({ read: BIG_RELAY_URLS, write: BIG_RELAY_URLS })
     ])
+    const profile =
+      [freshProfile, cachedProfile].find(
+        (item): item is TProfile => {
+          if (!item) return false
+          return getLightningAddressCandidatesFromProfile(item).length > 0
+        }
+      ) ??
+      freshProfile ??
+      cachedProfile
     if (!profile) {
       throw new Error('Recipient not found')
     }
     const zapEndpoint = await this.getZapEndpoint(profile)
-    if (!zapEndpoint) {
-      throw new Error("Recipient's lightning address is invalid")
-    }
     const { callback, lnurl } = zapEndpoint
     const amount = sats * 1000
     const zapRequestDraft = makeZapRequest({
@@ -231,41 +243,136 @@ class LightningService {
     return this.recentSupportersCache
   }
 
-  private async getZapEndpoint(profile: TProfile): Promise<null | {
+  private async getZapEndpoint(profile: TProfile): Promise<{
     callback: string
     lnurl: string
   }> {
-    try {
-      let lnurl: string = ''
-
-      // Some clients have incorrectly filled in the positions for lud06 and lud16
-      if (!profile.lightningAddress) {
-        return null
-      }
-
-      if (profile.lightningAddress.includes('@')) {
-        const [name, domain] = profile.lightningAddress.split('@')
-        lnurl = new URL(`/.well-known/lnurlp/${name}`, `https://${domain}`).toString()
-      } else {
-        const { words } = bech32.decode(profile.lightningAddress as any, 1000)
-        const data = bech32.fromWords(words)
-        lnurl = utf8Decoder.decode(data)
-      }
-
-      const res = await fetch(lnurl)
-      const body = await res.json()
-
-      if (body.allowsNostr && body.nostrPubkey) {
-        return {
-          callback: body.callback,
-          lnurl
-        }
-      }
-    } catch (err) {
-      console.error(err)
+    const candidates = getLightningAddressCandidatesFromProfile(profile)
+    if (!candidates.length) {
+      throw new Error("Recipient doesn't have a lightning address configured")
     }
 
-    return null
+    let lastError: Error | null = null
+
+    for (const lightningAddress of candidates) {
+      try {
+        return await this.resolveZapEndpoint(lightningAddress)
+      } catch (error) {
+        lastError =
+          error instanceof Error ? error : new Error("Recipient's lightning address is invalid")
+      }
+    }
+
+    throw lastError ?? new Error("Recipient's lightning address is invalid")
+  }
+
+  private async resolveZapEndpoint(lightningAddress: string): Promise<{
+    callback: string
+    lnurl: string
+  }> {
+    let lastError: Error | null = null
+
+    for (const resolver of [
+      this.fetchZapEndpointDirect.bind(this),
+      this.fetchZapEndpointFromApi.bind(this)
+    ]) {
+      try {
+        return await resolver(lightningAddress)
+      } catch (error) {
+        lastError =
+          error instanceof Error ? error : new Error('Failed to fetch lightning address metadata')
+      }
+    }
+
+    throw lastError ?? new Error('Failed to fetch lightning address metadata')
+  }
+
+  private async fetchZapEndpointDirect(lightningAddress: string): Promise<{
+    callback: string
+    lnurl: string
+  }> {
+    const lnurl = this.getLnurl(lightningAddress)
+    const response = await fetch(lnurl, {
+      headers: {
+        Accept: 'application/json'
+      }
+    })
+    const body = await this.parseJsonResponse(response)
+
+    if (!response.ok || !body?.callback) {
+      throw new Error(body?.reason || body?.error || 'Failed to fetch lightning address metadata')
+    }
+    if (!body.allowsNostr || !body.nostrPubkey) {
+      throw new Error('Recipient does not support Nostr zaps')
+    }
+
+    return {
+      callback: body.callback,
+      lnurl
+    }
+  }
+
+  private async fetchZapEndpointFromApi(lightningAddress: string): Promise<{
+    callback: string
+    lnurl: string
+  }> {
+    const url = new URL('/v1/lightning/zap-endpoint', JUMBLE_API_BASE_URL)
+    url.searchParams.set('address', normalizeLightningAddress(lightningAddress))
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        Accept: 'application/json'
+      }
+    })
+    const body = await this.parseJsonResponse(response)
+
+    if (!response.ok || !body?.callback || !body?.lnurl) {
+      throw new Error(body?.error || 'Failed to fetch lightning address metadata')
+    }
+
+    return {
+      callback: body.callback,
+      lnurl: body.lnurl
+    }
+  }
+
+  private getLnurl(lightningAddress: string) {
+    const normalizedLightningAddress = normalizeLightningAddress(lightningAddress)
+
+    if (!normalizedLightningAddress) {
+      throw new Error("Recipient doesn't have a lightning address configured")
+    }
+
+    if (normalizedLightningAddress.includes('@')) {
+      const [name, domain] = normalizedLightningAddress.split('@')
+      if (!name || !domain) {
+        throw new Error("Recipient's lightning address is invalid")
+      }
+
+      return new URL(
+        `/.well-known/lnurlp/${encodeURIComponent(name)}`,
+        `https://${domain}`
+      ).toString()
+    }
+
+    if (!isLnurl(normalizedLightningAddress)) {
+      throw new Error("Recipient's lightning address is invalid")
+    }
+
+    const { words } = bech32.decode(normalizedLightningAddress.toLowerCase() as any, 5000)
+    const data = bech32.fromWords(words)
+    return utf8Decoder.decode(data)
+  }
+
+  private async parseJsonResponse(response: Response): Promise<any> {
+    const rawBody = await response.text()
+    if (!rawBody) return {}
+
+    try {
+      return JSON.parse(rawBody)
+    } catch {
+      throw new Error('Lightning address metadata returned invalid JSON')
+    }
   }
 }
 

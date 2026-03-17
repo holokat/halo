@@ -71,7 +71,7 @@ export default function TrendingNotesWidget() {
           )}
         </CardHeader>
       )}
-      <div className={`${heightClass} overflow-y-auto overflow-x-hidden scrollbar-hide px-4 ${hideWidgetTitles ? 'pt-4' : ''} pb-4 ${useFullHeight ? 'flex-1 min-h-0' : ''}`}>
+      <div className={`${heightClass} overflow-y-auto overflow-x-hidden overscroll-y-contain touch-pan-y scrollbar-hide px-4 ${hideWidgetTitles ? 'pt-4' : ''} pb-4 ${useFullHeight ? 'flex-1 min-h-0' : ''}`}>
         <CompactTrendingNotes />
       </div>
     </WidgetContainer>

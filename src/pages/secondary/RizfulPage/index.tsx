@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import SecondaryPageLayout from '@/layouts/SecondaryPageLayout'
 import { createProfileDraftEvent } from '@/lib/draft-event'
+import { isLnurl, normalizeLightningAddress } from '@/lib/lightning'
 import { isEmail } from '@/lib/utils'
 import { useNostr } from '@/providers/NostrProvider'
 import { useZap } from '@/providers/ZapProvider'
@@ -41,21 +42,25 @@ const RizfulPage = forwardRef(({ index }: { index?: number }, ref) => {
 
   const updateUserProfile = async (address: string) => {
     try {
-      if (address === profile?.lightningAddress) {
+      const normalizedAddress = normalizeLightningAddress(address)
+      if (normalizedAddress === normalizeLightningAddress(profile?.lightningAddress)) {
         return
       }
 
       const profileContent = profileEvent ? JSON.parse(profileEvent.content) : {}
-      if (isEmail(address)) {
-        profileContent.lud16 = address
-      } else if (address.startsWith('lnurl')) {
-        profileContent.lud06 = address
+      delete profileContent.lud16
+      delete profileContent.lud06
+
+      if (isEmail(normalizedAddress)) {
+        profileContent.lud16 = normalizedAddress
+      } else if (isLnurl(normalizedAddress)) {
+        profileContent.lud06 = normalizedAddress
       } else {
         throw new Error(t('Invalid Lightning Address'))
       }
 
       if (!profileContent.nip05) {
-        profileContent.nip05 = address
+        profileContent.nip05 = normalizedAddress
       }
 
       const profileDraftEvent = createProfileDraftEvent(

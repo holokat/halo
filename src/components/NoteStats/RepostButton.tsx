@@ -24,7 +24,7 @@ import { formatCount } from './utils'
 export default function RepostButton({ event }: { event: Event }) {
   const { t } = useTranslation()
   const { isSmallScreen } = useScreenSize()
-  const { hideUntrustedInteractions, isUserTrusted } = useUserTrust()
+  const { hideUntrustedInteractions, isUserTrustedForInteractions } = useUserTrust()
   const { publish, checkLogin, pubkey } = useNostr()
   const noteStats = useNoteStatsById(event.id)
   const [reposting, setReposting] = useState(false)
@@ -33,11 +33,11 @@ export default function RepostButton({ event }: { event: Event }) {
   const { repostCount, hasReposted } = useMemo(() => {
     return {
       repostCount: hideUntrustedInteractions
-        ? noteStats?.reposts?.filter((repost) => isUserTrusted(repost.pubkey)).length
+        ? noteStats?.reposts?.filter((repost) => isUserTrustedForInteractions(repost.pubkey)).length
         : noteStats?.reposts?.length,
       hasReposted: pubkey ? noteStats?.repostPubkeySet?.has(pubkey) : false
     }
-  }, [noteStats, pubkey, hideUntrustedInteractions, isUserTrusted])
+  }, [noteStats, pubkey, hideUntrustedInteractions, isUserTrustedForInteractions])
   const canRepost = !hasReposted && !reposting
 
   const repost = async () => {

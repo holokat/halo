@@ -13,6 +13,7 @@ type TUserTrustContext = {
   updateHideUntrustedNotes: (hide: boolean) => void
   updateTrustLevel: (level: number) => void
   isUserTrusted: (pubkey: string) => boolean
+  isUserTrustedForInteractions: (pubkey: string) => boolean
   isUserFollowed: (pubkey: string) => boolean
 }
 
@@ -88,6 +89,14 @@ export function UserTrustProvider({ children }: { children: React.ReactNode }) {
     [currentPubkey, trustGraphVersion]
   )
 
+  const isUserTrustedForInteractions = useCallback(
+    (pubkey: string) => {
+      if (!currentPubkey || pubkey === currentPubkey) return true
+      return wotSet.has(pubkey)
+    },
+    [currentPubkey, trustGraphVersion]
+  )
+
   const isUserTrusted = useCallback(
     (pubkey: string) => {
       if (!currentPubkey || pubkey === currentPubkey) return true
@@ -102,16 +111,16 @@ export function UserTrustProvider({ children }: { children: React.ReactNode }) {
         case 0:
           return true
         case 1:
-          return wotSet.has(pubkey)
+          return isUserTrustedForInteractions(pubkey)
         case 2:
           return followsSet.has(pubkey)
         case 3:
           return false // Only show own posts (already handled above)
         default:
-          return wotSet.has(pubkey)
+          return isUserTrustedForInteractions(pubkey)
       }
     },
-    [currentPubkey, trustLevel, trustGraphVersion]
+    [currentPubkey, trustLevel, trustGraphVersion, isUserTrustedForInteractions]
   )
 
   const updateHideUntrustedInteractions = (hide: boolean) => {
@@ -146,6 +155,7 @@ export function UserTrustProvider({ children }: { children: React.ReactNode }) {
         updateHideUntrustedNotes,
         updateTrustLevel,
         isUserTrusted,
+        isUserTrustedForInteractions,
         isUserFollowed
       }}
     >

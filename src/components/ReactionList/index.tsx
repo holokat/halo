@@ -18,13 +18,13 @@ export default function ReactionList({ event }: { event: Event }) {
   const { t } = useTranslation()
   const { push } = useSecondaryPage()
   const { isSmallScreen } = useScreenSize()
-  const { hideUntrustedInteractions, isUserTrusted } = useUserTrust()
+  const { hideUntrustedInteractions, isUserTrustedForInteractions } = useUserTrust()
   const noteStats = useNoteStatsById(event.id)
   const filteredLikes = useMemo(() => {
     return (noteStats?.likes ?? [])
-      .filter((like) => !hideUntrustedInteractions || isUserTrusted(like.pubkey))
+      .filter((like) => !hideUntrustedInteractions || isUserTrustedForInteractions(like.pubkey))
       .sort((a, b) => b.created_at - a.created_at)
-  }, [noteStats, event.id, hideUntrustedInteractions, isUserTrusted])
+  }, [noteStats, event.id, hideUntrustedInteractions, isUserTrustedForInteractions])
 
   const [showCount, setShowCount] = useState(SHOW_COUNT)
   const bottomRef = useRef<HTMLDivElement | null>(null)

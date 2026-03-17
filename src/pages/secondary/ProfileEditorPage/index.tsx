@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import SecondaryPageLayout from '@/layouts/SecondaryPageLayout'
 import { createProfileDraftEvent } from '@/lib/draft-event'
+import { isLnurl, normalizeLightningAddress } from '@/lib/lightning'
 import { generateImageByPubkey } from '@/lib/pubkey'
 import { toProfile } from '@/lib/link'
 import { isEmail } from '@/lib/utils'
@@ -91,17 +92,19 @@ const ProfileEditorPage = forwardRef(({ index }: { index?: number }, ref) => {
     // Remove legacy gallery from kind 0 (we're using kind 30001 now)
     delete newProfileContent.gallery
 
-    if (lightningAddress) {
-      if (isEmail(lightningAddress)) {
-        newProfileContent.lud16 = lightningAddress
-      } else if (lightningAddress.startsWith('lnurl')) {
-        newProfileContent.lud06 = lightningAddress
+    const normalizedLightningAddress = normalizeLightningAddress(lightningAddress)
+    delete newProfileContent.lud16
+    delete newProfileContent.lud06
+
+    if (normalizedLightningAddress) {
+      if (isEmail(normalizedLightningAddress)) {
+        newProfileContent.lud16 = normalizedLightningAddress
+      } else if (isLnurl(normalizedLightningAddress)) {
+        newProfileContent.lud06 = normalizedLightningAddress
       } else {
         setLightningAddressError(t('Invalid Lightning Address'))
         return
       }
-    } else {
-      delete newProfileContent.lud16
     }
 
     setSaving(true)

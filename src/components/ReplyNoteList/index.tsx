@@ -37,7 +37,7 @@ const SHOW_COUNT = 10
 export default function ReplyNoteList({ index, event }: { index?: number; event: NEvent }) {
   const { t } = useTranslation()
   const { push, currentIndex } = useSecondaryPage()
-  const { hideUntrustedInteractions, isUserTrusted } = useUserTrust()
+  const { hideUntrustedInteractions, isUserTrustedForInteractions } = useUserTrust()
   const { mutePubkeySet } = useMuteList()
   const { hideContentMentioningMutedUsers, maxHashtags, maxMentions } = useContentPolicy()
   const [rootInfo, setRootInfo] = useState<TRootInfo | undefined>(undefined)
@@ -68,6 +68,21 @@ export default function ReplyNoteList({ index, event }: { index?: number; event:
   }, [event.id, repliesMap, mutePubkeySet, hideContentMentioningMutedUsers, maxHashtags, maxMentions])
 
   // Separate pinned and unpinned replies
+  const isVisibleReply = useCallback(
+    (reply: NEvent) => {
+      if (!hideUntrustedInteractions) {
+        return true
+      }
+      if (isUserTrustedForInteractions(reply.pubkey)) {
+        return true
+      }
+
+      const repliesForThisReply = repliesMap.get(reply.id)
+      return !!repliesForThisReply?.events.some((evt) => isUserTrustedForInteractions(evt.pubkey))
+    },
+    [hideUntrustedInteractions, isUserTrustedForInteractions, repliesMap]
+  )
+
   const { pinnedReplies, unpinnedReplies } = useMemo(() => {
     const threadId = event.id // Use the current event as the thread ID
     const pinnedIds = new Set(getPinnedReplies(threadId))
@@ -76,6 +91,9 @@ export default function ReplyNoteList({ index, event }: { index?: number; event:
     const unpinned: NEvent[] = []
 
     replies.forEach((reply) => {
+      if (!isVisibleReply(reply)) {
+        return
+      }
       if (pinnedIds.has(reply.id)) {
         pinned.push(reply)
       } else {
@@ -84,7 +102,7 @@ export default function ReplyNoteList({ index, event }: { index?: number; event:
     })
 
     return { pinnedReplies: pinned, unpinnedReplies: unpinned }
-  }, [replies, event.id, getPinnedReplies])
+  }, [replies, event.id, getPinnedReplies, isVisibleReply])
   const [timelineKey, setTimelineKey] = useState<string | undefined>(undefined)
   const [until, setUntil] = useState<number | undefined>(undefined)
   const [loading, setLoading] = useState<boolean>(false)
@@ -321,16 +339,6 @@ export default function ReplyNoteList({ index, event }: { index?: number; event:
       <div>
         {/* Render pinned replies first */}
         {pinnedReplies.map((reply) => {
-          if (hideUntrustedInteractions && !isUserTrusted(reply.pubkey)) {
-            const repliesForThisReply = repliesMap.get(reply.id)
-            if (
-              !repliesForThisReply ||
-              repliesForThisReply.events.every((evt) => !isUserTrusted(evt.pubkey))
-            ) {
-              return null
-            }
-          }
-
           const parentETag = getParentETag(reply)
           const parentEventHexId = parentETag?.[1]
           const parentEventId = parentETag ? generateBech32IdFromETag(parentETag) : undefined
@@ -360,16 +368,6 @@ export default function ReplyNoteList({ index, event }: { index?: number; event:
 
         {/* Render unpinned replies with pagination */}
         {unpinnedReplies.slice(0, showCount).map((reply) => {
-          if (hideUntrustedInteractions && !isUserTrusted(reply.pubkey)) {
-            const repliesForThisReply = repliesMap.get(reply.id)
-            if (
-              !repliesForThisReply ||
-              repliesForThisReply.events.every((evt) => !isUserTrusted(evt.pubkey))
-            ) {
-              return null
-            }
-          }
-
           const parentETag = getParentETag(reply)
           const parentEventHexId = parentETag?.[1]
           const parentEventId = parentETag ? generateBech32IdFromETag(parentETag) : undefined

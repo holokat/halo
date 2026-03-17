@@ -22,10 +22,10 @@ export default function CompactTrendingNotes() {
   const [trendingNotes, setTrendingNotes] = useState<NostrEvent[]>([])
   const [loading, setLoading] = useState(true)
 
-  const filteredEvents = useMemo(() => {
+  const visibleEvents = useMemo(() => {
     const idSet = new Set<string>()
 
-    return trendingNotes.slice(0, DISPLAY_COUNT).filter((evt) => {
+    return trendingNotes.filter((evt) => {
       if (isEventDeleted(evt)) return false
       if (mutePubkeySet.has(evt.pubkey)) return false
       if (hideUntrustedNotes && !isUserTrusted(evt.pubkey)) return false
@@ -38,6 +38,10 @@ export default function CompactTrendingNotes() {
       return true
     })
   }, [trendingNotes, hideUntrustedNotes, isEventDeleted, isUserTrusted, mutePubkeySet])
+  const filteredEvents = useMemo(
+    () => visibleEvents.slice(0, DISPLAY_COUNT),
+    [visibleEvents]
+  )
 
   useEffect(() => {
     const fetchTrendingPosts = async () => {

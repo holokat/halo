@@ -16,7 +16,7 @@ export default function ReplyButton({ event }: { event: Event }) {
   const { t } = useTranslation()
   const { pubkey, checkLogin } = useNostr()
   const { repliesMap } = useReply()
-  const { hideUntrustedInteractions, isUserTrusted } = useUserTrust()
+  const { hideUntrustedInteractions, isUserTrustedForInteractions } = useUserTrust()
   const { mutePubkeySet } = useMuteList()
   const { hideContentMentioningMutedUsers } = useContentPolicy()
   const { replyCount, hasReplied } = useMemo(() => {
@@ -27,7 +27,7 @@ export default function ReplyButton({ event }: { event: Event }) {
     return {
       replyCount:
         repliesMap.get(event.id)?.events.filter((evt) => {
-          if (hideUntrustedInteractions && !isUserTrusted(evt.pubkey)) {
+          if (hideUntrustedInteractions && !isUserTrustedForInteractions(evt.pubkey)) {
             return false
           }
           if (mutePubkeySet.has(evt.pubkey)) {
@@ -45,7 +45,7 @@ export default function ReplyButton({ event }: { event: Event }) {
     event.id,
     pubkey,
     hideUntrustedInteractions,
-    isUserTrusted,
+    isUserTrustedForInteractions,
     mutePubkeySet,
     hideContentMentioningMutedUsers
   ])

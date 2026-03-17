@@ -1,4 +1,5 @@
 import { connectLambda, getStore } from '@netlify/blobs'
+import { bech32 } from '@scure/base'
 import { randomBytes, createHash, timingSafeEqual } from 'node:crypto'
 import { Invoice } from '@getalby/lightning-tools'
 import { SimplePool, finalizeEvent, getPublicKey, kinds, nip19, verifyEvent } from 'nostr-tools'
@@ -274,6 +275,17 @@ export default async (request) => {
     if (request.method === 'GET' && route === '/v1/transactions/quote') {
       const quote = await buildTopUpQuote()
       return json(200, quote)
+    }
+
+    if (request.method === 'GET' && route === '/v1/lightning/zap-endpoint') {
+      const url = new URL(request.url)
+      const lightningAddress = url.searchParams.get('address') || ''
+      if (!lightningAddress.trim()) {
+        return json(400, { error: 'Lightning address is required' })
+      }
+
+      const zapEndpoint = await lookupZapEndpointForLightningAddress(lightningAddress)
+      return json(200, zapEndpoint)
     }
 
     if (request.method === 'GET' && route === '/v1/admin/translation/config') {
@@ -2352,19 +2364,13 @@ async function getBtcPriceUsd() {
 }
 
 async function createInvoiceForLightningAddress({ lightningAddress, sats, comment }) {
-  const [name, domain] = lightningAddress.split('@')
+  const normalizedLightningAddress = normalizeLightningAddress(lightningAddress)
+  const [name, domain] = normalizedLightningAddress.split('@')
   if (!name || !domain) {
     throw new Error('TRANSLATION_LIGHTNING_ADDRESS must be a lightning address')
   }
 
-  const lnurlpUrl = new URL(`/.well-known/lnurlp/${name}`, `https://${domain}`).toString()
-  const lnurlDataResponse = await fetch(lnurlpUrl, {
-    headers: { Accept: 'application/json' }
-  })
-  const lnurlData = await lnurlDataResponse.json()
-  if (!lnurlDataResponse.ok || !lnurlData?.callback) {
-    throw new Error(lnurlData?.reason || 'Failed to fetch lightning address metadata')
-  }
+  const { data: lnurlData } = await fetchLightningAddressMetadata(normalizedLightningAddress)
 
   const amountMsat = sats * 1000
   if (
@@ -2407,6 +2413,94 @@ async function createInvoiceForLightningAddress({ lightningAddress, sats, commen
   return {
     invoice: invoiceData.pr,
     verify: verifyFromLnurl || derivedVerify || null
+  }
+}
+
+function normalizeLightningAddress(value) {
+  if (typeof value !== 'string') return ''
+
+  let normalized = value.trim()
+  if (normalized.toLowerCase().startsWith('lightning:')) {
+    normalized = normalized.slice('lightning:'.length).trim()
+  }
+
+  return normalized
+}
+
+function isLnurl(value) {
+  const normalized = normalizeLightningAddress(value)
+  return /^lnurl[0-9a-z]+$/i.test(normalized)
+}
+
+function getLnurlpUrl(lightningAddress) {
+  const normalizedLightningAddress = normalizeLightningAddress(lightningAddress)
+  if (!normalizedLightningAddress) {
+    const err = new Error('Lightning address is required')
+    err.statusCode = 400
+    throw err
+  }
+
+  if (normalizedLightningAddress.includes('@')) {
+    const [name, domain] = normalizedLightningAddress.split('@')
+    if (!name || !domain) {
+      const err = new Error('Lightning address is invalid')
+      err.statusCode = 400
+      throw err
+    }
+
+    return new URL(
+      `/.well-known/lnurlp/${encodeURIComponent(name)}`,
+      `https://${domain}`
+    ).toString()
+  }
+
+  if (!isLnurl(normalizedLightningAddress)) {
+    const err = new Error('Lightning address is invalid')
+    err.statusCode = 400
+    throw err
+  }
+
+  const { words } = bech32.decode(normalizedLightningAddress.toLowerCase(), 5000)
+  const data = bech32.fromWords(words)
+  return new TextDecoder().decode(data)
+}
+
+async function parseJsonResponse(response) {
+  const rawText = await response.text()
+  if (!rawText) return {}
+
+  try {
+    return JSON.parse(rawText)
+  } catch {
+    throw new Error('Lightning address metadata returned invalid JSON')
+  }
+}
+
+async function fetchLightningAddressMetadata(lightningAddress) {
+  const lnurl = getLnurlpUrl(lightningAddress)
+  const response = await fetch(lnurl, {
+    headers: { Accept: 'application/json' },
+    signal: AbortSignal.timeout(5000)
+  })
+  const data = await parseJsonResponse(response)
+  if (!response.ok || !data?.callback) {
+    throw new Error(data?.reason || data?.error || 'Failed to fetch lightning address metadata')
+  }
+
+  return { lnurl, data }
+}
+
+async function lookupZapEndpointForLightningAddress(lightningAddress) {
+  const { lnurl, data } = await fetchLightningAddressMetadata(lightningAddress)
+  if (!data.allowsNostr || !data.nostrPubkey) {
+    const err = new Error('Recipient does not support Nostr zaps')
+    err.statusCode = 422
+    throw err
+  }
+
+  return {
+    callback: data.callback,
+    lnurl
   }
 }
 
