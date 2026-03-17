@@ -1,5 +1,6 @@
 import { Favicon } from '@/components/Favicon'
 import NormalFeed from '@/components/NormalFeed'
+import StockQuoteCard from '@/components/StockQuoteCard'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -48,6 +49,7 @@ const NoteListPage = forwardRef(({ index }: { index?: number }, ref) => {
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [feedName, setFeedName] = useState('')
   const [currentHashtag, setCurrentHashtag] = useState<string | null>(null)
+  const [currentStockSymbol, setCurrentStockSymbol] = useState<string | null>(null)
 
   useEffect(() => {
     const init = async () => {
@@ -56,11 +58,28 @@ const NoteListPage = forwardRef(({ index }: { index?: number }, ref) => {
         .getAll('k')
         .map((k) => parseInt(k))
         .filter((k) => !isNaN(k))
+      const stockSymbol = searchParams.get('stock')
+      if (stockSymbol) {
+        const normalizedStockSymbol = stockSymbol.replace(/^\$/, '').toUpperCase()
+        setData({ type: 'search' })
+        setTitle(`$${normalizedStockSymbol}`)
+        setControls(null)
+        setCurrentHashtag(null)
+        setCurrentStockSymbol(normalizedStockSymbol)
+        setSubRequests([
+          {
+            filter: { search: `$${normalizedStockSymbol}`, ...(kinds.length > 0 ? { kinds } : {}) },
+            urls: SEARCHABLE_RELAY_URLS
+          }
+        ])
+        return
+      }
       const hashtag = searchParams.get('t')
       if (hashtag) {
         setData({ type: 'hashtag' })
         setTitle(`# ${hashtag}`)
         setCurrentHashtag(hashtag)
+        setCurrentStockSymbol(null)
         setControls(
           <Button
             variant="ghost"
@@ -87,6 +106,9 @@ const NoteListPage = forwardRef(({ index }: { index?: number }, ref) => {
       if (search) {
         setData({ type: 'search' })
         setTitle(`${t('Search')}: ${search}`)
+        setControls(null)
+        setCurrentHashtag(null)
+        setCurrentStockSymbol(null)
         setSubRequests([
           {
             filter: { search, ...(kinds.length > 0 ? { kinds } : {}) },
@@ -99,6 +121,9 @@ const NoteListPage = forwardRef(({ index }: { index?: number }, ref) => {
       if (externalContentId) {
         setData({ type: 'externalContent' })
         setTitle(externalContentId)
+        setControls(null)
+        setCurrentHashtag(null)
+        setCurrentStockSymbol(null)
         setSubRequests([
           {
             filter: { '#I': [externalContentId], ...(kinds.length > 0 ? { kinds } : {}) },
@@ -115,11 +140,14 @@ const NoteListPage = forwardRef(({ index }: { index?: number }, ref) => {
             <Favicon domain={domain} className="w-5 h-5" />
           </div>
         )
+        setControls(null)
         const pubkeys = await fetchPubkeysFromDomain(domain)
         setData({
           type: 'domain',
           domain
         })
+        setCurrentHashtag(null)
+        setCurrentStockSymbol(null)
         if (pubkeys.length) {
           setSubRequests(await client.generateSubRequestsForPubkeys(pubkeys, pubkey))
           setControls(
@@ -169,7 +197,12 @@ const NoteListPage = forwardRef(({ index }: { index?: number }, ref) => {
       </div>
     )
   } else if (data) {
-    content = <NormalFeed subRequests={subRequests} />
+    content = (
+      <div className="space-y-4">
+        {currentStockSymbol && <StockQuoteCard symbol={currentStockSymbol} />}
+        <NormalFeed subRequests={subRequests} />
+      </div>
+    )
   }
 
   return (

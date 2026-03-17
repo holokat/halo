@@ -9,6 +9,7 @@ const STOCK_QUOTE_TTL_MS = 15 * 60 * 1000
 const STOCK_QUOTE_STORAGE_KEY = 'x21:stock-quote-cache'
 const STOCK_QUOTE_STORAGE_MAX_ENTRIES = 100
 const STOCK_QUOTE_API_PATH = '/v1/stocks/quote'
+const STOCK_QUOTE_TIMEOUT_MS = 8000
 
 class StockQuoteService {
   static instance: StockQuoteService
@@ -49,22 +50,34 @@ class StockQuoteService {
   }
 
   private async fetchQuote(symbol: string): Promise<TStockQuote> {
-    const response = await fetch(
-      `${STOCK_QUOTE_API_PATH}?symbol=${encodeURIComponent(symbol)}`
-    )
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), STOCK_QUOTE_TIMEOUT_MS)
 
-    const data = await response.json().catch(() => ({}))
-    if (!response.ok) {
-      throw new Error(
-        typeof data?.error === 'string' && data.error.trim()
-          ? data.error
-          : 'Failed to load stock quote'
-      )
+    try {
+      const response = await fetch(`${STOCK_QUOTE_API_PATH}?symbol=${encodeURIComponent(symbol)}`, {
+        signal: controller.signal
+      })
+
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(
+          typeof data?.error === 'string' && data.error.trim()
+            ? data.error
+            : 'Failed to load stock quote'
+        )
+      }
+
+      const quote = data as TStockQuote
+      this.setCachedQuote(symbol, quote)
+      return quote
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw new Error('Stock quote request timed out')
+      }
+      throw error
+    } finally {
+      window.clearTimeout(timeoutId)
     }
-
-    const quote = data as TStockQuote
-    this.setCachedQuote(symbol, quote)
-    return quote
   }
 
   private getCachedQuote(symbol: string) {

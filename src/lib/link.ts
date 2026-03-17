@@ -10,12 +10,14 @@ export const toNote = (eventOrId: Event | string) => {
 }
 export const toNoteList = ({
   hashtag,
+  stockSymbol,
   search,
   externalContentId,
   domain,
   kinds
 }: {
   hashtag?: string
+  stockSymbol?: string
   search?: string
   externalContentId?: string
   domain?: string
@@ -24,6 +26,7 @@ export const toNoteList = ({
   const path = '/notes'
   const query = new URLSearchParams()
   if (hashtag) query.set('t', hashtag.toLowerCase())
+  if (stockSymbol) query.set('stock', stockSymbol.replace(/^\$/, '').toUpperCase())
   if (kinds?.length) {
     kinds.forEach((k) => query.append('k', k.toString()))
   }
