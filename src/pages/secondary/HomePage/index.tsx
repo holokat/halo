@@ -7,12 +7,15 @@ import { useWidgetSidebarDismissed } from '@/providers/WidgetSidebarDismissedPro
 import { useWidgetSidebarTitle } from '@/providers/WidgetSidebarTitleProvider'
 import { useSecondaryPage } from '@/PageManager'
 import { DECK_VIEW_MODE, LAYOUT_MODE } from '@/constants'
-import { forwardRef } from 'react'
+import { cn } from '@/lib/utils'
+import { forwardRef, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { X, Settings } from 'lucide-react'
 import * as LucideIcons from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toWidgetsSettings } from '@/lib/link'
+
+const WIDGET_HEADER_CONTROLS_DIM_DELAY_MS = 1200
 
 const HomePage = forwardRef(({ index }: { index?: number }, ref) => {
   const { enabledWidgets } = useWidgets()
@@ -22,9 +25,34 @@ const HomePage = forwardRef(({ index }: { index?: number }, ref) => {
   const { setWidgetSidebarDismissed } = useWidgetSidebarDismissed()
   const { widgetSidebarTitle, widgetSidebarIcon } = useWidgetSidebarTitle()
   const { t } = useTranslation()
+  const [areHeaderControlsDimmed, setAreHeaderControlsDimmed] = useState(false)
+  const dimTimeoutRef = useRef<number | null>(null)
 
   // Get the icon component if one is selected
   const IconComponent = widgetSidebarIcon ? (LucideIcons as any)[widgetSidebarIcon] : null
+
+  const clearDimTimeout = () => {
+    if (dimTimeoutRef.current !== null) {
+      window.clearTimeout(dimTimeoutRef.current)
+      dimTimeoutRef.current = null
+    }
+  }
+
+  const scheduleControlsDim = () => {
+    clearDimTimeout()
+    dimTimeoutRef.current = window.setTimeout(() => {
+      setAreHeaderControlsDimmed(true)
+      dimTimeoutRef.current = null
+    }, WIDGET_HEADER_CONTROLS_DIM_DELAY_MS)
+  }
+
+  useEffect(() => {
+    scheduleControlsDim()
+
+    return () => {
+      clearDimTimeout()
+    }
+  }, [])
 
   const handleClose = () => {
     // If we have a secondary page open (index is defined), clear the stack
@@ -57,7 +85,22 @@ const HomePage = forwardRef(({ index }: { index?: number }, ref) => {
             {IconComponent && <IconComponent className="h-5 w-5" />}
             <h2 className="text-lg font-semibold">{widgetSidebarTitle}</h2>
           </div>
-          <div className="flex items-center gap-1">
+          <div
+            className={cn(
+              'flex items-center gap-1 transition-opacity duration-200',
+              areHeaderControlsDimmed ? 'opacity-60' : 'opacity-100'
+            )}
+            onMouseEnter={() => {
+              clearDimTimeout()
+              setAreHeaderControlsDimmed(false)
+            }}
+            onMouseLeave={scheduleControlsDim}
+            onFocusCapture={() => {
+              clearDimTimeout()
+              setAreHeaderControlsDimmed(false)
+            }}
+            onBlurCapture={scheduleControlsDim}
+          >
             <Button
               variant="ghost"
               size="icon"

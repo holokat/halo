@@ -93,10 +93,28 @@ export default function StockTrackerWidget() {
       )}
 
       <div className={cn('space-y-3 p-4', hideWidgetTitles && 'pt-4')}>
+        {stockTrackerSymbols.length ? (
+          <div className="divide-y divide-border/70">
+            {stockTrackerSymbols.map((symbol) => (
+              <StockTrackerRow
+                key={symbol}
+                symbol={symbol}
+                onRemove={() => removeStockTrackerSymbol(symbol)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed border-border/80 bg-muted/20 px-3 py-4 text-center text-xs text-muted-foreground">
+            {t('Add a symbol to start tracking it here.', {
+              defaultValue: 'Add a symbol to start tracking it here.'
+            })}
+          </div>
+        )}
+
         <div
           className={cn(
             'transition-opacity duration-200',
-            isInputMuted && 'opacity-10 hover:opacity-60 focus-within:opacity-100'
+            isInputMuted && 'opacity-20 hover:opacity-60 focus-within:opacity-100'
           )}
         >
           <form className="flex items-center gap-2" onSubmit={handleSubmit}>
@@ -119,24 +137,6 @@ export default function StockTrackerWidget() {
         </div>
 
         {error ? <p className="text-xs text-destructive">{error}</p> : null}
-
-        {stockTrackerSymbols.length ? (
-          <div className="divide-y divide-border/70">
-            {stockTrackerSymbols.map((symbol) => (
-              <StockTrackerRow
-                key={symbol}
-                symbol={symbol}
-                onRemove={() => removeStockTrackerSymbol(symbol)}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-xl border border-dashed border-border/80 bg-muted/20 px-3 py-4 text-center text-xs text-muted-foreground">
-            {t('Add a symbol to start tracking it here.', {
-              defaultValue: 'Add a symbol to start tracking it here.'
-            })}
-          </div>
-        )}
       </div>
     </WidgetContainer>
   )
