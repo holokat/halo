@@ -13,6 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useFetchFollowings, useFetchProfile } from '@/hooks'
+import useModalRegistration from '@/hooks/useModalRegistration'
 import { toMuteList, toProfileEditor } from '@/lib/link'
 import { generateImageByPubkey } from '@/lib/pubkey'
 import { randomString } from '@/lib/random'
@@ -21,7 +22,6 @@ import { SecondaryPageLink, useSecondaryPage } from '@/PageManager'
 import { useMuteList } from '@/providers/MuteListProvider'
 import { useNostr } from '@/providers/NostrProvider'
 import client from '@/services/client.service'
-import modalManager from '@/services/modal-manager.service'
 import { BellOff, Link, Zap } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -35,7 +35,13 @@ import Followings from './Followings'
 import ProfileFeed from './ProfileFeed'
 import Relays from './Relays'
 
-export default function Profile({ id, isInDeckView = false }: { id?: string; isInDeckView?: boolean }) {
+export default function Profile({
+  id,
+  isInDeckView = false
+}: {
+  id?: string
+  isInDeckView?: boolean
+}) {
   const { t } = useTranslation()
   const { push } = useSecondaryPage()
   const { profile, isFetching } = useFetchProfile(id)
@@ -96,25 +102,13 @@ export default function Profile({ id, isInDeckView = false }: { id?: string; isI
     }
   }, [topContainer])
 
-  useEffect(() => {
-    if (avatarLightboxIndex >= 0) {
-      modalManager.register(avatarLightboxId, () => {
-        setAvatarLightboxIndex(-1)
-      })
-    } else {
-      modalManager.unregister(avatarLightboxId)
-    }
-  }, [avatarLightboxIndex, avatarLightboxId])
+  useModalRegistration(avatarLightboxId, avatarLightboxIndex >= 0, () => {
+    setAvatarLightboxIndex(-1)
+  })
 
-  useEffect(() => {
-    if (bannerLightboxIndex >= 0) {
-      modalManager.register(bannerLightboxId, () => {
-        setBannerLightboxIndex(-1)
-      })
-    } else {
-      modalManager.unregister(bannerLightboxId)
-    }
-  }, [bannerLightboxIndex, bannerLightboxId])
+  useModalRegistration(bannerLightboxId, bannerLightboxIndex >= 0, () => {
+    setBannerLightboxIndex(-1)
+  })
 
   const isMutedProfile = useMemo(
     () => !!profile?.pubkey && !isSelf && mutePubkeySet.has(profile.pubkey),
@@ -266,7 +260,11 @@ export default function Profile({ id, isInDeckView = false }: { id?: string; isI
           </div>
         </div>
       </div>
-      <ProfileFeed pubkey={pubkey} topSpace={topContainerHeight + 100} isInDeckView={isInDeckView} />
+      <ProfileFeed
+        pubkey={pubkey}
+        topSpace={topContainerHeight + 100}
+        isInDeckView={isInDeckView}
+      />
       {avatarLightboxIndex >= 0 &&
         avatar &&
         createPortal(

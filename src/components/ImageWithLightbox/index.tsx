@@ -1,9 +1,9 @@
 import { randomString } from '@/lib/random'
 import { cn } from '@/lib/utils'
+import useModalRegistration from '@/hooks/useModalRegistration'
 import { useContentPolicy } from '@/providers/ContentPolicyProvider'
-import modalManager from '@/services/modal-manager.service'
 import { TImetaInfo } from '@/types'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import Lightbox from 'yet-another-react-lightbox'
@@ -26,15 +26,10 @@ export default function ImageWithLightbox({
   const { shouldAutoLoadMedia } = useContentPolicy()
   const [display, setDisplay] = useState(() => shouldAutoLoadMedia(image.pubkey))
   const [index, setIndex] = useState(-1)
-  useEffect(() => {
-    if (index >= 0) {
-      modalManager.register(id, () => {
-        setIndex(-1)
-      })
-    } else {
-      modalManager.unregister(id)
-    }
-  }, [index])
+
+  useModalRegistration(id, index >= 0, () => {
+    setIndex(-1)
+  })
 
   if (!display) {
     return (

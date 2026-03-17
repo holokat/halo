@@ -3,44 +3,22 @@ import * as SheetPrimitive from '@radix-ui/react-dialog'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { X } from 'lucide-react'
 
+import useModalRegistration from '@/hooks/useModalRegistration'
 import { randomString } from '@/lib/random'
 import { cn } from '@/lib/utils'
-import modalManager from '@/services/modal-manager.service'
 
 const Sheet = ({ children, open, onOpenChange, ...props }: SheetPrimitive.DialogProps) => {
   const [innerOpen, setInnerOpen] = React.useState(open ?? false)
   const id = React.useMemo(() => `sheet-${randomString()}`, [])
+  const isOpen = open ?? innerOpen
+  const handleOpenChange = onOpenChange ?? setInnerOpen
 
-  React.useEffect(() => {
-    if (open) {
-      modalManager.register(id, () => {
-        onOpenChange?.(false)
-      })
-    } else {
-      modalManager.unregister(id)
-    }
-  }, [open])
-
-  React.useEffect(() => {
-    if (open !== undefined) {
-      return
-    }
-
-    if (innerOpen) {
-      modalManager.register(id, () => {
-        setInnerOpen(false)
-      })
-    } else {
-      modalManager.unregister(id)
-    }
-  }, [innerOpen])
+  useModalRegistration(id, isOpen, () => {
+    handleOpenChange(false)
+  })
 
   return (
-    <SheetPrimitive.Root
-      open={open ?? innerOpen}
-      onOpenChange={onOpenChange ?? setInnerOpen}
-      {...props}
-    >
+    <SheetPrimitive.Root open={isOpen} onOpenChange={handleOpenChange} {...props}>
       {children}
     </SheetPrimitive.Root>
   )

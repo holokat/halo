@@ -1,9 +1,9 @@
 import * as React from 'react'
 import { Drawer as DrawerPrimitive } from 'vaul'
 
+import useModalRegistration from '@/hooks/useModalRegistration'
 import { randomString } from '@/lib/random'
 import { cn } from '@/lib/utils'
-import modalManager from '@/services/modal-manager.service'
 
 const Drawer = ({
   shouldScaleBackground = true,
@@ -13,36 +13,18 @@ const Drawer = ({
 }: React.ComponentProps<typeof DrawerPrimitive.Root>) => {
   const [innerOpen, setInnerOpen] = React.useState(open ?? false)
   const id = React.useMemo(() => `drawer-${randomString()}`, [])
+  const isOpen = open ?? innerOpen
+  const handleOpenChange = onOpenChange ?? setInnerOpen
 
-  React.useEffect(() => {
-    if (open) {
-      modalManager.register(id, () => {
-        onOpenChange?.(false)
-      })
-    } else {
-      modalManager.unregister(id)
-    }
-  }, [open])
-
-  React.useEffect(() => {
-    if (open !== undefined) {
-      return
-    }
-
-    if (innerOpen) {
-      modalManager.register(id, () => {
-        setInnerOpen(false)
-      })
-    } else {
-      modalManager.unregister(id)
-    }
-  }, [innerOpen])
+  useModalRegistration(id, isOpen, () => {
+    handleOpenChange(false)
+  })
 
   return (
     <DrawerPrimitive.Root
       shouldScaleBackground={shouldScaleBackground}
-      open={open ?? innerOpen}
-      onOpenChange={onOpenChange ?? setInnerOpen}
+      open={isOpen}
+      onOpenChange={handleOpenChange}
       {...props}
     />
   )
@@ -113,7 +95,9 @@ const DrawerContent = React.forwardRef<
         style={contentStyle}
         {...props}
       >
-        {!fullHeight && <div className="mx-auto mt-4 pb-2 mb-2 h-2 w-[100px] rounded-full bg-muted" />}
+        {!fullHeight && (
+          <div className="mx-auto mt-4 pb-2 mb-2 h-2 w-[100px] rounded-full bg-muted" />
+        )}
         {children}
       </DrawerPrimitive.Content>
     </DrawerPortal>

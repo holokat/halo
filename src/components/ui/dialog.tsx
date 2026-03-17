@@ -2,44 +2,22 @@ import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { X } from 'lucide-react'
 import * as React from 'react'
 
+import useModalRegistration from '@/hooks/useModalRegistration'
 import { randomString } from '@/lib/random'
 import { cn } from '@/lib/utils'
-import modalManager from '@/services/modal-manager.service'
 
 const Dialog = ({ children, open, onOpenChange, ...props }: DialogPrimitive.DialogProps) => {
   const [innerOpen, setInnerOpen] = React.useState(open ?? false)
   const id = React.useMemo(() => `dialog-${randomString()}`, [])
+  const isOpen = open ?? innerOpen
+  const handleOpenChange = onOpenChange ?? setInnerOpen
 
-  React.useEffect(() => {
-    if (open) {
-      modalManager.register(id, () => {
-        onOpenChange?.(false)
-      })
-    } else {
-      modalManager.unregister(id)
-    }
-  }, [open])
-
-  React.useEffect(() => {
-    if (open !== undefined) {
-      return
-    }
-
-    if (innerOpen) {
-      modalManager.register(id, () => {
-        setInnerOpen(false)
-      })
-    } else {
-      modalManager.unregister(id)
-    }
-  }, [innerOpen])
+  useModalRegistration(id, isOpen, () => {
+    handleOpenChange(false)
+  })
 
   return (
-    <DialogPrimitive.Root
-      open={open ?? innerOpen}
-      onOpenChange={onOpenChange ?? setInnerOpen}
-      {...props}
-    >
+    <DialogPrimitive.Root open={isOpen} onOpenChange={handleOpenChange} {...props}>
       {children}
     </DialogPrimitive.Root>
   )

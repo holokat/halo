@@ -1,5 +1,6 @@
 import SearchInput from '@/components/SearchInput'
 import { useSearchProfiles } from '@/hooks'
+import useModalRegistration from '@/hooks/useModalRegistration'
 import { toNote } from '@/lib/link'
 import { randomString } from '@/lib/random'
 import { normalizeUrl } from '@/lib/url'
@@ -7,7 +8,6 @@ import { cn } from '@/lib/utils'
 import { useSecondaryPage } from '@/PageManager'
 import { useCustomFeeds } from '@/providers/CustomFeedsProvider'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
-import modalManager from '@/services/modal-manager.service'
 import { TCustomFeed, TSearchParams } from '@/types'
 import { Hash, Notebook, Plus, Search, Server } from 'lucide-react'
 import { nip19 } from 'nostr-tools'
@@ -238,15 +238,9 @@ const SearchBar = forwardRef<
     setDisplayList(searching && !!input)
   }, [searching, input])
 
-  useEffect(() => {
-    if (displayList && list) {
-      modalManager.register(id, () => {
-        setDisplayList(false)
-      })
-    } else {
-      modalManager.unregister(id)
-    }
-  }, [displayList, list])
+  useModalRegistration(id, Boolean(displayList && list), () => {
+    setDisplayList(false)
+  })
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -356,12 +350,7 @@ const SearchBar = forwardRef<
           onBlur={() => setSearching(false)}
         />
         {canSaveFeed && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="shrink-0 gap-1"
-            onClick={handleSaveFeed}
-          >
+          <Button variant="ghost" size="sm" className="shrink-0 gap-1" onClick={handleSaveFeed}>
             <Plus className="size-4" />
             <span className="hidden sm:inline">{t('Save feed')}</span>
           </Button>

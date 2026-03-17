@@ -1,11 +1,11 @@
 import { randomString } from '@/lib/random'
 import { cn } from '@/lib/utils'
 import { MEDIA_STYLE } from '@/constants'
+import useModalRegistration from '@/hooks/useModalRegistration'
 import { useContentPolicy } from '@/providers/ContentPolicyProvider'
 import { useMediaStyle } from '@/providers/MediaStyleProvider'
-import modalManager from '@/services/modal-manager.service'
 import { TImetaInfo } from '@/types'
-import { ReactNode, useEffect, useMemo, useState } from 'react'
+import { ReactNode, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import Lightbox from 'yet-another-react-lightbox'
@@ -50,31 +50,26 @@ export default function ImageGallery({
     return loaded
   })
   const displayImages = images.slice(start, end)
-  const isFullWidth = mediaStyle === MEDIA_STYLE.FULL_WIDTH && isSingleMedia && displayImages.length <= 2
+  const isFullWidth =
+    mediaStyle === MEDIA_STYLE.FULL_WIDTH && isSingleMedia && displayImages.length <= 2
 
-  useEffect(() => {
-    if (index >= 0) {
-      modalManager.register(id, () => {
-        setIndex(-1)
-      })
-    } else {
-      modalManager.unregister(id)
-    }
-  }, [index, id])
+  useModalRegistration(id, index >= 0, () => {
+    setIndex(-1)
+  })
 
   const handlePhotoClick = (event: React.MouseEvent, current: number) => {
     event.stopPropagation()
     event.preventDefault()
     const actualIndex = start + current
     // Mark this image as loaded
-    setLoadedImages(prev => new Set(prev).add(actualIndex))
+    setLoadedImages((prev) => new Set(prev).add(actualIndex))
     setIndex(actualIndex)
   }
 
   const handleLoadImage = (event: React.MouseEvent, imageIndex: number) => {
     event.stopPropagation()
     event.preventDefault()
-    setLoadedImages(prev => new Set(prev).add(imageIndex))
+    setLoadedImages((prev) => new Set(prev).add(imageIndex))
   }
 
   if (!mustLoad && !autoLoadMedia) {
@@ -177,8 +172,8 @@ export default function ImageGallery({
               <Image
                 key={i}
                 className={cn(
-                  "w-full cursor-zoom-in",
-                  isFullWidth ? "h-auto object-contain" : "aspect-square object-cover"
+                  'w-full cursor-zoom-in',
+                  isFullWidth ? 'h-auto object-contain' : 'aspect-square object-cover'
                 )}
                 classNames={{
                   errorPlaceholder: 'aspect-square h-[30vh]'
@@ -272,14 +267,18 @@ export default function ImageGallery({
     }
 
     return (
-      <div className={cn(
-        compactMedia
-          ? 'w-full'
-          : displayImages.length === 1
-            ? (isFullWidth ? 'w-full' : 'w-fit max-w-full')
-            : 'w-full',
-        className
-      )}>
+      <div
+        className={cn(
+          compactMedia
+            ? 'w-full'
+            : displayImages.length === 1
+              ? isFullWidth
+                ? 'w-full'
+                : 'w-fit max-w-full'
+              : 'w-full',
+          className
+        )}
+      >
         {imageContent}
         {index >= 0 &&
           createPortal(
@@ -355,8 +354,8 @@ export default function ImageGallery({
           <Image
             key={i}
             className={cn(
-              "w-full cursor-zoom-in",
-              isFullWidth ? "h-auto object-contain" : "aspect-square object-cover"
+              'w-full cursor-zoom-in',
+              isFullWidth ? 'h-auto object-contain' : 'aspect-square object-cover'
             )}
             classNames={{
               errorPlaceholder: 'aspect-square h-[30vh]'
@@ -411,14 +410,18 @@ export default function ImageGallery({
   }
 
   return (
-    <div className={cn(
-      compactMedia
-        ? 'w-full'
-        : displayImages.length === 1
-          ? (isFullWidth ? 'w-full' : 'w-fit max-w-full')
-          : 'w-full',
-      className
-    )}>
+    <div
+      className={cn(
+        compactMedia
+          ? 'w-full'
+          : displayImages.length === 1
+            ? isFullWidth
+              ? 'w-full'
+              : 'w-fit max-w-full'
+            : 'w-full',
+        className
+      )}
+    >
       {imageContent}
       {index >= 0 &&
         createPortal(

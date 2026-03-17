@@ -1,10 +1,10 @@
 import { TGalleryImage, TGalleryImageEvent } from '@/types'
 import { ExternalLink } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Lightbox from 'yet-another-react-lightbox'
 import Zoom from 'yet-another-react-lightbox/plugins/zoom'
-import modalManager from '@/services/modal-manager.service'
+import useModalRegistration from '@/hooks/useModalRegistration'
 import { randomString } from '@/lib/random'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -31,11 +31,13 @@ export default function ProfileGallery({
   // Use new gallery if available, otherwise fall back to legacy
   const usingNewFormat = newGalleryImages.length > 0
   const gallery = usingNewFormat
-    ? newGalleryImages.map((img): TGalleryImage => ({
-        url: img.url,
-        description: img.description,
-        link: img.link
-      }))
+    ? newGalleryImages.map(
+        (img): TGalleryImage => ({
+          url: img.url,
+          description: img.description,
+          link: img.link
+        })
+      )
     : legacyGallery || []
 
   console.log('[ProfileGallery] Debug:', {
@@ -61,15 +63,9 @@ export default function ProfileGallery({
     }))
   }, [visibleGallery])
 
-  useEffect(() => {
-    if (lightboxIndex >= 0) {
-      modalManager.register(lightboxId, () => {
-        setLightboxIndex(-1)
-      })
-    } else {
-      modalManager.unregister(lightboxId)
-    }
-  }, [lightboxIndex, lightboxId])
+  useModalRegistration(lightboxId, lightboxIndex >= 0, () => {
+    setLightboxIndex(-1)
+  })
 
   const handleImageClick = useCallback((index: number) => {
     setLightboxIndex(index)

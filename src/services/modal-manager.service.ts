@@ -21,17 +21,14 @@ class ModalManagerService {
   }
 
   unregister(id: string) {
-    const modal = this.modals.find((m) => m.id === id)
-    if (!modal) return
-
-    modal.cb()
     this.modals = this.modals.filter((m) => m.id !== id)
   }
 
   pop() {
-    const modal = this.modals.pop()
+    const modal = this.modals[this.modals.length - 1]
     if (!modal) return false
 
+    this.modals = this.modals.slice(0, -1)
     modal.cb()
     return true
   }
