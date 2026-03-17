@@ -5,6 +5,7 @@ import {
   EmbeddedHashtagParser,
   EmbeddedLNInvoiceParser,
   EmbeddedMentionParser,
+  EmbeddedStockSymbolParser,
   EmbeddedUrlParser,
   EmbeddedWebsocketUrlParser,
   parseContent
@@ -22,11 +23,13 @@ import {
   EmbeddedMention,
   EmbeddedNormalUrl,
   EmbeddedNote,
+  EmbeddedStockSymbol,
   EmbeddedWebsocketUrl
 } from '../Embedded'
 import Emoji from '../Emoji'
 import ImageGallery from '../ImageGallery'
 import MediaPlayer from '../MediaPlayer'
+import RelayPreview from '../RelayPreview'
 import WebPreview from '../WebPreview'
 import YoutubeEmbeddedPlayer from '../YoutubeEmbeddedPlayer'
 import TranslationIndicator from '../TranslationIndicator'
@@ -92,7 +95,7 @@ export default function Content({
     autoTranslateEvent(event)
   }, [event, shouldAutoTranslate, autoTranslateEvent, i18n.language])
 
-  const { nodes, allImages, lastNormalUrl, emojiInfos, totalMediaCount } = useMemo(() => {
+  const { nodes, allImages, lastNormalUrl, relayUrls, emojiInfos, totalMediaCount } = useMemo(() => {
     const _content = translatedEvent?.content ?? event?.content ?? content
     if (!_content) return {}
 
@@ -102,6 +105,7 @@ export default function Content({
       EmbeddedWebsocketUrlParser,
       EmbeddedEventParser,
       EmbeddedMentionParser,
+      EmbeddedStockSymbolParser,
       EmbeddedHashtagParser,
       EmbeddedEmojiParser
     ])
@@ -137,6 +141,13 @@ export default function Content({
     const lastNormalUrl =
       typeof lastNormalUrlNode?.data === 'string' ? lastNormalUrlNode.data : undefined
 
+    const relayUrls = nodes.reduce<string[]>((urls, node) => {
+      if (node.type === 'websocket-url') {
+        urls.push(node.data)
+      }
+      return urls
+    }, [])
+
     // Count total media items (images, videos, youtube)
     const totalMediaCount = nodes.reduce((count, node) => {
       if (node.type === 'image') return count + 1
@@ -147,7 +158,7 @@ export default function Content({
       return count
     }, 0)
 
-    return { nodes, allImages, emojiInfos, lastNormalUrl, totalMediaCount }
+    return { nodes, allImages, emojiInfos, lastNormalUrl, relayUrls, totalMediaCount }
   }, [event, translatedEvent, content])
 
   if (!nodes || nodes.length === 0) {
@@ -261,6 +272,9 @@ export default function Content({
         if (node.type === 'hashtag') {
           return <EmbeddedHashtag hashtag={node.data} key={index} />
         }
+        if (node.type === 'stock-symbol') {
+          return <EmbeddedStockSymbol key={index} symbol={node.data} />
+        }
         if (node.type === 'emoji') {
           const shortcode = node.data.split(':')[1]
           const emoji = emojiInfos.find((e) => e.shortcode === shortcode)
@@ -305,6 +319,7 @@ export default function Content({
         return null
       })}
       {!textOnlyMode && lastNormalUrl && <WebPreview className="mt-2" url={lastNormalUrl} pubkey={event?.pubkey} />}
+      {!textOnlyMode && !!relayUrls?.length && <RelayPreview className="mt-2" urls={relayUrls} />}
     </div>
   )
 }

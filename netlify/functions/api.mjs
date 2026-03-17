@@ -194,6 +194,9 @@ const TRANSLATION_MAX_CHARS_PER_REQUEST = toPositiveNumber(
   process.env.TRANSLATION_MAX_CHARS_PER_REQUEST,
   12000
 )
+const ALPHAVANTAGE_API_KEY = process.env.ALPHAVANTAGE_API_KEY || ''
+const STOCK_QUOTE_TTL_MS = 15 * 60 * 1000
+const STOCK_QUOTE_CACHE_MAX = 200
 
 const PACKAGE_CHARACTERS = [100_000, 500_000, 1_000_000, 2_500_000, 5_000_000, 10_000_000]
 
@@ -223,6 +226,7 @@ let openRouterStatusCache = {
     totalUsage: null
   }
 }
+const stockQuoteCache = new Map()
 
 const headers = {
   'Content-Type': 'application/json'
@@ -286,6 +290,10 @@ export default async (request) => {
 
       const zapEndpoint = await lookupZapEndpointForLightningAddress(lightningAddress)
       return json(200, zapEndpoint)
+    }
+
+    if (request.method === 'GET' && route === '/v1/stocks/quote') {
+      return await getStockQuote(request)
     }
 
     if (request.method === 'GET' && route === '/v1/admin/translation/config') {
@@ -685,6 +693,28 @@ async function getNip5Availability(request) {
     ownerPubkey: existing.pubkey || null,
     expiresAt: Number(existing.expiresAt || 0) || null
   })
+}
+
+async function getStockQuote(request) {
+  if (!ALPHAVANTAGE_API_KEY) {
+    return json(503, { error: 'Alpha Vantage API key is not configured' })
+  }
+
+  const url = new URL(request.url)
+  const symbol = normalizeStockSymbol(url.searchParams.get('symbol') || '')
+  if (!symbol) {
+    return json(400, { error: 'A valid stock symbol is required' })
+  }
+
+  try {
+    const quote = await getAlphaVantageStockQuote(symbol)
+    return json(200, quote)
+  } catch (error) {
+    if (typeof error?.statusCode === 'number') {
+      return json(error.statusCode, { error: error.message || 'Failed to load stock quote' })
+    }
+    throw error
+  }
 }
 
 async function registerNip5Eligibility(user, body) {
@@ -2794,6 +2824,19 @@ function extractRoute(rawUrl) {
   return url.pathname
 }
 
+function normalizeStockSymbol(value) {
+  const normalized = String(value || '')
+    .trim()
+    .replace(/^\$/, '')
+    .toUpperCase()
+
+  if (!/^[A-Z][A-Z0-9.-]{0,9}$/.test(normalized)) {
+    return ''
+  }
+
+  return normalized
+}
+
 function authError() {
   const err = new Error('Unauthorized')
   err.statusCode = 401
@@ -2813,12 +2856,109 @@ function toNonNegativeNumber(value, fallback) {
   return number
 }
 
+function createHttpError(statusCode, message) {
+  const err = new Error(message)
+  err.statusCode = statusCode
+  return err
+}
+
 function pickFiniteNumber(values) {
   for (const value of values) {
     const number = Number(value)
     if (Number.isFinite(number)) return number
   }
   return null
+}
+
+function parseAlphaVantageNumber(value) {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null
+  }
+
+  if (typeof value !== 'string') {
+    return null
+  }
+
+  const normalized = value.replace(/,/g, '').replace(/%/g, '').trim()
+  if (!normalized) {
+    return null
+  }
+
+  const parsed = Number(normalized)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function trimMapToMaxEntries(map, max) {
+  while (map.size > max) {
+    const oldestKey = map.keys().next().value
+    if (!oldestKey) {
+      break
+    }
+    map.delete(oldestKey)
+  }
+}
+
+async function getAlphaVantageStockQuote(symbol) {
+  const cached = stockQuoteCache.get(symbol)
+  if (cached && Date.now() - cached.fetchedAt < STOCK_QUOTE_TTL_MS) {
+    return cached.data
+  }
+
+  const url = new URL('https://www.alphavantage.co/query')
+  url.searchParams.set('function', 'GLOBAL_QUOTE')
+  url.searchParams.set('symbol', symbol)
+  url.searchParams.set('apikey', ALPHAVANTAGE_API_KEY)
+
+  const response = await fetch(url.toString(), {
+    headers: { Accept: 'application/json' }
+  })
+
+  if (!response.ok) {
+    throw createHttpError(502, `Alpha Vantage request failed (${response.status})`)
+  }
+
+  const payload = await response.json()
+  const rateLimitMessage =
+    (typeof payload?.Note === 'string' && payload.Note.trim()) ||
+    (typeof payload?.Information === 'string' && payload.Information.trim()) ||
+    ''
+
+  if (rateLimitMessage) {
+    throw createHttpError(429, rateLimitMessage)
+  }
+
+  if (typeof payload?.['Error Message'] === 'string' && payload['Error Message'].trim()) {
+    throw createHttpError(404, payload['Error Message'].trim())
+  }
+
+  const quote = payload?.['Global Quote']
+  if (!quote || typeof quote !== 'object' || !String(quote['01. symbol'] || '').trim()) {
+    throw createHttpError(404, `No stock quote found for ${symbol}`)
+  }
+
+  const normalizedQuote = {
+    symbol: String(quote['01. symbol'] || symbol).trim().toUpperCase(),
+    price: parseAlphaVantageNumber(quote['05. price']),
+    change: parseAlphaVantageNumber(quote['09. change']),
+    changePercent: parseAlphaVantageNumber(quote['10. change percent']),
+    open: parseAlphaVantageNumber(quote['02. open']),
+    high: parseAlphaVantageNumber(quote['03. high']),
+    low: parseAlphaVantageNumber(quote['04. low']),
+    previousClose: parseAlphaVantageNumber(quote['08. previous close']),
+    volume: parseAlphaVantageNumber(quote['06. volume']),
+    latestTradingDay:
+      typeof quote['07. latest trading day'] === 'string' && quote['07. latest trading day'].trim()
+        ? quote['07. latest trading day'].trim()
+        : null
+  }
+
+  stockQuoteCache.set(symbol, {
+    fetchedAt: Date.now(),
+    data: normalizedQuote
+  })
+  trimMapToMaxEntries(stockQuoteCache, STOCK_QUOTE_CACHE_MAX)
+
+  return normalizedQuote
 }
 
 function safeEqualConstantTime(a, b) {

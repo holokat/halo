@@ -4,6 +4,7 @@ import {
   EMOJI_SHORT_CODE_REGEX,
   HASHTAG_REGEX,
   LN_INVOICE_REGEX,
+  STOCK_SYMBOL_REGEX,
   URL_REGEX,
   WS_URL_REGEX,
   YOUTUBE_URL_REGEX
@@ -19,6 +20,7 @@ export type TEmbeddedNodeType =
   | 'mention'
   | 'legacy-mention'
   | 'hashtag'
+  | 'stock-symbol'
   | 'websocket-url'
   | 'url'
   | 'emoji'
@@ -42,6 +44,48 @@ type TContentParser =
 export const EmbeddedHashtagParser: TContentParser = {
   type: 'hashtag',
   regex: HASHTAG_REGEX
+}
+
+export const EmbeddedStockSymbolParser: TContentParser = (content: string) => {
+  const matches = content.matchAll(STOCK_SYMBOL_REGEX)
+  const result: TEmbeddedNode[] = []
+  let lastIndex = 0
+
+  for (const match of matches) {
+    const symbol = match[0]
+    const matchStart = match.index!
+    const matchEnd = matchStart + symbol.length
+    const prevChar = matchStart > 0 ? content[matchStart - 1] : ''
+    const nextChar = matchEnd < content.length ? content[matchEnd] : ''
+
+    // Only match standalone cashtags, not parts of longer words or currency values.
+    if ((prevChar && /[\p{L}\p{N}_$]/u.test(prevChar)) || (nextChar && /[A-Z0-9.-]/.test(nextChar))) {
+      continue
+    }
+
+    if (matchStart > lastIndex) {
+      result.push({
+        type: 'text',
+        data: content.slice(lastIndex, matchStart)
+      })
+    }
+
+    result.push({
+      type: 'stock-symbol',
+      data: symbol
+    })
+
+    lastIndex = matchEnd
+  }
+
+  if (lastIndex < content.length) {
+    result.push({
+      type: 'text',
+      data: content.slice(lastIndex)
+    })
+  }
+
+  return result.length > 0 ? result : [{ type: 'text', data: content }]
 }
 
 export const EmbeddedMentionParser: TContentParser = {

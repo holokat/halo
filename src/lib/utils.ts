@@ -4,6 +4,7 @@ import {
   EMBEDDED_MENTION_REGEX,
   EMOJI_REGEX,
   HASHTAG_REGEX,
+  STOCK_SYMBOL_REGEX,
   URL_REGEX,
   WS_URL_REGEX
 } from '@/constants'
@@ -85,6 +86,7 @@ export function detectLanguage(text?: string): string | null {
     .replace(EMBEDDED_MENTION_REGEX, '')
     .replace(EMBEDDED_EVENT_REGEX, '')
     .replace(HASHTAG_REGEX, '')
+    .replace(STOCK_SYMBOL_REGEX, '')
     .replace(EMOJI_REGEX, '')
     .trim()
 

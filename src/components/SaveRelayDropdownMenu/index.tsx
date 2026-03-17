@@ -45,7 +45,13 @@ export default function SaveRelayDropdownMenu({
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
 
   const trigger = bigButton ? (
-    <Button variant="ghost" size="titlebar-icon" onClick={() => setIsDrawerOpen(true)}>
+    <Button
+      variant="outline"
+      size="titlebar-icon"
+      className="border-border/70 bg-background/80 text-muted-foreground shadow-none hover:bg-accent hover:text-accent-foreground"
+      style={{ borderRadius: '9999px' }}
+      onClick={() => setIsDrawerOpen(true)}
+    >
       <Star className={alreadySaved ? 'fill-primary stroke-primary' : ''} />
     </Button>
   ) : (
@@ -88,7 +94,7 @@ export default function SaveRelayDropdownMenu({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild className="px-2">
+      <DropdownMenuTrigger asChild className={bigButton ? undefined : 'px-2'}>
         {trigger}
       </DropdownMenuTrigger>
       <DropdownMenuContent onClick={(e) => e.stopPropagation()}>

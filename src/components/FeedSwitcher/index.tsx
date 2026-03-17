@@ -10,6 +10,7 @@ import {
   Hash,
   Highlighter,
   Loader2,
+  Minus,
   Pin,
   Search,
   Trash2,
@@ -24,10 +25,15 @@ import { Input } from '../ui/input'
 import RelayIcon from '../RelayIcon'
 import RelaySetCard from '../RelaySetCard'
 
+function stripRelayProtocol(value: string) {
+  return value.trim().replace(/^(?:wss?|https?):\/\//i, '')
+}
+
 export default function FeedSwitcher({ close }: { close?: () => void }) {
   const { t } = useTranslation()
   const { pubkey } = useNostr()
-  const { relaySets, favoriteRelays, addFavoriteRelays } = useFavoriteRelays()
+  const { relaySets, favoriteRelays, addFavoriteRelays, deleteFavoriteRelays } =
+    useFavoriteRelays()
   const { feedInfo, switchFeed } = useFeed()
   const { customFeeds, removeCustomFeed } = useCustomFeeds()
 
@@ -213,13 +219,29 @@ export default function FeedSwitcher({ close }: { close?: () => void }) {
             close?.()
           }}
           controls={
-            <PinButton
-              column={{
-                type: 'relay',
-                props: { url: relay }
-              }}
-              className="opacity-0 group-hover:opacity-100 transition-opacity"
-            />
+            <div className="flex gap-1 items-center">
+              <PinButton
+                column={{
+                  type: 'relay',
+                  props: { url: relay }
+                }}
+                className="opacity-0 group-hover:opacity-100 transition-opacity"
+              />
+              {pubkey && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                  title={t('Unfavorite')}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    void deleteFavoriteRelays([relay])
+                  }}
+                >
+                  <Minus className="size-4" />
+                </Button>
+              )}
+            </div>
           }
         >
           <div className="flex gap-2 items-center w-full">
@@ -254,12 +276,23 @@ function QuickRelayInput({
 
   useEffect(() => {
     if (!activeRelay || favoriteRelays.includes(activeRelay)) return
-    setInput((currentInput) => currentInput || activeRelay)
+    setInput((currentInput) => currentInput || stripRelayProtocol(activeRelay))
   }, [activeRelay, favoriteRelays])
 
   const normalizedRelay = useMemo(() => normalizeUrl(input.trim()), [input])
   const isValidRelay = !!normalizedRelay && isWebsocketUrl(normalizedRelay)
   const isSavedRelay = isValidRelay && favoriteRelays.includes(normalizedRelay)
+  const inputPrefix = useMemo(() => {
+    if (normalizedRelay.startsWith('ws://')) {
+      return 'ws://'
+    }
+
+    if (input.trim().toLowerCase().startsWith('localhost')) {
+      return 'ws://'
+    }
+
+    return 'wss://'
+  }, [input, normalizedRelay])
 
   const resolveRelay = () => {
     if (!isValidRelay) {
@@ -275,7 +308,7 @@ function QuickRelayInput({
 
     setErrorMsg('')
     await onOpenRelay(relay)
-    setInput(relay)
+    setInput(stripRelayProtocol(relay))
     close?.()
   }
 
@@ -289,7 +322,7 @@ function QuickRelayInput({
     try {
       await onSaveRelay(relay)
       await onOpenRelay(relay)
-      setInput(relay)
+      setInput(stripRelayProtocol(relay))
       close?.()
     } catch (error) {
       setErrorMsg((error as Error).message || t('Failed to save relay'))
@@ -301,28 +334,35 @@ function QuickRelayInput({
   const helperText = isSavedRelay
     ? t('Already saved')
     : pubkey
-      ? t('Open now or save it to this dropdown')
-      : t('Open a relay directly')
+      ? t('Type a relay host or paste the full URL, then open or save it here')
+      : t('Type a relay host or paste the full URL')
 
   return (
     <div className="rounded-lg border px-3 py-3 space-y-2">
       <div className="text-xs font-semibold">{t('Browse relay')}</div>
       <div className="flex gap-2 items-center">
-        <Input
-          placeholder={t('Add relay source URL (wss://...)')}
-          value={input}
-          onChange={(event) => {
-            setInput(event.target.value)
-            setErrorMsg('')
-          }}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') {
-              event.preventDefault()
-              void handleOpenRelay()
-            }
-          }}
-          className={errorMsg ? 'border-destructive' : ''}
-        />
+        <div
+          className={`flex flex-1 items-center rounded-lg border bg-background transition-colors ${
+            errorMsg ? 'border-destructive' : 'border-input'
+          }`}
+        >
+          <span className="pl-3 text-sm text-muted-foreground shrink-0">{inputPrefix}</span>
+          <Input
+            placeholder={t('relay.example.com')}
+            value={input}
+            onChange={(event) => {
+              setInput(stripRelayProtocol(event.target.value))
+              setErrorMsg('')
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                void handleOpenRelay()
+              }
+            }}
+            className="border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-1"
+          />
+        </div>
         <Button onClick={() => void handleOpenRelay()} disabled={!input.trim()}>
           {t('Open')}
         </Button>

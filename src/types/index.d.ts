@@ -251,6 +251,19 @@ export type TMediaUploadServiceConfig =
       type: 'blossom'
     }
 
+export type TStockQuote = {
+  symbol: string
+  price: number | null
+  change: number | null
+  changePercent: number | null
+  open: number | null
+  high: number | null
+  low: number | null
+  previousClose: number | null
+  volume: number | null
+  latestTradingDay: string | null
+}
+
 export type TPollType = (typeof POLL_TYPE)[keyof typeof POLL_TYPE]
 
 export type TPollCreateData = {
