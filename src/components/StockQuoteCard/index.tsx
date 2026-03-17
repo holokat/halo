@@ -144,7 +144,11 @@ export default function StockQuoteCard({
   return (
     <Card
       className={cn('overflow-hidden border-border/70 bg-card/95 shadow-sm backdrop-blur', className)}
-      style={{ borderRadius: 'var(--media-radius, 14px)' }}
+      style={{
+        borderRadius: 'var(--media-radius, 14px)',
+        borderTopLeftRadius: 0,
+        borderTopRightRadius: 0
+      }}
     >
       {content}
     </Card>
