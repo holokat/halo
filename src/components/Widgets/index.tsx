@@ -2,6 +2,7 @@ import { useWidgets } from '@/providers/WidgetsProvider'
 import { usePageTheme } from '@/providers/PageThemeProvider'
 import TrendingNotesWidget from '@/components/TrendingNotes/TrendingNotesWidget'
 import NewsWidget from '@/components/NewsWidget'
+import PollsWidget from '@/components/PollsWidget'
 import BitcoinTickerWidget from '@/components/BitcoinTicker/BitcoinTickerWidget'
 import StockTrackerWidget from '@/components/StockTrackerWidget'
 import PinnedNoteWidget from '@/components/PinnedNoteWidget'
@@ -16,6 +17,7 @@ const WIDGET_COMPONENTS: Record<string, React.ComponentType> = {
   'bitcoin-ticker': BitcoinTickerWidget,
   'trending-notes': TrendingNotesWidget,
   news: NewsWidget,
+  polls: PollsWidget,
   'stock-tracker': StockTrackerWidget,
   'ai-prompt': SidebarAIPromptWidget,
   'invite': InviteWidget

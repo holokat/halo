@@ -48,8 +48,11 @@ function SortableWidgetCard({
   bitcoinTickerShowSatsMode,
   onBitcoinTickerShowSatsModeChange,
   newsRelays,
+  newsHashtags,
   onAddNewsRelay,
-  onRemoveNewsRelay
+  onRemoveNewsRelay,
+  onAddNewsHashtag,
+  onRemoveNewsHashtag
 }: {
   id: TWidgetId
   enabled: boolean
@@ -65,13 +68,18 @@ function SortableWidgetCard({
   bitcoinTickerShowSatsMode?: boolean
   onBitcoinTickerShowSatsModeChange?: (show: boolean) => void
   newsRelays?: string[]
+  newsHashtags?: string[]
   onAddNewsRelay?: (relay: string) => void
   onRemoveNewsRelay?: (relay: string) => void
+  onAddNewsHashtag?: (hashtag: string) => void
+  onRemoveNewsHashtag?: (hashtag: string) => void
 }) {
   const { t } = useTranslation()
   const widget = AVAILABLE_WIDGETS.find((w) => w.id === id)
   const [newsRelayInput, setNewsRelayInput] = useState('')
   const [newsRelayError, setNewsRelayError] = useState<string | null>(null)
+  const [newsHashtagInput, setNewsHashtagInput] = useState('')
+  const [newsHashtagError, setNewsHashtagError] = useState<string | null>(null)
 
   const {
     attributes,
@@ -119,6 +127,33 @@ function SortableWidgetCard({
     onAddNewsRelay?.(normalizedRelay)
     setNewsRelayInput('')
     setNewsRelayError(null)
+  }
+
+  const handleAddNewsHashtag = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    const normalizedHashtag = normalizeWidgetHashtag(newsHashtagInput)
+    if (!normalizedHashtag) {
+      setNewsHashtagError(
+        t('Enter a hashtag like bitcoin or #bitcoin', {
+          defaultValue: 'Enter a hashtag like bitcoin or #bitcoin'
+        })
+      )
+      return
+    }
+
+    if (newsHashtags?.includes(normalizedHashtag)) {
+      setNewsHashtagError(
+        t('Hashtag already added', {
+          defaultValue: 'Hashtag already added'
+        })
+      )
+      return
+    }
+
+    onAddNewsHashtag?.(normalizedHashtag)
+    setNewsHashtagInput('')
+    setNewsHashtagError(null)
   }
 
   return (
@@ -290,7 +325,13 @@ function SortableWidgetCard({
         </div>
       )}
 
-      {showNewsSettings && newsRelays && onAddNewsRelay && onRemoveNewsRelay && (
+      {showNewsSettings &&
+        newsRelays &&
+        newsHashtags &&
+        onAddNewsRelay &&
+        onRemoveNewsRelay &&
+        onAddNewsHashtag &&
+        onRemoveNewsHashtag && (
         <div className="space-y-3 border-t border-border/50 px-4 pb-4 pt-2">
           <div>
             <Label className="mb-2 block text-sm font-medium">
@@ -352,6 +393,67 @@ function SortableWidgetCard({
               })}
             </div>
           )}
+
+          <div className="pt-2">
+            <Label className="mb-2 block text-sm font-medium">
+              {t('News Hashtags', { defaultValue: 'News Hashtags' })}
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              {t('Add hashtags to also pull matching notes into the widget from your selected relays.', {
+                defaultValue:
+                  'Add hashtags to also pull matching notes into the widget from your selected relays.'
+              })}
+            </p>
+          </div>
+
+          <form className="flex items-center gap-2" onSubmit={handleAddNewsHashtag}>
+            <Input
+              value={newsHashtagInput}
+              onChange={(event) => {
+                setNewsHashtagInput(event.target.value)
+                if (newsHashtagError) {
+                  setNewsHashtagError(null)
+                }
+              }}
+              placeholder="#bitcoin"
+              aria-label={t('Add news hashtag', { defaultValue: 'Add news hashtag' })}
+              className="h-9"
+            />
+            <Button type="submit" size="icon" className="h-9 w-9 shrink-0 rounded-full">
+              <Plus className="h-4 w-4" />
+            </Button>
+          </form>
+
+          {newsHashtagError ? <p className="text-xs text-destructive">{newsHashtagError}</p> : null}
+
+          {newsHashtags.length > 0 ? (
+            <div className="space-y-2">
+              {newsHashtags.map((hashtag) => (
+                <div
+                  key={hashtag}
+                  className="flex items-center justify-between gap-2 rounded-lg border bg-background/60 px-3 py-2"
+                >
+                  <span className="truncate text-sm">#{hashtag}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0"
+                    onClick={() => onRemoveNewsHashtag(hashtag)}
+                    title={t('Remove hashtag', { defaultValue: 'Remove hashtag' })}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-border/80 bg-muted/20 px-3 py-4 text-center text-xs text-muted-foreground">
+              {t('No news hashtags configured. Add one above to include matching notes too.', {
+                defaultValue: 'No news hashtags configured. Add one above to include matching notes too.'
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -383,8 +485,11 @@ const WidgetsSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
     bitcoinTickerShowSatsMode,
     setBitcoinTickerShowSatsMode,
     newsWidgetRelays,
+    newsWidgetHashtags,
     addNewsWidgetRelay,
-    removeNewsWidgetRelay
+    removeNewsWidgetRelay,
+    addNewsWidgetHashtag,
+    removeNewsWidgetHashtag
   } = useWidgets()
   const { widgetSidebarTitle, setWidgetSidebarTitle, widgetSidebarIcon, setWidgetSidebarIcon } = useWidgetSidebarTitle()
   const [activeId, setActiveId] = useState<TWidgetId | null>(null)
@@ -540,8 +645,11 @@ const WidgetsSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
                   bitcoinTickerShowSatsMode={bitcoinTickerShowSatsMode}
                   onBitcoinTickerShowSatsModeChange={setBitcoinTickerShowSatsMode}
                   newsRelays={newsWidgetRelays}
+                  newsHashtags={newsWidgetHashtags}
                   onAddNewsRelay={addNewsWidgetRelay}
                   onRemoveNewsRelay={removeNewsWidgetRelay}
+                  onAddNewsHashtag={addNewsWidgetHashtag}
+                  onRemoveNewsHashtag={removeNewsWidgetHashtag}
                 />
               ))}
             </div>
@@ -568,3 +676,7 @@ const WidgetsSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
 })
 WidgetsSettingsPage.displayName = 'WidgetsSettingsPage'
 export default WidgetsSettingsPage
+
+function normalizeWidgetHashtag(tag: string) {
+  return tag.trim().replace(/^#/, '').toLowerCase()
+}

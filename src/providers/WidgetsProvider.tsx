@@ -1,5 +1,5 @@
 import localStorageService from '@/services/local-storage.service'
-import { TrendingUp, Bitcoin, LineChart, Newspaper, Sparkles, Users } from 'lucide-react'
+import { TrendingUp, Bitcoin, LineChart, Newspaper, Sparkles, Users, BarChart3 } from 'lucide-react'
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react'
 import { TAIMessage } from '@/types'
 import { isValidStockSymbol, normalizeStockSymbol } from '@/services/stock-quote.service'
@@ -8,6 +8,7 @@ import { isWebsocketUrl, normalizeUrl } from '@/lib/url'
 export type TWidgetId =
   | 'trending-notes'
   | 'news'
+  | 'polls'
   | 'bitcoin-ticker'
   | 'stock-tracker'
   | 'ai-prompt'
@@ -69,6 +70,13 @@ export const AVAILABLE_WIDGETS: TWidget[] = [
     icon: <Newspaper className="h-5 w-5" />
   },
   {
+    id: 'polls',
+    name: 'Polls',
+    description: 'Display compact active and finished polls from people you follow',
+    defaultEnabled: false,
+    icon: <BarChart3 className="h-5 w-5" />
+  },
+  {
     id: 'stock-tracker',
     name: 'Stock Tracker',
     description: 'Track a compact watchlist of stock symbols in your sidebar',
@@ -115,6 +123,9 @@ type TWidgetsContext = {
   newsWidgetRelays: string[]
   addNewsWidgetRelay: (relay: string) => void
   removeNewsWidgetRelay: (relay: string) => void
+  newsWidgetHashtags: string[]
+  addNewsWidgetHashtag: (hashtag: string) => void
+  removeNewsWidgetHashtag: (hashtag: string) => void
   pinnedNoteWidgets: TPinnedNoteWidget[]
   pinNoteWidget: (eventId: string) => string
   unpinNoteWidget: (widgetId: string) => void
@@ -181,6 +192,10 @@ export function WidgetsProvider({ children }: { children: ReactNode }) {
     return localStorageService.getNewsWidgetRelays()
   })
 
+  const [newsWidgetHashtags, setNewsWidgetHashtagsState] = useState<string[]>(() => {
+    return localStorageService.getNewsWidgetHashtags()
+  })
+
   const [hideWidgetTitles, setHideWidgetTitlesState] = useState<boolean>(() => {
     return localStorageService.getHideWidgetTitles()
   })
@@ -226,6 +241,10 @@ export function WidgetsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorageService.setNewsWidgetRelays(newsWidgetRelays)
   }, [newsWidgetRelays])
+
+  useEffect(() => {
+    localStorageService.setNewsWidgetHashtags(newsWidgetHashtags)
+  }, [newsWidgetHashtags])
 
   useEffect(() => {
     localStorageService.setHideWidgetTitles(hideWidgetTitles)
@@ -289,6 +308,24 @@ export function WidgetsProvider({ children }: { children: ReactNode }) {
     }
 
     setNewsWidgetRelaysState((prev) => prev.filter((item) => item !== relay))
+  }
+
+  const addNewsWidgetHashtag = (rawHashtag: string) => {
+    const hashtag = normalizeWidgetHashtag(rawHashtag)
+    if (!hashtag) {
+      return
+    }
+
+    setNewsWidgetHashtagsState((prev) => (prev.includes(hashtag) ? prev : [...prev, hashtag]))
+  }
+
+  const removeNewsWidgetHashtag = (rawHashtag: string) => {
+    const hashtag = normalizeWidgetHashtag(rawHashtag)
+    if (!hashtag) {
+      return
+    }
+
+    setNewsWidgetHashtagsState((prev) => prev.filter((item) => item !== hashtag))
   }
 
   const toggleWidget = (widgetId: TWidgetId) => {
@@ -454,6 +491,9 @@ export function WidgetsProvider({ children }: { children: ReactNode }) {
         newsWidgetRelays,
         addNewsWidgetRelay,
         removeNewsWidgetRelay,
+        newsWidgetHashtags,
+        addNewsWidgetHashtag,
+        removeNewsWidgetHashtag,
         pinnedNoteWidgets,
         pinNoteWidget,
         unpinNoteWidget,
@@ -484,4 +524,8 @@ export function useWidgets() {
     throw new Error('useWidgets must be used within a WidgetsProvider')
   }
   return context
+}
+
+function normalizeWidgetHashtag(tag: string) {
+  return tag.trim().replace(/^#/, '').toLowerCase()
 }

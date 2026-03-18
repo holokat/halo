@@ -92,6 +92,7 @@ export const StorageKey = {
   HIDE_WIDGET_TITLES: 'hideWidgetTitles',
   ENABLED_WIDGETS: 'enabledWidgets',
   NEWS_WIDGET_RELAYS: 'newsWidgetRelays',
+  NEWS_WIDGET_HASHTAGS: 'newsWidgetHashtags',
   PINNED_NOTE_WIDGETS: 'pinnedNoteWidgets',
   LIVE_STREAM_WIDGETS: 'liveStreamWidgets',
   AI_PROMPT_WIDGETS: 'aiPromptWidgets',

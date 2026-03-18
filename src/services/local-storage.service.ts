@@ -145,6 +145,7 @@ class LocalStorageService {
   private bitcoinTickerShowSatsMode: boolean = false
   private stockTrackerSymbols: string[] = []
   private newsWidgetRelays: string[] = DEFAULT_NEWS_WIDGET_RELAYS
+  private newsWidgetHashtags: string[] = []
   private zapSound: TZapSound = ZAP_SOUNDS.NONE
   private customFeeds: TCustomFeed[] = []
   private chargeZapEnabled: boolean = false
@@ -547,6 +548,18 @@ class LocalStorageService {
       this.newsWidgetRelays = normalizedNewsRelays
     } else {
       this.newsWidgetRelays = DEFAULT_NEWS_WIDGET_RELAYS
+    }
+
+    const storedNewsWidgetHashtags = getStorageJson<string[]>(StorageKey.NEWS_WIDGET_HASHTAGS, [])
+    if (Array.isArray(storedNewsWidgetHashtags)) {
+      this.newsWidgetHashtags = Array.from(
+        new Set(
+          storedNewsWidgetHashtags
+            .filter((tag) => typeof tag === 'string')
+            .map((tag) => normalizeWidgetHashtag(tag))
+            .filter(Boolean)
+        )
+      )
     }
 
     const zapSound = window.localStorage.getItem(StorageKey.ZAP_SOUND)
@@ -1373,6 +1386,15 @@ class LocalStorageService {
     this.setJson(StorageKey.NEWS_WIDGET_RELAYS, relays)
   }
 
+  getNewsWidgetHashtags() {
+    return this.newsWidgetHashtags
+  }
+
+  setNewsWidgetHashtags(hashtags: string[]) {
+    this.newsWidgetHashtags = hashtags
+    this.setJson(StorageKey.NEWS_WIDGET_HASHTAGS, hashtags)
+  }
+
   getPinnedNoteWidgets() {
     return this.pinnedNoteWidgets
   }
@@ -1720,3 +1742,7 @@ class LocalStorageService {
 
 const instance = new LocalStorageService()
 export default instance
+
+function normalizeWidgetHashtag(tag: string) {
+  return tag.trim().replace(/^#/, '').toLowerCase()
+}
