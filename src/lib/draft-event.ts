@@ -1,4 +1,10 @@
-import { ApplicationDataKey, EMBEDDED_EVENT_REGEX, ExtendedKind, POLL_TYPE } from '@/constants'
+import {
+  ApplicationDataKey,
+  EMBEDDED_EVENT_REGEX,
+  ExtendedKind,
+  POLL_TYPE,
+  STOCK_SYMBOL_REGEX
+} from '@/constants'
 import client from '@/services/client.service'
 import customEmojiService from '@/services/custom-emoji.service'
 import mediaUpload from '@/services/media-upload.service'
@@ -115,9 +121,9 @@ export async function createShortTextNoteDraftEvent(
   const { content: transformedEmojisContent, emojiTags } = transformCustomEmojisInContent(content)
   const { quoteEventHexIds, quoteReplaceableCoordinates, rootETag, parentETag } =
     await extractRelatedEventIds(transformedEmojisContent, options.parentEvent)
-  const hashtags = extractHashtags(transformedEmojisContent)
+  const tTagValues = extractTTagValues(transformedEmojisContent)
 
-  const tags = emojiTags.concat(hashtags.map((hashtag) => buildTTag(hashtag)))
+  const tags = emojiTags.concat(tTagValues.map((value) => buildTTag(value)))
 
   // imeta tags
   const images = extractImagesFromContent(transformedEmojisContent)
@@ -195,10 +201,10 @@ export async function createCommentDraftEvent(
     rootPubkey,
     rootUrl
   } = await extractCommentMentions(transformedEmojisContent, parentEvent)
-  const hashtags = extractHashtags(transformedEmojisContent)
+  const tTagValues = extractTTagValues(transformedEmojisContent)
 
   const tags = emojiTags
-    .concat(hashtags.map((hashtag) => buildTTag(hashtag)))
+    .concat(tTagValues.map((value) => buildTTag(value)))
     .concat(quoteEventHexIds.map((eventId) => buildQTag(eventId)))
     .concat(quoteReplaceableCoordinates.map((coordinate) => buildReplaceableQTag(coordinate)))
 
@@ -260,6 +266,15 @@ export function createRelayListDraftEvent(mailboxRelays: TMailboxRelay[]): TDraf
     kind: kinds.RelayList,
     content: '',
     tags: mailboxRelays.map(({ url, scope }) => buildRTag(url, scope)),
+    created_at: dayjs().unix()
+  }
+}
+
+export function createInboxRelayListDraftEvent(relayUrls: string[]): TDraftEvent {
+  return {
+    kind: ExtendedKind.INBOX_RELAYS,
+    content: '',
+    tags: relayUrls.map((url) => buildRelayTag(url)),
     created_at: dayjs().unix()
   }
 }
@@ -366,9 +381,9 @@ export async function createPollDraftEvent(
   const { content: transformedEmojisContent, emojiTags } = transformCustomEmojisInContent(question)
   const { quoteEventHexIds, quoteReplaceableCoordinates } =
     await extractRelatedEventIds(transformedEmojisContent)
-  const hashtags = extractHashtags(transformedEmojisContent)
+  const tTagValues = extractTTagValues(transformedEmojisContent)
 
-  const tags = emojiTags.concat(hashtags.map((hashtag) => buildTTag(hashtag)))
+  const tags = emojiTags.concat(tTagValues.map((value) => buildTTag(value)))
 
   // imeta tags
   const images = extractImagesFromContent(transformedEmojisContent)
@@ -612,6 +627,38 @@ function extractHashtags(content: string) {
     }
   })
   return hashtags
+}
+
+function extractStockSymbols(content: string) {
+  const stockSymbols: string[] = []
+  const matches = content.matchAll(new RegExp(STOCK_SYMBOL_REGEX.source, STOCK_SYMBOL_REGEX.flags))
+
+  for (const match of matches) {
+    const symbol = match[0]
+    const matchStart = match.index ?? 0
+    const matchEnd = matchStart + symbol.length
+    const prevChar = matchStart > 0 ? content[matchStart - 1] : ''
+    const nextChar = matchEnd < content.length ? content[matchEnd] : ''
+
+    // Only match standalone cashtags, not parts of longer words or currency values.
+    if (
+      (prevChar && /[\p{L}\p{N}_$]/u.test(prevChar)) ||
+      (nextChar && /[A-Z0-9.-]/.test(nextChar))
+    ) {
+      continue
+    }
+
+    const normalizedSymbol = symbol.slice(1).toLowerCase()
+    if (normalizedSymbol) {
+      stockSymbols.push(normalizedSymbol)
+    }
+  }
+
+  return stockSymbols
+}
+
+function extractTTagValues(content: string) {
+  return Array.from(new Set([...extractHashtags(content), ...extractStockSymbols(content)]))
 }
 
 function extractImagesFromContent(content: string) {

@@ -12,6 +12,7 @@ type TValue<T = any> = {
 const StoreNames = {
   PROFILE_EVENTS: 'profileEvents',
   RELAY_LIST_EVENTS: 'relayListEvents',
+  INBOX_RELAY_LIST_EVENTS: 'inboxRelayListEvents',
   FOLLOW_LIST_EVENTS: 'followListEvents',
   MUTE_LIST_EVENTS: 'muteListEvents',
   BOOKMARK_LIST_EVENTS: 'bookmarkListEvents',
@@ -49,7 +50,7 @@ class IndexedDbService {
   init(): Promise<void> {
     if (!this.initPromise) {
       this.initPromise = new Promise((resolve, reject) => {
-        const request = window.indexedDB.open('jumble', 14)
+        const request = window.indexedDB.open('jumble', 15)
 
         request.onerror = (event) => {
           reject(event)
@@ -67,6 +68,9 @@ class IndexedDbService {
           }
           if (!db.objectStoreNames.contains(StoreNames.RELAY_LIST_EVENTS)) {
             db.createObjectStore(StoreNames.RELAY_LIST_EVENTS, { keyPath: 'key' })
+          }
+          if (!db.objectStoreNames.contains(StoreNames.INBOX_RELAY_LIST_EVENTS)) {
+            db.createObjectStore(StoreNames.INBOX_RELAY_LIST_EVENTS, { keyPath: 'key' })
           }
           if (!db.objectStoreNames.contains(StoreNames.FOLLOW_LIST_EVENTS)) {
             db.createObjectStore(StoreNames.FOLLOW_LIST_EVENTS, { keyPath: 'key' })
@@ -513,6 +517,8 @@ class IndexedDbService {
         return StoreNames.PROFILE_EVENTS
       case kinds.RelayList:
         return StoreNames.RELAY_LIST_EVENTS
+      case ExtendedKind.INBOX_RELAYS:
+        return StoreNames.INBOX_RELAY_LIST_EVENTS
       case kinds.Contacts:
         return StoreNames.FOLLOW_LIST_EVENTS
       case kinds.Mutelist:
@@ -675,6 +681,7 @@ class IndexedDbService {
     const stores = [
       { name: StoreNames.PROFILE_EVENTS, expirationTimestamp: Date.now() - 1000 * 60 * 60 * 24 }, // 1 day
       { name: StoreNames.RELAY_LIST_EVENTS, expirationTimestamp: Date.now() - 1000 * 60 * 60 * 24 }, // 1 day
+      { name: StoreNames.INBOX_RELAY_LIST_EVENTS, expirationTimestamp: Date.now() - 1000 * 60 * 60 * 24 }, // 1 day
       {
         name: StoreNames.FOLLOW_LIST_EVENTS,
         expirationTimestamp: Date.now() - 1000 * 60 * 60 * 24 // 1 day

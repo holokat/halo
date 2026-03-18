@@ -10,7 +10,7 @@ import { toast } from 'sonner'
 import NewMailboxRelayInput from './NewMailboxRelayInput'
 import RelayCountWarning from './RelayCountWarning'
 import FollowsRelayRecommendations from './FollowsRelayRecommendations'
-import { createRelayListDraftEvent } from '@/lib/draft-event'
+import { createInboxRelayListDraftEvent, createRelayListDraftEvent } from '@/lib/draft-event'
 import { Plus, Trash2 } from 'lucide-react'
 import RelayIcon from '../RelayIcon'
 import RelayTutorialDialog from '../RelayTutorialDialog'
@@ -27,7 +27,7 @@ export default function MailboxSetting({
   onSaveStateChange?: (state: TMailboxSettingSaveState) => void
 }) {
   const { t } = useTranslation()
-  const { pubkey, relayList, publish, updateRelayListEvent } = useNostr()
+  const { pubkey, relayList, publish, updateInboxRelayEvent, updateRelayListEvent } = useNostr()
   const [relays, setRelays] = useState<TMailboxRelay[]>([])
   const [hasChange, setHasChange] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -108,12 +108,20 @@ export default function MailboxSetting({
 
   const saveRelays = useCallback(async () => {
     if (!pubkey || !relayList || isSaving || !hasChange) return
+    if (readRelays.length === 0) {
+      toast.error(t('Add at least one read relay to receive NIP-17 direct messages.'))
+      return
+    }
 
     try {
       setIsSaving(true)
       const event = createRelayListDraftEvent(relays)
       const relayListEvent = await publish(event)
+      const inboxRelayEvent = await publish(
+        createInboxRelayListDraftEvent(readRelays.map((relay) => relay.url).slice(0, 3))
+      )
       await updateRelayListEvent(relayListEvent)
+      await updateInboxRelayEvent(inboxRelayEvent)
       setHasChange(false)
       toast.success(t('Relay settings saved'))
     } catch (error) {
@@ -122,15 +130,26 @@ export default function MailboxSetting({
     } finally {
       setIsSaving(false)
     }
-  }, [pubkey, relayList, isSaving, hasChange, relays, publish, updateRelayListEvent, t])
+  }, [
+    pubkey,
+    relayList,
+    isSaving,
+    hasChange,
+    relays,
+    publish,
+    readRelays,
+    updateInboxRelayEvent,
+    updateRelayListEvent,
+    t
+  ])
 
   useEffect(() => {
     onSaveStateChange?.({
       save: saveRelays,
-      canSave: !!pubkey && !!relayList && hasChange && !isSaving,
+      canSave: !!pubkey && !!relayList && hasChange && !isSaving && readRelays.length > 0,
       isSaving
     })
-  }, [onSaveStateChange, saveRelays, pubkey, relayList, hasChange, isSaving])
+  }, [onSaveStateChange, saveRelays, pubkey, relayList, hasChange, isSaving, readRelays.length])
 
   if (!relayList) {
     return null

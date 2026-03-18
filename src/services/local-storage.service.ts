@@ -56,7 +56,8 @@ import {
 import { TMenuItemConfig } from '@/constants/menu-items'
 import {
   getDefaultMenuItems,
-  mergeMenuItemsWithDefaults
+  mergeMenuItemsWithDefaults,
+  migrateLegacyMessagesMenuPosition
 } from '@/services/local-storage/menu-items'
 import {
   getStorageItem,
@@ -1608,8 +1609,8 @@ class LocalStorageService {
 
     const stored = JSON.parse(storedItems) as TMenuItemConfig[]
 
-    const mergedItems = mergeMenuItemsWithDefaults(stored)
-    if (mergedItems.length !== stored.length) {
+    const mergedItems = migrateLegacyMessagesMenuPosition(mergeMenuItemsWithDefaults(stored))
+    if (JSON.stringify(mergedItems) !== storedItems) {
       this.setMenuItems(mergedItems)
     }
 

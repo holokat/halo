@@ -16,12 +16,13 @@ export default function ProfileMessageButton({ pubkey }: { pubkey: string }) {
   return (
     <Button
       variant="secondary"
-      size="sm"
-      className="rounded-full px-3"
+      size="icon"
+      className="rounded-full"
+      aria-label={t('Message')}
+      title={t('Message')}
       onClick={() => checkLogin(() => navigate('messages', { composeTo: pubkey }))}
     >
       <MessageCircle />
-      {t('Message')}
     </Button>
   )
 }

@@ -1,7 +1,7 @@
-import aiService from '@/services/ai.service'
+import aiService, { DEFAULT_AI_MODEL } from '@/services/ai.service'
 import storage from '@/services/local-storage.service'
-import { TAIServiceConfig, TArticleSummary, TAIMessage } from '@/types'
-import { createContext, useContext, useEffect, useState } from 'react'
+import { TAIProviderConfig, TAIServiceConfig, TArticleSummary, TAIMessage } from '@/types'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { useNostr } from './NostrProvider'
 
 type TAIContext = {
@@ -28,21 +28,68 @@ export const useAI = () => {
 export function AIProvider({ children }: { children: React.ReactNode }) {
   const { pubkey } = useNostr()
   const [serviceConfig, setServiceConfig] = useState<TAIServiceConfig>({
-    provider: 'openrouter'
+    provider: 'openrouter',
+    model: DEFAULT_AI_MODEL,
+    providerConfigs: {
+      openrouter: {
+        model: DEFAULT_AI_MODEL
+      }
+    }
   })
+
+  const normalizeServiceConfig = useCallback((config: TAIServiceConfig): TAIServiceConfig => {
+    const provider = config.provider || 'openrouter'
+    const providerConfigs = { ...(config.providerConfigs ?? {}) }
+    const currentProviderConfig: TAIProviderConfig = {
+      apiKey: config.apiKey,
+      model: config.model,
+      imageModel: config.imageModel,
+      webSearchModel: config.webSearchModel
+    }
+    const hasCurrentProviderValues = Object.values(currentProviderConfig).some(
+      (value) => value !== undefined
+    )
+
+    providerConfigs[provider] = {
+      ...(providerConfigs[provider] ?? {}),
+      ...(hasCurrentProviderValues ? currentProviderConfig : {})
+    }
+
+    const activeProviderConfig = {
+      ...(providerConfigs[provider] ?? {}),
+      model: providerConfigs[provider]?.model || DEFAULT_AI_MODEL
+    }
+
+    providerConfigs[provider] = activeProviderConfig
+
+    return {
+      provider,
+      apiKey: activeProviderConfig.apiKey ?? '',
+      model: activeProviderConfig.model,
+      imageModel: activeProviderConfig.imageModel ?? '',
+      webSearchModel: activeProviderConfig.webSearchModel ?? '',
+      providerConfigs
+    }
+  }, [])
 
   useEffect(() => {
     const savedServiceConfig = storage.getAIServiceConfig(pubkey)
+    const normalizedServiceConfig = normalizeServiceConfig(savedServiceConfig)
 
-    setServiceConfig(savedServiceConfig)
+    setServiceConfig(normalizedServiceConfig)
 
-    aiService.setConfig(savedServiceConfig)
-  }, [pubkey])
+    aiService.setConfig(normalizedServiceConfig)
+
+    if (JSON.stringify(savedServiceConfig) !== JSON.stringify(normalizedServiceConfig)) {
+      storage.setAIServiceConfig(normalizedServiceConfig, pubkey)
+    }
+  }, [normalizeServiceConfig, pubkey])
 
   const updateServiceConfig = (config: TAIServiceConfig) => {
-    setServiceConfig(config)
-    storage.setAIServiceConfig(config, pubkey)
-    aiService.setConfig(config)
+    const normalizedServiceConfig = normalizeServiceConfig(config)
+    setServiceConfig(normalizedServiceConfig)
+    storage.setAIServiceConfig(normalizedServiceConfig, pubkey)
+    aiService.setConfig(normalizedServiceConfig)
   }
 
   const summarizeArticle = async (

@@ -1,8 +1,17 @@
 import { encrypt as encryptNip44 } from '@/lib/nip44'
-import { BIG_RELAY_URLS } from '@/constants'
+import { checkAuthProtectedRelay } from '@/lib/relay'
 import client from '@/services/client.service'
 import storage from '@/services/local-storage.service'
-import { Event, finalizeEvent, generateSecretKey, getEventHash, kinds } from 'nostr-tools'
+import relayInfoService from '@/services/relay-info.service'
+import {
+  Event,
+  finalizeEvent,
+  generateSecretKey,
+  getEventHash,
+  kinds,
+  validateEvent,
+  verifyEvent
+} from 'nostr-tools'
 import {
   createContext,
   useCallback,
@@ -12,6 +21,8 @@ import {
   useRef,
   useState
 } from 'react'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { useFollowList } from './FollowListProvider'
 import { useNostr } from './NostrProvider'
 
@@ -65,6 +76,7 @@ type TMessagesContext = {
 const MessagesContext = createContext<TMessagesContext | undefined>(undefined)
 
 const MESSAGE_FETCH_LIMIT = 250
+const RELAY_INFO_LOOKUP_TIMEOUT_MS = 1_500
 const TWO_DAYS_IN_SECONDS = 2 * 24 * 60 * 60
 
 function toConversationId(participantPubkeys: string[]) {
@@ -79,7 +91,7 @@ function getMessagePreview(content: string) {
   return normalized.length > 120 ? normalized.slice(0, 117) + '...' : normalized
 }
 
-function isEvent(value: unknown): value is Event {
+function isEventWithId(value: unknown): value is Event {
   if (!value || typeof value !== 'object') return false
   const event = value as Partial<Event>
   return (
@@ -90,6 +102,57 @@ function isEvent(value: unknown): value is Event {
     typeof event.content === 'string' &&
     Array.isArray(event.tags)
   )
+}
+
+function hasEventSignature(value: unknown): value is Event {
+  return !!value && typeof value === 'object' && typeof (value as Partial<Event>).sig === 'string'
+}
+
+function hasNoEventSignature(value: unknown) {
+  return !value || typeof value !== 'object' || !Object.prototype.hasOwnProperty.call(value, 'sig')
+}
+
+function isVerifiedSealEvent(value: unknown): value is Event {
+  if (!isEventWithId(value) || !hasEventSignature(value) || !validateEvent(value)) {
+    return false
+  }
+
+  return verifyEvent(value)
+}
+
+function isUnsignedRumorEvent(value: unknown): value is Event {
+  if (!isEventWithId(value) || !hasNoEventSignature(value) || !validateEvent(value)) {
+    return false
+  }
+
+  return value.id === getEventHash(value)
+}
+
+async function preferAuthProtectedRelayUrls(relayUrls: string[]) {
+  const uniqueRelayUrls = Array.from(new Set(relayUrls))
+
+  if (uniqueRelayUrls.length <= 1) {
+    return uniqueRelayUrls
+  }
+
+  try {
+    const relayInfos = await Promise.race([
+      relayInfoService.getRelayInfos(uniqueRelayUrls),
+      new Promise<(ReturnType<typeof relayInfoService.getRelayInfos> extends Promise<infer T> ? T : never)>(
+        (resolve) => {
+          window.setTimeout(() => resolve([]), RELAY_INFO_LOOKUP_TIMEOUT_MS)
+        }
+      )
+    ])
+
+    const authProtectedRelayUrls = uniqueRelayUrls.filter((url, index) =>
+      checkAuthProtectedRelay(relayInfos[index])
+    )
+
+    return authProtectedRelayUrls.length > 0 ? authProtectedRelayUrls : uniqueRelayUrls
+  } catch {
+    return uniqueRelayUrls
+  }
 }
 
 function mergeMessages(current: TDirectMessage[], incoming: TDirectMessage[]) {
@@ -124,7 +187,9 @@ export const useMessages = () => {
 }
 
 export function MessagesProvider({ children }: { children: React.ReactNode }) {
-  const { pubkey, account, relayList, nip44Decrypt, nip44Encrypt, signEvent } = useNostr()
+  const { t } = useTranslation()
+  const { pubkey, account, inboxRelayUrls, nip44Supported, nip44Decrypt, nip44Encrypt, signEvent } =
+    useNostr()
   const { followings } = useFollowList()
   const [messages, setMessages] = useState<TDirectMessage[]>([])
   const [messagesReadAt, setMessagesReadAt] = useState(0)
@@ -142,11 +207,10 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
   }, [pubkey])
 
   const relayUrls = useMemo(() => {
-    const preferredRelayUrls = relayList?.read.slice(0, 8) ?? []
-    return Array.from(new Set(preferredRelayUrls.length ? preferredRelayUrls : BIG_RELAY_URLS))
-  }, [relayList])
+    return Array.from(new Set(inboxRelayUrls))
+  }, [inboxRelayUrls])
 
-  const isSupported = !!pubkey && account?.signerType !== 'npub'
+  const isSupported = !!pubkey && account?.signerType !== 'npub' && nip44Supported
 
   const unwrapDirectMessage = useCallback(
     async (wrap: Event, accountPubkey: string): Promise<TDirectMessage | null> => {
@@ -158,14 +222,22 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
       try {
         const sealContent = await decryptRef.current(wrap.pubkey, wrap.content)
         const parsedSeal = JSON.parse(sealContent)
-        if (!isEvent(parsedSeal)) {
+        if (
+          !isVerifiedSealEvent(parsedSeal) ||
+          parsedSeal.kind !== kinds.Seal ||
+          parsedSeal.tags.length !== 0
+        ) {
           decryptedMessageCacheRef.current.set(wrap.id, null)
           return null
         }
 
         const rumorContent = await decryptRef.current(parsedSeal.pubkey, parsedSeal.content)
         const parsedRumor = JSON.parse(rumorContent)
-        if (!isEvent(parsedRumor) || parsedRumor.kind !== kinds.PrivateDirectMessage) {
+        if (!isUnsignedRumorEvent(parsedRumor) || parsedRumor.kind !== kinds.PrivateDirectMessage) {
+          decryptedMessageCacheRef.current.set(wrap.id, null)
+          return null
+        }
+        if (parsedSeal.pubkey !== parsedRumor.pubkey) {
           decryptedMessageCacheRef.current.set(wrap.id, null)
           return null
         }
@@ -178,6 +250,10 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
           )
         )
         const isOutgoing = parsedRumor.pubkey === accountPubkey
+        if (!isOutgoing && !recipientPubkeys.includes(accountPubkey)) {
+          decryptedMessageCacheRef.current.set(wrap.id, null)
+          return null
+        }
         const participantPubkeys = Array.from(
           new Set(
             (
@@ -236,6 +312,16 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
     if (account?.signerType === 'npub') {
       setIsLoading(false)
       setError('Direct messages require a signer that can decrypt NIP-17 messages.')
+      return
+    }
+    if (!nip44Supported) {
+      setIsLoading(false)
+      setError('Direct messages require a signer that supports NIP-44.')
+      return
+    }
+    if (relayUrls.length === 0) {
+      setIsLoading(false)
+      setError('Direct messages need inbox relays (kind 10050) to receive messages.')
       return
     }
 
@@ -327,7 +413,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
       }
       subscription?.close()
     }
-  }, [account?.signerType, pubkey, relayUrls, unwrapDirectMessage])
+  }, [account?.signerType, nip44Supported, pubkey, relayUrls, unwrapDirectMessage])
 
   const conversations = useMemo(() => {
     const followingSet = new Set(followings)
@@ -412,8 +498,11 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
       content: string,
       options: { replyToId?: string; subject?: string } = {}
     ) => {
-      if (!pubkey || account?.signerType === 'npub') {
+      if (!pubkey || account?.signerType === 'npub' || !nip44Supported) {
         throw new Error('Direct messages require a signer that can encrypt NIP-17 messages.')
+      }
+      if (relayUrls.length === 0) {
+        throw new Error('Set up inbox relays before sending direct messages.')
       }
 
       const trimmedContent = content.trim()
@@ -455,8 +544,23 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
       } as Event
 
       const wrapRecipients = Array.from(new Set([pubkey, ...uniqueRecipients]))
+      const recipientRelayEntries = await Promise.all(
+        wrapRecipients.map(async (recipientPubkey) => {
+          const recipientRelayUrls =
+            recipientPubkey === pubkey ? relayUrls : await client.fetchInboxRelayList(recipientPubkey)
+
+          return [recipientPubkey, Array.from(new Set(recipientRelayUrls))] as const
+        })
+      )
+      const recipientRelayMap = new Map(recipientRelayEntries)
+
+      if (recipientRelayEntries.some(([, recipientRelayUrls]) => recipientRelayUrls.length === 0)) {
+        throw new Error('One or more recipients have not published NIP-17 inbox relays yet.')
+      }
+
       const wrappedEvents = await Promise.all(
         wrapRecipients.map(async (recipientPubkey) => {
+          const recipientRelayUrls = recipientRelayMap.get(recipientPubkey) ?? []
           const sealEvent = await signEvent({
             kind: 13,
             content: await nip44Encrypt(recipientPubkey, JSON.stringify(rumorEvent)),
@@ -470,21 +574,16 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
               kind: kinds.GiftWrap,
               content: encryptNip44(randomKey, recipientPubkey, JSON.stringify(sealEvent)),
               created_at: randomWrappedTimestamp(),
-              tags: [['p', recipientPubkey]]
+              tags: [
+                recipientRelayUrls[0]
+                  ? ['p', recipientPubkey, recipientRelayUrls[0]]
+                  : ['p', recipientPubkey]
+              ]
             },
             randomKey
           )
 
-          return { recipientPubkey, wrapEvent }
-        })
-      )
-
-      await Promise.all(
-        wrappedEvents.map(async ({ wrapEvent }) => {
-          const relays = await client.determineTargetRelays(wrapEvent, {
-            additionalRelayUrls: relayList?.write.slice(0, 8) ?? BIG_RELAY_URLS
-          })
-          await client.publishEvent(relays, wrapEvent)
+          return { recipientPubkey, wrapEvent, relayUrls: recipientRelayUrls }
         })
       )
 
@@ -505,8 +604,21 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
       }
 
       setMessages((currentMessages) => mergeMessages(currentMessages, [localMessage]))
+
+      // Publish after the optimistic insert so the conversation updates immediately.
+      void Promise.allSettled(
+        wrappedEvents.map(async ({ relayUrls, wrapEvent }) => {
+          await client.publishEvent(await preferAuthProtectedRelayUrls(relayUrls), wrapEvent)
+        })
+      ).then((results) => {
+        if (results.some((result) => result.status === 'fulfilled')) {
+          return
+        }
+
+        toast.error(t('Failed to deliver this message to relays.'))
+      })
     },
-    [account?.signerType, nip44Encrypt, pubkey, relayList?.write, signEvent]
+    [account?.signerType, nip44Encrypt, nip44Supported, pubkey, relayUrls, signEvent, t]
   )
 
   const markAllAsRead = useCallback(() => {

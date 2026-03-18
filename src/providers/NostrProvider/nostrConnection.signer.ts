@@ -52,44 +52,22 @@ export class NostrConnectionSigner implements ISigner {
     return this.signer.signEvent(draftEvent)
   }
 
-  async nip04Encrypt(pubkey: string, plainText: string) {
-    if (!this.signer) {
-      throw new Error('Not logged in')
-    }
-    return await this.signer.nip04Encrypt(pubkey, plainText)
-  }
-
-  async nip04Decrypt(pubkey: string, cipherText: string) {
-    if (!this.signer) {
-      throw new Error('Not logged in')
-    }
-    return await this.signer.nip04Decrypt(pubkey, cipherText)
+  supportsNip44() {
+    return !!this.signer
   }
 
   async nip44Encrypt(pubkey: string, plainText: string) {
     if (!this.signer) {
       throw new Error('Not logged in')
     }
-    try {
-      return await this.signer.nip44Encrypt(pubkey, plainText)
-    } catch (error) {
-      // Fallback to NIP-04 if nostr connection doesn't support NIP-44
-      console.warn('NIP-44 not supported by nostr connection, falling back to NIP-04:', error)
-      return await this.nip04Encrypt(pubkey, plainText)
-    }
+    return await this.signer.nip44Encrypt(pubkey, plainText)
   }
 
   async nip44Decrypt(pubkey: string, cipherText: string) {
     if (!this.signer) {
       throw new Error('Not logged in')
     }
-    try {
-      return await this.signer.nip44Decrypt(pubkey, cipherText)
-    } catch (error) {
-      // Fallback to NIP-04 if nostr connection doesn't support NIP-44
-      console.warn('NIP-44 not supported by nostr connection, falling back to NIP-04:', error)
-      return await this.nip04Decrypt(pubkey, cipherText)
-    }
+    return await this.signer.nip44Decrypt(pubkey, cipherText)
   }
 
   getClientSecretKey() {

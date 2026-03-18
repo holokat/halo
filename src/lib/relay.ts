@@ -87,6 +87,10 @@ export function checkSearchRelay(relayInfo: TRelayInfo | undefined) {
   return relayInfo?.supported_nips?.includes(50)
 }
 
+export function checkAuthProtectedRelay(relayInfo: TRelayInfo | undefined) {
+  return relayInfo?.limitation?.auth_required || relayInfo?.supported_nips?.includes(42)
+}
+
 /**
  * Get a friendly display name for a relay, with special handling for language relays
  */

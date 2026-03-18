@@ -10,8 +10,8 @@ import {
 } from '@/components/ui/select'
 import SecondaryPageLayout from '@/layouts/SecondaryPageLayout'
 import { useAI } from '@/providers/AIProvider'
-import { TAIProvider } from '@/types'
-import aiService from '@/services/ai.service'
+import { TAIProvider, TAIProviderConfig, TAIServiceConfig } from '@/types'
+import aiService, { DEFAULT_AI_MODEL } from '@/services/ai.service'
 import { Check, Eye, EyeOff } from 'lucide-react'
 import { forwardRef, useEffect, useState, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -23,7 +23,7 @@ const AIToolsPage = forwardRef(({ index }: { index?: number }, ref) => {
   const { serviceConfig, updateServiceConfig, getAvailableImageModels, getAvailableWebSearchModels } = useAI()
   const [selectedProvider, setSelectedProvider] = useState<TAIProvider>(serviceConfig.provider || 'openrouter')
   const [apiKey, setApiKey] = useState(serviceConfig.apiKey || '')
-  const [selectedModel, setSelectedModel] = useState(serviceConfig.model || '')
+  const [selectedModel, setSelectedModel] = useState(serviceConfig.model || DEFAULT_AI_MODEL)
   const [selectedImageModel, setSelectedImageModel] = useState(serviceConfig.imageModel || '')
   const [selectedWebSearchModel, setSelectedWebSearchModel] = useState(serviceConfig.webSearchModel || '')
   const [availableModels, setAvailableModels] = useState<Array<{ id: string; name: string }>>([])
@@ -35,7 +35,7 @@ const AIToolsPage = forwardRef(({ index }: { index?: number }, ref) => {
   useEffect(() => {
     setSelectedProvider(serviceConfig.provider || 'openrouter')
     setApiKey(serviceConfig.apiKey || '')
-    setSelectedModel(serviceConfig.model || '')
+    setSelectedModel(serviceConfig.model || DEFAULT_AI_MODEL)
     setSelectedImageModel(serviceConfig.imageModel || '')
     setSelectedWebSearchModel(serviceConfig.webSearchModel || '')
     // Load the handpicked models
@@ -44,21 +44,51 @@ const AIToolsPage = forwardRef(({ index }: { index?: number }, ref) => {
     loadWebSearchModels()
   }, [serviceConfig])
 
+  const buildServiceConfig = useCallback(
+    (
+      provider: TAIProvider,
+      updates: Partial<TAIProviderConfig> = {}
+    ): TAIServiceConfig => {
+      const nextProviderConfig = {
+        ...(serviceConfig.providerConfigs?.[provider] ?? {}),
+        ...updates
+      }
+
+      if (!nextProviderConfig.model) {
+        nextProviderConfig.model = DEFAULT_AI_MODEL
+      }
+
+      return {
+        ...serviceConfig,
+        provider,
+        apiKey: nextProviderConfig.apiKey ?? '',
+        model: nextProviderConfig.model,
+        imageModel: nextProviderConfig.imageModel ?? '',
+        webSearchModel: nextProviderConfig.webSearchModel ?? '',
+        providerConfigs: {
+          ...(serviceConfig.providerConfigs ?? {}),
+          [provider]: nextProviderConfig
+        }
+      }
+    },
+    [serviceConfig]
+  )
+
   const handleProviderSelect = (provider: TAIProvider) => {
-    setSelectedProvider(provider)
-    // Reset config when switching providers
-    const newConfig = {
-      provider,
-      apiKey: '',
-      model: '',
-      imageModel: '',
-      webSearchModel: ''
+    if (provider === selectedProvider) return
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+      saveTimeoutRef.current = null
     }
-    setApiKey('')
-    setSelectedModel('')
-    setSelectedImageModel('')
-    setSelectedWebSearchModel('')
-    updateServiceConfig(newConfig)
+
+    const nextConfig = buildServiceConfig(provider)
+    setSelectedProvider(provider)
+    setApiKey(nextConfig.apiKey || '')
+    setSelectedModel(nextConfig.model || DEFAULT_AI_MODEL)
+    setSelectedImageModel(nextConfig.imageModel || '')
+    setSelectedWebSearchModel(nextConfig.webSearchModel || '')
+    updateServiceConfig(nextConfig)
     loadModels()
     loadImageModels()
     loadWebSearchModels()
@@ -67,23 +97,24 @@ const AIToolsPage = forwardRef(({ index }: { index?: number }, ref) => {
   const saveApiKey = useCallback(async (key: string) => {
     if (!key.trim()) {
       // If empty, just update the config without validation
-      updateServiceConfig({ ...serviceConfig, provider: selectedProvider, apiKey: '' })
+      updateServiceConfig(buildServiceConfig(selectedProvider, { apiKey: '' }))
       return
     }
 
     // Test the API key
-    const tempConfig = { ...serviceConfig, provider: selectedProvider, apiKey: key.trim() }
+    const tempConfig = buildServiceConfig(selectedProvider, { apiKey: key.trim() })
     aiService.setConfig(tempConfig)
     const isValid = await aiService.testConnection()
 
     if (!isValid) {
+      aiService.setConfig(serviceConfig)
       toast.error(t('Invalid API key or connection failed'))
       return
     }
 
     updateServiceConfig(tempConfig)
     toast.success(t('API key saved successfully'))
-  }, [serviceConfig, selectedProvider, updateServiceConfig, t])
+  }, [buildServiceConfig, selectedProvider, updateServiceConfig, t])
 
   const handleApiKeyChange = useCallback((value: string) => {
     setApiKey(value)
@@ -137,19 +168,19 @@ const AIToolsPage = forwardRef(({ index }: { index?: number }, ref) => {
 
   const handleModelSelect = (modelId: string) => {
     setSelectedModel(modelId)
-    updateServiceConfig({ ...serviceConfig, provider: selectedProvider, model: modelId })
+    updateServiceConfig(buildServiceConfig(selectedProvider, { model: modelId }))
     toast.success(t('Default model selected successfully'))
   }
 
   const handleImageModelSelect = (modelId: string) => {
     setSelectedImageModel(modelId)
-    updateServiceConfig({ ...serviceConfig, provider: selectedProvider, imageModel: modelId })
+    updateServiceConfig(buildServiceConfig(selectedProvider, { imageModel: modelId }))
     toast.success(t('Image model selected successfully'))
   }
 
   const handleWebSearchModelSelect = (modelId: string) => {
     setSelectedWebSearchModel(modelId)
-    updateServiceConfig({ ...serviceConfig, provider: selectedProvider, webSearchModel: modelId })
+    updateServiceConfig(buildServiceConfig(selectedProvider, { webSearchModel: modelId }))
     toast.success(t('Web search model selected successfully'))
   }
 

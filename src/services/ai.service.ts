@@ -2,9 +2,12 @@ import { TAIServiceConfig, TArticleSummary, TAIMessage } from '@/types'
 import nostrBandSearchService, { NostrBandSearchParams } from './nostr-band-search.service'
 import { nip19 } from 'nostr-tools'
 
+export const DEFAULT_AI_MODEL = 'openai/gpt-5.4-nano'
+
 class AIService {
   private config: TAIServiceConfig = {
-    provider: 'openrouter'
+    provider: 'openrouter',
+    model: DEFAULT_AI_MODEL
   }
 
   setConfig(config: TAIServiceConfig) {
@@ -240,7 +243,7 @@ Format your response as JSON with this exact structure:
         method: 'POST',
         headers: this.getHeaders(),
         body: JSON.stringify({
-          model: this.config.model || (this.config.provider === 'ppq' ? 'gpt-4o-mini' : 'meta-llama/llama-3.3-8b-instruct:free'),
+          model: this.config.model || DEFAULT_AI_MODEL,
           messages: [{ role: 'user', content: 'test' }],
           max_tokens: 1
         })
@@ -254,11 +257,11 @@ Format your response as JSON with this exact structure:
   async getAvailableModels(): Promise<Array<{ id: string; name: string }>> {
     // Handpicked models for better UX
     const handpickedModels = [
+      { id: DEFAULT_AI_MODEL, name: 'OpenAI GPT-5.4 Nano (Default)' },
+      { id: 'openai/gpt-5.4-mini', name: 'OpenAI GPT-5.4 Mini' },
       { id: 'meta-llama/llama-3.3-8b-instruct:free', name: 'Meta Llama 3.3 8B (Free)' },
       { id: 'google/gemini-2.5-flash', name: 'Google Gemini 2.5 Flash' },
       { id: 'x-ai/grok-4-fast', name: 'xAI Grok 4 Fast' },
-      { id: 'openai/gpt-5-mini', name: 'OpenAI GPT-5 Mini' },
-      { id: 'openai/o4-mini', name: 'OpenAI o4 Mini' },
       { id: 'mistralai/mistral-medium-3.1', name: 'Mistral Medium 3.1' }
     ]
 

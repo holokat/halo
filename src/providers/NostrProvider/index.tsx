@@ -7,6 +7,7 @@ import {
   ExtendedKind
 } from '@/constants'
 import {
+  createInboxRelayListDraftEvent,
   createDeletionRequestDraftEvent,
   createFollowListDraftEvent,
   createMuteListDraftEvent,
@@ -19,7 +20,11 @@ import {
   isProtectedEvent,
   minePow
 } from '@/lib/event'
-import { getProfileFromEvent, getRelayListFromEvent } from '@/lib/event-metadata'
+import {
+  getInboxRelayUrlsFromEvent,
+  getProfileFromEvent,
+  getRelayListFromEvent
+} from '@/lib/event-metadata'
 import { formatPubkey, pubkeyToNpub } from '@/lib/pubkey'
 import client from '@/services/client.service'
 import customEmojiService from '@/services/custom-emoji.service'
@@ -56,6 +61,8 @@ type TNostrContext = {
   profile: TProfile | null
   profileEvent: Event | null
   relayList: TRelayList | null
+  inboxRelayUrls: string[]
+  nip44Supported: boolean
   followListEvent: Event | null
   muteListEvent: Event | null
   bookmarkListEvent: Event | null
@@ -82,13 +89,12 @@ type TNostrContext = {
   attemptDelete: (targetEvent: Event) => Promise<void>
   signHttpAuth: (url: string, method: string) => Promise<string>
   signEvent: (draftEvent: TDraftEvent) => Promise<VerifiedEvent>
-  nip04Encrypt: (pubkey: string, plainText: string) => Promise<string>
-  nip04Decrypt: (pubkey: string, cipherText: string) => Promise<string>
   nip44Encrypt: (pubkey: string, plainText: string) => Promise<string>
   nip44Decrypt: (pubkey: string, cipherText: string) => Promise<string>
   startLogin: () => void
   checkLogin: <T>(cb?: () => T) => Promise<T | void>
   updateRelayListEvent: (relayListEvent: Event) => Promise<void>
+  updateInboxRelayEvent: (inboxRelayEvent: Event) => Promise<void>
   updateProfileEvent: (profileEvent: Event) => Promise<void>
   updateFollowListEvent: (followListEvent: Event) => Promise<void>
   updateMuteListEvent: (muteListEvent: Event, privateTags: string[][]) => Promise<void>
@@ -128,6 +134,7 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<TProfile | null>(null)
   const [profileEvent, setProfileEvent] = useState<Event | null>(null)
   const [relayList, setRelayList] = useState<TRelayList | null>(null)
+  const [inboxRelayUrls, setInboxRelayUrls] = useState<string[]>([])
   const [followListEvent, setFollowListEvent] = useState<Event | null>(null)
   const [muteListEvent, setMuteListEvent] = useState<Event | null>(null)
   const [bookmarkListEvent, setBookmarkListEvent] = useState<Event | null>(null)
@@ -136,6 +143,13 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
   const [pinListEvent, setPinListEvent] = useState<Event | null>(null)
   const [notificationsSeenAt, setNotificationsSeenAt] = useState(-1)
   const [isInitialized, setIsInitialized] = useState(false)
+  const [nip44Supported, setNip44Supported] = useState(false)
+
+  const getDefaultInboxRelayUrls = (nextRelayList: TRelayList | null) => {
+    return Array.from(
+      new Set((nextRelayList?.read.length ? nextRelayList.read : DEFAULT_READ_RELAY_URLS).slice(0, 3))
+    )
+  }
 
   useEffect(() => {
     const init = async () => {
@@ -190,6 +204,7 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const init = async () => {
       setRelayList(null)
+      setInboxRelayUrls([])
       setProfile(null)
       setProfileEvent(null)
       setNsec(null)
@@ -221,6 +236,7 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
 
       const [
         storedRelayListEvent,
+        storedInboxRelayEvent,
         storedProfileEvent,
         storedFollowListEvent,
         storedMuteListEvent,
@@ -230,6 +246,7 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
         storedPinListEvent
       ] = await Promise.all([
         indexedDb.getReplaceableEvent(account.pubkey, kinds.RelayList),
+        indexedDb.getReplaceableEvent(account.pubkey, ExtendedKind.INBOX_RELAYS),
         indexedDb.getReplaceableEvent(account.pubkey, kinds.Metadata),
         indexedDb.getReplaceableEvent(account.pubkey, kinds.Contacts),
         indexedDb.getReplaceableEvent(account.pubkey, kinds.Mutelist),
@@ -240,6 +257,9 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
       ])
       if (storedRelayListEvent) {
         setRelayList(getRelayListFromEvent(storedRelayListEvent))
+      }
+      if (storedInboxRelayEvent) {
+        setInboxRelayUrls(getInboxRelayUrlsFromEvent(storedInboxRelayEvent))
       }
       if (storedProfileEvent) {
         setProfileEvent(storedProfileEvent)
@@ -279,6 +299,34 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
       setRelayList(relayList)
       // Update client service with user's preferred read relays for tiered fetching
       client.setPreferredReadRelays(relayList.read)
+
+      const inboxRelayEvents = await client.fetchEvents(BIG_RELAY_URLS, {
+        kinds: [ExtendedKind.INBOX_RELAYS],
+        authors: [account.pubkey]
+      })
+      let inboxRelayEvent = getLatestEvent(inboxRelayEvents) ?? storedInboxRelayEvent ?? null
+      const hasPublishedInboxRelays =
+        inboxRelayEvent?.tags.some(([tagName]) => tagName === 'relay') ?? false
+
+      if ((!inboxRelayEvent || !hasPublishedInboxRelays) && signer?.supportsNip44() && account.signerType !== 'npub') {
+        const defaultInboxRelayUrls = getDefaultInboxRelayUrls(relayList)
+        if (defaultInboxRelayUrls.length > 0) {
+          try {
+            inboxRelayEvent = await signer.signEvent(
+              createInboxRelayListDraftEvent(defaultInboxRelayUrls)
+            )
+            await client.publishEvent(BIG_RELAY_URLS, inboxRelayEvent)
+          } catch (error) {
+            console.warn('Failed to publish default inbox relay list:', error)
+          }
+        }
+      }
+
+      if (inboxRelayEvent) {
+        await client.updateInboxRelayListCache(inboxRelayEvent)
+        await indexedDb.putReplaceableEvent(inboxRelayEvent)
+      }
+      setInboxRelayUrls(getInboxRelayUrlsFromEvent(inboxRelayEvent))
 
       const events = await client.fetchEvents(relayList.write.concat(BIG_RELAY_URLS).slice(0, 4), [
         {
@@ -385,7 +433,7 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
         controller?.abort()
       })
     }
-  }, [account])
+  }, [account, signer])
 
   useEffect(() => {
     if (!account) return
@@ -416,6 +464,10 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
     } else {
       client.signer = undefined
     }
+  }, [signer])
+
+  useEffect(() => {
+    setNip44Supported(signer?.supportsNip44() ?? false)
   }, [signer])
 
   useEffect(() => {
@@ -644,6 +696,7 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
         scope: isRead && isWrite ? 'both' : isRead ? 'read' : 'write'
       } as const
     })
+    const defaultInboxRelayUrls = Array.from(new Set(DEFAULT_READ_RELAY_URLS)).slice(0, 3)
 
     await Promise.allSettled([
       client.publishEvent(BIG_RELAY_URLS, await signer.signEvent(createFollowListDraftEvent([]))),
@@ -651,6 +704,10 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
       client.publishEvent(
         BIG_RELAY_URLS,
         await signer.signEvent(createRelayListDraftEvent(defaultMailboxRelays))
+      ),
+      client.publishEvent(
+        BIG_RELAY_URLS,
+        await signer.signEvent(createInboxRelayListDraftEvent(defaultInboxRelayUrls))
       )
     ])
   }
@@ -734,14 +791,6 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
     return 'Nostr ' + btoa(JSON.stringify(event))
   }
 
-  const nip04Encrypt = async (pubkey: string, plainText: string) => {
-    return signer?.nip04Encrypt(pubkey, plainText) ?? ''
-  }
-
-  const nip04Decrypt = async (pubkey: string, cipherText: string) => {
-    return signer?.nip04Decrypt(pubkey, cipherText) ?? ''
-  }
-
   const nip44Encrypt = async (pubkey: string, plainText: string) => {
     return signer?.nip44Encrypt(pubkey, plainText) ?? ''
   }
@@ -763,6 +812,13 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
     setRelayList(relayList)
     // Update client service with user's preferred read relays for tiered fetching
     client.setPreferredReadRelays(relayList.read)
+  }
+
+  const updateInboxRelayEvent = async (inboxRelayEvent: Event) => {
+    const newInboxRelayEvent = await indexedDb.putReplaceableEvent(inboxRelayEvent)
+    const nextInboxRelayUrls = getInboxRelayUrlsFromEvent(newInboxRelayEvent)
+    setInboxRelayUrls(nextInboxRelayUrls)
+    await client.updateInboxRelayListCache(newInboxRelayEvent)
   }
 
   const updateProfileEvent = async (profileEvent: Event) => {
@@ -838,6 +894,8 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
         profile,
         profileEvent,
         relayList,
+        inboxRelayUrls,
+        nip44Supported,
         followListEvent,
         muteListEvent,
         bookmarkListEvent,
@@ -860,14 +918,13 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
         publish,
         attemptDelete,
         signHttpAuth,
-        nip04Encrypt,
-        nip04Decrypt,
         nip44Encrypt,
         nip44Decrypt,
         startLogin: () => setOpenLoginDialog(true),
         checkLogin,
         signEvent,
         updateRelayListEvent,
+        updateInboxRelayEvent,
         updateProfileEvent,
         updateFollowListEvent,
         updateMuteListEvent,

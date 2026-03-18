@@ -38,24 +38,8 @@ export class Nip07Signer implements ISigner {
     return await this.signer.signEvent(draftEvent)
   }
 
-  async nip04Encrypt(pubkey: string, plainText: string) {
-    if (!this.signer) {
-      throw new Error('Should call init() first')
-    }
-    if (!this.signer.nip04?.encrypt) {
-      throw new Error('The extension you are using does not support nip04 encryption')
-    }
-    return await this.signer.nip04.encrypt(pubkey, plainText)
-  }
-
-  async nip04Decrypt(pubkey: string, cipherText: string) {
-    if (!this.signer) {
-      throw new Error('Should call init() first')
-    }
-    if (!this.signer.nip04?.decrypt) {
-      throw new Error('The extension you are using does not support nip04 decryption')
-    }
-    return await this.signer.nip04.decrypt(pubkey, cipherText)
+  supportsNip44() {
+    return !!this.signer?.nip44?.encrypt && !!this.signer?.nip44?.decrypt
   }
 
   async nip44Encrypt(pubkey: string, plainText: string) {
@@ -63,9 +47,7 @@ export class Nip07Signer implements ISigner {
       throw new Error('Should call init() first')
     }
     if (!this.signer.nip44?.encrypt) {
-      // Fallback to NIP-04 if extension doesn't support NIP-44
-      console.warn('NIP-44 not supported by extension, falling back to NIP-04')
-      return await this.nip04Encrypt(pubkey, plainText)
+      throw new Error('The extension you are using does not support NIP-44 encryption')
     }
     return await this.signer.nip44.encrypt(pubkey, plainText)
   }
@@ -75,9 +57,7 @@ export class Nip07Signer implements ISigner {
       throw new Error('Should call init() first')
     }
     if (!this.signer.nip44?.decrypt) {
-      // Fallback to NIP-04 if extension doesn't support NIP-44
-      console.warn('NIP-44 not supported by extension, falling back to NIP-04')
-      return await this.nip04Decrypt(pubkey, cipherText)
+      throw new Error('The extension you are using does not support NIP-44 decryption')
     }
     return await this.signer.nip44.decrypt(pubkey, cipherText)
   }

@@ -6,7 +6,7 @@ import {
   isReplaceableEvent
 } from '@/lib/event'
 import { BoundedMap } from '@/lib/bounded-map'
-import { getProfileFromEvent, getRelayListFromEvent } from '@/lib/event-metadata'
+import { getInboxRelayUrlsFromEvent, getProfileFromEvent, getRelayListFromEvent } from '@/lib/event-metadata'
 import { getLiveStreamTagValue, LIVE_STREAM_RELAYS } from '@/lib/live-stream'
 import { formatPubkey, isValidPubkey, pubkeyToNpub, userIdToPubkey } from '@/lib/pubkey'
 import { getPubkeysFromPTags, getServersFromServerTags, tagNameEquals } from '@/lib/tag'
@@ -158,6 +158,7 @@ class ClientService extends EventTarget {
     if (specifiedRelayUrls?.length) {
       relays = specifiedRelayUrls
     } else {
+      const isGiftWrap = event.kind === kinds.GiftWrap
       const _additionalRelayUrls: string[] = additionalRelayUrls ?? []
       if (!specifiedRelayUrls?.length && ![kinds.Contacts, kinds.Mutelist].includes(event.kind)) {
         const mentions: string[] = []
@@ -181,6 +182,7 @@ class ClientService extends EventTarget {
       if (
         [
           kinds.RelayList,
+          ExtendedKind.INBOX_RELAYS,
           kinds.Contacts,
           ExtendedKind.FAVORITE_RELAYS,
           ExtendedKind.BLOSSOM_SERVER_LIST,
@@ -190,9 +192,10 @@ class ClientService extends EventTarget {
         _additionalRelayUrls.push(...BIG_RELAY_URLS)
       }
 
-      const relayList = await this.fetchRelayList(event.pubkey)
-      relays = (relayList?.write.slice(0, 10) ?? []).concat(
-        Array.from(new Set(_additionalRelayUrls)) ?? []
+      // Gift wraps are signed by ephemeral keys, so author relay lookups only add latency.
+      const relayList = isGiftWrap ? null : await this.fetchRelayList(event.pubkey)
+      relays = Array.from(
+        new Set((relayList?.write.slice(0, 10) ?? []).concat(_additionalRelayUrls))
       )
     }
 
@@ -1372,8 +1375,21 @@ class ClientService extends EventTarget {
     return relayEvent ?? null
   }
 
+  async fetchInboxRelayListEvent(pubkey: string) {
+    const [relayEvent] = await this.fetchReplaceableEventsFromBigRelays(
+      [pubkey],
+      ExtendedKind.INBOX_RELAYS
+    )
+    return relayEvent ?? null
+  }
+
   async fetchRelayList(pubkey: string): Promise<TRelayList> {
     const [relayList] = await this.fetchRelayLists([pubkey])
+    return relayList
+  }
+
+  async fetchInboxRelayList(pubkey: string): Promise<string[]> {
+    const [relayList] = await this.fetchInboxRelayLists([pubkey])
     return relayList
   }
 
@@ -1392,11 +1408,28 @@ class ClientService extends EventTarget {
     })
   }
 
+  async fetchInboxRelayLists(pubkeys: string[]): Promise<string[][]> {
+    const relayEvents = await this.fetchReplaceableEventsFromBigRelays(
+      pubkeys,
+      ExtendedKind.INBOX_RELAYS
+    )
+
+    return relayEvents.map((event) => getInboxRelayUrlsFromEvent(event))
+  }
+
   async forceUpdateRelayListEvent(pubkey: string) {
     await this.replaceableEventBatchLoadFn([{ pubkey, kind: kinds.RelayList }])
   }
 
+  async forceUpdateInboxRelayListEvent(pubkey: string) {
+    await this.replaceableEventBatchLoadFn([{ pubkey, kind: ExtendedKind.INBOX_RELAYS }])
+  }
+
   async updateRelayListCache(event: NEvent) {
+    await this.updateReplaceableEventFromBigRelaysCache(event)
+  }
+
+  async updateInboxRelayListCache(event: NEvent) {
     await this.updateReplaceableEventFromBigRelaysCache(event)
   }
 

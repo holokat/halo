@@ -2,6 +2,7 @@ import {
   BIG_RELAY_URLS,
   DEFAULT_READ_RELAY_URLS,
   DEFAULT_WRITE_RELAY_URLS,
+  ExtendedKind,
   MAX_PINNED_NOTES,
   POLL_TYPE
 } from '@/constants'
@@ -64,6 +65,28 @@ export function getRelayListFromEvent(event?: Event | null) {
     read: read.length && read.length <= 8 ? read : DEFAULT_READ_RELAY_URLS,
     originalRelays: originalRelays.length ? originalRelays : defaultOriginalRelays
   }
+}
+
+export function getInboxRelayUrlsFromEvent(event?: Event | null) {
+  if (!event || event.kind !== ExtendedKind.INBOX_RELAYS) {
+    return []
+  }
+
+  const torBrowserDetected = isTorBrowser()
+  const relaySet = new Set<string>()
+
+  event.tags.filter(tagNameEquals('relay')).forEach(([, url]) => {
+    if (!url || !isWebsocketUrl(url)) return
+
+    const normalizedUrl = normalizeUrl(url)
+    if (!normalizedUrl) return
+
+    if (normalizedUrl.endsWith('.onion/') && !torBrowserDetected) return
+
+    relaySet.add(normalizedUrl)
+  })
+
+  return Array.from(relaySet)
 }
 
 function buildDefaultRelayList() {

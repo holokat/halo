@@ -158,8 +158,7 @@ export type TNip07 = {
 export interface ISigner {
   getPublicKey: () => Promise<string>
   signEvent: (draftEvent: TDraftEvent) => Promise<VerifiedEvent>
-  nip04Encrypt: (pubkey: string, plainText: string) => Promise<string>
-  nip04Decrypt: (pubkey: string, cipherText: string) => Promise<string>
+  supportsNip44: () => boolean
   nip44Encrypt: (pubkey: string, plainText: string) => Promise<string>
   nip44Decrypt: (pubkey: string, cipherText: string) => Promise<string>
 }
@@ -299,12 +298,20 @@ export type TDistractionFreeMode =
 
 export type TAIProvider = 'openrouter' | 'ppq'
 
+export type TAIProviderConfig = {
+  apiKey?: string
+  model?: string
+  imageModel?: string
+  webSearchModel?: string
+}
+
 export type TAIServiceConfig = {
   provider: TAIProvider
   apiKey?: string
   model?: string
   imageModel?: string
   webSearchModel?: string
+  providerConfigs?: Partial<Record<TAIProvider, TAIProviderConfig>>
 }
 
 export type TAIToolsConfig = {

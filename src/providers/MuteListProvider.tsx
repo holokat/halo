@@ -1,5 +1,4 @@
 import { createMuteListDraftEvent } from '@/lib/draft-event'
-import { detectEncryptionVersion } from '@/lib/nip44'
 import { getPubkeysFromPTags } from '@/lib/tag'
 import { BIG_RELAY_URLS } from '@/constants'
 import client from '@/services/client.service'
@@ -55,7 +54,6 @@ export function MuteListProvider({ children }: { children: React.ReactNode }) {
     muteListEvent,
     publish,
     updateMuteListEvent,
-    nip04Decrypt,
     nip44Decrypt,
     nip44Encrypt
   } = useNostr()
@@ -141,28 +139,15 @@ export function MuteListProvider({ children }: { children: React.ReactNode }) {
       return { tags: plainTags, readable: true }
     }
 
-    const encryptionVersion = detectEncryptionVersion(muteListEvent.content)
-    const decryptors =
-      encryptionVersion === 'nip44'
-        ? [
-            () => nip44Decrypt(muteListEvent.pubkey, muteListEvent.content),
-            () => nip04Decrypt(muteListEvent.pubkey, muteListEvent.content)
-          ]
-        : [
-            () => nip04Decrypt(muteListEvent.pubkey, muteListEvent.content),
-            () => nip44Decrypt(muteListEvent.pubkey, muteListEvent.content)
-          ]
-
-    for (const decrypt of decryptors) {
-      try {
-        const decrypted = await decrypt()
-        const tags = parseTagMatrix(decrypted)
-        if (!tags) continue
+    try {
+      const decrypted = await nip44Decrypt(muteListEvent.pubkey, muteListEvent.content)
+      const tags = parseTagMatrix(decrypted)
+      if (tags) {
         await indexedDb.putMuteDecryptedTags(muteListEvent.id, tags)
         return { tags, readable: true }
-      } catch {
-        // try next decryptor
       }
+    } catch {
+      // handled below
     }
 
     console.error('Failed to read mute list content in any supported format')

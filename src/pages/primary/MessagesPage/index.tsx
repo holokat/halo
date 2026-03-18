@@ -1,5 +1,12 @@
 import AlertCard from '@/components/AlertCard'
+import SearchInput from '@/components/SearchInput'
 import { FormattedTimestamp } from '@/components/FormattedTimestamp'
+import { useSearchProfiles } from '@/hooks/useSearchProfiles'
+import PrimaryPageLayout from '@/layouts/PrimaryPageLayout'
+import { cn } from '@/lib/utils'
+import { useMessages, TMessageConversation } from '@/providers/MessagesProvider'
+import { useNostr } from '@/providers/NostrProvider'
+import { TProfile, TPageRef } from '@/types'
 import { SimpleUserAvatar } from '@/components/UserAvatar'
 import { SimpleUsername } from '@/components/Username'
 import { Badge } from '@/components/ui/badge'
@@ -8,34 +15,41 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
-import PrimaryPageLayout from '@/layouts/PrimaryPageLayout'
-import { cn } from '@/lib/utils'
-import { useMessages, TMessageConversation } from '@/providers/MessagesProvider'
-import { useNostr } from '@/providers/NostrProvider'
-import { TPageRef } from '@/types'
 import {
-  ChevronDown,
-  ChevronUp,
+  ArrowLeft,
   Inbox,
   MessageCircle,
   MessagesSquare,
   SendHorizontal,
-  Users,
-  X
+  Users
 } from 'lucide-react'
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-const MAX_VISIBLE_MESSAGES = 25
+const MAX_VISIBLE_MESSAGES = 50
+
+type TOverviewTab = 'conversations' | 'requests'
+type TMessagesViewMode = 'index' | 'compose' | 'thread'
 
 function toConversationId(participantPubkeys: string[]) {
   return participantPubkeys.slice().sort().join(':')
 }
 
+function findDirectConversationByPubkey(
+  conversations: TMessageConversation[],
+  pubkey: string
+) {
+  return conversations.find(
+    (conversation) =>
+      conversation.participantPubkeys.length === 1 && conversation.primaryPubkey === pubkey
+  )
+}
+
 const MessagesPage = forwardRef(({ composeTo }: { composeTo?: string | null }, ref) => {
   const { t } = useTranslation()
   const layoutRef = useRef<TPageRef>(null)
+  const previousComposeToRef = useRef<string | null | undefined>(composeTo)
   const { pubkey, startLogin } = useNostr()
   const {
     activeConversations,
@@ -43,65 +57,144 @@ const MessagesPage = forwardRef(({ composeTo }: { composeTo?: string | null }, r
     isLoading,
     error,
     isSupported,
+    hasUnreadMessages,
     unreadMessageCount,
-    unreadConversationCount,
-    sendMessage
+    markAllAsRead
   } = useMessages()
-  const [expandedConversationId, setExpandedConversationId] = useState<string | null>(null)
-  const [pendingComposeTo, setPendingComposeTo] = useState<string | null>(composeTo ?? null)
+  const [activeTab, setActiveTab] = useState<TOverviewTab>('conversations')
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null)
+  const [draftRecipientPubkey, setDraftRecipientPubkey] = useState<string | null>(null)
+  const [isComposePickerOpen, setIsComposePickerOpen] = useState(false)
+  const [composeQuery, setComposeQuery] = useState('')
+  const [debouncedComposeQuery, setDebouncedComposeQuery] = useState('')
+  const { profiles: composeProfiles, isFetching: isFetchingComposeProfiles } = useSearchProfiles(
+    debouncedComposeQuery,
+    8
+  )
 
   useImperativeHandle(ref, () => layoutRef.current as TPageRef)
 
+  const allConversations = useMemo(
+    () => activeConversations.concat(requests),
+    [activeConversations, requests]
+  )
+
+  const selectedConversation = useMemo(
+    () =>
+      selectedConversationId
+        ? allConversations.find((conversation) => conversation.id === selectedConversationId) ?? null
+        : null,
+    [allConversations, selectedConversationId]
+  )
+
+  const viewMode: TMessagesViewMode = selectedConversationId || draftRecipientPubkey
+    ? 'thread'
+    : isComposePickerOpen
+      ? 'compose'
+      : 'index'
+
+  const visibleConversations = activeTab === 'conversations' ? activeConversations : requests
+
   useEffect(() => {
-    if (expandedConversationId) {
-      const stillExists = activeConversations.concat(requests).some(
-        (conversation) => conversation.id === expandedConversationId
-      )
-      if (!stillExists) {
-        setExpandedConversationId(null)
-      }
+    const handler = window.setTimeout(() => {
+      setDebouncedComposeQuery(composeQuery.trim())
+    }, 300)
+
+    return () => {
+      window.clearTimeout(handler)
+    }
+  }, [composeQuery])
+
+  useEffect(() => {
+    if (selectedConversationId && !selectedConversation) {
+      setSelectedConversationId(null)
+    }
+  }, [selectedConversation, selectedConversationId])
+
+  useEffect(() => {
+    if (selectedConversation && !selectedConversation.isRequest && activeTab === 'requests') {
+      setActiveTab('conversations')
+    }
+  }, [activeTab, selectedConversation])
+
+  useEffect(() => {
+    if (composeTo === previousComposeToRef.current) {
       return
     }
 
-    const firstUnreadConversation = activeConversations
-      .concat(requests)
-      .find((conversation) => conversation.unreadCount > 0)
+    previousComposeToRef.current = composeTo
 
-    if (firstUnreadConversation) {
-      setExpandedConversationId(firstUnreadConversation.id)
-    }
-  }, [activeConversations, expandedConversationId, requests])
-
-  useEffect(() => {
     if (!composeTo) {
-      setPendingComposeTo(null)
+      setSelectedConversationId(null)
+      setDraftRecipientPubkey(null)
+      setIsComposePickerOpen(false)
       return
     }
 
-    const matchingConversation = activeConversations
-      .concat(requests)
-      .find(
-        (conversation) =>
-          conversation.participantPubkeys.length === 1 && conversation.primaryPubkey === composeTo
-      )
+    const matchingConversation = findDirectConversationByPubkey(allConversations, composeTo)
 
     if (matchingConversation) {
-      setExpandedConversationId(matchingConversation.id)
-      setPendingComposeTo(null)
+      setActiveTab(matchingConversation.isRequest ? 'requests' : 'conversations')
+      setSelectedConversationId(matchingConversation.id)
+      setDraftRecipientPubkey(null)
+      setIsComposePickerOpen(false)
       return
     }
 
-    setPendingComposeTo(composeTo)
-    setExpandedConversationId(null)
-  }, [activeConversations, composeTo, requests])
+    setSelectedConversationId(null)
+    setDraftRecipientPubkey(composeTo)
+    setIsComposePickerOpen(false)
+  }, [allConversations, composeTo])
 
-  const hasAnyMessages = activeConversations.length > 0 || requests.length > 0
+  const openConversation = (conversation: TMessageConversation) => {
+    setActiveTab(conversation.isRequest ? 'requests' : 'conversations')
+    setSelectedConversationId(conversation.id)
+    setDraftRecipientPubkey(null)
+    setIsComposePickerOpen(false)
+  }
+
+  const handleOpenCompose = () => {
+    setComposeQuery('')
+    setDebouncedComposeQuery('')
+    setDraftRecipientPubkey(null)
+    setSelectedConversationId(null)
+    setIsComposePickerOpen(true)
+  }
+
+  const handleBack = () => {
+    setSelectedConversationId(null)
+    setDraftRecipientPubkey(null)
+    setIsComposePickerOpen(false)
+  }
+
+  const handleSelectProfile = (profile: TProfile) => {
+    const matchingConversation = findDirectConversationByPubkey(allConversations, profile.pubkey)
+
+    if (matchingConversation) {
+      openConversation(matchingConversation)
+      return
+    }
+
+    setDraftRecipientPubkey(profile.pubkey)
+    setSelectedConversationId(null)
+    setIsComposePickerOpen(false)
+  }
 
   return (
     <PrimaryPageLayout
       ref={layoutRef}
       pageName="messages"
-      titlebar={<MessagesPageTitlebar />}
+      titlebar={
+        <MessagesPageTitlebar
+          viewMode={viewMode}
+          conversation={selectedConversation}
+          draftRecipientPubkey={draftRecipientPubkey}
+          unreadMessageCount={unreadMessageCount}
+          hasUnreadMessages={hasUnreadMessages}
+          onBack={handleBack}
+          onMarkAllAsRead={markAllAsRead}
+        />
+      }
       displayScrollToTopButton
       hideBottomSpacer
     >
@@ -130,66 +223,44 @@ const MessagesPage = forwardRef(({ composeTo }: { composeTo?: string | null }, r
           />
         )}
 
-        {pubkey && unreadMessageCount > 0 && (
-          <AlertCard
-            title={t('New messages')}
-            content={t('{{count}} unread messages across {{conversationCount}} conversations.', {
-              count: unreadMessageCount,
-              conversationCount: unreadConversationCount
-            })}
-          />
-        )}
-
         {error && <AlertCard title={t('Message sync issue')} content={error} />}
 
-        {pubkey && isSupported && pendingComposeTo && (
-          <DirectMessageComposerCard
-            pubkey={pendingComposeTo}
-            onCancel={() => setPendingComposeTo(null)}
-            onSend={async (content) => {
-              await sendMessage([pendingComposeTo], content)
-              setExpandedConversationId(toConversationId([pendingComposeTo]))
-              setPendingComposeTo(null)
-            }}
-          />
-        )}
-
-        {pubkey && isSupported && !hasAnyMessages && !isLoading && (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-              <Inbox className="text-muted-foreground" />
-              <div className="space-y-1">
-                <div className="text-lg font-semibold">{t('No messages yet')}</div>
-                <p className="text-sm text-muted-foreground">
-                  {t('When someone sends you a NIP-17 direct message, it will show up here.')}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {(isLoading || activeConversations.length > 0 || hasAnyMessages) && (
-          <ConversationSection
-            title={t('Conversations')}
-            description={t('People you already talk to or have replied to.')}
+        {pubkey && isSupported && viewMode === 'index' && (
+          <MessagesOverview
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            onCompose={handleOpenCompose}
             conversations={activeConversations}
-            expandedConversationId={expandedConversationId}
-            onToggleConversation={setExpandedConversationId}
-            isLoading={isLoading && activeConversations.length === 0}
-            emptyState={t('No active conversations yet.')}
+            requests={requests}
+            visibleConversations={visibleConversations}
+            unreadMessageCount={unreadMessageCount}
+            isLoading={isLoading}
+            onOpenConversation={openConversation}
           />
         )}
 
-        {(isLoading || requests.length > 0 || hasAnyMessages) && (
-          <ConversationSection
-            title={t('Requests')}
-            description={t('People who messaged you but are not in your main DM list yet.')}
-            conversations={requests}
-            expandedConversationId={expandedConversationId}
-            onToggleConversation={setExpandedConversationId}
-            isLoading={isLoading && requests.length === 0}
-            emptyState={t('No incoming requests right now.')}
-            tone="muted"
+        {pubkey && isSupported && viewMode === 'compose' && (
+          <ComposeMessageView
+            query={composeQuery}
+            onQueryChange={setComposeQuery}
+            profiles={composeProfiles}
+            isFetching={isFetchingComposeProfiles}
+            onSelectProfile={handleSelectProfile}
+          />
+        )}
+
+        {pubkey && isSupported && viewMode === 'thread' && (
+          <ConversationThreadView
+            conversation={selectedConversation}
+            draftRecipientPubkey={draftRecipientPubkey}
+            onOpenCompose={handleOpenCompose}
+            onSent={() => {
+              if (draftRecipientPubkey) {
+                setSelectedConversationId(toConversationId([draftRecipientPubkey]))
+                setDraftRecipientPubkey(null)
+                setActiveTab('conversations')
+              }
+            }}
           />
         )}
       </div>
@@ -201,9 +272,64 @@ MessagesPage.displayName = 'MessagesPage'
 
 export default MessagesPage
 
-function MessagesPageTitlebar() {
+function MessagesPageTitlebar({
+  viewMode,
+  conversation,
+  draftRecipientPubkey,
+  unreadMessageCount,
+  hasUnreadMessages,
+  onBack,
+  onMarkAllAsRead
+}: {
+  viewMode: TMessagesViewMode
+  conversation: TMessageConversation | null
+  draftRecipientPubkey: string | null
+  unreadMessageCount: number
+  hasUnreadMessages: boolean
+  onBack: () => void
+  onMarkAllAsRead: () => void
+}) {
   const { t } = useTranslation()
-  const { hasUnreadMessages, unreadMessageCount, markAllAsRead } = useMessages()
+
+  if (viewMode === 'thread') {
+    return (
+      <div className="flex items-center h-full pl-1 pr-2 gap-2">
+        <Button variant="ghost" size="titlebar-icon" onClick={onBack} aria-label={t('Back')}>
+          <ArrowLeft />
+        </Button>
+        <div className="min-w-0 flex-1">
+          {conversation ? (
+            <ConversationTitle conversation={conversation} className="text-lg font-semibold truncate" />
+          ) : draftRecipientPubkey ? (
+            <SimpleUsername
+              userId={draftRecipientPubkey}
+              className="text-lg font-semibold truncate"
+            />
+          ) : (
+            <div className="text-lg font-semibold truncate">{t('Messages')}</div>
+          )}
+        </div>
+        {conversation?.isRequest && (
+          <Badge variant="outline" className="shrink-0">
+            {t('Request')}
+          </Badge>
+        )}
+      </div>
+    )
+  }
+
+  if (viewMode === 'compose') {
+    return (
+      <div className="flex items-center h-full pl-1 pr-2 gap-2">
+        <Button variant="ghost" size="titlebar-icon" onClick={onBack} aria-label={t('Back')}>
+          <ArrowLeft />
+        </Button>
+        <div className="text-lg font-semibold truncate" style={{ fontSize: 'var(--title-font-size, 18px)' }}>
+          {t('New message')}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex items-center justify-between h-full pl-3 pr-2 gap-2">
@@ -222,7 +348,7 @@ function MessagesPageTitlebar() {
         variant="ghost"
         size="sm"
         className="shrink-0"
-        onClick={markAllAsRead}
+        onClick={onMarkAllAsRead}
         disabled={!hasUnreadMessages}
       >
         {t('Mark all as read')}
@@ -231,205 +357,406 @@ function MessagesPageTitlebar() {
   )
 }
 
-function ConversationSection({
-  title,
-  description,
+function MessagesOverview({
+  activeTab,
+  onTabChange,
+  onCompose,
   conversations,
-  expandedConversationId,
-  onToggleConversation,
+  requests,
+  visibleConversations,
+  unreadMessageCount,
   isLoading,
-  emptyState,
-  tone = 'default'
+  onOpenConversation
 }: {
-  title: string
-  description: string
+  activeTab: TOverviewTab
+  onTabChange: (tab: TOverviewTab) => void
+  onCompose: () => void
   conversations: TMessageConversation[]
-  expandedConversationId: string | null
-  onToggleConversation: (conversationId: string | null) => void
-  isLoading?: boolean
-  emptyState: string
-  tone?: 'default' | 'muted'
+  requests: TMessageConversation[]
+  visibleConversations: TMessageConversation[]
+  unreadMessageCount: number
+  isLoading: boolean
+  onOpenConversation: (conversation: TMessageConversation) => void
 }) {
+  const { t } = useTranslation()
+  const hasAnyMessages = conversations.length > 0 || requests.length > 0
+
   return (
-    <section className="space-y-3">
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold">{title}</h2>
-          {conversations.length > 0 && <Badge variant="secondary">{conversations.length}</Badge>}
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          {unreadMessageCount > 0 ? (
+            <div className="text-sm text-muted-foreground">
+              {t('{{count}} unread messages', { count: unreadMessageCount })}
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground">
+              {t('Your direct messages and requests live here.')}
+            </div>
+          )}
         </div>
-        <p className="text-sm text-muted-foreground">{description}</p>
+        <Button size="sm" onClick={onCompose} className="shrink-0">
+          <MessageCircle />
+          {t('Compose')}
+        </Button>
       </div>
 
-      {isLoading ? (
-        <div className="space-y-3">
-          <ConversationSkeleton />
-          <ConversationSkeleton />
+      <div className="flex items-center gap-2 border-b">
+        <OverviewTabButton
+          label={t('Conversations')}
+          active={activeTab === 'conversations'}
+          count={conversations.length}
+          onClick={() => onTabChange('conversations')}
+        />
+        <OverviewTabButton
+          label={t('Requests')}
+          active={activeTab === 'requests'}
+          count={requests.length}
+          onClick={() => onTabChange('requests')}
+        />
+      </div>
+
+      {isLoading && !hasAnyMessages ? (
+        <div className="rounded-xl border">
+          <ConversationRowSkeleton />
+          <ConversationRowSkeleton />
+          <ConversationRowSkeleton />
         </div>
-      ) : conversations.length === 0 ? (
-        <Card className={cn(tone === 'muted' && 'border-dashed')}>
-          <CardContent className="p-4 text-sm text-muted-foreground">{emptyState}</CardContent>
-        </Card>
+      ) : visibleConversations.length === 0 ? (
+        <div className="rounded-xl border px-4 py-12 text-center">
+          <Inbox className="mx-auto mb-3 text-muted-foreground" />
+          <div className="text-lg font-semibold">
+            {activeTab === 'conversations' ? t('No conversations yet') : t('No requests right now')}
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {activeTab === 'conversations'
+              ? t('Start a new DM or wait for someone to message you.')
+              : t('Incoming message requests will show up here.')}
+          </p>
+        </div>
       ) : (
-        <div className="space-y-3">
-          {conversations.map((conversation) => (
-            <ConversationCard
+        <div className="rounded-xl border overflow-hidden">
+          {visibleConversations.map((conversation) => (
+            <ConversationRow
               key={conversation.id}
               conversation={conversation}
-              expanded={expandedConversationId === conversation.id}
-              onToggle={() =>
-                onToggleConversation(
-                  expandedConversationId === conversation.id ? null : conversation.id
-                )
-              }
-              tone={tone}
+              onClick={() => onOpenConversation(conversation)}
             />
           ))}
         </div>
       )}
-    </section>
+    </div>
   )
 }
 
-function ConversationCard({
+function OverviewTabButton({
+  label,
+  active,
+  count,
+  onClick
+}: {
+  label: string
+  active: boolean
+  count: number
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        'relative flex items-center gap-2 px-1 py-3 text-sm font-medium transition-colors',
+        active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
+      )}
+      onClick={onClick}
+    >
+      <span>{label}</span>
+      {count > 0 && <Badge variant="secondary">{count}</Badge>}
+      <span
+        className={cn(
+          'absolute inset-x-0 bottom-0 h-0.5 rounded-full transition-colors',
+          active ? 'bg-primary' : 'bg-transparent'
+        )}
+      />
+    </button>
+  )
+}
+
+function ConversationRow({
   conversation,
-  expanded,
-  onToggle,
-  tone = 'default'
+  onClick
 }: {
   conversation: TMessageConversation
-  expanded: boolean
-  onToggle: () => void
-  tone?: 'default' | 'muted'
+  onClick: () => void
 }) {
-  const visibleMessages = useMemo(
-    () => conversation.messages.slice(-MAX_VISIBLE_MESSAGES),
-    [conversation.messages]
-  )
-
   return (
-    <Card
-      className={cn(
-        'overflow-hidden transition-colors',
-        expanded && 'border-primary',
-        conversation.unreadCount > 0 && tone === 'default' && 'bg-primary/5',
-        conversation.unreadCount > 0 && tone === 'muted' && 'bg-amber-500/5 border-amber-500/30'
-      )}
+    <button
+      type="button"
+      className="flex w-full items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-muted/40 border-b last:border-b-0"
+      onClick={onClick}
     >
-      <button type="button" className="w-full text-left" onClick={onToggle}>
-        <CardContent className="p-4">
-          <div className="flex items-start gap-3">
-            <ConversationAvatar conversation={conversation} />
-            <div className="min-w-0 flex-1 space-y-1">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <ConversationTitle conversation={conversation} />
-                    {conversation.isRequest && (
-                      <Badge variant="outline" className="shrink-0">
-                        Request
-                      </Badge>
-                    )}
-                  </div>
-                  {conversation.subject && (
-                    <div className="text-xs text-muted-foreground truncate">
-                      {conversation.subject}
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {conversation.unreadCount > 0 && (
-                    <Badge variant="secondary">{conversation.unreadCount}</Badge>
-                  )}
-                  <FormattedTimestamp
-                    timestamp={conversation.lastMessageAt}
-                    short
-                    className="text-xs text-muted-foreground"
-                  />
-                </div>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-sm text-muted-foreground truncate">
-                  {conversation.lastMessagePreview}
-                </p>
-                {expanded ? (
-                  <ChevronUp className="text-muted-foreground shrink-0" />
-                ) : (
-                  <ChevronDown className="text-muted-foreground shrink-0" />
-                )}
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </button>
-
-      {expanded && (
-        <>
-          <Separator />
-          <CardContent className="p-4 space-y-3">
-            {conversation.messages.length > MAX_VISIBLE_MESSAGES && (
-              <div className="text-xs text-muted-foreground">
-                Showing the latest {MAX_VISIBLE_MESSAGES} messages in this conversation.
-              </div>
-            )}
-            <div className="space-y-2">
-              {visibleMessages.map((message) => (
-                <MessageBubble
-                  key={message.wrapId}
-                  conversation={conversation}
-                  message={message}
-                />
-              ))}
-            </div>
-            <Separator />
-            <ConversationComposer
-              recipientPubkeys={conversation.participantPubkeys}
-              subject={conversation.subject}
-              replyToId={conversation.messages[conversation.messages.length - 1]?.id}
-            />
-          </CardContent>
-        </>
-      )}
-    </Card>
+      <ConversationAvatar conversation={conversation} size="small" />
+      <div className="min-w-0 flex-1 flex items-center gap-2">
+        <ConversationTitle
+          conversation={conversation}
+          className="shrink-0 max-w-[40%] text-sm font-medium truncate"
+        />
+        <div className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
+          {conversation.lastMessagePreview}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        {conversation.unreadCount > 0 && <div className="size-2 rounded-full bg-primary" />}
+        <FormattedTimestamp
+          timestamp={conversation.lastMessageAt}
+          short
+          className="text-xs text-muted-foreground"
+        />
+      </div>
+    </button>
   )
 }
 
-function ConversationAvatar({ conversation }: { conversation: TMessageConversation }) {
-  if (conversation.isGroup || !conversation.primaryPubkey) {
+function ConversationRowSkeleton() {
+  return (
+    <div className="flex items-center gap-3 px-3 py-3 border-b last:border-b-0">
+      <Skeleton className="h-8 w-8 rounded-full shrink-0" />
+      <Skeleton className="h-4 w-24 shrink-0" />
+      <Skeleton className="h-4 flex-1" />
+      <Skeleton className="h-4 w-12 shrink-0" />
+    </div>
+  )
+}
+
+function ComposeMessageView({
+  query,
+  onQueryChange,
+  profiles,
+  isFetching,
+  onSelectProfile
+}: {
+  query: string
+  onQueryChange: (value: string) => void
+  profiles: TProfile[]
+  isFetching: boolean
+  onSelectProfile: (profile: TProfile) => void
+}) {
+  const { t } = useTranslation()
+  const hasQuery = !!query.trim()
+
+  return (
+    <div className="space-y-4">
+      <SearchInput
+        value={query}
+        onChange={(event) => onQueryChange(event.target.value)}
+        placeholder={t('Search people by name, nip05, or npub')}
+      />
+
+      {!hasQuery ? (
+        <div className="rounded-xl border px-4 py-10 text-center">
+          <div className="text-base font-semibold">{t('Start a new DM')}</div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t('Search for someone, then open a conversation and send your message.')}
+          </p>
+        </div>
+      ) : (
+        <div className="rounded-xl border overflow-hidden">
+          {isFetching ? (
+            <>
+              <ComposeProfileRowSkeleton />
+              <ComposeProfileRowSkeleton />
+              <ComposeProfileRowSkeleton />
+            </>
+          ) : profiles.length === 0 ? (
+            <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+              {t('No users found')}
+            </div>
+          ) : (
+            profiles.map((profile) => (
+              <button
+                key={profile.pubkey}
+                type="button"
+                className="flex w-full items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-muted/40 border-b last:border-b-0"
+                onClick={() => onSelectProfile(profile)}
+              >
+                <SimpleUserAvatar userId={profile.pubkey} size="small" />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium">{profile.username}</div>
+                  <div className="truncate text-xs text-muted-foreground">
+                    {profile.nip05 || profile.npub}
+                  </div>
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ComposeProfileRowSkeleton() {
+  return (
+    <div className="flex items-center gap-3 px-3 py-3 border-b last:border-b-0">
+      <Skeleton className="h-8 w-8 rounded-full shrink-0" />
+      <div className="min-w-0 flex-1 space-y-2">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-3 w-48" />
+      </div>
+    </div>
+  )
+}
+
+function ConversationThreadView({
+  conversation,
+  draftRecipientPubkey,
+  onOpenCompose,
+  onSent
+}: {
+  conversation: TMessageConversation | null
+  draftRecipientPubkey: string | null
+  onOpenCompose: () => void
+  onSent: () => void
+}) {
+  const { t } = useTranslation()
+  const visibleMessages = useMemo(
+    () => conversation?.messages.slice(-MAX_VISIBLE_MESSAGES) ?? [],
+    [conversation]
+  )
+  const recipientPubkeys = conversation?.participantPubkeys ?? (draftRecipientPubkey ? [draftRecipientPubkey] : [])
+
+  if (recipientPubkeys.length === 0) {
     return (
-      <div className="w-10 h-10 shrink-0 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
+      <div className="rounded-xl border px-4 py-12 text-center">
+        <div className="text-base font-semibold">{t('Conversation not found')}</div>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {t('Pick another conversation or start a new message.')}
+        </p>
+        <Button onClick={onOpenCompose} className="mt-4">
+          <MessageCircle />
+          {t('Compose')}
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3 rounded-xl border px-3 py-3">
+        <ConversationAvatar conversation={conversation} draftRecipientPubkey={draftRecipientPubkey} />
+        <div className="min-w-0">
+          {conversation ? (
+            <ConversationTitle conversation={conversation} className="font-semibold truncate" />
+          ) : draftRecipientPubkey ? (
+            <SimpleUsername userId={draftRecipientPubkey} className="font-semibold truncate" />
+          ) : null}
+          <div className="text-sm text-muted-foreground">
+            {conversation
+              ? conversation.isRequest
+                ? t('Message request')
+                : t('Direct message conversation')
+              : t('Start a new direct message')}
+          </div>
+        </div>
+      </div>
+
+      {visibleMessages.length > 0 ? (
+        <div className="space-y-3">
+          {conversation && conversation.messages.length > MAX_VISIBLE_MESSAGES && (
+            <div className="text-xs text-muted-foreground">
+              {t('Showing the latest {{count}} messages.', { count: MAX_VISIBLE_MESSAGES })}
+            </div>
+          )}
+          <div className="space-y-2">
+            {visibleMessages.map((message) => (
+              <MessageBubble
+                key={message.wrapId}
+                conversation={conversation}
+                message={message}
+              />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-xl border px-4 py-12 text-center">
+          <div className="text-base font-semibold">{t('No messages yet')}</div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t('Write the first message below to start the conversation.')}
+          </p>
+        </div>
+      )}
+
+      <Separator />
+
+      <ConversationComposer
+        recipientPubkeys={recipientPubkeys}
+        subject={conversation?.subject}
+        replyToId={conversation?.messages[conversation.messages.length - 1]?.id}
+        placeholder={
+          conversation?.messages.length
+            ? t('Write a reply...')
+            : t('Write your first message...')
+        }
+        submitLabel={conversation?.messages.length ? t('Send reply') : t('Send message')}
+        onSent={onSent}
+      />
+    </div>
+  )
+}
+
+function ConversationAvatar({
+  conversation,
+  draftRecipientPubkey,
+  size = 'medium'
+}: {
+  conversation?: TMessageConversation | null
+  draftRecipientPubkey?: string | null
+  size?: 'medium' | 'small'
+}) {
+  const resolvedSize = size === 'small' ? 'small' : 'medium'
+
+  if (conversation?.isGroup) {
+    return (
+      <div className="w-8 h-8 shrink-0 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
         <Users className="size-4" />
       </div>
     )
   }
 
-  return <SimpleUserAvatar userId={conversation.primaryPubkey} size="medium" />
-}
+  const pubkey = conversation?.primaryPubkey ?? draftRecipientPubkey
 
-function ConversationTitle({ conversation }: { conversation: TMessageConversation }) {
-  if (conversation.isGroup || !conversation.primaryPubkey) {
+  if (!pubkey) {
     return (
-      <div className="font-semibold truncate">
-        Group conversation
+      <div className="w-8 h-8 shrink-0 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
+        <MessageCircle className="size-4" />
       </div>
     )
   }
 
-  return (
-    <SimpleUsername
-      userId={conversation.primaryPubkey}
-      className="font-semibold truncate"
-    />
-  )
+  return <SimpleUserAvatar userId={pubkey} size={resolvedSize} />
+}
+
+function ConversationTitle({
+  conversation,
+  className
+}: {
+  conversation: TMessageConversation
+  className?: string
+}) {
+  if (conversation.isGroup || !conversation.primaryPubkey) {
+    return <div className={className}>Group conversation</div>
+  }
+
+  return <SimpleUsername userId={conversation.primaryPubkey} className={className} />
 }
 
 function MessageBubble({
   conversation,
   message
 }: {
-  conversation: TMessageConversation
-  message: TMessageConversation['messages'][number]
+  conversation: TMessageConversation | null
+  message: NonNullable<TMessageConversation['messages'][number]>
 }) {
-  const showSender = conversation.isGroup && !message.isOutgoing
+  const showSender = !!conversation?.isGroup && !message.isOutgoing
 
   return (
     <div className={cn('flex', message.isOutgoing ? 'justify-end' : 'justify-start')}>
@@ -438,7 +765,7 @@ function MessageBubble({
           'max-w-[85%] rounded-2xl px-3 py-2 space-y-1',
           message.isOutgoing
             ? 'bg-primary text-primary-foreground'
-            : conversation.isRequest
+            : conversation?.isRequest
               ? 'bg-amber-500/10 border border-amber-500/20'
               : 'bg-muted'
         )}
@@ -457,76 +784,20 @@ function MessageBubble({
   )
 }
 
-function ConversationSkeleton() {
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-start gap-3">
-          <Skeleton className="w-10 h-10 rounded-full shrink-0" />
-          <div className="flex-1 min-w-0 space-y-2">
-            <div className="flex items-center justify-between gap-3">
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-4 w-12" />
-            </div>
-            <Skeleton className="h-4 w-full" />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-function DirectMessageComposerCard({
-  pubkey,
-  onCancel,
-  onSend
-}: {
-  pubkey: string
-  onCancel: () => void
-  onSend: (content: string) => Promise<void>
-}) {
-  const { t } = useTranslation()
-
-  return (
-    <Card className="border-primary/40">
-      <CardContent className="p-4 space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <SimpleUserAvatar userId={pubkey} size="medium" />
-            <div className="min-w-0">
-              <div className="text-sm text-muted-foreground">{t('New message')}</div>
-              <SimpleUsername userId={pubkey} className="font-semibold truncate" />
-            </div>
-          </div>
-          <Button variant="ghost" size="icon" onClick={onCancel} aria-label={t('Cancel')}>
-            <X />
-          </Button>
-        </div>
-        <ConversationComposer
-          recipientPubkeys={[pubkey]}
-          onSend={onSend}
-          placeholder={t('Write your first message...')}
-          submitLabel={t('Send message')}
-        />
-      </CardContent>
-    </Card>
-  )
-}
-
 function ConversationComposer({
   recipientPubkeys,
   subject,
   replyToId,
   placeholder,
-  submitLabel = 'Send',
-  onSend
+  submitLabel,
+  onSent
 }: {
   recipientPubkeys: string[]
   subject?: string
   replyToId?: string
-  placeholder?: string
-  submitLabel?: string
-  onSend?: (content: string) => Promise<void>
+  placeholder: string
+  submitLabel: string
+  onSent?: () => void
 }) {
   const { t } = useTranslation()
   const { sendMessage } = useMessages()
@@ -535,6 +806,7 @@ function ConversationComposer({
 
   const handleSend = async () => {
     const trimmedContent = content.trim()
+
     if (!trimmedContent || isSending) {
       return
     }
@@ -542,17 +814,9 @@ function ConversationComposer({
     setIsSending(true)
 
     try {
-      if (onSend) {
-        await onSend(trimmedContent)
-      } else {
-        await sendMessage(recipientPubkeys, trimmedContent, {
-          replyToId,
-          subject
-        })
-      }
-
+      await sendMessage(recipientPubkeys, trimmedContent, { replyToId, subject })
       setContent('')
-      toast.success(t('Message sent'))
+      onSent?.()
     } catch (error) {
       const message = error instanceof Error ? error.message : t('Failed to send message')
       toast.error(message)
@@ -566,8 +830,8 @@ function ConversationComposer({
       <Textarea
         value={content}
         onChange={(event) => setContent(event.target.value)}
-        placeholder={placeholder ?? t('Write a message...')}
-        className="min-h-[96px]"
+        placeholder={placeholder}
+        className="min-h-[112px]"
       />
       <div className="flex justify-end">
         <Button onClick={handleSend} disabled={!content.trim() || isSending}>

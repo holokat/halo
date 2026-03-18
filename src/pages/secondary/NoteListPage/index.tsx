@@ -61,12 +61,17 @@ const NoteListPage = forwardRef(({ index }: { index?: number }, ref) => {
       const stockSymbol = searchParams.get('stock')
       if (stockSymbol) {
         const normalizedStockSymbol = stockSymbol.replace(/^\$/, '').toUpperCase()
+        const normalizedStockTag = normalizedStockSymbol.toLowerCase()
         setData({ type: 'search' })
         setTitle(`$${normalizedStockSymbol}`)
         setControls(null)
         setCurrentHashtag(null)
         setCurrentStockSymbol(normalizedStockSymbol)
         setSubRequests([
+          {
+            filter: { '#t': [normalizedStockTag], ...(kinds.length > 0 ? { kinds } : {}) },
+            urls: BIG_RELAY_URLS
+          },
           {
             filter: { search: `$${normalizedStockSymbol}`, ...(kinds.length > 0 ? { kinds } : {}) },
             urls: SEARCHABLE_RELAY_URLS
