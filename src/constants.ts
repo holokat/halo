@@ -42,6 +42,8 @@ export const StorageKey = {
   QUICK_ZAP: 'quickZap',
   LAST_READ_NOTIFICATION_TIME_MAP: 'lastReadNotificationTimeMap',
   LAST_READ_MESSAGE_TIME_MAP: 'lastReadMessageTimeMap',
+  MESSAGE_CONVERSATION_READ_TIME_MAP: 'messageConversationReadTimeMap',
+  DISMISSED_MESSAGE_CONVERSATION_MAP: 'dismissedMessageConversationMap',
   ACCOUNT_FEED_INFO_MAP: 'accountFeedInfoMap',
   AUTOPLAY: 'autoplay',
   HIDE_UNTRUSTED_INTERACTIONS: 'hideUntrustedInteractions',

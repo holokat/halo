@@ -12,14 +12,23 @@ import { SimpleUsername } from '@/components/Username'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import {
   ArrowLeft,
+  CheckCheck,
+  EyeOff,
   Inbox,
   MessageCircle,
   MessagesSquare,
+  MoreHorizontal,
   Plus,
   SendHorizontal,
   Users
@@ -53,13 +62,17 @@ const MessagesPage = forwardRef(({ composeTo }: { composeTo?: string | null }, r
   const previousComposeToRef = useRef<string | null | undefined>(composeTo)
   const { pubkey, startLogin } = useNostr()
   const {
+    conversations,
     activeConversations,
     requests,
     isLoading,
+    hasLoadedMessages,
     isSupported,
     hasUnreadMessages,
     unreadMessageCount,
-    markAllAsRead
+    markAllAsRead,
+    markConversationAsRead,
+    dismissConversation
   } = useMessages()
   const [activeTab, setActiveTab] = useState<TOverviewTab>('conversations')
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null)
@@ -74,10 +87,7 @@ const MessagesPage = forwardRef(({ composeTo }: { composeTo?: string | null }, r
 
   useImperativeHandle(ref, () => layoutRef.current as TPageRef)
 
-  const allConversations = useMemo(
-    () => activeConversations.concat(requests),
-    [activeConversations, requests]
-  )
+  const allConversations = useMemo(() => conversations, [conversations])
 
   const selectedConversation = useMemo(
     () =>
@@ -151,6 +161,7 @@ const MessagesPage = forwardRef(({ composeTo }: { composeTo?: string | null }, r
     setSelectedConversationId(conversation.id)
     setDraftRecipientPubkey(null)
     setIsComposePickerOpen(false)
+    markConversationAsRead(conversation.id)
   }
 
   const handleOpenCompose = () => {
@@ -232,6 +243,9 @@ const MessagesPage = forwardRef(({ composeTo }: { composeTo?: string | null }, r
             requests={requests}
             visibleConversations={visibleConversations}
             isLoading={isLoading}
+            hasLoadedMessages={hasLoadedMessages}
+            onMarkConversationAsRead={markConversationAsRead}
+            onDismissConversation={dismissConversation}
             onOpenConversation={openConversation}
           />
         )}
@@ -296,6 +310,7 @@ function MessagesPageTitlebar({
         <Button variant="ghost" size="titlebar-icon" onClick={onBack} aria-label={t('Back')}>
           <ArrowLeft />
         </Button>
+        <ConversationAvatar conversation={conversation} draftRecipientPubkey={draftRecipientPubkey} size="small" />
         <div className="min-w-0 flex-1">
           {conversation ? (
             <ConversationTitle conversation={conversation} className="text-lg font-semibold truncate" />
@@ -369,6 +384,9 @@ function MessagesOverview({
   requests,
   visibleConversations,
   isLoading,
+  hasLoadedMessages,
+  onMarkConversationAsRead,
+  onDismissConversation,
   onOpenConversation
 }: {
   activeTab: TOverviewTab
@@ -377,10 +395,14 @@ function MessagesOverview({
   requests: TMessageConversation[]
   visibleConversations: TMessageConversation[]
   isLoading: boolean
+  hasLoadedMessages: boolean
+  onMarkConversationAsRead: (conversationId: string) => void
+  onDismissConversation: (conversationId: string) => void
   onOpenConversation: (conversation: TMessageConversation) => void
 }) {
   const { t } = useTranslation()
   const hasAnyMessages = conversations.length > 0 || requests.length > 0
+  const isCheckingForMessages = !hasLoadedMessages && !hasAnyMessages
 
   return (
     <div className="space-y-4">
@@ -388,23 +410,19 @@ function MessagesOverview({
         <OverviewTabButton
           label={t('Conversations')}
           active={activeTab === 'conversations'}
-          count={conversations.length}
           onClick={() => onTabChange('conversations')}
         />
         <OverviewTabButton
           label={t('Requests')}
           active={activeTab === 'requests'}
-          count={requests.length}
           onClick={() => onTabChange('requests')}
         />
       </div>
 
-      {isLoading && !hasAnyMessages ? (
-        <div className="rounded-xl border">
-          <ConversationRowSkeleton />
-          <ConversationRowSkeleton />
-          <ConversationRowSkeleton />
-        </div>
+      {isCheckingForMessages ? (
+        <MessagesLoadingState />
+      ) : isLoading && !hasAnyMessages ? (
+        <MessagesLoadingState compact />
       ) : visibleConversations.length === 0 ? (
         <div className="rounded-xl border px-4 py-12 text-center">
           <Inbox className="mx-auto mb-3 text-muted-foreground" />
@@ -423,6 +441,8 @@ function MessagesOverview({
             <ConversationRow
               key={conversation.id}
               conversation={conversation}
+              onMarkAsRead={() => onMarkConversationAsRead(conversation.id)}
+              onDismiss={() => onDismissConversation(conversation.id)}
               onClick={() => onOpenConversation(conversation)}
             />
           ))}
@@ -435,12 +455,10 @@ function MessagesOverview({
 function OverviewTabButton({
   label,
   active,
-  count,
   onClick
 }: {
   label: string
   active: boolean
-  count: number
   onClick: () => void
 }) {
   return (
@@ -453,7 +471,6 @@ function OverviewTabButton({
       onClick={onClick}
     >
       <span>{label}</span>
-      {count > 0 && <Badge variant="secondary">{count}</Badge>}
       <span
         className={cn(
           'absolute inset-x-0 bottom-0 h-0.5 rounded-full transition-colors',
@@ -466,36 +483,97 @@ function OverviewTabButton({
 
 function ConversationRow({
   conversation,
+  onMarkAsRead,
+  onDismiss,
   onClick
 }: {
   conversation: TMessageConversation
+  onMarkAsRead: () => void
+  onDismiss: () => void
   onClick: () => void
 }) {
+  const { t } = useTranslation()
+
   return (
-    <button
-      type="button"
-      className="flex w-full items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-muted/40 border-b last:border-b-0"
-      onClick={onClick}
-    >
-      <ConversationAvatar conversation={conversation} size="small" />
-      <div className="min-w-0 flex-1 flex items-center gap-2">
-        <ConversationTitle
-          conversation={conversation}
-          className="shrink-0 max-w-[40%] text-sm font-medium truncate"
-        />
-        <div className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
-          {conversation.lastMessagePreview}
+    <div className="flex items-stretch gap-2 px-3 py-2 border-b last:border-b-0">
+      <button
+        type="button"
+        className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-1 py-1 text-left transition-colors hover:bg-muted/40"
+        onClick={onClick}
+      >
+        <ConversationAvatar conversation={conversation} size="small" />
+        <div className="min-w-0 flex-1 flex items-center gap-2">
+          <ConversationTitle
+            conversation={conversation}
+            className="shrink-0 max-w-[40%] text-sm font-medium truncate"
+          />
+          <div className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
+            {conversation.lastMessagePreview}
+          </div>
         </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {conversation.unreadCount > 0 && <div className="size-2 rounded-full bg-primary" />}
+          <FormattedTimestamp
+            timestamp={conversation.lastMessageAt}
+            short
+            className="text-xs text-muted-foreground"
+          />
+        </div>
+      </button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="mt-1 size-8 shrink-0"
+            aria-label={t('Message actions')}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <MoreHorizontal className="size-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" onClick={(event) => event.stopPropagation()}>
+          {conversation.unreadCount > 0 && (
+            <DropdownMenuItem onClick={onMarkAsRead}>
+              <CheckCheck />
+              {t('Mark as read')}
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem onClick={onDismiss}>
+            <EyeOff />
+            {conversation.isRequest ? t('Dismiss request') : t('Hide conversation')}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  )
+}
+
+function MessagesLoadingState({ compact = false }: { compact?: boolean }) {
+  const { t } = useTranslation()
+
+  return (
+    <div className="rounded-xl border px-4 py-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="text-sm font-medium">{t('Checking for messages...')}</div>
+          {!compact && (
+            <div className="text-xs text-muted-foreground mt-1">
+              {t('Looking for conversations and requests on your inbox relays.')}
+            </div>
+          )}
+        </div>
+        <div className="text-xs text-muted-foreground">{t('Syncing')}</div>
       </div>
-      <div className="flex items-center gap-2 shrink-0">
-        {conversation.unreadCount > 0 && <div className="size-2 rounded-full bg-primary" />}
-        <FormattedTimestamp
-          timestamp={conversation.lastMessageAt}
-          short
-          className="text-xs text-muted-foreground"
-        />
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
+        <div className="h-full w-2/5 rounded-full bg-primary animate-pulse" />
       </div>
-    </button>
+      <div className="mt-4 rounded-xl border overflow-hidden">
+        <ConversationRowSkeleton />
+        <ConversationRowSkeleton />
+        <ConversationRowSkeleton />
+      </div>
+    </div>
   )
 }
 
@@ -624,24 +702,6 @@ function ConversationThreadView({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3 rounded-xl border px-3 py-3">
-        <ConversationAvatar conversation={conversation} draftRecipientPubkey={draftRecipientPubkey} />
-        <div className="min-w-0">
-          {conversation ? (
-            <ConversationTitle conversation={conversation} className="font-semibold truncate" />
-          ) : draftRecipientPubkey ? (
-            <SimpleUsername userId={draftRecipientPubkey} className="font-semibold truncate" />
-          ) : null}
-          <div className="text-sm text-muted-foreground">
-            {conversation
-              ? conversation.isRequest
-                ? t('Message request')
-                : t('Direct message conversation')
-              : t('Start a new direct message')}
-          </div>
-        </div>
-      </div>
-
       {visibleMessages.length > 0 ? (
         <div className="space-y-3">
           {conversation && conversation.messages.length > MAX_VISIBLE_MESSAGES && (

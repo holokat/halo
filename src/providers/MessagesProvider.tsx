@@ -63,9 +63,12 @@ type TMessagesContext = {
   unreadConversationCount: number
   messagesReadAt: number
   isLoading: boolean
+  hasLoadedMessages: boolean
   error: string | null
   isSupported: boolean
   markAllAsRead: () => void
+  markConversationAsRead: (conversationId: string) => void
+  dismissConversation: (conversationId: string) => void
   sendMessage: (
     recipientPubkeys: string[],
     content: string,
@@ -194,7 +197,10 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
   const [messages, setMessages] = useState<TDirectMessage[]>([])
   const [messagesReadAt, setMessagesReadAt] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
+  const [hasLoadedMessages, setHasLoadedMessages] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [conversationReadAtMap, setConversationReadAtMap] = useState<Record<string, number>>({})
+  const [dismissedConversationMap, setDismissedConversationMap] = useState<Record<string, number>>({})
   const decryptRef = useRef(nip44Decrypt)
   const decryptedMessageCacheRef = useRef(new Map<string, TDirectMessage | null>())
 
@@ -300,27 +306,36 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
     if (!pubkey) {
       setMessages([])
       setMessagesReadAt(0)
+      setConversationReadAtMap({})
+      setDismissedConversationMap({})
       setIsLoading(false)
+      setHasLoadedMessages(true)
       setError(null)
       return
     }
 
     setMessagesReadAt(storage.getLastReadMessageTime(pubkey))
+    setConversationReadAtMap(storage.getMessageConversationReadTimeMap(pubkey))
+    setDismissedConversationMap(storage.getDismissedMessageConversationMap(pubkey))
     setMessages([])
+    setHasLoadedMessages(false)
     setError(null)
 
     if (account?.signerType === 'npub') {
       setIsLoading(false)
+      setHasLoadedMessages(true)
       setError('Direct messages require a signer that can decrypt NIP-17 messages.')
       return
     }
     if (!nip44Supported) {
       setIsLoading(false)
+      setHasLoadedMessages(true)
       setError('Direct messages require a signer that supports NIP-44.')
       return
     }
     if (relayUrls.length === 0) {
       setIsLoading(false)
+      setHasLoadedMessages(true)
       setError('Direct messages need inbox relays (kind 10050) to receive messages.')
       return
     }
@@ -335,6 +350,19 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
           wrappedEvents.map((wrappedEvent) => unwrapDirectMessage(wrappedEvent, pubkey))
         )
       ).filter((message): message is TDirectMessage => !!message)
+
+      if (unwrappedMessages.length > 0) {
+        const participantPubkeys = Array.from(
+          new Set(
+            unwrappedMessages.flatMap((message) => [
+              message.senderPubkey,
+              ...message.participantPubkeys
+            ])
+          )
+        )
+
+        void client.prefetchProfiles(participantPubkeys)
+      }
 
       if (!isMounted || unwrappedMessages.length === 0) {
         return unwrappedMessages.length
@@ -399,6 +427,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
       } finally {
         if (isMounted) {
           setIsLoading(false)
+          setHasLoadedMessages(true)
           startSubscription()
         }
       }
@@ -453,8 +482,12 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
 
     return Array.from(conversationMap.values())
       .map((conversation) => {
+        const conversationReadAt = Math.max(
+          messagesReadAt,
+          conversationReadAtMap[conversation.id] ?? 0
+        )
         const unreadCount = conversation.messages.filter(
-          (message) => !message.isOutgoing && message.createdAt > messagesReadAt
+          (message) => !message.isOutgoing && message.createdAt > conversationReadAt
         ).length
         const isSingleParticipantConversation = conversation.participantPubkeys.length === 1
         const primaryParticipantPubkey = conversation.primaryPubkey
@@ -470,26 +503,34 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
         }
       })
       .sort((a, b) => b.lastMessageAt - a.lastMessageAt)
-  }, [followings, messages, messagesReadAt])
+  }, [conversationReadAtMap, followings, messages, messagesReadAt])
+
+  const visibleConversations = useMemo(
+    () =>
+      conversations.filter(
+        (conversation) => (dismissedConversationMap[conversation.id] ?? 0) < conversation.lastMessageAt
+      ),
+    [conversations, dismissedConversationMap]
+  )
 
   const activeConversations = useMemo(
-    () => conversations.filter((conversation) => !conversation.isRequest),
-    [conversations]
+    () => visibleConversations.filter((conversation) => !conversation.isRequest),
+    [visibleConversations]
   )
 
   const requests = useMemo(
-    () => conversations.filter((conversation) => conversation.isRequest),
-    [conversations]
+    () => visibleConversations.filter((conversation) => conversation.isRequest),
+    [visibleConversations]
   )
 
   const unreadMessageCount = useMemo(
-    () => conversations.reduce((total, conversation) => total + conversation.unreadCount, 0),
-    [conversations]
+    () => visibleConversations.reduce((total, conversation) => total + conversation.unreadCount, 0),
+    [visibleConversations]
   )
 
   const unreadConversationCount = useMemo(
-    () => conversations.filter((conversation) => conversation.unreadCount > 0).length,
-    [conversations]
+    () => visibleConversations.filter((conversation) => conversation.unreadCount > 0).length,
+    [visibleConversations]
   )
 
   const sendMessage = useCallback(
@@ -652,6 +693,64 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
     setMessagesReadAt(nextMessagesReadAt)
   }, [messages, messagesReadAt, pubkey])
 
+  const markConversationAsRead = useCallback(
+    (conversationId: string) => {
+      if (!pubkey) return
+
+      const conversation = conversations.find((item) => item.id === conversationId)
+      if (!conversation) return
+
+      const latestIncomingMessageAt = conversation.messages.reduce((latest, message) => {
+        if (message.isOutgoing) {
+          return latest
+        }
+        return Math.max(latest, message.createdAt)
+      }, 0)
+
+      if (!latestIncomingMessageAt) {
+        return
+      }
+
+      storage.setMessageConversationReadTime(pubkey, conversationId, latestIncomingMessageAt)
+      setConversationReadAtMap((currentMap) => ({
+        ...currentMap,
+        [conversationId]: latestIncomingMessageAt
+      }))
+    },
+    [conversations, pubkey]
+  )
+
+  const dismissConversation = useCallback(
+    (conversationId: string) => {
+      if (!pubkey) return
+
+      const conversation = conversations.find((item) => item.id === conversationId)
+      if (!conversation) return
+
+      const latestIncomingMessageAt = conversation.messages.reduce((latest, message) => {
+        if (message.isOutgoing) {
+          return latest
+        }
+        return Math.max(latest, message.createdAt)
+      }, 0)
+
+      storage.setDismissedMessageConversationTime(pubkey, conversationId, conversation.lastMessageAt)
+      setDismissedConversationMap((currentMap) => ({
+        ...currentMap,
+        [conversationId]: conversation.lastMessageAt
+      }))
+
+      if (latestIncomingMessageAt > 0) {
+        storage.setMessageConversationReadTime(pubkey, conversationId, latestIncomingMessageAt)
+        setConversationReadAtMap((currentMap) => ({
+          ...currentMap,
+          [conversationId]: latestIncomingMessageAt
+        }))
+      }
+    },
+    [conversations, pubkey]
+  )
+
   return (
     <MessagesContext.Provider
       value={{
@@ -663,9 +762,12 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
         unreadConversationCount,
         messagesReadAt,
         isLoading,
+        hasLoadedMessages,
         error,
         isSupported,
         markAllAsRead,
+        markConversationAsRead,
+        dismissConversation,
         sendMessage
       }}
     >

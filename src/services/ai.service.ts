@@ -3,6 +3,7 @@ import nostrBandSearchService, { NostrBandSearchParams } from './nostr-band-sear
 import { nip19 } from 'nostr-tools'
 
 export const DEFAULT_AI_MODEL = 'openai/gpt-5.4-nano'
+export type TAIConnectionStatus = 'valid' | 'invalid' | 'unverified'
 
 class AIService {
   private config: TAIServiceConfig = {
@@ -21,8 +22,8 @@ class AIService {
   /**
    * Enhanced chat with support for Nostr search capabilities
    */
-  private getEndpoint(): string {
-    switch (this.config.provider) {
+  private getEndpoint(config: TAIServiceConfig = this.config): string {
+    switch (config.provider) {
       case 'ppq':
         return 'https://api.ppq.ai/chat/completions'
       case 'openrouter':
@@ -31,14 +32,14 @@ class AIService {
     }
   }
 
-  private getHeaders(): Record<string, string> {
+  private getHeaders(config: TAIServiceConfig = this.config): Record<string, string> {
     const headers: Record<string, string> = {
-      Authorization: `Bearer ${this.config.apiKey}`,
+      Authorization: `Bearer ${config.apiKey ?? ''}`,
       'Content-Type': 'application/json'
     }
 
     // OpenRouter specific headers
-    if (this.config.provider === 'openrouter') {
+    if (config.provider === 'openrouter') {
       headers['HTTP-Referer'] = window.location.origin
       headers['X-Title'] = 'Jumble'
     }
@@ -232,26 +233,74 @@ Format your response as JSON with this exact structure:
     }
   }
 
-  async testConnection(): Promise<boolean> {
-    if (!this.config.apiKey) {
-      return false
-    }
-
+  private async testChatCompletionConnection(
+    config: TAIServiceConfig
+  ): Promise<TAIConnectionStatus> {
     try {
-      // Test with a simple chat completion request
-      const response = await fetch(this.getEndpoint(), {
+      const response = await fetch(this.getEndpoint(config), {
         method: 'POST',
-        headers: this.getHeaders(),
+        headers: this.getHeaders(config),
         body: JSON.stringify({
-          model: this.config.model || DEFAULT_AI_MODEL,
+          model: config.model || DEFAULT_AI_MODEL,
           messages: [{ role: 'user', content: 'test' }],
           max_tokens: 1
         })
       })
-      return response.ok
+
+      if (response.ok) {
+        return 'valid'
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        return 'invalid'
+      }
+
+      return 'unverified'
     } catch {
-      return false
+      return 'unverified'
     }
+  }
+
+  private async testOpenRouterConnection(
+    config: TAIServiceConfig
+  ): Promise<TAIConnectionStatus> {
+    const authProbeEndpoints = [
+      'https://openrouter.ai/api/v1/auth/key',
+      'https://openrouter.ai/api/v1/credits'
+    ]
+
+    for (const endpoint of authProbeEndpoints) {
+      try {
+        const response = await fetch(endpoint, {
+          method: 'GET',
+          headers: this.getHeaders(config)
+        })
+
+        if (response.ok) {
+          return 'valid'
+        }
+
+        if (response.status === 401 || response.status === 403) {
+          return 'invalid'
+        }
+      } catch {
+        // Fall through to the next probe or completion fallback.
+      }
+    }
+
+    return this.testChatCompletionConnection(config)
+  }
+
+  async testConnection(config: TAIServiceConfig = this.config): Promise<TAIConnectionStatus> {
+    if (!config.apiKey) {
+      return 'invalid'
+    }
+
+    if (config.provider === 'openrouter') {
+      return this.testOpenRouterConnection(config)
+    }
+
+    return this.testChatCompletionConnection(config)
   }
 
   async getAvailableModels(): Promise<Array<{ id: string; name: string }>> {

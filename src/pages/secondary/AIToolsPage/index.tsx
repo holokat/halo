@@ -30,7 +30,41 @@ const AIToolsPage = forwardRef(({ index }: { index?: number }, ref) => {
   const [availableImageModels, setAvailableImageModels] = useState<Array<{ id: string; name: string }>>([])
   const [availableWebSearchModels, setAvailableWebSearchModels] = useState<Array<{ id: string; name: string }>>([])
   const [showApiKey, setShowApiKey] = useState(false)
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const validationRequestRef = useRef(0)
+
+  const loadModels = useCallback(async () => {
+    try {
+      const models = await aiService.getAvailableModels()
+      setAvailableModels(models)
+    } catch (error) {
+      console.error('Failed to load models:', error)
+    }
+  }, [])
+
+  const loadImageModels = useCallback(async () => {
+    try {
+      const models = await getAvailableImageModels()
+      setAvailableImageModels(models)
+    } catch (error) {
+      console.error('Failed to load image models:', error)
+    }
+  }, [getAvailableImageModels])
+
+  const loadWebSearchModels = useCallback(async () => {
+    try {
+      const models = await getAvailableWebSearchModels()
+      setAvailableWebSearchModels(models)
+    } catch (error) {
+      console.error('Failed to load web search models:', error)
+    }
+  }, [getAvailableWebSearchModels])
+
+  useEffect(() => {
+    void loadModels()
+    void loadImageModels()
+    void loadWebSearchModels()
+  }, [loadImageModels, loadModels, loadWebSearchModels])
 
   useEffect(() => {
     setSelectedProvider(serviceConfig.provider || 'openrouter')
@@ -38,10 +72,6 @@ const AIToolsPage = forwardRef(({ index }: { index?: number }, ref) => {
     setSelectedModel(serviceConfig.model || DEFAULT_AI_MODEL)
     setSelectedImageModel(serviceConfig.imageModel || '')
     setSelectedWebSearchModel(serviceConfig.webSearchModel || '')
-    // Load the handpicked models
-    loadModels()
-    loadImageModels()
-    loadWebSearchModels()
   }, [serviceConfig])
 
   const buildServiceConfig = useCallback(
@@ -74,6 +104,16 @@ const AIToolsPage = forwardRef(({ index }: { index?: number }, ref) => {
     [serviceConfig]
   )
 
+  const persistProviderConfig = useCallback(
+    (
+      provider: TAIProvider,
+      updates: Partial<TAIProviderConfig> = {}
+    ) => {
+      updateServiceConfig(buildServiceConfig(provider, updates))
+    },
+    [buildServiceConfig, updateServiceConfig]
+  )
+
   const handleProviderSelect = (provider: TAIProvider) => {
     if (provider === selectedProvider) return
 
@@ -81,6 +121,7 @@ const AIToolsPage = forwardRef(({ index }: { index?: number }, ref) => {
       clearTimeout(saveTimeoutRef.current)
       saveTimeoutRef.current = null
     }
+    validationRequestRef.current += 1
 
     const nextConfig = buildServiceConfig(provider)
     setSelectedProvider(provider)
@@ -89,82 +130,70 @@ const AIToolsPage = forwardRef(({ index }: { index?: number }, ref) => {
     setSelectedImageModel(nextConfig.imageModel || '')
     setSelectedWebSearchModel(nextConfig.webSearchModel || '')
     updateServiceConfig(nextConfig)
-    loadModels()
-    loadImageModels()
-    loadWebSearchModels()
   }
 
-  const saveApiKey = useCallback(async (key: string) => {
-    if (!key.trim()) {
-      // If empty, just update the config without validation
-      updateServiceConfig(buildServiceConfig(selectedProvider, { apiKey: '' }))
+  const validateApiKey = useCallback(async (
+    provider: TAIProvider,
+    key: string,
+    requestId: number
+  ) => {
+    const normalizedKey = key.trim()
+
+    if (!normalizedKey) {
       return
     }
 
-    // Test the API key
-    const tempConfig = buildServiceConfig(selectedProvider, { apiKey: key.trim() })
-    aiService.setConfig(tempConfig)
-    const isValid = await aiService.testConnection()
+    const tempConfig = buildServiceConfig(provider, { apiKey: normalizedKey })
+    const connectionStatus = await aiService.testConnection(tempConfig)
 
-    if (!isValid) {
-      aiService.setConfig(serviceConfig)
-      toast.error(t('Invalid API key or connection failed'))
+    if (requestId !== validationRequestRef.current) {
       return
     }
 
-    updateServiceConfig(tempConfig)
-    toast.success(t('API key saved successfully'))
-  }, [buildServiceConfig, selectedProvider, updateServiceConfig, t])
+    if (connectionStatus === 'valid') {
+      toast.success(t('API key saved successfully'))
+      return
+    }
+
+    if (connectionStatus === 'invalid') {
+      toast.error(t('API key was saved, but the provider rejected it. Please double-check the key.'))
+      return
+    }
+
+    toast(t('API key was saved, but we could not verify it right now.'))
+  }, [buildServiceConfig, t])
 
   const handleApiKeyChange = useCallback((value: string) => {
     setApiKey(value)
+    persistProviderConfig(selectedProvider, { apiKey: value.trim() })
+    validationRequestRef.current += 1
+    const requestId = validationRequestRef.current
 
     // Clear existing timeout
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
     }
 
-    // Set new timeout to auto-save after 1 second of no typing
+    if (!value.trim()) {
+      saveTimeoutRef.current = null
+      return
+    }
+
+    // Verify in the background after the user pauses typing.
     saveTimeoutRef.current = setTimeout(() => {
-      saveApiKey(value)
+      void validateApiKey(selectedProvider, value, requestId)
     }, 1000)
-  }, [saveApiKey])
+  }, [persistProviderConfig, selectedProvider, validateApiKey])
 
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
+      validationRequestRef.current += 1
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current)
       }
     }
   }, [])
-
-  const loadModels = async () => {
-    try {
-      const models = await aiService.getAvailableModels()
-      setAvailableModels(models)
-    } catch (error) {
-      console.error('Failed to load models:', error)
-    }
-  }
-
-  const loadImageModels = async () => {
-    try {
-      const models = await getAvailableImageModels()
-      setAvailableImageModels(models)
-    } catch (error) {
-      console.error('Failed to load image models:', error)
-    }
-  }
-
-  const loadWebSearchModels = async () => {
-    try {
-      const models = await getAvailableWebSearchModels()
-      setAvailableWebSearchModels(models)
-    } catch (error) {
-      console.error('Failed to load web search models:', error)
-    }
-  }
 
   const handleModelSelect = (modelId: string) => {
     setSelectedModel(modelId)

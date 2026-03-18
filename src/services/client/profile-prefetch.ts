@@ -10,7 +10,7 @@ type TReplaceableLoader = DataLoader<
 >
 
 type TPrefetchOptions = {
-  events: Event[]
+  pubkeys: string[]
   replaceableEventCacheMap: Map<string, Event>
   replaceableEventFromBigRelaysDataloader: TReplaceableLoader
 }
@@ -31,14 +31,14 @@ function extractUniquePubkeys(events: Event[]): string[] {
   return Array.from(uniquePubkeys)
 }
 
-export async function prefetchProfilesForEvents({
-  events,
+export async function prefetchProfilesForPubkeys({
+  pubkeys,
   replaceableEventCacheMap,
   replaceableEventFromBigRelaysDataloader
 }: TPrefetchOptions): Promise<void> {
-  if (events.length === 0) return
-
-  const uniquePubkeys = extractUniquePubkeys(events)
+  const uniquePubkeys = Array.from(
+    new Set(pubkeys.filter((pubkey) => /^[0-9a-f]{64}$/.test(pubkey)))
+  )
   const pubkeysToFetch = uniquePubkeys.filter((pubkey) => {
     const coordinate = getReplaceableCoordinate(kinds.Metadata, pubkey)
     return !replaceableEventCacheMap.has(coordinate)
@@ -66,5 +66,23 @@ export async function prefetchProfilesForEvents({
 
   stillNeedFetch.forEach((pubkey) => {
     replaceableEventFromBigRelaysDataloader.load({ pubkey, kind: kinds.Metadata })
+  })
+}
+
+export async function prefetchProfilesForEvents({
+  events,
+  replaceableEventCacheMap,
+  replaceableEventFromBigRelaysDataloader
+}: {
+  events: Event[]
+  replaceableEventCacheMap: Map<string, Event>
+  replaceableEventFromBigRelaysDataloader: TReplaceableLoader
+}): Promise<void> {
+  if (events.length === 0) return
+
+  await prefetchProfilesForPubkeys({
+    pubkeys: extractUniquePubkeys(events),
+    replaceableEventCacheMap,
+    replaceableEventFromBigRelaysDataloader
   })
 }

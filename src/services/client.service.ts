@@ -14,7 +14,7 @@ import { isLocalNetworkUrl, isWebsocketUrl, normalizeUrl } from '@/lib/url'
 import { isSafari } from '@/lib/utils'
 import { SmartPool } from '@/lib/smart-pool'
 import { getMetadataRelayTiers } from '@/services/client/metadata-relay-tiers'
-import { prefetchProfilesForEvents } from '@/services/client/profile-prefetch'
+import { prefetchProfilesForEvents, prefetchProfilesForPubkeys } from '@/services/client/profile-prefetch'
 import {
   generateMultipleTimelinesKey,
   generateTimelineKey
@@ -218,24 +218,32 @@ class ClientService extends EventTarget {
           const that = this
           const relay = await this.pool.ensureRelay(url)
           relay.publishTimeout = 10_000 // 10s
+          const markRelaySuccess = () => {
+            this.trackEventSeenOn(event.id, relay)
+            successCount++
+          }
+
           return relay
             .publish(event)
             .then(() => {
-              this.trackEventSeenOn(event.id, relay)
-              successCount++
+              markRelaySuccess()
             })
-            .catch((error) => {
+            .catch(async (error) => {
               if (
                 error instanceof Error &&
                 error.message.startsWith('auth-required') &&
                 !!that.signer
               ) {
-                return relay
-                  .auth((authEvt: EventTemplate) => that.signer!.signEvent(authEvt))
-                  .then(() => relay.publish(event))
-              } else {
-                errors.push({ url, error })
+                await relay.auth((authEvt: EventTemplate) => that.signer!.signEvent(authEvt))
+                await relay.publish(event)
+                markRelaySuccess()
+                return
               }
+
+              errors.push({ url, error })
+            })
+            .catch((error) => {
+              errors.push({ url, error })
             })
             .finally(() => {
               // If one third of the relays have accepted the event, consider it a success
@@ -583,6 +591,14 @@ class ClientService extends EventTarget {
   private async prefetchProfilesForEvents(events: NEvent[]) {
     await prefetchProfilesForEvents({
       events,
+      replaceableEventCacheMap: this.replaceableEventCacheMap,
+      replaceableEventFromBigRelaysDataloader: this.replaceableEventFromBigRelaysDataloader
+    })
+  }
+
+  async prefetchProfiles(pubkeys: string[]) {
+    await prefetchProfilesForPubkeys({
+      pubkeys,
       replaceableEventCacheMap: this.replaceableEventCacheMap,
       replaceableEventFromBigRelaysDataloader: this.replaceableEventFromBigRelaysDataloader
     })

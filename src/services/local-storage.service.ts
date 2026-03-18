@@ -80,6 +80,8 @@ class LocalStorageService {
   private noteListMode: TNoteListMode = 'posts'
   private lastReadNotificationTimeMap: Record<string, number> = {}
   private lastReadMessageTimeMap: Record<string, number> = {}
+  private messageConversationReadTimeMap: Record<string, Record<string, number>> = {}
+  private dismissedMessageConversationMap: Record<string, Record<string, number>> = {}
   private defaultZapSats: number = 21
   private defaultZapComment: string = 'Zap!'
   private quickZap: boolean = false
@@ -201,6 +203,14 @@ class LocalStorageService {
     )
     this.lastReadMessageTimeMap = getStorageJson<Record<string, number>>(
       StorageKey.LAST_READ_MESSAGE_TIME_MAP,
+      {}
+    )
+    this.messageConversationReadTimeMap = getStorageJson<Record<string, Record<string, number>>>(
+      StorageKey.MESSAGE_CONVERSATION_READ_TIME_MAP,
+      {}
+    )
+    this.dismissedMessageConversationMap = getStorageJson<Record<string, Record<string, number>>>(
+      StorageKey.DISMISSED_MESSAGE_CONVERSATION_MAP,
       {}
     )
 
@@ -852,6 +862,35 @@ class LocalStorageService {
   setLastReadMessageTime(pubkey: string, time: number) {
     this.lastReadMessageTimeMap[pubkey] = time
     this.setJson(StorageKey.LAST_READ_MESSAGE_TIME_MAP, this.lastReadMessageTimeMap)
+  }
+
+  getMessageConversationReadTimeMap(pubkey: string) {
+    return { ...(this.messageConversationReadTimeMap[pubkey] ?? {}) }
+  }
+
+  setMessageConversationReadTime(pubkey: string, conversationId: string, time: number) {
+    const nextMap = {
+      ...(this.messageConversationReadTimeMap[pubkey] ?? {}),
+      [conversationId]: time
+    }
+    this.messageConversationReadTimeMap[pubkey] = nextMap
+    this.setJson(StorageKey.MESSAGE_CONVERSATION_READ_TIME_MAP, this.messageConversationReadTimeMap)
+  }
+
+  getDismissedMessageConversationMap(pubkey: string) {
+    return { ...(this.dismissedMessageConversationMap[pubkey] ?? {}) }
+  }
+
+  setDismissedMessageConversationTime(pubkey: string, conversationId: string, time: number) {
+    const nextMap = {
+      ...(this.dismissedMessageConversationMap[pubkey] ?? {}),
+      [conversationId]: time
+    }
+    this.dismissedMessageConversationMap[pubkey] = nextMap
+    this.setJson(
+      StorageKey.DISMISSED_MESSAGE_CONVERSATION_MAP,
+      this.dismissedMessageConversationMap
+    )
   }
 
   getFeedInfo(pubkey: string) {
