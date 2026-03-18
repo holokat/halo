@@ -10,6 +10,7 @@ class MediaManagerService extends EventTarget {
   static instance: MediaManagerService
 
   private currentMedia: Media | null = null
+  private autoplayBlockers = new Set<string>()
 
   constructor() {
     super()
@@ -44,6 +45,13 @@ class MediaManagerService extends EventTarget {
     }
     if (
       store.get(hasBackgroundAudioAtom) &&
+      this.currentMedia &&
+      isMediaPlaying(this.currentMedia)
+    ) {
+      return
+    }
+    if (
+      this.autoplayBlockers.size > 0 &&
       this.currentMedia &&
       isMediaPlaying(this.currentMedia)
     ) {
@@ -87,6 +95,14 @@ class MediaManagerService extends EventTarget {
   stopAudioBackground() {
     this.dispatchEvent(new Event('stopAudioBackground'))
     store.set(hasBackgroundAudioAtom, false)
+  }
+
+  addAutoplayBlocker(sourceId: string) {
+    this.autoplayBlockers.add(sourceId)
+  }
+
+  removeAutoplayBlocker(sourceId: string) {
+    this.autoplayBlockers.delete(sourceId)
   }
 }
 

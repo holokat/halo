@@ -129,6 +129,12 @@ export function LiveStreamPopoutProvider({ children }: { children: ReactNode }) 
     layoutRef.current = layout
   }, [layout])
 
+  useEffect(() => {
+    return () => {
+      mediaManager.removeAutoplayBlocker(sourceIdRef.current)
+    }
+  }, [])
+
   const clearControlHideTimeout = useCallback(() => {
     if (!controlHideTimeoutRef.current) return
     clearTimeout(controlHideTimeoutRef.current)
@@ -188,6 +194,7 @@ export function LiveStreamPopoutProvider({ children }: { children: ReactNode }) 
     if (video && !video.paused) {
       mediaManager.pause(video)
     }
+    mediaManager.removeAutoplayBlocker(sourceIdRef.current)
     clearControlHideTimeout()
     setIsOpen(false)
   }, [clearControlHideTimeout])
@@ -285,6 +292,7 @@ export function LiveStreamPopoutProvider({ children }: { children: ReactNode }) 
         const played = await mediaManager.play(video)
         setIsPlaying(played)
         if (!played) return
+        mediaManager.addAutoplayBlocker(sourceIdRef.current)
         liveStreamSyncService.setState(popout.streamingUrl, {
           isPlaying: true,
           activeSourceId: sourceIdRef.current
@@ -296,6 +304,7 @@ export function LiveStreamPopoutProvider({ children }: { children: ReactNode }) 
         })
       } else {
         mediaManager.pause(video)
+        mediaManager.removeAutoplayBlocker(sourceIdRef.current)
         liveStreamSyncService.setState(popout.streamingUrl, {
           isPlaying: false,
           activeSourceId: sourceIdRef.current
@@ -484,6 +493,7 @@ export function LiveStreamPopoutProvider({ children }: { children: ReactNode }) 
                 onClick={togglePlayback}
                 onPlay={() => {
                   void mediaManager.play(videoRef.current)
+                  mediaManager.addAutoplayBlocker(sourceIdRef.current)
                   setIsPlaying(true)
                   liveStreamSyncService.setState(popout.streamingUrl, {
                     isPlaying: true,
@@ -491,6 +501,7 @@ export function LiveStreamPopoutProvider({ children }: { children: ReactNode }) 
                   })
                 }}
                 onPause={() => {
+                  mediaManager.removeAutoplayBlocker(sourceIdRef.current)
                   setIsPlaying(false)
                   const sharedState = liveStreamSyncService.getState(popout.streamingUrl)
                   if (!sharedState?.activeSourceId || sharedState.activeSourceId === sourceIdRef.current) {
@@ -501,6 +512,7 @@ export function LiveStreamPopoutProvider({ children }: { children: ReactNode }) 
                   }
                 }}
                 onEnded={() => {
+                  mediaManager.removeAutoplayBlocker(sourceIdRef.current)
                   setIsPlaying(false)
                   const sharedState = liveStreamSyncService.getState(popout.streamingUrl)
                   if (!sharedState?.activeSourceId || sharedState.activeSourceId === sourceIdRef.current) {

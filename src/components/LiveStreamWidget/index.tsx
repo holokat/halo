@@ -17,6 +17,15 @@ type LiveStreamWidgetProps = {
   image?: string
 }
 
+function getInitialPlaybackState(streamingUrl: string) {
+  const synced = liveStreamSyncService.getState(streamingUrl)
+  return {
+    isPlaying: synced?.isPlaying !== false,
+    // Default the sidebar widget to muted so autoplay is more likely to succeed.
+    isMuted: synced?.isMuted ?? true
+  }
+}
+
 export default function LiveStreamWidget({
   widgetId,
   naddr,
@@ -28,8 +37,8 @@ export default function LiveStreamWidget({
   const { push } = useSecondaryPage()
   const { hideWidgetTitles, unpinLiveStreamWidget } = useWidgets()
   const [isHovered, setIsHovered] = useState(false)
-  const [isPlaying, setIsPlaying] = useState(true)
-  const [isMuted, setIsMuted] = useState(false)
+  const [isPlaying, setIsPlaying] = useState(() => getInitialPlaybackState(streamingUrl).isPlaying)
+  const [isMuted, setIsMuted] = useState(() => getInitialPlaybackState(streamingUrl).isMuted)
   const videoRef = useRef<HTMLVideoElement>(null)
   const sourceIdRef = useRef(`live-stream-widget-${widgetId}`)
 
@@ -51,24 +60,35 @@ export default function LiveStreamWidget({
   }
 
   useEffect(() => {
+    return () => {
+      mediaManager.removeAutoplayBlocker(sourceIdRef.current)
+    }
+  }, [])
+
+  useEffect(() => {
     const video = videoRef.current
     if (!video) return
 
-    const synced = liveStreamSyncService.getState(streamingUrl)
-    const nextMuted = synced?.isMuted ?? false
-    const shouldPlay = synced?.isPlaying !== false
+    const { isMuted: nextMuted, isPlaying: shouldPlay } = getInitialPlaybackState(streamingUrl)
 
     video.muted = nextMuted
     setIsMuted(nextMuted)
+    setIsPlaying(shouldPlay)
 
     if (!shouldPlay) {
       pauseVideo(video)
+      mediaManager.removeAutoplayBlocker(sourceIdRef.current)
       setIsPlaying(false)
       return
     }
 
     playVideo(video).then((played) => {
       setIsPlaying(played)
+      if (played) {
+        mediaManager.addAutoplayBlocker(sourceIdRef.current)
+      } else {
+        mediaManager.removeAutoplayBlocker(sourceIdRef.current)
+      }
       liveStreamSyncService.setState(streamingUrl, {
         isPlaying: played,
         isMuted: nextMuted,
@@ -122,6 +142,7 @@ export default function LiveStreamWidget({
         const played = await playVideo(video)
         setIsPlaying(played)
         if (!played) return
+        mediaManager.addAutoplayBlocker(sourceIdRef.current)
         liveStreamSyncService.setState(streamingUrl, {
           isPlaying: true,
           activeSourceId: sourceIdRef.current
@@ -133,6 +154,7 @@ export default function LiveStreamWidget({
         })
       } else {
         pauseVideo(video)
+        mediaManager.removeAutoplayBlocker(sourceIdRef.current)
         liveStreamSyncService.setState(streamingUrl, {
           isPlaying: false,
           activeSourceId: sourceIdRef.current
@@ -197,43 +219,57 @@ export default function LiveStreamWidget({
           </button>
 
           {streamingUrl ? (
-            <video
-              ref={videoRef}
-              src={streamingUrl}
-              poster={image}
-              autoPlay
-              playsInline
-              className="w-full aspect-video bg-black object-contain"
-              onPlay={() => {
-                void mediaManager.play(videoRef.current)
-                setIsPlaying(true)
-                liveStreamSyncService.setState(streamingUrl, {
-                  isPlaying: true,
-                  activeSourceId: sourceIdRef.current
-                })
-              }}
-              onPause={() => {
-                setIsPlaying(false)
-                const sharedState = liveStreamSyncService.getState(streamingUrl)
-                if (!sharedState?.activeSourceId || sharedState.activeSourceId === sourceIdRef.current) {
+            <>
+              <video
+                ref={videoRef}
+                src={streamingUrl}
+                poster={image}
+                autoPlay
+                playsInline
+                muted={isMuted}
+                preload="metadata"
+                className="w-full aspect-video cursor-pointer bg-black object-contain"
+                onClick={() => void handleTogglePlay()}
+                onPlay={() => {
+                  void mediaManager.play(videoRef.current)
+                  mediaManager.addAutoplayBlocker(sourceIdRef.current)
+                  setIsPlaying(true)
                   liveStreamSyncService.setState(streamingUrl, {
-                    isPlaying: false,
+                    isPlaying: true,
                     activeSourceId: sourceIdRef.current
                   })
-                }
-              }}
-              onVolumeChange={(event) => {
-                setIsMuted(event.currentTarget.muted)
-                liveStreamSyncService.setState(streamingUrl, { isMuted: event.currentTarget.muted })
-              }}
-            />
+                }}
+                onPause={() => {
+                  mediaManager.removeAutoplayBlocker(sourceIdRef.current)
+                  setIsPlaying(false)
+                  const sharedState = liveStreamSyncService.getState(streamingUrl)
+                  if (!sharedState?.activeSourceId || sharedState.activeSourceId === sourceIdRef.current) {
+                    liveStreamSyncService.setState(streamingUrl, {
+                      isPlaying: false,
+                      activeSourceId: sourceIdRef.current
+                    })
+                  }
+                }}
+                onVolumeChange={(event) => {
+                  setIsMuted(event.currentTarget.muted)
+                  liveStreamSyncService.setState(streamingUrl, { isMuted: event.currentTarget.muted })
+                }}
+              />
+              {!isPlaying && (
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/15">
+                  <div className="rounded-full bg-black/65 p-3 text-white shadow-lg">
+                    <Play className="h-8 w-8 fill-current" />
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
             <div className="flex aspect-video w-full items-center justify-center text-xs text-muted-foreground">
               {t('Stream source unavailable')}
             </div>
           )}
 
-          <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/80 to-transparent">
+          <div className="absolute inset-x-0 bottom-0 z-10 p-2 bg-gradient-to-t from-black/80 to-transparent">
             <div className="flex items-center gap-1.5">
               <Button
                 variant="ghost"
