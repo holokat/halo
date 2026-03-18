@@ -159,11 +159,11 @@ function mergeMessages(current: TDirectMessage[], incoming: TDirectMessage[]) {
   const messageMap = new Map<string, TDirectMessage>()
 
   current.forEach((message) => {
-    messageMap.set(message.wrapId, message)
+    messageMap.set(message.id, message)
   })
 
   incoming.forEach((message) => {
-    messageMap.set(message.wrapId, message)
+    messageMap.set(message.id, message)
   })
 
   return Array.from(messageMap.values()).sort((a, b) => {
@@ -543,55 +543,10 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
         id: getEventHash(rumor)
       } as Event
 
-      const wrapRecipients = Array.from(new Set([pubkey, ...uniqueRecipients]))
-      const recipientRelayEntries = await Promise.all(
-        wrapRecipients.map(async (recipientPubkey) => {
-          const recipientRelayUrls =
-            recipientPubkey === pubkey ? relayUrls : await client.fetchInboxRelayList(recipientPubkey)
-
-          return [recipientPubkey, Array.from(new Set(recipientRelayUrls))] as const
-        })
-      )
-      const recipientRelayMap = new Map(recipientRelayEntries)
-
-      if (recipientRelayEntries.some(([, recipientRelayUrls]) => recipientRelayUrls.length === 0)) {
-        throw new Error('One or more recipients have not published NIP-17 inbox relays yet.')
-      }
-
-      const wrappedEvents = await Promise.all(
-        wrapRecipients.map(async (recipientPubkey) => {
-          const recipientRelayUrls = recipientRelayMap.get(recipientPubkey) ?? []
-          const sealEvent = await signEvent({
-            kind: 13,
-            content: await nip44Encrypt(recipientPubkey, JSON.stringify(rumorEvent)),
-            created_at: randomWrappedTimestamp(),
-            tags: []
-          })
-
-          const randomKey = generateSecretKey()
-          const wrapEvent = finalizeEvent(
-            {
-              kind: kinds.GiftWrap,
-              content: encryptNip44(randomKey, recipientPubkey, JSON.stringify(sealEvent)),
-              created_at: randomWrappedTimestamp(),
-              tags: [
-                recipientRelayUrls[0]
-                  ? ['p', recipientPubkey, recipientRelayUrls[0]]
-                  : ['p', recipientPubkey]
-              ]
-            },
-            randomKey
-          )
-
-          return { recipientPubkey, wrapEvent, relayUrls: recipientRelayUrls }
-        })
-      )
-
-      const selfWrapEvent = wrappedEvents.find(({ recipientPubkey }) => recipientPubkey === pubkey)?.wrapEvent
       const participantPubkeys = uniqueRecipients.slice().sort()
-      const localMessage: TDirectMessage = {
+      const optimisticMessage: TDirectMessage = {
         id: rumorEvent.id,
-        wrapId: selfWrapEvent?.id ?? wrappedEvents[0].wrapEvent.id,
+        wrapId: `optimistic:${rumorEvent.id}`,
         content: rumorEvent.content,
         createdAt: rumorEvent.created_at,
         senderPubkey: pubkey,
@@ -603,20 +558,78 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
         isOutgoing: true
       }
 
-      setMessages((currentMessages) => mergeMessages(currentMessages, [localMessage]))
+      setMessages((currentMessages) => mergeMessages(currentMessages, [optimisticMessage]))
 
-      // Publish after the optimistic insert so the conversation updates immediately.
-      void Promise.allSettled(
-        wrappedEvents.map(async ({ relayUrls, wrapEvent }) => {
-          await client.publishEvent(await preferAuthProtectedRelayUrls(relayUrls), wrapEvent)
-        })
-      ).then((results) => {
-        if (results.some((result) => result.status === 'fulfilled')) {
-          return
+      void (async () => {
+        try {
+          const wrapRecipients = Array.from(new Set([pubkey, ...uniqueRecipients]))
+          const recipientRelayEntries = await Promise.all(
+            wrapRecipients.map(async (recipientPubkey) => {
+              const recipientRelayUrls =
+                recipientPubkey === pubkey ? relayUrls : await client.fetchInboxRelayList(recipientPubkey)
+
+              return [recipientPubkey, Array.from(new Set(recipientRelayUrls))] as const
+            })
+          )
+          const recipientRelayMap = new Map(recipientRelayEntries)
+
+          if (recipientRelayEntries.some(([, recipientRelayUrls]) => recipientRelayUrls.length === 0)) {
+            throw new Error('One or more recipients have not published NIP-17 inbox relays yet.')
+          }
+
+          const wrappedEvents = await Promise.all(
+            wrapRecipients.map(async (recipientPubkey) => {
+              const recipientRelayUrls = recipientRelayMap.get(recipientPubkey) ?? []
+              const sealEvent = await signEvent({
+                kind: 13,
+                content: await nip44Encrypt(recipientPubkey, JSON.stringify(rumorEvent)),
+                created_at: randomWrappedTimestamp(),
+                tags: []
+              })
+
+              const randomKey = generateSecretKey()
+              const wrapEvent = finalizeEvent(
+                {
+                  kind: kinds.GiftWrap,
+                  content: encryptNip44(randomKey, recipientPubkey, JSON.stringify(sealEvent)),
+                  created_at: randomWrappedTimestamp(),
+                  tags: [
+                    recipientRelayUrls[0]
+                      ? ['p', recipientPubkey, recipientRelayUrls[0]]
+                      : ['p', recipientPubkey]
+                  ]
+                },
+                randomKey
+              )
+
+              return { recipientPubkey, wrapEvent, relayUrls: recipientRelayUrls }
+            })
+          )
+
+          const selfWrapEvent = wrappedEvents.find(({ recipientPubkey }) => recipientPubkey === pubkey)?.wrapEvent
+          const confirmedMessage: TDirectMessage = {
+            ...optimisticMessage,
+            wrapId: selfWrapEvent?.id ?? wrappedEvents[0].wrapEvent.id
+          }
+
+          setMessages((currentMessages) => mergeMessages(currentMessages, [confirmedMessage]))
+
+          const results = await Promise.allSettled(
+            wrappedEvents.map(async ({ relayUrls, wrapEvent }) => {
+              await client.publishEvent(await preferAuthProtectedRelayUrls(relayUrls), wrapEvent)
+            })
+          )
+
+          if (results.some((result) => result.status === 'fulfilled')) {
+            return
+          }
+
+          toast.error(t('Failed to deliver this message to relays.'))
+        } catch (error) {
+          setMessages((currentMessages) => currentMessages.filter((message) => message.id !== rumorEvent.id))
+          toast.error(error instanceof Error ? error.message : t('Failed to send message'))
         }
-
-        toast.error(t('Failed to deliver this message to relays.'))
-      })
+      })()
     },
     [account?.signerType, nip44Encrypt, nip44Supported, pubkey, relayUrls, signEvent, t]
   )

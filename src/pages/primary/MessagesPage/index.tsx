@@ -20,6 +20,7 @@ import {
   Inbox,
   MessageCircle,
   MessagesSquare,
+  Plus,
   SendHorizontal,
   Users
 } from 'lucide-react'
@@ -55,7 +56,6 @@ const MessagesPage = forwardRef(({ composeTo }: { composeTo?: string | null }, r
     activeConversations,
     requests,
     isLoading,
-    error,
     isSupported,
     hasUnreadMessages,
     unreadMessageCount,
@@ -192,6 +192,7 @@ const MessagesPage = forwardRef(({ composeTo }: { composeTo?: string | null }, r
           unreadMessageCount={unreadMessageCount}
           hasUnreadMessages={hasUnreadMessages}
           onBack={handleBack}
+          onCompose={handleOpenCompose}
           onMarkAllAsRead={markAllAsRead}
         />
       }
@@ -223,17 +224,13 @@ const MessagesPage = forwardRef(({ composeTo }: { composeTo?: string | null }, r
           />
         )}
 
-        {error && <AlertCard title={t('Message sync issue')} content={error} />}
-
         {pubkey && isSupported && viewMode === 'index' && (
           <MessagesOverview
             activeTab={activeTab}
             onTabChange={setActiveTab}
-            onCompose={handleOpenCompose}
             conversations={activeConversations}
             requests={requests}
             visibleConversations={visibleConversations}
-            unreadMessageCount={unreadMessageCount}
             isLoading={isLoading}
             onOpenConversation={openConversation}
           />
@@ -279,6 +276,7 @@ function MessagesPageTitlebar({
   unreadMessageCount,
   hasUnreadMessages,
   onBack,
+  onCompose,
   onMarkAllAsRead
 }: {
   viewMode: TMessagesViewMode
@@ -287,6 +285,7 @@ function MessagesPageTitlebar({
   unreadMessageCount: number
   hasUnreadMessages: boolean
   onBack: () => void
+  onCompose: () => void
   onMarkAllAsRead: () => void
 }) {
   const { t } = useTranslation()
@@ -344,15 +343,21 @@ function MessagesPageTitlebar({
           </Badge>
         )}
       </div>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="shrink-0"
-        onClick={onMarkAllAsRead}
-        disabled={!hasUnreadMessages}
-      >
-        {t('Mark all as read')}
-      </Button>
+      <div className="flex items-center gap-2 shrink-0">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="shrink-0"
+          onClick={onMarkAllAsRead}
+          disabled={!hasUnreadMessages}
+        >
+          {t('Mark all as read')}
+        </Button>
+        <Button size="sm" className="shrink-0" onClick={onCompose}>
+          <Plus />
+          {t('New')}
+        </Button>
+      </div>
     </div>
   )
 }
@@ -360,21 +365,17 @@ function MessagesPageTitlebar({
 function MessagesOverview({
   activeTab,
   onTabChange,
-  onCompose,
   conversations,
   requests,
   visibleConversations,
-  unreadMessageCount,
   isLoading,
   onOpenConversation
 }: {
   activeTab: TOverviewTab
   onTabChange: (tab: TOverviewTab) => void
-  onCompose: () => void
   conversations: TMessageConversation[]
   requests: TMessageConversation[]
   visibleConversations: TMessageConversation[]
-  unreadMessageCount: number
   isLoading: boolean
   onOpenConversation: (conversation: TMessageConversation) => void
 }) {
@@ -383,24 +384,6 @@ function MessagesOverview({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          {unreadMessageCount > 0 ? (
-            <div className="text-sm text-muted-foreground">
-              {t('{{count}} unread messages', { count: unreadMessageCount })}
-            </div>
-          ) : (
-            <div className="text-sm text-muted-foreground">
-              {t('Your direct messages and requests live here.')}
-            </div>
-          )}
-        </div>
-        <Button size="sm" onClick={onCompose} className="shrink-0">
-          <MessageCircle />
-          {t('Compose')}
-        </Button>
-      </div>
-
       <div className="flex items-center gap-2 border-b">
         <OverviewTabButton
           label={t('Conversations')}
