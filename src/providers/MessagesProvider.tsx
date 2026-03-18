@@ -26,19 +26,31 @@ import { toast } from 'sonner'
 import { useFollowList } from './FollowListProvider'
 import { useNostr } from './NostrProvider'
 
-type TDirectMessage = {
+type TConversationEventBase = {
   id: string
   wrapId: string
-  content: string
   createdAt: number
   senderPubkey: string
   recipientPubkeys: string[]
   participantPubkeys: string[]
   conversationId: string
-  subject?: string
-  replyToId?: string
   isOutgoing: boolean
 }
+
+export type TDirectMessage = TConversationEventBase & {
+  kind: number
+  tags: string[][]
+  content: string
+  subject?: string
+  replyToId?: string
+}
+
+export type TDirectMessageReaction = TConversationEventBase & {
+  targetMessageId: string
+  emoji: string
+}
+
+type TConversationEvent = TDirectMessage | TDirectMessageReaction
 
 export type TMessageConversation = {
   id: string
@@ -51,6 +63,7 @@ export type TMessageConversation = {
   lastMessagePreview: string
   subject?: string
   messages: TDirectMessage[]
+  reactionsByMessageId: Record<string, TDirectMessageReaction[]>
   hasOutgoingMessages: boolean
 }
 
@@ -72,7 +85,12 @@ type TMessagesContext = {
   sendMessage: (
     recipientPubkeys: string[],
     content: string,
-    options?: { replyToId?: string; subject?: string }
+    options?: { replyToId?: string; subject?: string; additionalTags?: string[][] }
+  ) => Promise<void>
+  sendReaction: (
+    recipientPubkeys: string[],
+    targetMessage: TDirectMessage,
+    emoji: string
   ) => Promise<void>
 }
 
@@ -92,6 +110,47 @@ function getMessagePreview(content: string) {
     return 'Empty message'
   }
   return normalized.length > 120 ? normalized.slice(0, 117) + '...' : normalized
+}
+
+function getFileMessagePreview(tags: string[][], content: string) {
+  const fileType = tags.find(([tagName]) => tagName === 'file-type')?.[1]?.toLowerCase()
+
+  if (fileType?.startsWith('image/')) {
+    return 'Photo'
+  }
+  if (fileType?.startsWith('video/')) {
+    return 'Video'
+  }
+  if (fileType?.startsWith('audio/')) {
+    return 'Audio'
+  }
+
+  if (/\.(png|jpe?g|gif|webp|bmp|svg)(\?.*)?$/i.test(content)) {
+    return 'Photo'
+  }
+  if (/\.(mp4|mov|webm|mkv|avi|m4v)(\?.*)?$/i.test(content)) {
+    return 'Video'
+  }
+  if (/\.(mp3|wav|flac|aac|m4a|opus|wma)(\?.*)?$/i.test(content)) {
+    return 'Audio'
+  }
+
+  return 'Attachment'
+}
+
+function getConversationMessagePreview(message: TDirectMessage) {
+  if (message.kind === 15) {
+    return getFileMessagePreview(message.tags, message.content)
+  }
+
+  const hasImetaTag = message.tags.some(([tagName]) => tagName === 'imeta')
+  const contentWithoutUrls = message.content.replace(/https?:\/\/\S+/g, '').trim()
+
+  if (hasImetaTag && !contentWithoutUrls) {
+    return 'Media attachment'
+  }
+
+  return getMessagePreview(message.content)
 }
 
 function isEventWithId(value: unknown): value is Event {
@@ -177,6 +236,35 @@ function mergeMessages(current: TDirectMessage[], incoming: TDirectMessage[]) {
   })
 }
 
+function mergeReactions(current: TDirectMessageReaction[], incoming: TDirectMessageReaction[]) {
+  const reactionMap = new Map<string, TDirectMessageReaction>()
+
+  current.forEach((reaction) => {
+    reactionMap.set(reaction.id, reaction)
+  })
+
+  incoming.forEach((reaction) => {
+    reactionMap.set(reaction.id, reaction)
+  })
+
+  return Array.from(reactionMap.values()).sort((a, b) => {
+    if (b.createdAt !== a.createdAt) {
+      return b.createdAt - a.createdAt
+    }
+    return b.wrapId.localeCompare(a.wrapId)
+  })
+}
+
+function isDirectMessageEvent(event: TConversationEvent): event is TDirectMessage {
+  return !('targetMessageId' in event)
+}
+
+function isDirectMessageReactionEvent(
+  event: TConversationEvent
+): event is TDirectMessageReaction {
+  return 'targetMessageId' in event
+}
+
 function randomWrappedTimestamp() {
   return Math.round(Date.now() / 1000 - Math.random() * TWO_DAYS_IN_SECONDS)
 }
@@ -195,6 +283,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
     useNostr()
   const { followings } = useFollowList()
   const [messages, setMessages] = useState<TDirectMessage[]>([])
+  const [reactions, setReactions] = useState<TDirectMessageReaction[]>([])
   const [messagesReadAt, setMessagesReadAt] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [hasLoadedMessages, setHasLoadedMessages] = useState(false)
@@ -202,7 +291,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
   const [conversationReadAtMap, setConversationReadAtMap] = useState<Record<string, number>>({})
   const [dismissedConversationMap, setDismissedConversationMap] = useState<Record<string, number>>({})
   const decryptRef = useRef(nip44Decrypt)
-  const decryptedMessageCacheRef = useRef(new Map<string, TDirectMessage | null>())
+  const decryptedMessageCacheRef = useRef(new Map<string, TConversationEvent | null>())
 
   useEffect(() => {
     decryptRef.current = nip44Decrypt
@@ -219,7 +308,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
   const isSupported = !!pubkey && account?.signerType !== 'npub' && nip44Supported
 
   const unwrapDirectMessage = useCallback(
-    async (wrap: Event, accountPubkey: string): Promise<TDirectMessage | null> => {
+    async (wrap: Event, accountPubkey: string): Promise<TConversationEvent | null> => {
       const cached = decryptedMessageCacheRef.current.get(wrap.id)
       if (cached !== undefined) {
         return cached
@@ -239,7 +328,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
 
         const rumorContent = await decryptRef.current(parsedSeal.pubkey, parsedSeal.content)
         const parsedRumor = JSON.parse(rumorContent)
-        if (!isUnsignedRumorEvent(parsedRumor) || parsedRumor.kind !== kinds.PrivateDirectMessage) {
+        if (!isUnsignedRumorEvent(parsedRumor)) {
           decryptedMessageCacheRef.current.set(wrap.id, null)
           return null
         }
@@ -275,25 +364,54 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
           return null
         }
 
-        const message: TDirectMessage = {
+        const baseEvent: TConversationEventBase = {
           id: parsedRumor.id,
           wrapId: wrap.id,
-          content: parsedRumor.content,
           createdAt: parsedRumor.created_at,
           senderPubkey: parsedRumor.pubkey,
           recipientPubkeys,
           participantPubkeys,
           conversationId: toConversationId(participantPubkeys),
-          subject: parsedRumor.tags.find(([tagName]) => tagName === 'subject')?.[1],
-          replyToId:
-            parsedRumor.tags.find(
-              ([tagName, , , marker]) => tagName === 'e' && marker === 'reply'
-            )?.[1] ?? parsedRumor.tags.find(([tagName]) => tagName === 'e')?.[1],
           isOutgoing
         }
 
-        decryptedMessageCacheRef.current.set(wrap.id, message)
-        return message
+        if (parsedRumor.kind === kinds.PrivateDirectMessage || parsedRumor.kind === 15) {
+          const message: TDirectMessage = {
+            ...baseEvent,
+            kind: parsedRumor.kind,
+            tags: parsedRumor.tags,
+            content: parsedRumor.content,
+            subject: parsedRumor.tags.find(([tagName]) => tagName === 'subject')?.[1],
+            replyToId:
+              parsedRumor.tags.find(
+                ([tagName, , , marker]) => tagName === 'e' && marker === 'reply'
+              )?.[1] ?? parsedRumor.tags.find(([tagName]) => tagName === 'e')?.[1]
+          }
+
+          decryptedMessageCacheRef.current.set(wrap.id, message)
+          return message
+        }
+
+        if (parsedRumor.kind === kinds.Reaction) {
+          const targetMessageId = parsedRumor.tags.find(([tagName]) => tagName === 'e')?.[1]
+
+          if (!targetMessageId) {
+            decryptedMessageCacheRef.current.set(wrap.id, null)
+            return null
+          }
+
+          const reaction: TDirectMessageReaction = {
+            ...baseEvent,
+            targetMessageId,
+            emoji: parsedRumor.content || '+'
+          }
+
+          decryptedMessageCacheRef.current.set(wrap.id, reaction)
+          return reaction
+        }
+
+        decryptedMessageCacheRef.current.set(wrap.id, null)
+        return null
       } catch {
         decryptedMessageCacheRef.current.set(wrap.id, null)
         return null
@@ -305,6 +423,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!pubkey) {
       setMessages([])
+      setReactions([])
       setMessagesReadAt(0)
       setConversationReadAtMap({})
       setDismissedConversationMap({})
@@ -318,6 +437,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
     setConversationReadAtMap(storage.getMessageConversationReadTimeMap(pubkey))
     setDismissedConversationMap(storage.getDismissedMessageConversationMap(pubkey))
     setMessages([])
+    setReactions([])
     setHasLoadedMessages(false)
     setError(null)
 
@@ -345,18 +465,21 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
     let subscription: { close: () => void } | null = null
 
     const applyWrappedEvents = async (wrappedEvents: Event[]) => {
-      const unwrappedMessages = (
+      const unwrappedEvents = (
         await Promise.all(
           wrappedEvents.map((wrappedEvent) => unwrapDirectMessage(wrappedEvent, pubkey))
         )
-      ).filter((message): message is TDirectMessage => !!message)
+      ).filter((event): event is TConversationEvent => !!event)
 
-      if (unwrappedMessages.length > 0) {
+      const unwrappedMessages = unwrappedEvents.filter(isDirectMessageEvent)
+      const unwrappedReactions = unwrappedEvents.filter(isDirectMessageReactionEvent)
+
+      if (unwrappedEvents.length > 0) {
         const participantPubkeys = Array.from(
           new Set(
-            unwrappedMessages.flatMap((message) => [
-              message.senderPubkey,
-              ...message.participantPubkeys
+            unwrappedEvents.flatMap((event) => [
+              event.senderPubkey,
+              ...event.participantPubkeys
             ])
           )
         )
@@ -364,12 +487,19 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
         void client.prefetchProfiles(participantPubkeys)
       }
 
-      if (!isMounted || unwrappedMessages.length === 0) {
-        return unwrappedMessages.length
+      if (!isMounted || unwrappedEvents.length === 0) {
+        return unwrappedEvents.length
       }
 
-      setMessages((currentMessages) => mergeMessages(currentMessages, unwrappedMessages))
-      return unwrappedMessages.length
+      if (unwrappedMessages.length > 0) {
+        setMessages((currentMessages) => mergeMessages(currentMessages, unwrappedMessages))
+      }
+
+      if (unwrappedReactions.length > 0) {
+        setReactions((currentReactions) => mergeReactions(currentReactions, unwrappedReactions))
+      }
+
+      return unwrappedEvents.length
     }
 
     const startSubscription = () => {
@@ -405,14 +535,39 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
       setError(null)
 
       try {
-        const wrappedEvents = await client.fetchEvents(relayUrls, {
-          kinds: [kinds.GiftWrap],
-          '#p': [pubkey],
-          limit: MESSAGE_FETCH_LIMIT
-        })
+        const streamedWrapIds = new Set<string>()
+        const streamedApplyPromises: Promise<number>[] = []
+
+        const wrappedEvents = await client.fetchEvents(
+          relayUrls,
+          {
+            kinds: [kinds.GiftWrap],
+            '#p': [pubkey],
+            limit: MESSAGE_FETCH_LIMIT
+          },
+          {
+            onevent: (wrappedEvent) => {
+              if (streamedWrapIds.has(wrappedEvent.id)) {
+                return
+              }
+
+              streamedWrapIds.add(wrappedEvent.id)
+              streamedApplyPromises.push(applyWrappedEvents([wrappedEvent]))
+            }
+          }
+        )
         if (!isMounted) return
 
-        const unwrappedCount = await applyWrappedEvents(wrappedEvents)
+        const streamedUnwrappedCounts = await Promise.all(streamedApplyPromises)
+        const remainingWrappedEvents = wrappedEvents.filter(
+          (wrappedEvent) => !streamedWrapIds.has(wrappedEvent.id)
+        )
+        const remainingUnwrappedCount =
+          remainingWrappedEvents.length > 0 ? await applyWrappedEvents(remainingWrappedEvents) : 0
+        const unwrappedCount =
+          streamedUnwrappedCounts.reduce((total, count) => total + count, 0) +
+          remainingUnwrappedCount
+
         if (wrappedEvents.length > 0 && unwrappedCount === 0) {
           setError('Wrapped messages were found, but they could not be decrypted with this signer.')
         } else {
@@ -464,9 +619,10 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
           isRequest: false,
           unreadCount: 0,
           lastMessageAt: message.createdAt,
-          lastMessagePreview: getMessagePreview(message.content),
+          lastMessagePreview: getConversationMessagePreview(message),
           subject: message.subject,
           messages: [message],
+          reactionsByMessageId: {},
           hasOutgoingMessages: message.isOutgoing
         })
         return
@@ -474,11 +630,36 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
 
       existingConversation.messages.push(message)
       existingConversation.lastMessageAt = message.createdAt
-      existingConversation.lastMessagePreview = getMessagePreview(message.content)
+      existingConversation.lastMessagePreview = getConversationMessagePreview(message)
       existingConversation.subject = message.subject ?? existingConversation.subject
       existingConversation.hasOutgoingMessages =
         existingConversation.hasOutgoingMessages || message.isOutgoing
     })
+
+    const messageIdsByConversation = new Map<string, Set<string>>(
+      Array.from(conversationMap.entries()).map(([conversationId, conversation]) => [
+        conversationId,
+        new Set(conversation.messages.map((message) => message.id))
+      ])
+    )
+
+    reactions
+      .slice()
+      .sort((a, b) => a.createdAt - b.createdAt || a.wrapId.localeCompare(b.wrapId))
+      .forEach((reaction) => {
+        const conversation = conversationMap.get(reaction.conversationId)
+        const messageIds = messageIdsByConversation.get(reaction.conversationId)
+
+        if (!conversation || !messageIds?.has(reaction.targetMessageId)) {
+          return
+        }
+
+        const existingReactions = conversation.reactionsByMessageId[reaction.targetMessageId] ?? []
+        conversation.reactionsByMessageId[reaction.targetMessageId] = [
+          ...existingReactions,
+          reaction
+        ]
+      })
 
     return Array.from(conversationMap.values())
       .map((conversation) => {
@@ -503,7 +684,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
         }
       })
       .sort((a, b) => b.lastMessageAt - a.lastMessageAt)
-  }, [conversationReadAtMap, followings, messages, messagesReadAt])
+  }, [conversationReadAtMap, followings, messages, messagesReadAt, reactions])
 
   const visibleConversations = useMemo(
     () =>
@@ -533,11 +714,75 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
     [visibleConversations]
   )
 
+  const buildWrappedRumorEvents = useCallback(
+    async (rumorEvent: Event, rumorRecipients: string[]) => {
+      if (!pubkey) {
+        throw new Error('You need to be logged in to send direct messages.')
+      }
+
+      const wrapRecipients = Array.from(new Set([pubkey, ...rumorRecipients]))
+      const recipientRelayEntries = await Promise.all(
+        wrapRecipients.map(async (recipientPubkey) => {
+          const recipientRelayUrls =
+            recipientPubkey === pubkey ? relayUrls : await client.fetchInboxRelayList(recipientPubkey)
+
+          return [recipientPubkey, Array.from(new Set(recipientRelayUrls))] as const
+        })
+      )
+      const recipientRelayMap = new Map(recipientRelayEntries)
+
+      if (recipientRelayEntries.some(([, recipientRelayUrls]) => recipientRelayUrls.length === 0)) {
+        throw new Error('One or more recipients have not published NIP-17 inbox relays yet.')
+      }
+
+      return Promise.all(
+        wrapRecipients.map(async (recipientPubkey) => {
+          const recipientRelayUrls = recipientRelayMap.get(recipientPubkey) ?? []
+          const sealEvent = await signEvent({
+            kind: kinds.Seal,
+            content: await nip44Encrypt(recipientPubkey, JSON.stringify(rumorEvent)),
+            created_at: randomWrappedTimestamp(),
+            tags: []
+          })
+
+          const randomKey = generateSecretKey()
+          const wrapEvent = finalizeEvent(
+            {
+              kind: kinds.GiftWrap,
+              content: encryptNip44(randomKey, recipientPubkey, JSON.stringify(sealEvent)),
+              created_at: randomWrappedTimestamp(),
+              tags: [
+                recipientRelayUrls[0]
+                  ? ['p', recipientPubkey, recipientRelayUrls[0]]
+                  : ['p', recipientPubkey]
+              ]
+            },
+            randomKey
+          )
+
+          return { recipientPubkey, wrapEvent, relayUrls: recipientRelayUrls }
+        })
+      )
+    },
+    [nip44Encrypt, pubkey, relayUrls, signEvent]
+  )
+
+  const publishWrappedRumorEvents = useCallback(
+    async (wrappedEvents: { recipientPubkey: string; wrapEvent: Event; relayUrls: string[] }[]) => {
+      return Promise.allSettled(
+        wrappedEvents.map(async ({ relayUrls, wrapEvent }) => {
+          await client.publishEvent(await preferAuthProtectedRelayUrls(relayUrls), wrapEvent)
+        })
+      )
+    },
+    []
+  )
+
   const sendMessage = useCallback(
     async (
       recipientPubkeys: string[],
       content: string,
-      options: { replyToId?: string; subject?: string } = {}
+      options: { replyToId?: string; subject?: string; additionalTags?: string[][] } = {}
     ) => {
       if (!pubkey || account?.signerType === 'npub' || !nip44Supported) {
         throw new Error('Direct messages require a signer that can encrypt NIP-17 messages.')
@@ -571,6 +816,10 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
         rumorTags.push(['subject', subject])
       }
 
+      if (options.additionalTags?.length) {
+        rumorTags.push(...options.additionalTags.map((tag) => tag.slice()))
+      }
+
       const rumor = {
         created_at: createdAt,
         kind: kinds.PrivateDirectMessage,
@@ -588,6 +837,8 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
       const optimisticMessage: TDirectMessage = {
         id: rumorEvent.id,
         wrapId: `optimistic:${rumorEvent.id}`,
+        kind: rumorEvent.kind,
+        tags: rumorTags,
         content: rumorEvent.content,
         createdAt: rumorEvent.created_at,
         senderPubkey: pubkey,
@@ -603,49 +854,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
 
       void (async () => {
         try {
-          const wrapRecipients = Array.from(new Set([pubkey, ...uniqueRecipients]))
-          const recipientRelayEntries = await Promise.all(
-            wrapRecipients.map(async (recipientPubkey) => {
-              const recipientRelayUrls =
-                recipientPubkey === pubkey ? relayUrls : await client.fetchInboxRelayList(recipientPubkey)
-
-              return [recipientPubkey, Array.from(new Set(recipientRelayUrls))] as const
-            })
-          )
-          const recipientRelayMap = new Map(recipientRelayEntries)
-
-          if (recipientRelayEntries.some(([, recipientRelayUrls]) => recipientRelayUrls.length === 0)) {
-            throw new Error('One or more recipients have not published NIP-17 inbox relays yet.')
-          }
-
-          const wrappedEvents = await Promise.all(
-            wrapRecipients.map(async (recipientPubkey) => {
-              const recipientRelayUrls = recipientRelayMap.get(recipientPubkey) ?? []
-              const sealEvent = await signEvent({
-                kind: 13,
-                content: await nip44Encrypt(recipientPubkey, JSON.stringify(rumorEvent)),
-                created_at: randomWrappedTimestamp(),
-                tags: []
-              })
-
-              const randomKey = generateSecretKey()
-              const wrapEvent = finalizeEvent(
-                {
-                  kind: kinds.GiftWrap,
-                  content: encryptNip44(randomKey, recipientPubkey, JSON.stringify(sealEvent)),
-                  created_at: randomWrappedTimestamp(),
-                  tags: [
-                    recipientRelayUrls[0]
-                      ? ['p', recipientPubkey, recipientRelayUrls[0]]
-                      : ['p', recipientPubkey]
-                  ]
-                },
-                randomKey
-              )
-
-              return { recipientPubkey, wrapEvent, relayUrls: recipientRelayUrls }
-            })
-          )
+          const wrappedEvents = await buildWrappedRumorEvents(rumorEvent, uniqueRecipients)
 
           const selfWrapEvent = wrappedEvents.find(({ recipientPubkey }) => recipientPubkey === pubkey)?.wrapEvent
           const confirmedMessage: TDirectMessage = {
@@ -655,11 +864,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
 
           setMessages((currentMessages) => mergeMessages(currentMessages, [confirmedMessage]))
 
-          const results = await Promise.allSettled(
-            wrappedEvents.map(async ({ relayUrls, wrapEvent }) => {
-              await client.publishEvent(await preferAuthProtectedRelayUrls(relayUrls), wrapEvent)
-            })
-          )
+          const results = await publishWrappedRumorEvents(wrappedEvents)
 
           if (results.some((result) => result.status === 'fulfilled')) {
             return
@@ -672,7 +877,110 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
         }
       })()
     },
-    [account?.signerType, nip44Encrypt, nip44Supported, pubkey, relayUrls, signEvent, t]
+    [
+      account?.signerType,
+      buildWrappedRumorEvents,
+      nip44Supported,
+      pubkey,
+      publishWrappedRumorEvents,
+      relayUrls,
+      t
+    ]
+  )
+
+  const sendReaction = useCallback(
+    async (recipientPubkeys: string[], targetMessage: TDirectMessage, emoji: string) => {
+      if (!pubkey || account?.signerType === 'npub' || !nip44Supported) {
+        throw new Error('Direct messages require a signer that can encrypt NIP-17 messages.')
+      }
+      if (relayUrls.length === 0) {
+        throw new Error('Set up inbox relays before sending direct messages.')
+      }
+
+      const normalizedEmoji = emoji.trim() || '+'
+      const uniqueRecipients = Array.from(
+        new Set(recipientPubkeys.map((recipientPubkey) => recipientPubkey.trim()).filter(Boolean))
+      ).filter((recipientPubkey) => recipientPubkey !== pubkey)
+
+      if (uniqueRecipients.length === 0) {
+        throw new Error('Choose at least one recipient.')
+      }
+
+      const createdAt = Math.ceil(Date.now() / 1000)
+      const rumorRecipientPubkeys = Array.from(
+        new Set([...uniqueRecipients, targetMessage.senderPubkey].filter(Boolean))
+      )
+      const rumorTags = rumorRecipientPubkeys.map((recipientPubkey) => ['p', recipientPubkey])
+      rumorTags.push(['e', targetMessage.id])
+      rumorTags.push(['k', String(kinds.PrivateDirectMessage)])
+
+      const rumor = {
+        created_at: createdAt,
+        kind: kinds.Reaction,
+        content: normalizedEmoji,
+        tags: rumorTags,
+        pubkey
+      }
+
+      const rumorEvent = {
+        ...rumor,
+        id: getEventHash(rumor)
+      } as Event
+
+      const participantPubkeys = Array.from(
+        new Set(rumorRecipientPubkeys.filter((recipientPubkey) => recipientPubkey !== pubkey))
+      ).sort()
+      const optimisticReaction: TDirectMessageReaction = {
+        id: rumorEvent.id,
+        wrapId: `optimistic:${rumorEvent.id}`,
+        createdAt: rumorEvent.created_at,
+        senderPubkey: pubkey,
+        recipientPubkeys: rumorRecipientPubkeys,
+        participantPubkeys,
+        conversationId: toConversationId(participantPubkeys),
+        isOutgoing: true,
+        targetMessageId: targetMessage.id,
+        emoji: normalizedEmoji
+      }
+
+      setReactions((currentReactions) => mergeReactions(currentReactions, [optimisticReaction]))
+
+      void (async () => {
+        try {
+          const wrappedEvents = await buildWrappedRumorEvents(rumorEvent, uniqueRecipients)
+
+          const selfWrapEvent = wrappedEvents.find(({ recipientPubkey }) => recipientPubkey === pubkey)?.wrapEvent
+          const confirmedReaction: TDirectMessageReaction = {
+            ...optimisticReaction,
+            wrapId: selfWrapEvent?.id ?? wrappedEvents[0].wrapEvent.id
+          }
+
+          setReactions((currentReactions) => mergeReactions(currentReactions, [confirmedReaction]))
+
+          const results = await publishWrappedRumorEvents(wrappedEvents)
+
+          if (results.some((result) => result.status === 'fulfilled')) {
+            return
+          }
+
+          toast.error(t('Failed to deliver this reaction to relays.'))
+        } catch (error) {
+          setReactions((currentReactions) =>
+            currentReactions.filter((reaction) => reaction.id !== rumorEvent.id)
+          )
+          toast.error(error instanceof Error ? error.message : t('Failed to send reaction'))
+        }
+      })()
+    },
+    [
+      account?.signerType,
+      buildWrappedRumorEvents,
+      nip44Supported,
+      pubkey,
+      publishWrappedRumorEvents,
+      relayUrls,
+      t
+    ]
   )
 
   const markAllAsRead = useCallback(() => {
@@ -768,7 +1076,8 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
         markAllAsRead,
         markConversationAsRead,
         dismissConversation,
-        sendMessage
+        sendMessage,
+        sendReaction
       }}
     >
       {children}

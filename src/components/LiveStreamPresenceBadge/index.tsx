@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/badge'
 import { useLiveStreamPresence } from '@/hooks/useLiveStreamPresence'
 import { getLiveStreamTitle } from '@/lib/live-stream'
 import { cn } from '@/lib/utils'
@@ -8,10 +7,12 @@ import { useTranslation } from 'react-i18next'
 
 export default function LiveStreamPresenceBadge({
   pubkey,
-  className
+  className,
+  size = 'default'
 }: {
   pubkey: string
   className?: string
+  size?: 'small' | 'default'
 }) {
   const { t } = useTranslation()
   const { navigate } = usePrimaryPage()
@@ -22,7 +23,11 @@ export default function LiveStreamPresenceBadge({
   return (
     <button
       type="button"
-      className={cn('shrink-0', className)}
+      className={cn(
+        'inline-flex items-center justify-center rounded-full border-2 border-background bg-red-600 text-white shadow-sm transition-colors hover:bg-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2',
+        size === 'small' ? 'h-5 w-5' : 'h-6 w-6',
+        className
+      )}
       title={t('Open live stream')}
       aria-label={t('Open live stream')}
       onClick={(e) => {
@@ -37,10 +42,7 @@ export default function LiveStreamPresenceBadge({
         })
       }}
     >
-      <Badge className="gap-1 rounded-full bg-red-600 px-2 py-0.5 text-[11px] text-white hover:bg-red-600">
-        <Radio className="size-2.5 animate-pulse" />
-        {t('LIVE')}
-      </Badge>
+      <Radio className={cn(size === 'small' ? 'size-2.5' : 'size-3')} />
     </button>
   )
 }

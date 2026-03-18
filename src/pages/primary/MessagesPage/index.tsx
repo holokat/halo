@@ -1,49 +1,158 @@
 import AlertCard from '@/components/AlertCard'
+import Content from '@/components/Content'
+import Emoji from '@/components/Emoji'
+import Uploader from '@/components/PostEditor/Uploader'
 import SearchInput from '@/components/SearchInput'
 import { FormattedTimestamp } from '@/components/FormattedTimestamp'
+import SuggestedEmojis from '@/components/SuggestedEmojis'
 import { useSearchProfiles } from '@/hooks/useSearchProfiles'
 import PrimaryPageLayout from '@/layouts/PrimaryPageLayout'
+import ZapDialog from '@/components/ZapDialog'
+import { usePaymentsEnabled } from '@/providers/PaymentsEnabledProvider'
+import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import { cn } from '@/lib/utils'
-import { useMessages, TMessageConversation } from '@/providers/MessagesProvider'
+import { getLightningAddressFromProfile } from '@/lib/lightning'
+import {
+  useMessages,
+  TDirectMessage,
+  TDirectMessageReaction,
+  TMessageConversation
+} from '@/providers/MessagesProvider'
 import { useNostr } from '@/providers/NostrProvider'
-import { TProfile, TPageRef } from '@/types'
+import { useZap } from '@/providers/ZapProvider'
+import client from '@/services/client.service'
+import lightning from '@/services/lightning.service'
+import mediaUpload from '@/services/media-upload.service'
+import { TEmoji, TPageRef, TProfile } from '@/types'
 import { SimpleUserAvatar } from '@/components/UserAvatar'
 import { SimpleUsername } from '@/components/Username'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Drawer, DrawerContent, DrawerOverlay } from '@/components/ui/drawer'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  ACTUAL_ZAP_SOUNDS,
+  ZAP_SOUNDS
+} from '@/constants'
 import {
   ArrowLeft,
   CheckCheck,
   EyeOff,
   Inbox,
+  Loader,
   MessageCircle,
-  MessagesSquare,
+  MessageCirclePlus,
   MoreHorizontal,
+  Paperclip,
   Plus,
+  PlugZap,
   SendHorizontal,
-  Users
+  Users,
+  X,
+  Zap
 } from 'lucide-react'
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
+import {
+  MouseEvent,
+  TouchEvent,
+  forwardRef,
+  lazy,
+  Suspense,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState
+} from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import confetti from 'canvas-confetti'
+import { Event } from 'nostr-tools'
 
 const MAX_VISIBLE_MESSAGES = 50
+
+const EmojiPicker = lazy(() => import('@/components/EmojiPicker'))
 
 type TOverviewTab = 'conversations' | 'requests'
 type TMessagesViewMode = 'index' | 'compose' | 'thread'
 
+function EmojiPickerFallback() {
+  return (
+    <div className="h-[320px] w-[320px] p-4">
+      <div className="grid grid-cols-7 gap-2">
+        {Array.from({ length: 28 }).map((_, index) => (
+          <Skeleton key={index} className="h-8 w-8 rounded-lg" />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function toConversationId(participantPubkeys: string[]) {
   return participantPubkeys.slice().sort().join(':')
+}
+
+function playZapSound(zapSound: string, isWalletConnected: boolean) {
+  if (!isWalletConnected || zapSound === ZAP_SOUNDS.NONE) {
+    return
+  }
+
+  let soundToPlay = zapSound
+
+  if (zapSound === ZAP_SOUNDS.RANDOM) {
+    const randomIndex = Math.floor(Math.random() * ACTUAL_ZAP_SOUNDS.length)
+    soundToPlay = ACTUAL_ZAP_SOUNDS[randomIndex]
+  }
+
+  const audio = new Audio(`/sounds/${soundToPlay}.mp3`)
+  audio.volume = 0.5
+  audio.play().catch(() => {
+    // Ignore autoplay policy or transient playback errors.
+  })
+}
+
+function calculateChargeZapAmount(holdDuration: number, limit: number): number {
+  let amount = 0
+
+  if (holdDuration <= 500) {
+    amount = Math.floor(holdDuration / 100)
+  } else if (holdDuration <= 1500) {
+    amount = 5 + Math.floor((holdDuration - 500) / 50)
+  } else if (holdDuration <= 3000) {
+    amount = 25 + Math.floor((holdDuration - 1500) / 20)
+  } else {
+    amount = 100 + Math.floor((holdDuration - 3000) / 10)
+  }
+
+  return Math.min(amount, limit)
+}
+
+function fireChargeZapConfetti(element: HTMLElement, amount: number, limit: number) {
+  const rect = element.getBoundingClientRect()
+  const x = (rect.left + rect.width / 2) / window.innerWidth
+  const y = (rect.top + rect.height / 2) / window.innerHeight
+  const intensity = amount / limit
+  const particleCount = Math.floor(30 + intensity * 120)
+  const spread = 60 + intensity * 60
+
+  confetti({
+    particleCount,
+    spread,
+    origin: { x, y },
+    colors: ['#FFD700', '#FFA500', '#FF8C00', '#FFFF00', '#FFE55C'],
+    ticks: 200,
+    gravity: 1.2,
+    decay: 0.94,
+    startVelocity: 20 + intensity * 30,
+    scalar: 0.8 + intensity * 0.7
+  })
 }
 
 function findDirectConversationByPubkey(
@@ -54,6 +163,74 @@ function findDirectConversationByPubkey(
     (conversation) =>
       conversation.participantPubkeys.length === 1 && conversation.primaryPubkey === pubkey
   )
+}
+
+type TReactionSummary = {
+  emoji: string
+  count: number
+  isMine: boolean
+  lastCreatedAt: number
+}
+
+type TComposerAttachment = {
+  url: string
+  imetaTag?: string[]
+}
+
+type TUploadProgressItem = {
+  file: File
+  progress: number
+  cancel: () => void
+}
+
+function summarizeMessageReactions(
+  reactions: TDirectMessageReaction[],
+  accountPubkey?: string | null
+) {
+  const latestReactionBySender = new Map<string, TDirectMessageReaction>()
+
+  reactions
+    .slice()
+    .sort((a, b) => a.createdAt - b.createdAt || a.wrapId.localeCompare(b.wrapId))
+    .forEach((reaction) => {
+      latestReactionBySender.set(reaction.senderPubkey, reaction)
+    })
+
+  const summaries = new Map<string, TReactionSummary>()
+
+  Array.from(latestReactionBySender.values()).forEach((reaction) => {
+    const existingSummary = summaries.get(reaction.emoji)
+
+    if (existingSummary) {
+      summaries.set(reaction.emoji, {
+        ...existingSummary,
+        count: existingSummary.count + 1,
+        isMine: existingSummary.isMine || reaction.senderPubkey === accountPubkey,
+        lastCreatedAt: Math.max(existingSummary.lastCreatedAt, reaction.createdAt)
+      })
+      return
+    }
+
+    summaries.set(reaction.emoji, {
+      emoji: reaction.emoji,
+      count: 1,
+      isMine: reaction.senderPubkey === accountPubkey,
+      lastCreatedAt: reaction.createdAt
+    })
+  })
+
+  return Array.from(summaries.values()).sort((a, b) => a.lastCreatedAt - b.lastCreatedAt)
+}
+
+function toRenderableConversationEvent(message: TDirectMessage) {
+  return {
+    id: message.id,
+    pubkey: message.senderPubkey,
+    created_at: message.createdAt,
+    kind: message.kind,
+    tags: message.tags,
+    content: message.content
+  } as Event
 }
 
 const MessagesPage = forwardRef(({ composeTo }: { composeTo?: string | null }, ref) => {
@@ -305,6 +482,10 @@ function MessagesPageTitlebar({
   const { t } = useTranslation()
 
   if (viewMode === 'thread') {
+    const zapTargetPubkey = conversation?.isGroup
+      ? null
+      : conversation?.primaryPubkey ?? draftRecipientPubkey
+
     return (
       <div className="flex items-center h-full pl-1 pr-2 gap-2">
         <Button variant="ghost" size="titlebar-icon" onClick={onBack} aria-label={t('Back')}>
@@ -328,6 +509,7 @@ function MessagesPageTitlebar({
             {t('Request')}
           </Badge>
         )}
+        {zapTargetPubkey && <DirectMessageZapActions pubkey={zapTargetPubkey} />}
       </div>
     )
   }
@@ -348,7 +530,7 @@ function MessagesPageTitlebar({
   return (
     <div className="flex items-center justify-between h-full pl-3 pr-2 gap-2">
       <div className="flex items-center gap-2 min-w-0 [&_svg]:text-muted-foreground">
-        <MessagesSquare />
+        <MessageCircle strokeWidth={1.3} />
         <div className="text-lg font-semibold truncate" style={{ fontSize: 'var(--title-font-size, 18px)' }}>
           {t('Messages')}
         </div>
@@ -684,6 +866,26 @@ function ConversationThreadView({
     [conversation]
   )
   const recipientPubkeys = conversation?.participantPubkeys ?? (draftRecipientPubkey ? [draftRecipientPubkey] : [])
+  const bottomAnchorRef = useRef<HTMLDivElement | null>(null)
+  const previousThreadKeyRef = useRef<string | null>(null)
+  const threadKey = conversation?.id ?? draftRecipientPubkey ?? null
+  const lastVisibleMessageKey = visibleMessages[visibleMessages.length - 1]?.wrapId ?? null
+
+  useEffect(() => {
+    if (!threadKey) {
+      return
+    }
+
+    const isNewThread = previousThreadKeyRef.current !== threadKey
+    previousThreadKeyRef.current = threadKey
+
+    window.requestAnimationFrame(() => {
+      bottomAnchorRef.current?.scrollIntoView({
+        behavior: isNewThread ? 'auto' : 'smooth',
+        block: 'end'
+      })
+    })
+  }, [lastVisibleMessageKey, threadKey])
 
   if (recipientPubkeys.length === 0) {
     return (
@@ -701,47 +903,55 @@ function ConversationThreadView({
   }
 
   return (
-    <div className="space-y-4">
-      {visibleMessages.length > 0 ? (
-        <div className="space-y-3">
-          {conversation && conversation.messages.length > MAX_VISIBLE_MESSAGES && (
-            <div className="text-xs text-muted-foreground">
-              {t('Showing the latest {{count}} messages.', { count: MAX_VISIBLE_MESSAGES })}
+    <div className="flex min-h-[calc(100dvh-9.5rem)] flex-col">
+      <div className="flex-1 space-y-4 pb-32">
+        {visibleMessages.length > 0 ? (
+          <div className="space-y-3">
+            {conversation && conversation.messages.length > MAX_VISIBLE_MESSAGES && (
+              <div className="text-xs text-muted-foreground">
+                {t('Showing the latest {{count}} messages.', { count: MAX_VISIBLE_MESSAGES })}
+              </div>
+            )}
+            <div className="space-y-2">
+              {visibleMessages.map((message) => (
+                <MessageBubble
+                  key={message.wrapId}
+                  conversation={conversation}
+                  message={message}
+                  recipientPubkeys={recipientPubkeys}
+                  reactions={conversation?.reactionsByMessageId[message.id] ?? []}
+                />
+              ))}
             </div>
-          )}
-          <div className="space-y-2">
-            {visibleMessages.map((message) => (
-              <MessageBubble
-                key={message.wrapId}
-                conversation={conversation}
-                message={message}
-              />
-            ))}
           </div>
-        </div>
-      ) : (
-        <div className="rounded-xl border px-4 py-12 text-center">
-          <div className="text-base font-semibold">{t('No messages yet')}</div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t('Write the first message below to start the conversation.')}
-          </p>
-        </div>
-      )}
+        ) : (
+          <div className="rounded-xl border px-4 py-12 text-center">
+            <div className="text-base font-semibold">{t('No messages yet')}</div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t('Write the first message below to start the conversation.')}
+            </p>
+          </div>
+        )}
+        <div ref={bottomAnchorRef} />
+      </div>
 
-      <Separator />
-
-      <ConversationComposer
-        recipientPubkeys={recipientPubkeys}
-        subject={conversation?.subject}
-        replyToId={conversation?.messages[conversation.messages.length - 1]?.id}
-        placeholder={
-          conversation?.messages.length
-            ? t('Write a reply...')
-            : t('Write your first message...')
-        }
-        submitLabel={conversation?.messages.length ? t('Send reply') : t('Send message')}
-        onSent={onSent}
-      />
+      <div
+        className="-mx-4 sticky bottom-0 border-t bg-background/95 px-4 pt-3 backdrop-blur supports-[backdrop-filter]:bg-background/80"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.75rem)' }}
+      >
+        <ConversationComposer
+          recipientPubkeys={recipientPubkeys}
+          subject={conversation?.subject}
+          replyToId={conversation?.messages[conversation.messages.length - 1]?.id}
+          placeholder={
+            conversation?.messages.length
+              ? t('Write a reply...')
+              : t('Write your first message...')
+          }
+          submitLabel={conversation?.messages.length ? t('Send reply') : t('Send message')}
+          onSent={onSent}
+        />
+      </div>
     </div>
   )
 }
@@ -794,36 +1004,220 @@ function ConversationTitle({
 
 function MessageBubble({
   conversation,
-  message
+  message,
+  recipientPubkeys,
+  reactions
 }: {
   conversation: TMessageConversation | null
   message: NonNullable<TMessageConversation['messages'][number]>
+  recipientPubkeys: string[]
+  reactions: TDirectMessageReaction[]
 }) {
+  const { pubkey } = useNostr()
   const showSender = !!conversation?.isGroup && !message.isOutgoing
+  const reactionSummaries = useMemo(
+    () => summarizeMessageReactions(reactions, pubkey),
+    [pubkey, reactions]
+  )
+  const renderableEvent = useMemo(() => toRenderableConversationEvent(message), [message])
 
   return (
-    <div className={cn('flex', message.isOutgoing ? 'justify-end' : 'justify-start')}>
-      <div
-        className={cn(
-          'max-w-[85%] rounded-2xl px-3 py-2 space-y-1',
-          message.isOutgoing
-            ? 'bg-primary text-primary-foreground'
-            : conversation?.isRequest
-              ? 'bg-amber-500/10 border border-amber-500/20'
-              : 'bg-muted'
-        )}
-      >
-        {showSender && (
-          <div className="text-xs opacity-70">
-            <SimpleUsername userId={message.senderPubkey} />
+    <div
+      className={cn(
+        'group flex items-end gap-2',
+        message.isOutgoing ? 'justify-end' : 'justify-start'
+      )}
+    >
+      {!message.isOutgoing && (
+        <MessageReactionPicker message={message} recipientPubkeys={recipientPubkeys} />
+      )}
+      <div className="max-w-[85%]">
+        <div
+          className={cn(
+            'rounded-2xl px-3 py-2 space-y-1',
+            message.isOutgoing
+              ? 'bg-primary text-primary-foreground'
+              : conversation?.isRequest
+                ? 'border border-amber-500/20 bg-amber-500/10'
+                : 'bg-muted'
+          )}
+        >
+          {showSender && (
+            <div className="text-xs opacity-70">
+              <SimpleUsername userId={message.senderPubkey} />
+            </div>
+          )}
+          <Content
+            event={renderableEvent}
+            className="text-sm whitespace-pre-wrap break-words"
+            mustLoadMedia
+          />
+          <div className="text-[11px] opacity-70">
+            <FormattedTimestamp timestamp={message.createdAt} short />
+          </div>
+        </div>
+        {reactionSummaries.length > 0 && (
+          <div
+            className={cn(
+              'mt-[-0.4rem] flex flex-wrap gap-1 px-2',
+              message.isOutgoing ? 'justify-end' : 'justify-start'
+            )}
+          >
+            {reactionSummaries.map((reaction) => (
+              <div
+                key={reaction.emoji}
+                className={cn(
+                  'inline-flex min-h-7 items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-xs shadow-sm',
+                  reaction.isMine && 'border-primary/30 bg-primary/5'
+                )}
+              >
+                <Emoji emoji={reaction.emoji} classNames={{ text: 'text-sm leading-none' }} />
+                {reaction.count > 1 && <span className="font-medium">{reaction.count}</span>}
+              </div>
+            ))}
           </div>
         )}
-        <div className="text-sm whitespace-pre-wrap break-words">{message.content || ' '}</div>
-        <div className="text-[11px] opacity-70">
-          <FormattedTimestamp timestamp={message.createdAt} short />
-        </div>
       </div>
+      {message.isOutgoing && (
+        <MessageReactionPicker message={message} recipientPubkeys={recipientPubkeys} />
+      )}
     </div>
+  )
+}
+
+function MessageReactionPicker({
+  message,
+  recipientPubkeys
+}: {
+  message: TDirectMessage
+  recipientPubkeys: string[]
+}) {
+  const { t } = useTranslation()
+  const { isSmallScreen } = useScreenSize()
+  const { checkLogin } = useNostr()
+  const { sendReaction } = useMessages()
+  const [isOpen, setIsOpen] = useState(false)
+  const [isPickerOpen, setIsPickerOpen] = useState(false)
+  const [isSending, setIsSending] = useState(false)
+  const triggerClassName = cn(
+    'mt-2 flex size-8 shrink-0 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm transition',
+    'opacity-80 hover:text-foreground sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100',
+    isSending && 'opacity-100 text-foreground'
+  )
+
+  const handleReaction = (emoji: string | TEmoji) => {
+    checkLogin(async () => {
+      if (isSending) {
+        return
+      }
+
+      if (typeof emoji !== 'string') {
+        toast.error(
+          t('Custom emoji reactions are not supported in direct messages yet.', {
+            defaultValue: 'Custom emoji reactions are not supported in direct messages yet.'
+          })
+        )
+        return
+      }
+
+      setIsSending(true)
+
+      try {
+        await sendReaction(recipientPubkeys, message, emoji)
+        setIsOpen(false)
+        setIsPickerOpen(false)
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : t('Failed to send reaction'))
+      } finally {
+        setIsSending(false)
+      }
+    })
+  }
+
+  if (isSmallScreen) {
+    return (
+      <>
+        <button
+          type="button"
+          className={triggerClassName}
+          onClick={(event) => {
+            event.stopPropagation()
+            setIsOpen(true)
+            setIsPickerOpen(false)
+          }}
+          disabled={isSending}
+          aria-label={t('React')}
+          title={t('React')}
+        >
+          {isSending ? <Loader className="size-4 animate-spin" /> : <MessageCirclePlus className="size-4" />}
+        </button>
+        <Drawer open={isOpen} onOpenChange={setIsOpen}>
+          <DrawerOverlay onClick={() => setIsOpen(false)} />
+          <DrawerContent hideOverlay>
+            {isPickerOpen ? (
+              <Suspense fallback={<EmojiPickerFallback />}>
+                <EmojiPicker
+                  showFavorites
+                  onEmojiClick={(emoji) => {
+                    if (!emoji) return
+                    handleReaction(emoji)
+                  }}
+                />
+              </Suspense>
+            ) : (
+              <div className="px-3 pb-4 pt-1">
+                <SuggestedEmojis
+                  onEmojiClick={handleReaction}
+                  onMoreButtonClick={() => setIsPickerOpen(true)}
+                />
+              </div>
+            )}
+          </DrawerContent>
+        </Drawer>
+      </>
+    )
+  }
+
+  return (
+    <DropdownMenu
+      open={isOpen}
+      onOpenChange={(open) => {
+        setIsOpen(open)
+        if (open) {
+          setIsPickerOpen(false)
+        }
+      }}
+    >
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className={triggerClassName}
+          aria-label={t('React')}
+          title={t('React')}
+          disabled={isSending}
+          onClick={(event) => event.stopPropagation()}
+        >
+          {isSending ? <Loader className="size-4 animate-spin" /> : <MessageCirclePlus className="size-4" />}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side="top" align={message.isOutgoing ? 'end' : 'start'} className="w-fit p-0">
+        {isPickerOpen ? (
+          <Suspense fallback={<EmojiPickerFallback />}>
+            <EmojiPicker
+              onEmojiClick={(emoji) => {
+                if (!emoji) return
+                handleReaction(emoji)
+              }}
+            />
+          </Suspense>
+        ) : (
+          <SuggestedEmojis
+            onEmojiClick={handleReaction}
+            onMoreButtonClick={() => setIsPickerOpen(true)}
+          />
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
@@ -846,19 +1240,57 @@ function ConversationComposer({
   const { sendMessage } = useMessages()
   const [content, setContent] = useState('')
   const [isSending, setIsSending] = useState(false)
+  const [attachments, setAttachments] = useState<TComposerAttachment[]>([])
+  const [uploadProgresses, setUploadProgresses] = useState<TUploadProgressItem[]>([])
+
+  const handleUploadStart = (file: File, cancel: () => void) => {
+    setUploadProgresses((current) => [...current, { file, progress: 0, cancel }])
+  }
+
+  const handleUploadProgress = (file: File, progress: number) => {
+    setUploadProgresses((current) =>
+      current.map((item) => (item.file === file ? { ...item, progress } : item))
+    )
+  }
+
+  const handleUploadEnd = (file: File) => {
+    setUploadProgresses((current) => current.filter((item) => item.file !== file))
+  }
+
+  const handleUploadSuccess = ({ url }: { url: string; tags: string[][] }) => {
+    setAttachments((current) => {
+      if (current.some((attachment) => attachment.url === url)) {
+        return current
+      }
+
+      return [...current, { url, imetaTag: mediaUpload.getImetaTagByUrl(url) }]
+    })
+  }
+
+  const handleRemoveAttachment = (url: string) => {
+    setAttachments((current) => current.filter((attachment) => attachment.url !== url))
+  }
 
   const handleSend = async () => {
     const trimmedContent = content.trim()
+    const attachmentUrls = attachments.map((attachment) => attachment.url)
+    const messageContent = attachmentUrls.length
+      ? [trimmedContent, ...attachmentUrls].filter(Boolean).join('\n')
+      : trimmedContent
+    const additionalTags = attachments
+      .map((attachment) => attachment.imetaTag)
+      .filter((tag): tag is string[] => !!tag)
 
-    if (!trimmedContent || isSending) {
+    if ((!messageContent && attachments.length === 0) || isSending || uploadProgresses.length > 0) {
       return
     }
 
     setIsSending(true)
 
     try {
-      await sendMessage(recipientPubkeys, trimmedContent, { replyToId, subject })
+      await sendMessage(recipientPubkeys, messageContent, { replyToId, subject, additionalTags })
       setContent('')
+      setAttachments([])
       onSent?.()
     } catch (error) {
       const message = error instanceof Error ? error.message : t('Failed to send message')
@@ -870,18 +1302,442 @@ function ConversationComposer({
 
   return (
     <div className="space-y-3">
+      {(attachments.length > 0 || uploadProgresses.length > 0) && (
+        <div className="space-y-2">
+          {attachments.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {attachments.map((attachment) => (
+                <div
+                  key={attachment.url}
+                  className="relative rounded-xl border bg-background px-2 py-2"
+                >
+                  <button
+                    type="button"
+                    className="absolute right-1 top-1 z-10 inline-flex size-6 items-center justify-center rounded-full bg-background/90 text-muted-foreground shadow-sm transition hover:text-foreground"
+                    aria-label={t('Remove attachment')}
+                    title={t('Remove attachment')}
+                    onClick={() => handleRemoveAttachment(attachment.url)}
+                  >
+                    <X className="size-4" />
+                  </button>
+                  <Content
+                    content={attachment.url}
+                    className="max-w-[220px] pr-6 text-sm"
+                    mustLoadMedia
+                    compactMedia
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {uploadProgresses.length > 0 &&
+            uploadProgresses.map(({ file, progress, cancel }, index) => (
+              <div
+                key={`${file.name}-${index}`}
+                className="flex items-center gap-3 rounded-lg border bg-background px-3 py-2"
+              >
+                <Loader className="size-4 animate-spin text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm">{file.name || t('Uploading...')}</div>
+                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-primary transition-[width]"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="inline-flex size-7 items-center justify-center rounded-full text-muted-foreground transition hover:text-foreground"
+                  onClick={cancel}
+                  aria-label={t('Cancel upload')}
+                  title={t('Cancel upload')}
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+            ))}
+        </div>
+      )}
+
       <Textarea
         value={content}
         onChange={(event) => setContent(event.target.value)}
         placeholder={placeholder}
-        className="min-h-[112px]"
+        className="min-h-[88px] max-h-[200px] resize-y"
       />
-      <div className="flex justify-end">
-        <Button onClick={handleSend} disabled={!content.trim() || isSending}>
+      <div className="flex items-center justify-between gap-3">
+        <Uploader
+          accept="image/*,video/*,audio/*"
+          className={isSending ? 'pointer-events-none opacity-60' : undefined}
+          onUploadSuccess={handleUploadSuccess}
+          onUploadStart={handleUploadStart}
+          onUploadEnd={handleUploadEnd}
+          onProgress={handleUploadProgress}
+        >
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="shrink-0"
+            aria-label={t('Attach media')}
+            title={t('Attach media')}
+            disabled={isSending}
+          >
+            <Paperclip className="size-4" />
+          </Button>
+        </Uploader>
+        <Button
+          onClick={handleSend}
+          disabled={
+            isSending ||
+            uploadProgresses.length > 0 ||
+            (!content.trim() && attachments.length === 0)
+          }
+        >
           <SendHorizontal />
           {isSending ? t('Sending...') : submitLabel}
         </Button>
       </div>
+    </div>
+  )
+}
+
+function DirectMessageZapActions({ pubkey }: { pubkey: string }) {
+  const { paymentsEnabled } = usePaymentsEnabled()
+  const { chargeZapEnabled, quickZap, isWalletConnected } = useZap()
+
+  if (!paymentsEnabled) {
+    return null
+  }
+
+  const showChargeZap = isWalletConnected && chargeZapEnabled && quickZap
+
+  return (
+    <div className="flex items-center gap-1 shrink-0">
+      {showChargeZap && <DirectMessageChargeZapButton pubkey={pubkey} />}
+      <DirectMessageZapButton pubkey={pubkey} />
+    </div>
+  )
+}
+
+function DirectMessageZapButton({ pubkey: recipientPubkey }: { pubkey: string }) {
+  const { t } = useTranslation()
+  const { checkLogin, pubkey } = useNostr()
+  const { defaultZapSats, defaultZapComment, quickZap, zapSound, isWalletConnected } = useZap()
+  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null)
+  const [openZapDialog, setOpenZapDialog] = useState(false)
+  const [isPendingQuickZap, setIsPendingQuickZap] = useState(false)
+  const [disable, setDisable] = useState(true)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isLongPressRef = useRef(false)
+
+  useEffect(() => {
+    let isMounted = true
+    setDisable(true)
+
+    void client.fetchProfile(recipientPubkey).then((profile) => {
+      if (!isMounted || !profile) return
+      if (pubkey === profile.pubkey) return
+      const lightningAddress = getLightningAddressFromProfile(profile)
+      if (lightningAddress) {
+        setDisable(false)
+      }
+    })
+
+    return () => {
+      isMounted = false
+    }
+  }, [pubkey, recipientPubkey])
+
+  const handleZap = async () => {
+    try {
+      if (!pubkey) {
+        throw new Error('You need to be logged in to zap')
+      }
+      if (isPendingQuickZap) return
+
+      playZapSound(zapSound, isWalletConnected)
+
+      setIsPendingQuickZap(true)
+      await lightning.zap(pubkey, recipientPubkey, defaultZapSats, defaultZapComment)
+    } catch (error) {
+      toast.error(`${t('Zap failed')}: ${(error as Error).message}`)
+    } finally {
+      setIsPendingQuickZap(false)
+    }
+  }
+
+  const handleClickStart = (event: MouseEvent | TouchEvent) => {
+    event.stopPropagation()
+    event.preventDefault()
+    if (disable) return
+
+    isLongPressRef.current = false
+
+    if ('touches' in event) {
+      const touch = event.touches[0]
+      setTouchStart({ x: touch.clientX, y: touch.clientY })
+    }
+
+    if (quickZap) {
+      timerRef.current = setTimeout(() => {
+        isLongPressRef.current = true
+        checkLogin(() => {
+          setOpenZapDialog(true)
+        })
+      }, 500)
+    }
+  }
+
+  const handleClickEnd = (event: MouseEvent | TouchEvent) => {
+    event.stopPropagation()
+    event.preventDefault()
+
+    if (timerRef.current) {
+      clearTimeout(timerRef.current)
+    }
+    if (disable) return
+
+    if ('touches' in event) {
+      setTouchStart(null)
+      if (!touchStart) return
+      const touch = event.changedTouches[0]
+      const diffX = Math.abs(touch.clientX - touchStart.x)
+      const diffY = Math.abs(touch.clientY - touchStart.y)
+      if (diffX > 10 || diffY > 10) return
+    }
+
+    if (!quickZap) {
+      checkLogin(() => {
+        setOpenZapDialog(true)
+      })
+    } else if (!isLongPressRef.current) {
+      checkLogin(() => handleZap())
+    }
+
+    isLongPressRef.current = false
+  }
+
+  const handleMouseLeave = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current)
+    }
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        className={cn(
+          'flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors',
+          disable
+            ? 'cursor-not-allowed text-muted-foreground/40'
+            : 'text-muted-foreground hover:text-primary',
+          isPendingQuickZap && 'text-primary'
+        )}
+        title={t('Zap')}
+        aria-label={t('Zap')}
+        aria-busy={isPendingQuickZap}
+        disabled={disable || isPendingQuickZap}
+        onMouseDown={handleClickStart}
+        onMouseUp={handleClickEnd}
+        onMouseLeave={handleMouseLeave}
+        onTouchStart={handleClickStart}
+        onTouchEnd={handleClickEnd}
+      >
+        <Zap className={cn(isPendingQuickZap && 'fill-primary animate-pulse')} />
+      </button>
+      <ZapDialog open={openZapDialog} setOpen={setOpenZapDialog} pubkey={recipientPubkey} />
+    </>
+  )
+}
+
+function DirectMessageChargeZapButton({ pubkey: recipientPubkey }: { pubkey: string }) {
+  const { t } = useTranslation()
+  const { checkLogin, pubkey } = useNostr()
+  const { chargeZapLimit, zapSound, isWalletConnected } = useZap()
+  const [isCharging, setIsCharging] = useState(false)
+  const [chargeAmount, setChargeAmount] = useState(0)
+  const [zapping, setZapping] = useState(false)
+  const [disable, setDisable] = useState(true)
+  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null)
+  const buttonRef = useRef<HTMLButtonElement | null>(null)
+  const chargeStartTimeRef = useRef<number>(0)
+  const chargeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const isTouchDeviceRef = useRef(false)
+
+  useEffect(() => {
+    let isMounted = true
+    setDisable(true)
+
+    void client.fetchProfile(recipientPubkey).then((profile) => {
+      if (!isMounted || !profile) return
+      if (pubkey === profile.pubkey) return
+      const lightningAddress = getLightningAddressFromProfile(profile)
+      if (lightningAddress) {
+        setDisable(false)
+      }
+    })
+
+    return () => {
+      isMounted = false
+      if (chargeIntervalRef.current) {
+        clearInterval(chargeIntervalRef.current)
+      }
+    }
+  }, [pubkey, recipientPubkey])
+
+  const startCharging = () => {
+    setIsCharging(true)
+    setChargeAmount(0)
+    chargeStartTimeRef.current = Date.now()
+
+    chargeIntervalRef.current = setInterval(() => {
+      const duration = Date.now() - chargeStartTimeRef.current
+      const amount = calculateChargeZapAmount(duration, chargeZapLimit)
+      setChargeAmount(amount)
+
+      if (amount >= chargeZapLimit && chargeIntervalRef.current) {
+        clearInterval(chargeIntervalRef.current)
+      }
+    }, 50)
+  }
+
+  const stopCharging = async () => {
+    if (chargeIntervalRef.current) {
+      clearInterval(chargeIntervalRef.current)
+      chargeIntervalRef.current = null
+    }
+
+    const finalAmount = chargeAmount
+    setIsCharging(false)
+    setChargeAmount(0)
+
+    if (finalAmount === 0 || !buttonRef.current) {
+      return
+    }
+
+    fireChargeZapConfetti(buttonRef.current, finalAmount, chargeZapLimit)
+
+    try {
+      if (!pubkey) {
+        throw new Error('You need to be logged in to zap')
+      }
+
+      playZapSound(zapSound, isWalletConnected)
+
+      setZapping(true)
+      const zapResult = await lightning.zap(pubkey, recipientPubkey, finalAmount, '')
+
+      if (!zapResult) {
+        return
+      }
+
+      toast.success(t('Zap sent successfully', { defaultValue: 'Zap sent successfully' }))
+    } catch (error) {
+      toast.error(`${t('Zap failed')}: ${(error as Error).message}`)
+    } finally {
+      setZapping(false)
+    }
+  }
+
+  const handleMouseDown = (event: MouseEvent) => {
+    event.stopPropagation()
+    event.preventDefault()
+    if (disable || zapping) return
+
+    isTouchDeviceRef.current = false
+    checkLogin(() => startCharging())
+  }
+
+  const handleMouseUp = (event: MouseEvent) => {
+    event.stopPropagation()
+    event.preventDefault()
+    if (disable || zapping || isTouchDeviceRef.current) return
+
+    void stopCharging()
+  }
+
+  const handleMouseLeave = () => {
+    if (isCharging && !isTouchDeviceRef.current) {
+      if (chargeIntervalRef.current) {
+        clearInterval(chargeIntervalRef.current)
+        chargeIntervalRef.current = null
+      }
+      setIsCharging(false)
+      setChargeAmount(0)
+    }
+  }
+
+  const handleTouchStart = (event: TouchEvent) => {
+    event.stopPropagation()
+    event.preventDefault()
+    if (disable || zapping) return
+
+    isTouchDeviceRef.current = true
+    const touch = event.touches[0]
+    setTouchStart({ x: touch.clientX, y: touch.clientY })
+
+    checkLogin(() => startCharging())
+  }
+
+  const handleTouchEnd = (event: TouchEvent) => {
+    event.stopPropagation()
+    event.preventDefault()
+    if (disable || zapping || !touchStart) return
+
+    const touch = event.changedTouches[0]
+    const diffX = Math.abs(touch.clientX - touchStart.x)
+    const diffY = Math.abs(touch.clientY - touchStart.y)
+    setTouchStart(null)
+
+    if (diffX > 10 || diffY > 10) {
+      if (chargeIntervalRef.current) {
+        clearInterval(chargeIntervalRef.current)
+        chargeIntervalRef.current = null
+      }
+      setIsCharging(false)
+      setChargeAmount(0)
+      return
+    }
+
+    void stopCharging()
+  }
+
+  return (
+    <div className="relative shrink-0">
+      {isCharging && (
+        <div className="absolute -top-8 left-1/2 -translate-x-1/2 rounded-md bg-yellow-400 px-2 py-1 text-xs font-bold text-black whitespace-nowrap z-10 animate-pulse">
+          {chargeAmount} {t('Sats')}
+        </div>
+      )}
+      <button
+        ref={buttonRef}
+        type="button"
+        className={cn(
+          'flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors',
+          disable
+            ? 'cursor-not-allowed text-muted-foreground/40'
+            : 'text-muted-foreground hover:text-yellow-400',
+          (isCharging || zapping) && 'text-yellow-400'
+        )}
+        title={t('Charge Zap')}
+        aria-label={t('Charge Zap')}
+        disabled={disable || zapping}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        {zapping ? (
+          <Loader className="animate-spin" />
+        ) : (
+          <PlugZap className={cn(isCharging && 'fill-yellow-400')} />
+        )}
+      </button>
     </div>
   )
 }
