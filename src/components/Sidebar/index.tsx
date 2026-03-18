@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils'
 import AccountButton from './AccountButton'
 import RelaysButton from './ExploreButton'
 import HomeButton from './HomeButton'
+import MessagesButton from './MessagesButton'
 import NotificationsButton from './NotificationButton'
 import PostButton from './PostButton'
 import ReadsButton from './ReadsButton'
@@ -72,6 +73,7 @@ export default function PrimaryPageSidebar() {
     lists: <ListsButton />,
     explore: <RelaysButton />,
     notifications: <NotificationsButton />,
+    messages: <MessagesButton />,
     search: <SearchButton />,
     livestreams: <LiveStreamsButton />,
     post: <PostButton />

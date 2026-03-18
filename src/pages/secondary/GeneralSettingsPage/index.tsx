@@ -13,6 +13,7 @@ import { usePaymentsEnabled } from '@/providers/PaymentsEnabledProvider'
 import { useTextOnlyMode } from '@/providers/TextOnlyModeProvider'
 import { useLowBandwidthMode } from '@/providers/LowBandwidthModeProvider'
 import { useDisableAvatarAnimations } from '@/providers/DisableAvatarAnimationsProvider'
+import { useUserPreferences } from '@/providers/UserPreferencesProvider'
 import { SelectValue } from '@radix-ui/react-select'
 import { Check, BellOff, BellRing } from 'lucide-react'
 import { forwardRef, HTMLProps, useState } from 'react'
@@ -37,6 +38,7 @@ const GeneralSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
   const { textOnlyMode, setTextOnlyMode } = useTextOnlyMode()
   const { lowBandwidthMode, setLowBandwidthMode } = useLowBandwidthMode()
   const { disableAvatarAnimations, setDisableAvatarAnimations } = useDisableAvatarAnimations()
+  const { messageNotificationsEnabled, updateMessageNotificationsEnabled } = useUserPreferences()
 
   const handleLanguageChange = (value: TLanguage) => {
     i18n.changeLanguage(value)
@@ -136,6 +138,21 @@ const GeneralSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
                 id="slow-connection-mode"
                 checked={lowBandwidthMode}
                 onCheckedChange={setLowBandwidthMode}
+              />
+            </SettingItem>
+            <SettingItem>
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="message-notifications" className="text-base font-normal">
+                  {t('Message Notifications')}
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  {t('Show a notification dot when new direct messages arrive.')}
+                </p>
+              </div>
+              <Switch
+                id="message-notifications"
+                checked={messageNotificationsEnabled}
+                onCheckedChange={updateMessageNotificationsEnabled}
               />
             </SettingItem>
             <SettingItem>

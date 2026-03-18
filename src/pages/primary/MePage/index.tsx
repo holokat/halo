@@ -11,7 +11,10 @@ import PrimaryPageLayout from '@/layouts/PrimaryPageLayout'
 import { toProfile, toSettings } from '@/lib/link'
 import { cn } from '@/lib/utils'
 import { usePrimaryPage, useSecondaryPage } from '@/PageManager'
+import { useDistractionFreeMode } from '@/providers/DistractionFreeModeProvider'
+import { useMessages } from '@/providers/MessagesProvider'
 import { useNostr } from '@/providers/NostrProvider'
+import { useUserPreferences } from '@/providers/UserPreferencesProvider'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
 
 import { pubkeyToNpub } from '@/lib/pubkey'
@@ -22,6 +25,7 @@ import {
   ChevronRight,
   LogOut,
   Settings,
+  MessageCircle,
   UserRound,
   QrCode as QrCodeIcon,
   Star
@@ -31,8 +35,12 @@ import { useTranslation } from 'react-i18next'
 
 const MePage = forwardRef((_, ref) => {
   const { t } = useTranslation()
+  const { navigate } = usePrimaryPage()
   const { push } = useSecondaryPage()
   const { pubkey } = useNostr()
+  const { hasUnreadMessages } = useMessages()
+  const { messageNotificationsEnabled } = useUserPreferences()
+  const { isDistractionFree } = useDistractionFreeMode()
   const [loginDialogOpen, setLoginDialogOpen] = useState(false)
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
   const [inviteCopied, setInviteCopied] = useState(false)
@@ -137,6 +145,15 @@ const MePage = forwardRef((_, ref) => {
         <Item onClick={() => push(toProfile(pubkey))}>
           <UserRound />
           {t('Profile')}
+        </Item>
+        <Item onClick={() => navigate('messages', { composeTo: undefined })}>
+          <div className="relative">
+            <MessageCircle />
+            {hasUnreadMessages && messageNotificationsEnabled && !isDistractionFree && (
+              <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary" />
+            )}
+          </div>
+          {t('Messages')}
         </Item>
         <Item onClick={() => push(toSettings())}>
           <Settings />

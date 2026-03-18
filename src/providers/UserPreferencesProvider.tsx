@@ -5,6 +5,8 @@ import { createContext, useContext, useState } from 'react'
 type TUserPreferencesContext = {
   notificationListStyle: TNotificationStyle
   updateNotificationListStyle: (style: TNotificationStyle) => void
+  messageNotificationsEnabled: boolean
+  updateMessageNotificationsEnabled: (enabled: boolean) => void
 
   muteMedia: boolean
   updateMuteMedia: (mute: boolean) => void
@@ -24,6 +26,9 @@ export function UserPreferencesProvider({ children }: { children: React.ReactNod
   const [notificationListStyle, setNotificationListStyle] = useState(
     storage.getNotificationListStyle()
   )
+  const [messageNotificationsEnabled, setMessageNotificationsEnabled] = useState(
+    storage.getMessageNotificationsEnabled()
+  )
   const [muteMedia, setMuteMedia] = useState(true)
 
   const updateNotificationListStyle = (style: TNotificationStyle) => {
@@ -31,11 +36,18 @@ export function UserPreferencesProvider({ children }: { children: React.ReactNod
     storage.setNotificationListStyle(style)
   }
 
+  const updateMessageNotificationsEnabled = (enabled: boolean) => {
+    setMessageNotificationsEnabled(enabled)
+    storage.setMessageNotificationsEnabled(enabled)
+  }
+
   return (
     <UserPreferencesContext.Provider
       value={{
         notificationListStyle,
         updateNotificationListStyle,
+        messageNotificationsEnabled,
+        updateMessageNotificationsEnabled,
         muteMedia,
         updateMuteMedia: setMuteMedia
       }}

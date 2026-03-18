@@ -78,6 +78,7 @@ class LocalStorageService {
   private currentAccount: TAccount | null = null
   private noteListMode: TNoteListMode = 'posts'
   private lastReadNotificationTimeMap: Record<string, number> = {}
+  private lastReadMessageTimeMap: Record<string, number> = {}
   private defaultZapSats: number = 21
   private defaultZapComment: string = 'Zap!'
   private quickZap: boolean = false
@@ -155,6 +156,7 @@ class LocalStorageService {
   private textOnlyMode: boolean = false
   private lowBandwidthMode: boolean = false
   private disableAvatarAnimations: boolean = false
+  private messageNotificationsEnabled: boolean = true
   private reactionOptionsEnabled: boolean = false
   private defaultReactionEmojis: string[] = ['👍', '❤️', '😂', '🥲', '👀', '🫡', '🫂']
 
@@ -194,6 +196,10 @@ class LocalStorageService {
         : 'posts'
     this.lastReadNotificationTimeMap = getStorageJson<Record<string, number>>(
       StorageKey.LAST_READ_NOTIFICATION_TIME_MAP,
+      {}
+    )
+    this.lastReadMessageTimeMap = getStorageJson<Record<string, number>>(
+      StorageKey.LAST_READ_MESSAGE_TIME_MAP,
       {}
     )
 
@@ -547,6 +553,12 @@ class LocalStorageService {
     this.disableAvatarAnimations =
       window.localStorage.getItem(StorageKey.DISABLE_AVATAR_ANIMATIONS) === 'true'
 
+    const messageNotificationsEnabled = window.localStorage.getItem(
+      StorageKey.MESSAGE_NOTIFICATIONS_ENABLED
+    )
+    this.messageNotificationsEnabled =
+      messageNotificationsEnabled === null ? true : messageNotificationsEnabled === 'true'
+
     const distractionFreeMode = window.localStorage.getItem(StorageKey.DISTRACTION_FREE_MODE)
     if (
       distractionFreeMode &&
@@ -814,6 +826,15 @@ class LocalStorageService {
     this.setBoolean(StorageKey.DISABLE_AVATAR_ANIMATIONS, enabled)
   }
 
+  getMessageNotificationsEnabled() {
+    return this.messageNotificationsEnabled
+  }
+
+  setMessageNotificationsEnabled(enabled: boolean) {
+    this.messageNotificationsEnabled = enabled
+    this.setBoolean(StorageKey.MESSAGE_NOTIFICATIONS_ENABLED, enabled)
+  }
+
   getLastReadNotificationTime(pubkey: string) {
     return this.lastReadNotificationTimeMap[pubkey] ?? 0
   }
@@ -821,6 +842,15 @@ class LocalStorageService {
   setLastReadNotificationTime(pubkey: string, time: number) {
     this.lastReadNotificationTimeMap[pubkey] = time
     this.setJson(StorageKey.LAST_READ_NOTIFICATION_TIME_MAP, this.lastReadNotificationTimeMap)
+  }
+
+  getLastReadMessageTime(pubkey: string) {
+    return this.lastReadMessageTimeMap[pubkey] ?? 0
+  }
+
+  setLastReadMessageTime(pubkey: string, time: number) {
+    this.lastReadMessageTimeMap[pubkey] = time
+    this.setJson(StorageKey.LAST_READ_MESSAGE_TIME_MAP, this.lastReadMessageTimeMap)
   }
 
   getFeedInfo(pubkey: string) {

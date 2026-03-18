@@ -6,6 +6,7 @@ import NpubQrCode from '@/components/NpubQrCode'
 import PrivateNote from '@/components/PrivateNote'
 import ProfileAbout from '@/components/ProfileAbout'
 import ProfileBanner from '@/components/ProfileBanner'
+import ProfileMessageButton from '@/components/ProfileMessageButton'
 import ProfileOptions from '@/components/ProfileOptions'
 import ProfileZapButton from '@/components/ProfileZapButton'
 
@@ -202,6 +203,7 @@ export default function Profile({
                 )}
                 <ProfileOptions pubkey={pubkey} />
                 {!!lightningAddress && <ProfileZapButton pubkey={pubkey} />}
+                <ProfileMessageButton pubkey={pubkey} />
                 <FollowButton pubkey={pubkey} />
               </>
             )}

@@ -32,12 +32,14 @@ import ExplorePage from './pages/primary/ExplorePage'
 import ListsPage from './pages/primary/ListsPage'
 import LiveStreamsPage from './pages/primary/LiveStreamsPage'
 import MePage from './pages/primary/MePage'
+import MessagesPage from './pages/primary/MessagesPage'
 import NotificationListPage from './pages/primary/NotificationListPage'
 import ProfilePage from './pages/primary/ProfilePage'
 import ReadsPage from './pages/primary/ReadsPage'
 import RelayPage from './pages/primary/RelayPage'
 import SearchPage from './pages/primary/SearchPage'
 import { NotificationProvider } from './providers/NotificationProvider'
+import { MessagesProvider } from './providers/MessagesProvider'
 import { useScreenSize } from './providers/ScreenSizeProvider'
 import { useWidgetSidebarDismissed } from './providers/WidgetSidebarDismissedProvider'
 import { routes } from './routes'
@@ -71,6 +73,7 @@ const PRIMARY_PAGE_REF_MAP = {
   reads: createRef<TPageRef>(),
   lists: createRef<TPageRef>(),
   explore: createRef<TPageRef>(),
+  messages: createRef<TPageRef>(),
   notifications: createRef<TPageRef>(),
   livestreams: createRef<TPageRef>(),
   me: createRef<TPageRef>(),
@@ -84,6 +87,7 @@ const PRIMARY_PAGE_MAP = {
   reads: <ReadsPage ref={PRIMARY_PAGE_REF_MAP.reads} />,
   lists: <ListsPage ref={PRIMARY_PAGE_REF_MAP.lists} />,
   explore: <ExplorePage ref={PRIMARY_PAGE_REF_MAP.explore} />,
+  messages: <MessagesPage ref={PRIMARY_PAGE_REF_MAP.messages} />,
   notifications: <NotificationListPage ref={PRIMARY_PAGE_REF_MAP.notifications} />,
   livestreams: <LiveStreamsPage ref={PRIMARY_PAGE_REF_MAP.livestreams} />,
   me: <MePage ref={PRIMARY_PAGE_REF_MAP.me} />,
@@ -352,37 +356,39 @@ export function PageManager({ maxStackSize = 5 }: { maxStackSize?: number }) {
               : 0
           }}
         >
-          <CurrentRelaysProvider>
-            <NotificationProvider>
+        <CurrentRelaysProvider>
+          <NotificationProvider>
+            <MessagesProvider>
               <div className={cn(layoutMode === LAYOUT_MODE.BOXED && "max-w-screen-xl mx-auto")}>
-                {!!secondaryStack.length &&
-                  secondaryStack.map((item, index) => (
+                  {!!secondaryStack.length &&
+                    secondaryStack.map((item, index) => (
+                      <div
+                        key={item.index}
+                        style={{
+                          display: index === secondaryStack.length - 1 ? 'block' : 'none'
+                        }}
+                      >
+                        {item.component}
+                      </div>
+                    ))}
+                  {primaryPages.map(({ name, element, props }) => (
                     <div
-                      key={item.index}
+                      key={name}
                       style={{
-                        display: index === secondaryStack.length - 1 ? 'block' : 'none'
+                        display:
+                          secondaryStack.length === 0 && currentPrimaryPage === name ? 'block' : 'none'
                       }}
                     >
-                      {item.component}
+                      {props ? cloneElement(element as React.ReactElement, props) : element}
                     </div>
                   ))}
-                {primaryPages.map(({ name, element, props }) => (
-                  <div
-                    key={name}
-                    style={{
-                      display:
-                        secondaryStack.length === 0 && currentPrimaryPage === name ? 'block' : 'none'
-                    }}
-                  >
-                    {props ? cloneElement(element as React.ReactElement, props) : element}
-                  </div>
-                ))}
-              </div>
-              <BottomNavigationBar />
-              <TooManyRelaysAlertDialog />
-              <CreateWalletGuideToast />
-            </NotificationProvider>
-          </CurrentRelaysProvider>
+                </div>
+                <BottomNavigationBar />
+                <TooManyRelaysAlertDialog />
+                <CreateWalletGuideToast />
+            </MessagesProvider>
+          </NotificationProvider>
+        </CurrentRelaysProvider>
         </SecondaryPageContext.Provider>
       </PrimaryPageContext.Provider>
     )
@@ -406,85 +412,87 @@ export function PageManager({ maxStackSize = 5 }: { maxStackSize?: number }) {
       >
         <CurrentRelaysProvider>
           <NotificationProvider>
-            <div className="flex h-[var(--vh)] overflow-hidden bg-surface-background justify-center">
-              {/* Sidebar positioning based on layout mode */}
-              {layoutMode === LAYOUT_MODE.ISLAND ? (
-                <div className={cn(
-                  "fixed left-0 top-0 h-full z-10 shrink-0",
-                  pageTheme === 'pure-black' && "border-r border-neutral-900"
-                )}>
-                  <Sidebar />
-                </div>
-              ) : (
-                <div className={cn(
-                  "shrink-0",
-                  pageTheme === 'pure-black' && "border-r border-neutral-900"
-                )}>
-                  <Sidebar />
-                </div>
-              )}
-              {(layoutMode === LAYOUT_MODE.FULL_WIDTH || layoutMode === LAYOUT_MODE.ISLAND) && deckViewMode === DECK_VIEW_MODE.MULTI_COLUMN ? (
-                <DeckLayout
-                  primaryPages={primaryPages}
-                  currentPrimaryPage={currentPrimaryPage}
-                  secondaryStack={secondaryStack}
-                  pinnedColumns={pinnedColumns}
-                />
-              ) : (
-                <div className={cn(
-                  "grid grid-cols-2 gap-2 w-full px-2 py-2",
-                  layoutMode === LAYOUT_MODE.BOXED && "max-w-screen-xl",
-                  layoutMode === LAYOUT_MODE.ISLAND && "max-w-screen-xl ml-16"
-                )}>
-                  <div
-                    className={cn(
-                      "bg-card min-w-0 overflow-hidden",
-                      pageTheme === 'pure-black' && "border border-neutral-900",
-                      pageTheme === 'white' ? "border border-border" : "shadow-lg"
-                    )}
-                    style={{ borderRadius: 'var(--card-radius, 8px)' }}
-                  >
-                    {primaryPages.map(({ name, element, props }) => (
-                      <div
-                        key={name}
-                        className="flex flex-col h-full w-full"
-                        style={{
-                          display: currentPrimaryPage === name ? 'block' : 'none'
-                        }}
-                      >
-                        {props ? cloneElement(element as React.ReactElement, props) : element}
-                      </div>
-                    ))}
+            <MessagesProvider>
+              <div className="flex h-[var(--vh)] overflow-hidden bg-surface-background justify-center">
+                {/* Sidebar positioning based on layout mode */}
+                {layoutMode === LAYOUT_MODE.ISLAND ? (
+                  <div className={cn(
+                    "fixed left-0 top-0 h-full z-10 shrink-0",
+                    pageTheme === 'pure-black' && "border-r border-neutral-900"
+                  )}>
+                    <Sidebar />
                   </div>
-                  <HomePageWrapper
-                    secondaryStackLength={secondaryStack.length}
-                    widgetSidebarDismissed={widgetSidebarDismissed}
-                  >
-                    {secondaryStack.map((item, index) => (
-                      <div
-                        key={item.index}
-                        className="flex flex-col h-full w-full"
-                        style={{ display: index === secondaryStack.length - 1 ? 'block' : 'none' }}
-                      >
-                        {item.component}
-                      </div>
-                    ))}
-                    {!widgetSidebarDismissed && (
-                      <div
-                        key="home"
-                        className="w-full"
-                        style={{ display: secondaryStack.length === 0 ? 'block' : 'none' }}
-                      >
-                        <HomePage />
-                      </div>
-                    )}
-                  </HomePageWrapper>
-                </div>
-              )}
-            </div>
-            <TooManyRelaysAlertDialog />
-            <CreateWalletGuideToast />
-            <BackgroundAudio className="fixed bottom-20 right-0 z-50 w-80 rounded-l-full rounded-r-none overflow-hidden shadow-lg border" />
+                ) : (
+                  <div className={cn(
+                    "shrink-0",
+                    pageTheme === 'pure-black' && "border-r border-neutral-900"
+                  )}>
+                    <Sidebar />
+                  </div>
+                )}
+                {(layoutMode === LAYOUT_MODE.FULL_WIDTH || layoutMode === LAYOUT_MODE.ISLAND) && deckViewMode === DECK_VIEW_MODE.MULTI_COLUMN ? (
+                  <DeckLayout
+                    primaryPages={primaryPages}
+                    currentPrimaryPage={currentPrimaryPage}
+                    secondaryStack={secondaryStack}
+                    pinnedColumns={pinnedColumns}
+                  />
+                ) : (
+                  <div className={cn(
+                    "grid grid-cols-2 gap-2 w-full px-2 py-2",
+                    layoutMode === LAYOUT_MODE.BOXED && "max-w-screen-xl",
+                    layoutMode === LAYOUT_MODE.ISLAND && "max-w-screen-xl ml-16"
+                  )}>
+                    <div
+                      className={cn(
+                        "bg-card min-w-0 overflow-hidden",
+                        pageTheme === 'pure-black' && "border border-neutral-900",
+                        pageTheme === 'white' ? "border border-border" : "shadow-lg"
+                      )}
+                      style={{ borderRadius: 'var(--card-radius, 8px)' }}
+                    >
+                      {primaryPages.map(({ name, element, props }) => (
+                        <div
+                          key={name}
+                          className="flex flex-col h-full w-full"
+                          style={{
+                            display: currentPrimaryPage === name ? 'block' : 'none'
+                          }}
+                        >
+                          {props ? cloneElement(element as React.ReactElement, props) : element}
+                        </div>
+                      ))}
+                    </div>
+                    <HomePageWrapper
+                      secondaryStackLength={secondaryStack.length}
+                      widgetSidebarDismissed={widgetSidebarDismissed}
+                    >
+                      {secondaryStack.map((item, index) => (
+                        <div
+                          key={item.index}
+                          className="flex flex-col h-full w-full"
+                          style={{ display: index === secondaryStack.length - 1 ? 'block' : 'none' }}
+                        >
+                          {item.component}
+                        </div>
+                      ))}
+                      {!widgetSidebarDismissed && (
+                        <div
+                          key="home"
+                          className="w-full"
+                          style={{ display: secondaryStack.length === 0 ? 'block' : 'none' }}
+                        >
+                          <HomePage />
+                        </div>
+                      )}
+                    </HomePageWrapper>
+                  </div>
+                )}
+              </div>
+              <TooManyRelaysAlertDialog />
+              <CreateWalletGuideToast />
+              <BackgroundAudio className="fixed bottom-20 right-0 z-50 w-80 rounded-l-full rounded-r-none overflow-hidden shadow-lg border" />
+            </MessagesProvider>
           </NotificationProvider>
         </CurrentRelaysProvider>
       </SecondaryPageContext.Provider>

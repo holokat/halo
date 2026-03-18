@@ -39,6 +39,7 @@ export const StorageKey = {
   DEFAULT_ZAP_COMMENT: 'defaultZapComment',
   QUICK_ZAP: 'quickZap',
   LAST_READ_NOTIFICATION_TIME_MAP: 'lastReadNotificationTimeMap',
+  LAST_READ_MESSAGE_TIME_MAP: 'lastReadMessageTimeMap',
   ACCOUNT_FEED_INFO_MAP: 'accountFeedInfoMap',
   AUTOPLAY: 'autoplay',
   HIDE_UNTRUSTED_INTERACTIONS: 'hideUntrustedInteractions',
@@ -118,6 +119,7 @@ export const StorageKey = {
   DISABLE_AVATAR_ANIMATIONS: 'disableAvatarAnimations',
   DEFAULT_REACTION_EMOJIS: 'defaultReactionEmojis',
   REACTION_OPTIONS_ENABLED: 'reactionOptionsEnabled',
+  MESSAGE_NOTIFICATIONS_ENABLED: 'messageNotificationsEnabled',
   COLLAPSE_LONG_NOTES: 'collapseLongNotes',
   ALWAYS_SHOW_FULL_MEDIA: 'alwaysShowFullMedia',
   MEDIA_UPLOAD_SERVICE: 'mediaUploadService', // deprecated

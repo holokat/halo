@@ -2,7 +2,19 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { useMenuItems, TMenuItem, TMenuItemConfig } from '@/providers/MenuItemsProvider'
 import { cn } from '@/lib/utils'
-import { GripVertical, Home, BookOpen, List as ListIcon, Compass, Bell, Search, PencilLine, Columns, Radio } from 'lucide-react'
+import {
+  GripVertical,
+  Home,
+  BookOpen,
+  List as ListIcon,
+  Compass,
+  Bell,
+  MessageCircle,
+  Search,
+  PencilLine,
+  Columns,
+  Radio
+} from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
@@ -13,6 +25,7 @@ const MENU_ITEM_ICONS: Record<TMenuItem, any> = {
   lists: ListIcon,
   explore: Compass,
   notifications: Bell,
+  messages: MessageCircle,
   search: Search,
   livestreams: Radio,
   post: PencilLine,
@@ -26,6 +39,7 @@ const getMenuItemLabel = (t: any, item: TMenuItem): string => {
     lists: t('Lists'),
     explore: t('Explore'),
     notifications: t('Notifications'),
+    messages: t('Messages'),
     search: t('Search'),
     livestreams: t('Live Streams'),
     post: t('Post'),
