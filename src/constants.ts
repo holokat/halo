@@ -19,6 +19,8 @@ export const DEFAULT_FAVORITE_RELAYS = [
   'wss://news.utxo.one/'
 ]
 
+export const DEFAULT_NEWS_WIDGET_RELAYS = ['wss://news.utxo.one/']
+
 export const RECOMMENDED_RELAYS = DEFAULT_FAVORITE_RELAYS.concat(['wss://yabu.me/'])
 
 export const RECOMMENDED_BLOSSOM_SERVERS = [
@@ -89,6 +91,7 @@ export const StorageKey = {
   WIDGET_SIDEBAR_ICON: 'widgetSidebarIcon',
   HIDE_WIDGET_TITLES: 'hideWidgetTitles',
   ENABLED_WIDGETS: 'enabledWidgets',
+  NEWS_WIDGET_RELAYS: 'newsWidgetRelays',
   PINNED_NOTE_WIDGETS: 'pinnedNoteWidgets',
   LIVE_STREAM_WIDGETS: 'liveStreamWidgets',
   AI_PROMPT_WIDGETS: 'aiPromptWidgets',

@@ -4,10 +4,11 @@ import { useWidgetSidebarTitle } from '@/providers/WidgetSidebarTitleProvider'
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { isWebsocketUrl, normalizeUrl, simplifyUrl } from '@/lib/url'
 import { cn } from '@/lib/utils'
-import { forwardRef, useState } from 'react'
+import { FormEvent, forwardRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Check, GripVertical, Plus } from 'lucide-react'
+import { Check, GripVertical, Plus, X } from 'lucide-react'
 import * as LucideIcons from 'lucide-react'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
@@ -45,7 +46,10 @@ function SortableWidgetCard({
   bitcoinTickerShowBlockHeight,
   onBitcoinTickerShowBlockHeightChange,
   bitcoinTickerShowSatsMode,
-  onBitcoinTickerShowSatsModeChange
+  onBitcoinTickerShowSatsModeChange,
+  newsRelays,
+  onAddNewsRelay,
+  onRemoveNewsRelay
 }: {
   id: TWidgetId
   enabled: boolean
@@ -60,9 +64,14 @@ function SortableWidgetCard({
   onBitcoinTickerShowBlockHeightChange?: (show: boolean) => void
   bitcoinTickerShowSatsMode?: boolean
   onBitcoinTickerShowSatsModeChange?: (show: boolean) => void
+  newsRelays?: string[]
+  onAddNewsRelay?: (relay: string) => void
+  onRemoveNewsRelay?: (relay: string) => void
 }) {
   const { t } = useTranslation()
   const widget = AVAILABLE_WIDGETS.find((w) => w.id === id)
+  const [newsRelayInput, setNewsRelayInput] = useState('')
+  const [newsRelayError, setNewsRelayError] = useState<string | null>(null)
 
   const {
     attributes,
@@ -83,6 +92,34 @@ function SortableWidgetCard({
 
   const showHeightSettings = id === 'trending-notes' && enabled
   const showBitcoinSettings = id === 'bitcoin-ticker' && enabled
+  const showNewsSettings = id === 'news' && enabled
+
+  const handleAddNewsRelay = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    const normalizedRelay = normalizeUrl(newsRelayInput)
+    if (!normalizedRelay || !isWebsocketUrl(normalizedRelay)) {
+      setNewsRelayError(
+        t('Enter a valid relay URL like wss://news.utxo.one/', {
+          defaultValue: 'Enter a valid relay URL like wss://news.utxo.one/'
+        })
+      )
+      return
+    }
+
+    if (newsRelays?.includes(normalizedRelay)) {
+      setNewsRelayError(
+        t('Relay already added', {
+          defaultValue: 'Relay already added'
+        })
+      )
+      return
+    }
+
+    onAddNewsRelay?.(normalizedRelay)
+    setNewsRelayInput('')
+    setNewsRelayError(null)
+  }
 
   return (
     <div
@@ -253,6 +290,71 @@ function SortableWidgetCard({
         </div>
       )}
 
+      {showNewsSettings && newsRelays && onAddNewsRelay && onRemoveNewsRelay && (
+        <div className="space-y-3 border-t border-border/50 px-4 pb-4 pt-2">
+          <div>
+            <Label className="mb-2 block text-sm font-medium">
+              {t('News Relays', { defaultValue: 'News Relays' })}
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              {t('Add or remove relays to customize which news sources appear in the widget.', {
+                defaultValue:
+                  'Add or remove relays to customize which news sources appear in the widget.'
+              })}
+            </p>
+          </div>
+
+          <form className="flex items-center gap-2" onSubmit={handleAddNewsRelay}>
+            <Input
+              value={newsRelayInput}
+              onChange={(event) => {
+                setNewsRelayInput(event.target.value)
+                if (newsRelayError) {
+                  setNewsRelayError(null)
+                }
+              }}
+              placeholder="wss://news.utxo.one/"
+              aria-label={t('Add news relay', { defaultValue: 'Add news relay' })}
+              className="h-9"
+            />
+            <Button type="submit" size="icon" className="h-9 w-9 shrink-0 rounded-full">
+              <Plus className="h-4 w-4" />
+            </Button>
+          </form>
+
+          {newsRelayError ? <p className="text-xs text-destructive">{newsRelayError}</p> : null}
+
+          {newsRelays.length > 0 ? (
+            <div className="space-y-2">
+              {newsRelays.map((relay) => (
+                <div
+                  key={relay}
+                  className="flex items-center justify-between gap-2 rounded-lg border bg-background/60 px-3 py-2"
+                >
+                  <span className="truncate text-sm">{simplifyUrl(relay)}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0"
+                    onClick={() => onRemoveNewsRelay(relay)}
+                    title={t('Remove relay', { defaultValue: 'Remove relay' })}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-border/80 bg-muted/20 px-3 py-4 text-center text-xs text-muted-foreground">
+              {t('No news relays configured. Add one above to populate the widget.', {
+                defaultValue: 'No news relays configured. Add one above to populate the widget.'
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Active indicator bar */}
       {enabled && (
         <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/50 via-primary to-primary/50" />
@@ -279,7 +381,10 @@ const WidgetsSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
     bitcoinTickerShowBlockHeight,
     setBitcoinTickerShowBlockHeight,
     bitcoinTickerShowSatsMode,
-    setBitcoinTickerShowSatsMode
+    setBitcoinTickerShowSatsMode,
+    newsWidgetRelays,
+    addNewsWidgetRelay,
+    removeNewsWidgetRelay
   } = useWidgets()
   const { widgetSidebarTitle, setWidgetSidebarTitle, widgetSidebarIcon, setWidgetSidebarIcon } = useWidgetSidebarTitle()
   const [activeId, setActiveId] = useState<TWidgetId | null>(null)
@@ -434,6 +539,9 @@ const WidgetsSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
                   onBitcoinTickerShowBlockHeightChange={setBitcoinTickerShowBlockHeight}
                   bitcoinTickerShowSatsMode={bitcoinTickerShowSatsMode}
                   onBitcoinTickerShowSatsModeChange={setBitcoinTickerShowSatsMode}
+                  newsRelays={newsWidgetRelays}
+                  onAddNewsRelay={addNewsWidgetRelay}
+                  onRemoveNewsRelay={removeNewsWidgetRelay}
                 />
               ))}
             </div>

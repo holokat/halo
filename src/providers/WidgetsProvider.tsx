@@ -1,11 +1,13 @@
 import localStorageService from '@/services/local-storage.service'
-import { TrendingUp, Bitcoin, LineChart, Sparkles, Users } from 'lucide-react'
+import { TrendingUp, Bitcoin, LineChart, Newspaper, Sparkles, Users } from 'lucide-react'
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react'
 import { TAIMessage } from '@/types'
 import { isValidStockSymbol, normalizeStockSymbol } from '@/services/stock-quote.service'
+import { isWebsocketUrl, normalizeUrl } from '@/lib/url'
 
 export type TWidgetId =
   | 'trending-notes'
+  | 'news'
   | 'bitcoin-ticker'
   | 'stock-tracker'
   | 'ai-prompt'
@@ -60,6 +62,13 @@ export const AVAILABLE_WIDGETS: TWidget[] = [
     icon: <TrendingUp className="h-5 w-5" />
   },
   {
+    id: 'news',
+    name: 'News',
+    description: 'Display a compact relay-powered news feed in your sidebar',
+    defaultEnabled: false,
+    icon: <Newspaper className="h-5 w-5" />
+  },
+  {
     id: 'stock-tracker',
     name: 'Stock Tracker',
     description: 'Track a compact watchlist of stock symbols in your sidebar',
@@ -103,6 +112,9 @@ type TWidgetsContext = {
   stockTrackerSymbols: string[]
   addStockTrackerSymbol: (symbol: string) => void
   removeStockTrackerSymbol: (symbol: string) => void
+  newsWidgetRelays: string[]
+  addNewsWidgetRelay: (relay: string) => void
+  removeNewsWidgetRelay: (relay: string) => void
   pinnedNoteWidgets: TPinnedNoteWidget[]
   pinNoteWidget: (eventId: string) => string
   unpinNoteWidget: (widgetId: string) => void
@@ -165,6 +177,10 @@ export function WidgetsProvider({ children }: { children: ReactNode }) {
     return localStorageService.getStockTrackerSymbols()
   })
 
+  const [newsWidgetRelays, setNewsWidgetRelaysState] = useState<string[]>(() => {
+    return localStorageService.getNewsWidgetRelays()
+  })
+
   const [hideWidgetTitles, setHideWidgetTitlesState] = useState<boolean>(() => {
     return localStorageService.getHideWidgetTitles()
   })
@@ -206,6 +222,10 @@ export function WidgetsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorageService.setStockTrackerSymbols(stockTrackerSymbols)
   }, [stockTrackerSymbols])
+
+  useEffect(() => {
+    localStorageService.setNewsWidgetRelays(newsWidgetRelays)
+  }, [newsWidgetRelays])
 
   useEffect(() => {
     localStorageService.setHideWidgetTitles(hideWidgetTitles)
@@ -251,6 +271,24 @@ export function WidgetsProvider({ children }: { children: ReactNode }) {
     }
 
     setStockTrackerSymbolsState((prev) => prev.filter((item) => item !== symbol))
+  }
+
+  const addNewsWidgetRelay = (rawRelay: string) => {
+    const relay = normalizeUrl(rawRelay)
+    if (!relay || !isWebsocketUrl(relay)) {
+      return
+    }
+
+    setNewsWidgetRelaysState((prev) => (prev.includes(relay) ? prev : [...prev, relay]))
+  }
+
+  const removeNewsWidgetRelay = (rawRelay: string) => {
+    const relay = normalizeUrl(rawRelay)
+    if (!relay) {
+      return
+    }
+
+    setNewsWidgetRelaysState((prev) => prev.filter((item) => item !== relay))
   }
 
   const toggleWidget = (widgetId: TWidgetId) => {
@@ -413,6 +451,9 @@ export function WidgetsProvider({ children }: { children: ReactNode }) {
         stockTrackerSymbols,
         addStockTrackerSymbol,
         removeStockTrackerSymbol,
+        newsWidgetRelays,
+        addNewsWidgetRelay,
+        removeNewsWidgetRelay,
         pinnedNoteWidgets,
         pinNoteWidget,
         unpinNoteWidget,

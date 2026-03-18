@@ -1,6 +1,7 @@
-import { useWidgets, TWidgetId } from '@/providers/WidgetsProvider'
+import { useWidgets } from '@/providers/WidgetsProvider'
 import { usePageTheme } from '@/providers/PageThemeProvider'
 import TrendingNotesWidget from '@/components/TrendingNotes/TrendingNotesWidget'
+import NewsWidget from '@/components/NewsWidget'
 import BitcoinTickerWidget from '@/components/BitcoinTicker/BitcoinTickerWidget'
 import StockTrackerWidget from '@/components/StockTrackerWidget'
 import PinnedNoteWidget from '@/components/PinnedNoteWidget'
@@ -14,6 +15,7 @@ import { createPortal } from 'react-dom'
 const WIDGET_COMPONENTS: Record<string, React.ComponentType> = {
   'bitcoin-ticker': BitcoinTickerWidget,
   'trending-notes': TrendingNotesWidget,
+  news: NewsWidget,
   'stock-tracker': StockTrackerWidget,
   'ai-prompt': SidebarAIPromptWidget,
   'invite': InviteWidget

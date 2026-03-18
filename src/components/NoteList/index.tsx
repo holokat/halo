@@ -52,6 +52,7 @@ const NoteList = forwardRef(
       showKinds,
       isMainFeed = false,
       mediaOnly = false,
+      onDisableMediaOnly,
       filterMutedNotes = true,
       hideReplies = false,
       hideUntrustedNotes = false,
@@ -64,6 +65,7 @@ const NoteList = forwardRef(
       showKinds: number[]
       isMainFeed?: boolean
       mediaOnly?: boolean
+      onDisableMediaOnly?: () => void
       filterMutedNotes?: boolean
       hideReplies?: boolean
       hideUntrustedNotes?: boolean
@@ -113,7 +115,7 @@ const NoteList = forwardRef(
     }, [pinnedEventIds.join(',')])
 
     const shouldHideEvent = useCallback(
-      (evt: Event) => {
+      (evt: Event, { ignoreMediaOnly = false }: { ignoreMediaOnly?: boolean } = {}) => {
         if (pinnedEventHexIdSet.has(evt.id)) return true
         if (isEventDeleted(evt)) return true
         if (hideReplies && isReplyNoteEvent(evt)) return true
@@ -138,7 +140,7 @@ const NoteList = forwardRef(
         }
 
         // Check media only filter
-        if (mediaOnly && !hasMedia(evt)) {
+        if (!ignoreMediaOnly && mediaOnly && !hasMedia(evt)) {
           return true
         }
 
@@ -171,20 +173,39 @@ const NoteList = forwardRef(
       ]
     )
 
+    const filterVisibleEvents = useCallback(
+      (sourceEvents: Event[], options?: { ignoreMediaOnly?: boolean }) => {
+        const idSet = new Set<string>()
+
+        return sourceEvents.filter((evt) => {
+          if (shouldHideEvent(evt, options)) return false
+
+          const id = isReplaceableEvent(evt.kind) ? getReplaceableCoordinateFromEvent(evt) : evt.id
+          if (idSet.has(id)) {
+            return false
+          }
+          idSet.add(id)
+          return true
+        })
+      },
+      [shouldHideEvent]
+    )
+
     const visibleEvents = useMemo(() => {
-      const idSet = new Set<string>()
+      return filterVisibleEvents(events)
+    }, [events, filterVisibleEvents])
+    const visibleEventsIgnoringMediaOnly = useMemo(() => {
+      if (!mediaOnly) return visibleEvents
 
-      return events.filter((evt) => {
-        if (shouldHideEvent(evt)) return false
+      return filterVisibleEvents(events, { ignoreMediaOnly: true })
+    }, [events, mediaOnly, visibleEvents, filterVisibleEvents])
+    const mediaOnlyFilteredOutAll =
+      mediaOnly && visibleEvents.length === 0 && visibleEventsIgnoringMediaOnly.length > 0
+    const showFilteredOutState = !loading && events.length > 0 && visibleEvents.length === 0
+    const filteredOutMessage = mediaOnlyFilteredOutAll
+      ? t('This relay is returning posts, but the media-only filter is hiding them.')
+      : t('No notes match the current filters.')
 
-        const id = isReplaceableEvent(evt.kind) ? getReplaceableCoordinateFromEvent(evt) : evt.id
-        if (idSet.has(id)) {
-          return false
-        }
-        idSet.add(id)
-        return true
-      })
-    }, [events, shouldHideEvent])
     const filteredEvents = useMemo(
       () => visibleEvents.slice(0, showCount),
       [visibleEvents, showCount]
@@ -339,6 +360,9 @@ const NoteList = forwardRef(
           }
         }
 
+        // Avoid a runaway load-more loop when filters hide every fetched event.
+        if (visibleEvents.length === 0 && events.length > 0) return
+
         if (!timelineKey || loading || !hasMore) return
         setLoading(true)
         const newEvents = await client.loadMoreTimeline(
@@ -399,11 +423,24 @@ const NoteList = forwardRef(
             </li>
           ))}
         </ul>
-        {hasMore || loading ? (
+        {loading ? (
           <div ref={bottomRef}>
             <div role="status" aria-live="polite" className="sr-only">
               {loading && t('Loading more posts')}
             </div>
+            <NoteCardLoadingSkeleton />
+          </div>
+        ) : showFilteredOutState ? (
+          <div className="flex flex-col items-center gap-3 text-center text-sm text-muted-foreground mt-4 px-4">
+            <div>{filteredOutMessage}</div>
+            {mediaOnlyFilteredOutAll && onDisableMediaOnly && (
+              <Button variant="outline" onClick={onDisableMediaOnly}>
+                {t('Show posts without media')}
+              </Button>
+            )}
+          </div>
+        ) : hasMore ? (
+          <div ref={bottomRef}>
             <NoteCardLoadingSkeleton />
           </div>
         ) : events.length ? (

@@ -78,6 +78,7 @@ export default function NormalFeed({
         ref={noteListRef}
         showKinds={temporaryShowKinds}
         mediaOnly={temporaryMediaOnly}
+        onDisableMediaOnly={() => setTemporaryMediaOnly(false)}
         subRequests={subRequests}
         isMainFeed={isMainFeed}
         hideReplies={listMode === 'posts'}

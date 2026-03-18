@@ -7,6 +7,7 @@ import {
   DEFAULT_MEDIA_RADIUS,
   DEFAULT_FONT_FAMILY,
   DEFAULT_FONT_SIZE,
+  DEFAULT_NEWS_WIDGET_RELAYS,
   DEFAULT_TITLE_FONT_SIZE,
   DEFAULT_LOGO_FONT_SIZE,
   DEFAULT_NIP_96_SERVICE,
@@ -30,6 +31,7 @@ import {
 } from '@/constants'
 import { isSameAccount } from '@/lib/account'
 import { randomString } from '@/lib/random'
+import { isWebsocketUrl, normalizeUrl } from '@/lib/url'
 import {
   TAccount,
   TAccountPointer,
@@ -142,6 +144,7 @@ class LocalStorageService {
   private bitcoinTickerShowBlockHeight: boolean = false
   private bitcoinTickerShowSatsMode: boolean = false
   private stockTrackerSymbols: string[] = []
+  private newsWidgetRelays: string[] = DEFAULT_NEWS_WIDGET_RELAYS
   private zapSound: TZapSound = ZAP_SOUNDS.NONE
   private customFeeds: TCustomFeed[] = []
   private chargeZapEnabled: boolean = false
@@ -320,8 +323,8 @@ class LocalStorageService {
     window.localStorage.setItem(StorageKey.SHOW_KINDS_VERSION, '1')
 
     const mediaOnlyStr = window.localStorage.getItem(StorageKey.MEDIA_ONLY)
-    // Default to true for new users, otherwise use stored preference
-    this.mediaOnly = mediaOnlyStr === null ? true : mediaOnlyStr === 'true'
+    // Default to false so text-heavy relays do not appear empty on first load.
+    this.mediaOnly = mediaOnlyStr === null ? false : mediaOnlyStr === 'true'
 
     this.hideContentMentioningMutedUsers =
       window.localStorage.getItem(StorageKey.HIDE_CONTENT_MENTIONING_MUTED_USERS) === 'true'
@@ -529,6 +532,21 @@ class LocalStorageService {
     const stockTrackerSymbols = getStorageJson<string[]>(StorageKey.STOCK_TRACKER_SYMBOLS, [])
     if (Array.isArray(stockTrackerSymbols)) {
       this.stockTrackerSymbols = stockTrackerSymbols.filter((symbol) => typeof symbol === 'string')
+    }
+
+    const storedNewsWidgetRelays = getStorageJson<string[] | null>(StorageKey.NEWS_WIDGET_RELAYS, null)
+    if (Array.isArray(storedNewsWidgetRelays)) {
+      const normalizedNewsRelays = Array.from(
+        new Set(
+          storedNewsWidgetRelays
+            .filter((relay) => typeof relay === 'string')
+            .map((relay) => normalizeUrl(relay))
+            .filter((relay) => relay && isWebsocketUrl(relay))
+        )
+      )
+      this.newsWidgetRelays = normalizedNewsRelays
+    } else {
+      this.newsWidgetRelays = DEFAULT_NEWS_WIDGET_RELAYS
     }
 
     const zapSound = window.localStorage.getItem(StorageKey.ZAP_SOUND)
@@ -1344,6 +1362,15 @@ class LocalStorageService {
   setStockTrackerSymbols(symbols: string[]) {
     this.stockTrackerSymbols = symbols
     this.setJson(StorageKey.STOCK_TRACKER_SYMBOLS, symbols)
+  }
+
+  getNewsWidgetRelays() {
+    return this.newsWidgetRelays
+  }
+
+  setNewsWidgetRelays(relays: string[]) {
+    this.newsWidgetRelays = relays
+    this.setJson(StorageKey.NEWS_WIDGET_RELAYS, relays)
   }
 
   getPinnedNoteWidgets() {
