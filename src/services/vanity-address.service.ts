@@ -1,4 +1,4 @@
-import { JUMBLE_API_BASE_URL } from '@/constants'
+import { APP_API_BASE_URL } from '@/constants'
 import client from '@/services/client.service'
 
 type TVanityAccount = {
@@ -65,7 +65,7 @@ class VanityAddressService {
   async registerSignupEligibility(): Promise<void> {
     const path = '/v1/nip5/eligibility/register'
     const method = 'POST'
-    const url = new URL(path, JUMBLE_API_BASE_URL).toString()
+    const url = new URL(path, APP_API_BASE_URL).toString()
     const auth = await client.signHttpAuth(url, method, 'Register x21 signup eligibility')
     const response = await fetch(url, {
       method,
@@ -84,7 +84,7 @@ class VanityAddressService {
   async getAccount(): Promise<TVanityAccount> {
     const path = '/v1/nip5/account'
     const method = 'GET'
-    const url = new URL(path, JUMBLE_API_BASE_URL).toString()
+    const url = new URL(path, APP_API_BASE_URL).toString()
     const auth = await client.signHttpAuth(url, method, 'View vanity address account')
     const response = await fetch(url, {
       method,
@@ -106,7 +106,7 @@ class VanityAddressService {
     sats?: number
     ownerPubkey?: string | null
   }> {
-    const url = new URL('/v1/nip5/availability', JUMBLE_API_BASE_URL)
+    const url = new URL('/v1/nip5/availability', APP_API_BASE_URL)
     url.searchParams.set('name', name)
     const response = await fetch(url.toString(), { method: 'GET' })
     const data = await response.json()
@@ -119,7 +119,7 @@ class VanityAddressService {
   async createClaim(name: string): Promise<TVanityClaimCreate> {
     const path = '/v1/nip5/claims'
     const method = 'POST'
-    const url = new URL(path, JUMBLE_API_BASE_URL).toString()
+    const url = new URL(path, APP_API_BASE_URL).toString()
     const auth = await client.signHttpAuth(url, method, 'Authorize vanity address claim')
     const response = await fetch(url, {
       method,
@@ -137,7 +137,7 @@ class VanityAddressService {
   }
 
   async checkClaim(claimId: string): Promise<TVanityClaimStatus> {
-    const url = new URL(`/v1/nip5/claims/${encodeURIComponent(claimId)}/check`, JUMBLE_API_BASE_URL).toString()
+    const url = new URL(`/v1/nip5/claims/${encodeURIComponent(claimId)}/check`, APP_API_BASE_URL).toString()
     const response = await fetch(url, { method: 'POST' })
     const data = await response.json()
     if (!response.ok) {

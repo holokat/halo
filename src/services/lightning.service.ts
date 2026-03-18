@@ -1,4 +1,4 @@
-import { BIG_RELAY_URLS, CODY_PUBKEY, JUMBLE_API_BASE_URL, JUMBLE_PUBKEY } from '@/constants'
+import { APP_API_BASE_URL, BIG_RELAY_URLS, CODY_PUBKEY, JUMBLE_PUBKEY } from '@/constants'
 import { getZapInfoFromEvent } from '@/lib/event-metadata'
 import {
   getLightningAddressCandidatesFromProfile,
@@ -316,7 +316,7 @@ class LightningService {
     callback: string
     lnurl: string
   }> {
-    const url = new URL('/v1/lightning/zap-endpoint', JUMBLE_API_BASE_URL)
+    const url = new URL('/v1/lightning/zap-endpoint', APP_API_BASE_URL)
     url.searchParams.set('address', normalizeLightningAddress(lightningAddress))
 
     const response = await fetch(url.toString(), {

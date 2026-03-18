@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { JUMBLE_API_BASE_URL } from '@/constants'
+import { TRANSLATION_API_BASE_URL } from '@/constants'
 import { useNostr } from '@/providers/NostrProvider'
 import { useTranslationService } from '@/providers/TranslationServiceProvider'
 import { Check, Copy, Eye, EyeOff } from 'lucide-react'
@@ -100,7 +100,7 @@ export function AccountInfo() {
         </div>
         <p className="text-sm text-muted-foreground select-text">
           {t('x21TranslateApiKeyDescription', {
-            serviceUrl: new URL('/v1/translation', JUMBLE_API_BASE_URL).toString(),
+            serviceUrl: new URL('/v1/translation', TRANSLATION_API_BASE_URL).toString(),
             defaultValue:
               'Use this key for the X21 translation API endpoint: {{serviceUrl}}'
           })}

@@ -1,4 +1,4 @@
-import { JUMBLE_API_BASE_URL } from '@/constants'
+import { APP_API_BASE_URL } from '@/constants'
 import client from '@/services/client.service'
 
 type TTopUpQuotePackage = {
@@ -37,7 +37,7 @@ class TransactionService {
     canVerify: boolean
     invoiceComment: string
   }> {
-    const url = new URL('/v1/transactions', JUMBLE_API_BASE_URL).toString()
+    const url = new URL('/v1/transactions', APP_API_BASE_URL).toString()
     let authHeader: string | undefined
     try {
       authHeader = await client.signHttpAuth(
@@ -68,7 +68,7 @@ class TransactionService {
   }
 
   async getTranslationTopUpQuote(): Promise<TTopUpQuote> {
-    const url = new URL('/v1/transactions/quote', JUMBLE_API_BASE_URL).toString()
+    const url = new URL('/v1/transactions/quote', APP_API_BASE_URL).toString()
     const response = await fetch(url, {
       method: 'GET'
     })
@@ -86,7 +86,7 @@ class TransactionService {
     sats?: number
     characters?: number
   }> {
-    const url = new URL(`/v1/transactions/${transactionId}/check`, JUMBLE_API_BASE_URL).toString()
+    const url = new URL(`/v1/transactions/${transactionId}/check`, APP_API_BASE_URL).toString()
     const response = await fetch(url, {
       method: 'POST'
     })
@@ -107,7 +107,7 @@ class TransactionService {
     sats?: number
     characters?: number
   }> {
-    const url = new URL(`/v1/transactions/${transactionId}/confirm`, JUMBLE_API_BASE_URL).toString()
+    const url = new URL(`/v1/transactions/${transactionId}/confirm`, APP_API_BASE_URL).toString()
     const response = await fetch(url, {
       method: 'POST',
       headers: {
