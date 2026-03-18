@@ -78,6 +78,7 @@ export const StorageKey = {
   COMPACT_SIDEBAR: 'compactSidebar',
   LOGO_STYLE: 'logoStyle',
   CUSTOM_LOGO_TEXT: 'customLogoText',
+  CUSTOM_LOGO_EMOJI: 'customLogoEmoji',
   LOGO_FONT_SIZE: 'logoFontSize',
   WIDGET_SIDEBAR_TITLE: 'widgetSidebarTitle',
   WIDGET_SIDEBAR_ICON: 'widgetSidebarIcon',

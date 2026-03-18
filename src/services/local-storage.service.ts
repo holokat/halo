@@ -50,6 +50,7 @@ import {
   TThemeSetting,
   TTranslationServiceConfig,
   TColorPalette,
+  TEmoji,
   TLogoStyle
 } from '@/types'
 import { TMenuItemConfig } from '@/constants/menu-items'
@@ -114,6 +115,7 @@ class LocalStorageService {
   private compactSidebar: boolean = false
   private logoStyle: TLogoStyle = 'image'
   private customLogoText: string = 'x21'
+  private customLogoEmoji: string | TEmoji = '⚡'
   private logoFontSize: number = DEFAULT_LOGO_FONT_SIZE
   private widgetSidebarTitle: string = 'Widgets'
   private maxHashtags: number = 3
@@ -407,13 +409,25 @@ class LocalStorageService {
     this.compactSidebar = window.localStorage.getItem(StorageKey.COMPACT_SIDEBAR) === 'true'
 
     const logoStyle = window.localStorage.getItem(StorageKey.LOGO_STYLE)
-    if (logoStyle && ['image', 'text'].includes(logoStyle)) {
+    if (logoStyle && ['image', 'text', 'emoji'].includes(logoStyle)) {
       this.logoStyle = logoStyle as TLogoStyle
     }
 
     const customLogoText = window.localStorage.getItem(StorageKey.CUSTOM_LOGO_TEXT)
     if (customLogoText) {
       this.customLogoText = customLogoText
+    }
+
+    const customLogoEmoji = getStorageJson<string | TEmoji | null>(StorageKey.CUSTOM_LOGO_EMOJI, null)
+    if (typeof customLogoEmoji === 'string' && customLogoEmoji.trim()) {
+      this.customLogoEmoji = customLogoEmoji
+    } else if (
+      customLogoEmoji &&
+      typeof customLogoEmoji === 'object' &&
+      typeof customLogoEmoji.shortcode === 'string' &&
+      typeof customLogoEmoji.url === 'string'
+    ) {
+      this.customLogoEmoji = customLogoEmoji
     }
 
     const logoFontSize = window.localStorage.getItem(StorageKey.LOGO_FONT_SIZE)
@@ -1148,6 +1162,15 @@ class LocalStorageService {
   setCustomLogoText(text: string) {
     this.customLogoText = text
     this.setString(StorageKey.CUSTOM_LOGO_TEXT, text)
+  }
+
+  getCustomLogoEmoji() {
+    return this.customLogoEmoji
+  }
+
+  setCustomLogoEmoji(emoji: string | TEmoji) {
+    this.customLogoEmoji = emoji
+    this.setJson(StorageKey.CUSTOM_LOGO_EMOJI, emoji)
   }
 
   getLogoFontSize() {

@@ -2,9 +2,12 @@ import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import Tabs from '@/components/Tabs'
 import MenuItemsSettings from '@/components/MenuItemsSettings'
+import EmojiPickerDialog from '@/components/EmojiPickerDialog'
+import LogoEmoji from '@/components/LogoEmoji'
 import {
   BUTTON_RADIUS_VALUES,
   CARD_RADIUS_VALUES,
@@ -110,7 +113,7 @@ const AppearanceSettingsPage = forwardRef(({ index }: { index?: number }, ref) =
   const { cardRadius, setCardRadius } = useCardRadius()
   const { mediaRadius, setMediaRadius } = useMediaRadius()
   const { compactSidebar, setCompactSidebar } = useCompactSidebar()
-  const { logoStyle, setLogoStyle, customLogoText, setCustomLogoText } = useLogoStyle()
+  const { logoStyle, setLogoStyle, customLogoText, setCustomLogoText, customLogoEmoji, setCustomLogoEmoji } = useLogoStyle()
   const { logoFontSize, setLogoFontSize } = useLogoFontSize()
 
   // Style object for option cards to use card radius
@@ -314,7 +317,7 @@ const AppearanceSettingsPage = forwardRef(({ index }: { index?: number }, ref) =
               <Label className="text-base font-normal">
                 {t('Logo style')}
               </Label>
-              <div className="grid grid-cols-2 gap-3 w-full">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 w-full">
                 <button
                   onClick={() => setLogoStyle('image')}
                   style={optionCardStyle}
@@ -355,6 +358,26 @@ const AppearanceSettingsPage = forwardRef(({ index }: { index?: number }, ref) =
                     </div>
                   )}
                 </button>
+                <button
+                  onClick={() => setLogoStyle('emoji')}
+                  style={optionCardStyle}
+                  className={cn(
+                    'relative flex flex-col items-center gap-2 p-3 border-2 transition-all hover:scale-105',
+                    logoStyle === 'emoji'
+                      ? 'border-primary'
+                      : 'border-border hover:border-muted-foreground/30'
+                  )}
+                >
+                  <div className="flex items-center justify-center w-8 h-8">
+                    <LogoEmoji emoji={customLogoEmoji} size={28} />
+                  </div>
+                  <span className="text-xs font-medium">{t('Emoji Logo')}</span>
+                  {logoStyle === 'emoji' && (
+                    <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-0.5">
+                      <Check className="w-3 h-3" />
+                    </div>
+                  )}
+                </button>
               </div>
               {logoStyle === 'text' && (
                 <div className="w-full space-y-2">
@@ -370,6 +393,31 @@ const AppearanceSettingsPage = forwardRef(({ index }: { index?: number }, ref) =
                     className="w-full"
                     maxLength={50}
                   />
+                </div>
+              )}
+              {logoStyle === 'emoji' && (
+                <div className="w-full space-y-2">
+                  <Label className="text-sm text-muted-foreground">
+                    {t('Logo emoji')}
+                  </Label>
+                  <EmojiPickerDialog
+                    onEmojiClick={(emoji) => {
+                      if (!emoji) return
+                      setCustomLogoEmoji(emoji)
+                    }}
+                  >
+                    <Button variant="outline" className="w-full justify-start gap-3">
+                      <LogoEmoji emoji={customLogoEmoji} size={24} />
+                      <span className="truncate">
+                        {typeof customLogoEmoji === 'string'
+                          ? customLogoEmoji
+                          : `:${customLogoEmoji.shortcode}:`}
+                      </span>
+                    </Button>
+                  </EmojiPickerDialog>
+                  <p className="text-sm text-muted-foreground">
+                    {t('Choose a native or custom emoji to display as your sidebar logo')}
+                  </p>
                 </div>
               )}
             </SettingItem>
@@ -717,10 +765,12 @@ const AppearanceSettingsPage = forwardRef(({ index }: { index?: number }, ref) =
                   </div>
                 </SettingItem>
 
-                {logoStyle === 'text' && (
+                {logoStyle !== 'image' && (
                   <SettingItem className="flex-col items-start gap-3">
                     <div className="w-full">
-                      <Label className="text-base font-normal">{t('Logo font size')}</Label>
+                      <Label className="text-base font-normal">
+                        {logoStyle === 'text' ? t('Logo font size') : t('Logo size')}
+                      </Label>
                       <div className="text-sm text-muted-foreground">{logoFontSize}px</div>
                     </div>
                     <div className="w-full px-2">

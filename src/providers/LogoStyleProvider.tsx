@@ -1,5 +1,5 @@
 import storage from '@/services/local-storage.service'
-import { TLogoStyle } from '@/types'
+import { TEmoji, TLogoStyle } from '@/types'
 import { createContext, useContext, useState } from 'react'
 
 type TLogoStyleContext = {
@@ -7,6 +7,8 @@ type TLogoStyleContext = {
   setLogoStyle: (style: TLogoStyle) => void
   customLogoText: string
   setCustomLogoText: (text: string) => void
+  customLogoEmoji: string | TEmoji
+  setCustomLogoEmoji: (emoji: string | TEmoji) => void
 }
 
 const LogoStyleContext = createContext<TLogoStyleContext | undefined>(undefined)
@@ -22,6 +24,7 @@ export const useLogoStyle = () => {
 export function LogoStyleProvider({ children }: { children: React.ReactNode }) {
   const [logoStyle, setLogoStyleState] = useState(storage.getLogoStyle())
   const [customLogoText, setCustomLogoTextState] = useState(storage.getCustomLogoText())
+  const [customLogoEmoji, setCustomLogoEmojiState] = useState(storage.getCustomLogoEmoji())
 
   const setLogoStyle = (style: TLogoStyle) => {
     setLogoStyleState(style)
@@ -33,13 +36,20 @@ export function LogoStyleProvider({ children }: { children: React.ReactNode }) {
     storage.setCustomLogoText(text)
   }
 
+  const setCustomLogoEmoji = (emoji: string | TEmoji) => {
+    setCustomLogoEmojiState(emoji)
+    storage.setCustomLogoEmoji(emoji)
+  }
+
   return (
     <LogoStyleContext.Provider
       value={{
         logoStyle,
         setLogoStyle,
         customLogoText,
-        setCustomLogoText
+        setCustomLogoText,
+        customLogoEmoji,
+        setCustomLogoEmoji
       }}
     >
       {children}

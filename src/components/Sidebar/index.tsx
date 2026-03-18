@@ -1,5 +1,6 @@
 import Icon from '@/assets/Icon'
 import Logo from '@/assets/Logo'
+import LogoEmoji from '@/components/LogoEmoji'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useCompactSidebar } from '@/providers/CompactSidebarProvider'
 import { useLogoStyle } from '@/providers/LogoStyleProvider'
@@ -21,6 +22,7 @@ import SearchButton from './SearchButton'
 import LiveStreamsButton from './LiveStreamsButton'
 import MultiColumnToggle from './MultiColumnToggle'
 import { forwardRef } from 'react'
+import { useTranslation } from 'react-i18next'
 
 // Wrapper component to add opacity effect to nav items
 const NavItemWrapper = forwardRef<HTMLDivElement, { children: React.ReactNode; dimmed?: boolean; active?: boolean }>(
@@ -41,9 +43,10 @@ const NavItemWrapper = forwardRef<HTMLDivElement, { children: React.ReactNode; d
 NavItemWrapper.displayName = 'NavItemWrapper'
 
 export default function PrimaryPageSidebar() {
+  const { t } = useTranslation()
   const { isSmallScreen } = useScreenSize()
   const { compactSidebar } = useCompactSidebar()
-  const { logoStyle, customLogoText } = useLogoStyle()
+  const { logoStyle, customLogoText, customLogoEmoji } = useLogoStyle()
   const { logoFontSize } = useLogoFontSize()
   const { menuItems } = useMenuItems()
   const { layoutMode } = useLayoutMode()
@@ -85,54 +88,71 @@ export default function PrimaryPageSidebar() {
         )}
         aria-label="Primary navigation"
       >
-      <div className={cn(
-        "mb-6 w-full transition-all duration-300",
-        compactSidebar ? "" : "xl:px-4",
-        "opacity-50 hover:opacity-100 transition-opacity duration-300"
-      )}>
-        <Icon className={cn(compactSidebar ? "" : "xl:hidden")} />
-        {logoStyle === 'image' ? (
-          <Logo className={cn(compactSidebar ? "hidden" : "max-xl:hidden")} />
-        ) : (
-          <div
-            className={cn(
-              "font-bold max-xl:hidden cursor-pointer",
-              compactSidebar && "hidden"
-            )}
-            style={{ fontSize: `${logoFontSize}px` }}
-            onClick={() => navigate('home')}
-          >
-            {customLogoText}
-          </div>
-        )}
-      </div>
-      <div className={cn(
-        "space-y-2",
-        isIslandMode && "flex-1 flex flex-col justify-center"
-      )}>
-        {visibleMenuItems.map((item) => {
-          const component = menuItemComponents[item.id]
-          if (!component) return null
-
-          return (
-            <NavItemWrapper
-              key={item.id}
-              dimmed
-              active={current === item.id}
+        <div
+          className={cn(
+            'mb-6 w-full transition-all duration-300',
+            compactSidebar ? '' : 'xl:px-4',
+            'opacity-50 hover:opacity-100 transition-opacity duration-300'
+          )}
+        >
+          {logoStyle === 'emoji' ? (
+            <button
+              type="button"
+              className={cn(
+                'flex items-center justify-center w-12 h-12 cursor-pointer border-0 bg-transparent p-0',
+                compactSidebar ? '' : 'xl:w-full xl:justify-start'
+              )}
+              onClick={() => navigate('home')}
+              aria-label={t('Home')}
             >
-              {component}
+              <LogoEmoji emoji={customLogoEmoji} size={logoFontSize} />
+            </button>
+          ) : (
+            <>
+              <Icon className={cn(compactSidebar ? '' : 'xl:hidden')} />
+              {logoStyle === 'image' ? (
+                <Logo className={cn(compactSidebar ? 'hidden' : 'max-xl:hidden')} />
+              ) : (
+                <div
+                  className={cn('font-bold max-xl:hidden cursor-pointer', compactSidebar && 'hidden')}
+                  style={{ fontSize: `${logoFontSize}px` }}
+                  onClick={() => navigate('home')}
+                >
+                  {customLogoText}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+        <div
+          className={cn(
+            'space-y-2',
+            isIslandMode && 'flex-1 flex flex-col justify-center'
+          )}
+        >
+          {visibleMenuItems.map((item) => {
+            const component = menuItemComponents[item.id]
+            if (!component) return null
+
+            return (
+              <NavItemWrapper
+                key={item.id}
+                dimmed
+                active={current === item.id}
+              >
+                {component}
+              </NavItemWrapper>
+            )
+          })}
+        </div>
+        <div className="space-y-2 mt-auto">
+          {showDeck && (
+            <NavItemWrapper dimmed>
+              <MultiColumnToggle />
             </NavItemWrapper>
-          )
-        })}
-      </div>
-      <div className="space-y-2 mt-auto">
-        {showDeck && (
-          <NavItemWrapper dimmed>
-            <MultiColumnToggle />
-          </NavItemWrapper>
-        )}
-        <AccountButton />
-      </div>
+          )}
+          <AccountButton />
+        </div>
       </nav>
     </TooltipProvider>
   )
