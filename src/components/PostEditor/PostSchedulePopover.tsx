@@ -31,11 +31,13 @@ function formatScheduledDateTime(timestamp: number) {
 export default function PostSchedulePopover({
   scheduledFor,
   onScheduledForChange,
-  signerType
+  signerType,
+  onViewQueue
 }: {
   scheduledFor: number | null
   onScheduledForChange: (timestamp: number | null) => void
   signerType?: TSignerType | null
+  onViewQueue?: () => void
 }) {
   const { t } = useTranslation()
   const { push } = useSecondaryPage()
@@ -123,7 +125,13 @@ export default function PostSchedulePopover({
               className="h-7 px-0 text-xs text-muted-foreground"
               onClick={() => {
                 setOpen(false)
-                push(toScheduledPostsSettings())
+                window.setTimeout(() => {
+                  if (onViewQueue) {
+                    onViewQueue()
+                    return
+                  }
+                  push(toScheduledPostsSettings())
+                }, 0)
               }}
             >
               {t('View queue', { defaultValue: 'View queue' })}

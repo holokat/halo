@@ -8,8 +8,10 @@ import {
   deleteDraftEventCache
 } from '@/lib/draft-event'
 import { minePow } from '@/lib/event'
+import { toScheduledPostsSettings } from '@/lib/link'
 import { createDefaultPollCreateData, normalizePollCreateData } from '@/lib/poll'
 import { isTouchDevice } from '@/lib/utils'
+import { useSecondaryPage } from '@/PageManager'
 import { useNostr } from '@/providers/NostrProvider'
 import { useReply } from '@/providers/ReplyProvider'
 import { useNoteExpiration } from '@/providers/NoteExpirationProvider'
@@ -51,6 +53,7 @@ export default function PostContent({
   additionalRelayUrls: string[]
 }) {
   const { t } = useTranslation()
+  const { push } = useSecondaryPage()
   const { account, pubkey, publish, checkLogin, signEvent } = useNostr()
   const { addReplies, removeReplies } = useReply()
   const { defaultExpiration, getExpirationTimestamp } = useNoteExpiration()
@@ -438,6 +441,13 @@ export default function PostContent({
     setImages((prev) => prev.map((img, i) => (i === index ? { ...img, alt } : img)))
   }, [])
 
+  const handleViewScheduledQueue = useCallback(() => {
+    close()
+    window.setTimeout(() => {
+      push(toScheduledPostsSettings())
+    }, 0)
+  }, [close, push])
+
   return (
     <div className="space-y-2">
       {parentEvent && (
@@ -574,6 +584,7 @@ export default function PostContent({
             scheduledFor={scheduledFor}
             onScheduledForChange={setScheduledFor}
             signerType={account?.signerType}
+            onViewQueue={handleViewScheduledQueue}
           />
           <Button
             variant="ghost"
