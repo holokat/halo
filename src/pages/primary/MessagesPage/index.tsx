@@ -60,6 +60,7 @@ import {
 } from '@/constants'
 import {
   ArrowLeft,
+  ArrowUp,
   Check,
   CheckCheck,
   EyeOff,
@@ -72,7 +73,6 @@ import {
   Paperclip,
   Plus,
   PlugZap,
-  SendHorizontal,
   Users,
   X,
   Zap
@@ -1165,8 +1165,8 @@ function ConversationThreadView({
       </div>
 
       <div
-        className="-mx-4 sticky bottom-0 border-t bg-background/95 px-4 pt-3 backdrop-blur supports-[backdrop-filter]:bg-background/80"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.75rem)' }}
+        className="-mx-4 -mb-4 sticky bottom-0 mt-auto border-t bg-background/95 px-4 pt-2.5 backdrop-blur supports-[backdrop-filter]:bg-background/80"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.5rem)' }}
       >
         <ConversationComposer
           recipientPubkeys={recipientPubkeys}
@@ -1731,6 +1731,7 @@ function ConversationComposer({
   const [isSending, setIsSending] = useState(false)
   const [attachments, setAttachments] = useState<TComposerAttachment[]>([])
   const [uploadProgresses, setUploadProgresses] = useState<TUploadProgressItem[]>([])
+  const canSend = !isSending && uploadProgresses.length === 0 && (!!content.trim() || attachments.length > 0)
 
   const handleUploadStart = (file: File, cancel: () => void) => {
     setUploadProgresses((current) => [...current, { file, progress: 0, cancel }])
@@ -1850,44 +1851,52 @@ function ConversationComposer({
         </div>
       )}
 
-      <Textarea
-        value={content}
-        onChange={(event) => setContent(event.target.value)}
-        placeholder={placeholder}
-        className="min-h-[88px] max-h-[200px] resize-y"
-      />
-      <div className="flex items-center justify-between gap-3">
-        <Uploader
-          accept="image/*,video/*,audio/*"
-          className={isSending ? 'pointer-events-none opacity-60' : undefined}
-          onUploadSuccess={handleUploadSuccess}
-          onUploadStart={handleUploadStart}
-          onUploadEnd={handleUploadEnd}
-          onProgress={handleUploadProgress}
-        >
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="shrink-0"
-            aria-label={t('Attach media')}
-            title={t('Attach media')}
-            disabled={isSending}
+      <div
+        className="relative overflow-hidden border bg-card/95 shadow-sm"
+        style={{ borderRadius: 'var(--card-radius, 8px)' }}
+      >
+        <Textarea
+          value={content}
+          onChange={(event) => setContent(event.target.value)}
+          placeholder={placeholder}
+          className="min-h-[104px] max-h-[220px] resize-none border-0 bg-transparent px-4 pt-3 pb-14 text-sm shadow-none focus-visible:ring-0"
+          style={{ borderRadius: 'var(--card-radius, 8px)' }}
+        />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between gap-3 px-3 py-2">
+          <Uploader
+            accept="image/*,video/*,audio/*"
+            className={cn('pointer-events-auto', isSending && 'pointer-events-none opacity-60')}
+            onUploadSuccess={handleUploadSuccess}
+            onUploadStart={handleUploadStart}
+            onUploadEnd={handleUploadEnd}
+            onProgress={handleUploadProgress}
           >
-            <Paperclip className="size-4" />
-          </Button>
-        </Uploader>
-        <Button
-          onClick={handleSend}
-          disabled={
-            isSending ||
-            uploadProgresses.length > 0 ||
-            (!content.trim() && attachments.length === 0)
-          }
-        >
-          <SendHorizontal />
-          {isSending ? t('Sending...') : submitLabel}
-        </Button>
+            <button
+              type="button"
+              className="inline-flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+              aria-label={t('Attach media')}
+              title={t('Attach media')}
+              disabled={isSending}
+            >
+              <Paperclip className="size-4" />
+            </button>
+          </Uploader>
+          <button
+            type="button"
+            className={cn(
+              'pointer-events-auto inline-flex size-10 items-center justify-center rounded-full shadow-sm transition-colors',
+              canSend
+                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                : 'bg-muted text-muted-foreground'
+            )}
+            onClick={handleSend}
+            disabled={!canSend}
+            aria-label={isSending ? t('Sending...') : submitLabel}
+            title={isSending ? t('Sending...') : submitLabel}
+          >
+            {isSending ? <Loader className="size-4 animate-spin" /> : <ArrowUp className="size-4" />}
+          </button>
+        </div>
       </div>
     </div>
   )

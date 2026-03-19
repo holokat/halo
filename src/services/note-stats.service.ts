@@ -14,7 +14,14 @@ export type TNoteStats = {
   repostPubkeySet: Set<string>
   reposts: { id: string; pubkey: string; created_at: number }[]
   zapPrSet: Set<string>
-  zaps: { pr: string; pubkey: string; amount: number; created_at: number; comment?: string }[]
+  zaps: {
+    pr: string
+    pubkey: string
+    amount: number
+    created_at: number
+    comment?: string
+    pollOptionId?: string
+  }[]
   updatedAt?: number
 }
 
@@ -35,7 +42,14 @@ type TSerializedNoteStats = {
   repostPubkeySet?: string[]
   reposts?: { id: string; pubkey: string; created_at: number }[]
   zapPrSet?: string[]
-  zaps?: { pr: string; pubkey: string; amount: number; created_at: number; comment?: string }[]
+  zaps?: {
+    pr: string
+    pubkey: string
+    amount: number
+    created_at: number
+    comment?: string
+    pollOptionId?: string
+  }[]
   updatedAt?: number
 }
 
@@ -167,7 +181,8 @@ class NoteStatsService {
     amount: number,
     comment?: string,
     created_at: number = dayjs().unix(),
-    notify: boolean = true
+    notify: boolean = true,
+    pollOptionId?: string
   ) {
     const old = this.noteStatsMap.get(eventId) || {}
     const zapPrSet = old.zapPrSet || new Set()
@@ -175,7 +190,7 @@ class NoteStatsService {
     if (zapPrSet.has(pr)) return
 
     zapPrSet.add(pr)
-    zaps.push({ pr, pubkey, amount, comment, created_at })
+    zaps.push({ pr, pubkey, amount, comment, created_at, pollOptionId })
     this.noteStatsMap.set(eventId, { ...old, zapPrSet, zaps })
     this.schedulePersist(eventId)
     if (notify) {
@@ -269,7 +284,7 @@ class NoteStatsService {
   private addZapByEvent(evt: Event) {
     const info = getZapInfoFromEvent(evt)
     if (!info) return
-    const { originalEventId, senderPubkey, invoice, amount, comment } = info
+    const { originalEventId, senderPubkey, invoice, amount, comment, pollOptionId } = info
     if (!originalEventId || !senderPubkey) return
 
     const targetEventId = this.addZap(
@@ -279,7 +294,8 @@ class NoteStatsService {
       amount,
       comment,
       evt.created_at,
-      false
+      false,
+      pollOptionId
     )
     if (targetEventId) {
       this.interactionMetaById.set(evt.id, { type: 'zap', targetEventId, pr: invoice })

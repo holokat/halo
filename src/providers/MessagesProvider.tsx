@@ -96,7 +96,13 @@ type TMessagesContext = {
 
 const MessagesContext = createContext<TMessagesContext | undefined>(undefined)
 
-const MESSAGE_FETCH_LIMIT = 250
+// Gift-wrap created_at is intentionally randomized, so a single "latest" slice can hide
+// real recent messages behind older-looking wraps. We backfill multiple pages instead.
+const MESSAGE_BACKFILL_PAGE_LIMIT = 200
+const MESSAGE_BACKFILL_MAX_PAGES = 8
+const MESSAGE_SUBSCRIPTION_REPLAY_LIMIT = 200
+const MESSAGE_LOOKUP_READ_RELAYS = 4
+const MESSAGE_LOOKUP_WRITE_RELAYS = 2
 const RELAY_INFO_LOOKUP_TIMEOUT_MS = 1_500
 const TWO_DAYS_IN_SECONDS = 2 * 24 * 60 * 60
 
@@ -255,6 +261,22 @@ function mergeReactions(current: TDirectMessageReaction[], incoming: TDirectMess
   })
 }
 
+function dedupeWrappedEvents(events: Event[]) {
+  const wrappedEventMap = new Map<string, Event>()
+
+  events.forEach((event) => {
+    wrappedEventMap.set(event.id, event)
+  })
+
+  return Array.from(wrappedEventMap.values()).sort((a, b) => {
+    if (b.created_at !== a.created_at) {
+      return b.created_at - a.created_at
+    }
+
+    return b.id.localeCompare(a.id)
+  })
+}
+
 function isDirectMessageEvent(event: TConversationEvent): event is TDirectMessage {
   return !('targetMessageId' in event)
 }
@@ -279,7 +301,7 @@ export const useMessages = () => {
 
 export function MessagesProvider({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation()
-  const { pubkey, account, inboxRelayUrls, nip44Supported, nip44Decrypt, nip44Encrypt, signEvent } =
+  const { pubkey, account, relayList, inboxRelayUrls, nip44Supported, nip44Decrypt, nip44Encrypt, signEvent } =
     useNostr()
   const { followings } = useFollowList()
   const [messages, setMessages] = useState<TDirectMessage[]>([])
@@ -301,9 +323,19 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
     decryptedMessageCacheRef.current.clear()
   }, [pubkey])
 
-  const relayUrls = useMemo(() => {
+  const publishedInboxRelayUrls = useMemo(() => {
     return Array.from(new Set(inboxRelayUrls))
   }, [inboxRelayUrls])
+
+  const messageLookupRelayUrls = useMemo(() => {
+    return Array.from(
+      new Set(
+        publishedInboxRelayUrls
+          .concat(relayList?.read.slice(0, MESSAGE_LOOKUP_READ_RELAYS) ?? [])
+          .concat(relayList?.write.slice(0, MESSAGE_LOOKUP_WRITE_RELAYS) ?? [])
+      )
+    )
+  }, [publishedInboxRelayUrls, relayList])
 
   const isSupported = !!pubkey && account?.signerType !== 'npub' && nip44Supported
 
@@ -453,10 +485,10 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
       setError('Direct messages require a signer that supports NIP-44.')
       return
     }
-    if (relayUrls.length === 0) {
+    if (messageLookupRelayUrls.length === 0) {
       setIsLoading(false)
       setHasLoadedMessages(true)
-      setError('Direct messages need inbox relays (kind 10050) to receive messages.')
+      setError('Direct messages need inbox relays or mailbox relays to receive messages.')
       return
     }
 
@@ -505,11 +537,11 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
     const startSubscription = () => {
       subscription?.close()
       subscription = client.subscribe(
-        relayUrls,
+        messageLookupRelayUrls,
         {
           kinds: [kinds.GiftWrap],
           '#p': [pubkey],
-          limit: MESSAGE_FETCH_LIMIT
+          limit: MESSAGE_SUBSCRIPTION_REPLAY_LIMIT
         },
         {
           onevent: (wrappedEvent) => {
@@ -535,40 +567,46 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
       setError(null)
 
       try {
-        const streamedWrapIds = new Set<string>()
-        const streamedApplyPromises: Promise<number>[] = []
+        let nextUntil: number | undefined
+        let loadedWrapCount = 0
+        let unwrappedCount = 0
+        const seenWrapIds = new Set<string>()
 
-        const wrappedEvents = await client.fetchEvents(
-          relayUrls,
-          {
-            kinds: [kinds.GiftWrap],
-            '#p': [pubkey],
-            limit: MESSAGE_FETCH_LIMIT
-          },
-          {
-            onevent: (wrappedEvent) => {
-              if (streamedWrapIds.has(wrappedEvent.id)) {
-                return
-              }
-
-              streamedWrapIds.add(wrappedEvent.id)
-              streamedApplyPromises.push(applyWrappedEvents([wrappedEvent]))
+        for (let pageIndex = 0; pageIndex < MESSAGE_BACKFILL_MAX_PAGES; pageIndex += 1) {
+          const wrappedEvents = dedupeWrappedEvents(
+            await client.fetchEvents(messageLookupRelayUrls, {
+              kinds: [kinds.GiftWrap],
+              '#p': [pubkey],
+              limit: MESSAGE_BACKFILL_PAGE_LIMIT,
+              ...(nextUntil ? { until: nextUntil } : {})
+            })
+          ).filter((wrappedEvent) => {
+            if (seenWrapIds.has(wrappedEvent.id)) {
+              return false
             }
+
+            seenWrapIds.add(wrappedEvent.id)
+            return true
+          })
+
+          if (!wrappedEvents.length) {
+            break
           }
-        )
+
+          loadedWrapCount += wrappedEvents.length
+          unwrappedCount += await applyWrappedEvents(wrappedEvents)
+
+          const oldestWrappedEvent = wrappedEvents[wrappedEvents.length - 1]
+          nextUntil = oldestWrappedEvent.created_at - 1
+
+          if (!Number.isFinite(nextUntil)) {
+            break
+          }
+        }
+
         if (!isMounted) return
 
-        const streamedUnwrappedCounts = await Promise.all(streamedApplyPromises)
-        const remainingWrappedEvents = wrappedEvents.filter(
-          (wrappedEvent) => !streamedWrapIds.has(wrappedEvent.id)
-        )
-        const remainingUnwrappedCount =
-          remainingWrappedEvents.length > 0 ? await applyWrappedEvents(remainingWrappedEvents) : 0
-        const unwrappedCount =
-          streamedUnwrappedCounts.reduce((total, count) => total + count, 0) +
-          remainingUnwrappedCount
-
-        if (wrappedEvents.length > 0 && unwrappedCount === 0) {
+        if (loadedWrapCount > 0 && unwrappedCount === 0) {
           setError('Wrapped messages were found, but they could not be decrypted with this signer.')
         } else {
           setError(null)
@@ -597,7 +635,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
       }
       subscription?.close()
     }
-  }, [account?.signerType, nip44Supported, pubkey, relayUrls, unwrapDirectMessage])
+  }, [account?.signerType, messageLookupRelayUrls, nip44Supported, pubkey, unwrapDirectMessage])
 
   const conversations = useMemo(() => {
     const followingSet = new Set(followings)
@@ -729,7 +767,9 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
       const recipientRelayEntries = await Promise.all(
         wrapRecipients.map(async (recipientPubkey) => {
           const recipientRelayUrls =
-            recipientPubkey === pubkey ? relayUrls : await client.fetchInboxRelayList(recipientPubkey)
+            recipientPubkey === pubkey
+              ? publishedInboxRelayUrls
+              : await client.fetchInboxRelayList(recipientPubkey)
 
           return [recipientPubkey, Array.from(new Set(recipientRelayUrls))] as const
         })
@@ -769,7 +809,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
         })
       )
     },
-    [nip44Encrypt, pubkey, relayUrls, signEvent]
+    [nip44Encrypt, pubkey, publishedInboxRelayUrls, signEvent]
   )
 
   const publishWrappedRumorEvents = useCallback(
@@ -792,7 +832,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
       if (!pubkey || account?.signerType === 'npub' || !nip44Supported) {
         throw new Error('Direct messages require a signer that can encrypt NIP-17 messages.')
       }
-      if (relayUrls.length === 0) {
+      if (publishedInboxRelayUrls.length === 0) {
         throw new Error('Set up inbox relays before sending direct messages.')
       }
 
@@ -888,7 +928,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
       nip44Supported,
       pubkey,
       publishWrappedRumorEvents,
-      relayUrls,
+      publishedInboxRelayUrls,
       t
     ]
   )
@@ -898,7 +938,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
       if (!pubkey || account?.signerType === 'npub' || !nip44Supported) {
         throw new Error('Direct messages require a signer that can encrypt NIP-17 messages.')
       }
-      if (relayUrls.length === 0) {
+      if (publishedInboxRelayUrls.length === 0) {
         throw new Error('Set up inbox relays before sending direct messages.')
       }
 
@@ -983,7 +1023,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
       nip44Supported,
       pubkey,
       publishWrappedRumorEvents,
-      relayUrls,
+      publishedInboxRelayUrls,
       t
     ]
   )

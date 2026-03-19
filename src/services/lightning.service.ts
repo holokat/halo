@@ -42,7 +42,8 @@ class LightningService {
     recipientOrEventOrCoordinate: string | NostrEvent,
     sats: number,
     comment: string,
-    closeOuterModel?: () => void
+    closeOuterModel?: () => void,
+    extraZapRequestTags: string[][] = []
   ): Promise<{ preimage: string; invoice: string } | null> {
     if (!client.signer) {
       throw new Error('You need to be logged in to zap')
@@ -110,6 +111,11 @@ class LightningService {
     if (coordinate) {
       zapRequestDraft.tags.push(['a', coordinate])
     }
+    extraZapRequestTags.forEach((tag) => {
+      if (Array.isArray(tag) && tag.length >= 2 && tag[0]) {
+        zapRequestDraft.tags.push(tag)
+      }
+    })
     const zapRequest = await client.signer.signEvent(zapRequestDraft)
     const zapRequestRes = await fetch(
       `${callback}?amount=${amount}&nostr=${encodeURI(JSON.stringify(zapRequest))}&lnurl=${lnurl}`

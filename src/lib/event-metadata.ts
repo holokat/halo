@@ -182,6 +182,7 @@ export function getZapInfoFromEvent(receiptEvent: Event) {
   let comment: string | undefined
   let description: string | undefined
   let preimage: string | undefined
+  let pollOptionId: string | undefined
   try {
     receiptEvent.tags.forEach((tag) => {
       const [tagName, tagValue] = tag
@@ -216,6 +217,13 @@ export function getZapInfoFromEvent(receiptEvent: Event) {
         if (!senderPubkey) {
           senderPubkey = zapRequest.pubkey
         }
+        const pollOptionTag = Array.isArray(zapRequest.tags)
+          ? zapRequest.tags.find(
+              (tag: unknown): tag is string[] =>
+                Array.isArray(tag) && tag[0] === 'poll_option' && typeof tag[1] === 'string'
+            )
+          : undefined
+        pollOptionId = pollOptionTag?.[1]
       } catch {
         // ignore
       }
@@ -229,6 +237,7 @@ export function getZapInfoFromEvent(receiptEvent: Event) {
       invoice,
       amount,
       comment,
+      pollOptionId,
       preimage
     }
   } catch {
@@ -347,6 +356,9 @@ export function getPollMetadataFromEvent(event: Event) {
   const format = isLegacyZapPoll ? 'legacy_zap' : 'nip88'
   let pollType: TPollType = POLL_TYPE.SINGLE_CHOICE
   let endsAt: number | undefined
+  let minZapAmount: number | undefined
+  let maxZapAmount: number | undefined
+  let consensusThreshold: number | undefined
 
   for (const [tagName, ...tagValues] of event.tags) {
     if ((tagName === 'option' || tagName === 'poll_option') && tagValues.length >= 2) {
@@ -367,10 +379,20 @@ export function getPollMetadataFromEvent(event: Event) {
       if (tagValues[0] === POLL_TYPE.MULTIPLE_CHOICE) {
         pollType = POLL_TYPE.MULTIPLE_CHOICE
       }
+    } else if (isLegacyZapPoll && tagName === 'value_minimum' && tagValues[0]) {
+      const valueMinimum = parseInt(tagValues[0])
+      if (!isNaN(valueMinimum) && valueMinimum > 0) {
+        minZapAmount = valueMinimum
+      }
     } else if (isLegacyZapPoll && tagName === 'value_maximum' && tagValues[0]) {
       const valueMaximum = parseInt(tagValues[0])
-      if (!isNaN(valueMaximum) && valueMaximum > 1) {
-        pollType = POLL_TYPE.MULTIPLE_CHOICE
+      if (!isNaN(valueMaximum) && valueMaximum > 0) {
+        maxZapAmount = valueMaximum
+      }
+    } else if (isLegacyZapPoll && tagName === 'consensus_threshold' && tagValues[0]) {
+      const parsedValue = parseInt(tagValues[0])
+      if (!isNaN(parsedValue) && parsedValue >= 0) {
+        consensusThreshold = parsedValue / 100
       }
     } else if (tagName === 'endsAt' && tagValues[0]) {
       const timestamp = parseInt(tagValues[0])
@@ -397,7 +419,10 @@ export function getPollMetadataFromEvent(event: Event) {
     })),
     pollType,
     relayUrls,
-    endsAt
+    endsAt,
+    minZapAmount,
+    maxZapAmount,
+    consensusThreshold
   }
 }
 

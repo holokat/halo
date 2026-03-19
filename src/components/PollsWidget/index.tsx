@@ -4,6 +4,7 @@ import WidgetContainer from '@/components/WidgetContainer'
 import WidgetHeader from '@/components/WidgetHeader'
 import { SimpleUserAvatar } from '@/components/UserAvatar'
 import { SimpleUsername } from '@/components/Username'
+import ZapDialog from '@/components/ZapDialog'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -14,6 +15,7 @@ import { createPollResponseDraftEvent } from '@/lib/draft-event'
 import { isMentioningMutedUsers } from '@/lib/event'
 import { getPollMetadataFromEvent, getPollResponseFromEvent } from '@/lib/event-metadata'
 import { toNote } from '@/lib/link'
+import { getDefaultLegacyZapPollAmount, getLegacyZapPollResults, type TLegacyZapPollResults } from '@/lib/poll'
 import { cn } from '@/lib/utils'
 import { useSecondaryPage } from '@/PageManager'
 import { useContentPolicy } from '@/providers/ContentPolicyProvider'
@@ -24,7 +26,9 @@ import { useNostr } from '@/providers/NostrProvider'
 import { useReply } from '@/providers/ReplyProvider'
 import { useUserTrust } from '@/providers/UserTrustProvider'
 import { AVAILABLE_WIDGETS, useWidgets } from '@/providers/WidgetsProvider'
+import { useZap } from '@/providers/ZapProvider'
 import client from '@/services/client.service'
+import noteStatsService from '@/services/note-stats.service'
 import pollResultsService, { type TPollResults } from '@/services/poll-results.service'
 import dayjs from 'dayjs'
 import { CheckCircle2, EyeOff, Loader2, MessageCircle, RefreshCcw, Trophy } from 'lucide-react'
@@ -50,6 +54,7 @@ type PollWidgetItem = {
   event: Event
   poll: PollMetadata
   pollResults: TPollResults | undefined
+  legacyResults?: TLegacyZapPollResults
   votedOptionIds: string[]
   isExpired: boolean
   hasVoted: boolean
@@ -75,9 +80,12 @@ export default function PollsWidget() {
   const [now, setNow] = useState(() => dayjs().unix())
   const [activeTab, setActiveTab] = useState<PollWidgetTab>('active')
   const [pollResultsVersion, setPollResultsVersion] = useState(0)
+  const [noteStatsVersion, setNoteStatsVersion] = useState(0)
   const isMountedRef = useRef(true)
   const pollSubCloserRef = useRef<{ close: () => void } | null>(null)
   const activitySubCloserRef = useRef<{ close: () => void } | null>(null)
+  const fetchPollsPromiseRef = useRef<Promise<void> | null>(null)
+  const queuedFetchOptionsRef = useRef<{ showSkeleton?: boolean } | null>(null)
 
   const widgetName = AVAILABLE_WIDGETS.find((widget) => widget.id === 'polls')?.name || 'Polls'
   const isCollapsed = !hideWidgetTitles && isWidgetCollapsed('polls')
@@ -109,7 +117,7 @@ export default function PollsWidget() {
     }
   }, [followings])
 
-  const fetchPolls = useCallback(
+  const fetchPollsInternal = useCallback(
     async ({ showSkeleton = false }: { showSkeleton?: boolean } = {}) => {
       if (!followings.length) {
         if (isMountedRef.current) {
@@ -134,7 +142,10 @@ export default function PollsWidget() {
         })
 
         if (!isMountedRef.current) return
-        setEvents(sortEventsByRecency(fetchedEvents).slice(0, POLL_LIMIT))
+        const nextEvents = sortEventsByRecency(fetchedEvents).slice(0, POLL_LIMIT)
+        setEvents((currentEvents) =>
+          areSamePollEventLists(currentEvents, nextEvents) ? currentEvents : nextEvents
+        )
       } catch (error) {
         console.error('Failed to fetch polls widget events:', error)
         if (showSkeleton && isMountedRef.current) {
@@ -148,6 +159,37 @@ export default function PollsWidget() {
       }
     },
     [followings, relayUrls]
+  )
+
+  const fetchPolls = useCallback(
+    ({ showSkeleton = false }: { showSkeleton?: boolean } = {}) => {
+      queuedFetchOptionsRef.current = {
+        showSkeleton:
+          (queuedFetchOptionsRef.current?.showSkeleton ?? false) || showSkeleton
+      }
+
+      if (fetchPollsPromiseRef.current) {
+        return fetchPollsPromiseRef.current
+      }
+
+      const run = async () => {
+        while (queuedFetchOptionsRef.current) {
+          const nextOptions = queuedFetchOptionsRef.current
+          queuedFetchOptionsRef.current = null
+          await fetchPollsInternal(nextOptions)
+        }
+      }
+
+      const promise = run().finally(() => {
+        if (fetchPollsPromiseRef.current === promise) {
+          fetchPollsPromiseRef.current = null
+        }
+      })
+
+      fetchPollsPromiseRef.current = promise
+      return promise
+    },
+    [fetchPollsInternal]
   )
 
   useEffect(() => {
@@ -233,10 +275,27 @@ export default function PollsWidget() {
     return map
   }, [trackedPollEvents])
 
-  useEffect(() => {
-    if (!trackedPollIds.length) return
+  const legacyPollEvents = useMemo(
+    () =>
+      trackedPollEvents.filter((event) => {
+        const poll = pollMetaById.get(event.id)
+        return poll?.format === 'legacy_zap'
+      }),
+    [pollMetaById, trackedPollEvents]
+  )
 
-    const unsubscribers = trackedPollIds.map((pollId) =>
+  const standardPollIds = useMemo(
+    () =>
+      trackedPollEvents
+        .filter((event) => pollMetaById.get(event.id)?.format === 'nip88')
+        .map((event) => event.id),
+    [pollMetaById, trackedPollEvents]
+  )
+
+  useEffect(() => {
+    if (!standardPollIds.length) return
+
+    const unsubscribers = standardPollIds.map((pollId) =>
       pollResultsService.subscribePollResults(pollId, () => {
         setPollResultsVersion((prev) => prev + 1)
       })
@@ -245,7 +304,21 @@ export default function PollsWidget() {
     return () => {
       unsubscribers.forEach((unsubscribe) => unsubscribe())
     }
-  }, [trackedPollIds])
+  }, [standardPollIds])
+
+  useEffect(() => {
+    if (!legacyPollEvents.length) return
+
+    const unsubscribers = legacyPollEvents.map((event) =>
+      noteStatsService.subscribeNoteStats(event.id, () => {
+        setNoteStatsVersion((prev) => prev + 1)
+      })
+    )
+
+    return () => {
+      unsubscribers.forEach((unsubscribe) => unsubscribe())
+    }
+  }, [legacyPollEvents])
 
   useEffect(() => {
     let cancelled = false
@@ -256,7 +329,7 @@ export default function PollsWidget() {
       const pollEntries = trackedPollEvents
         .map((event) => {
           const poll = pollMetaById.get(event.id)
-          if (!poll) return null
+          if (!poll || poll.format !== 'nip88') return null
           return { event, poll }
         })
         .filter((entry): entry is { event: Event; poll: PollMetadata } => !!entry)
@@ -290,6 +363,32 @@ export default function PollsWidget() {
       cancelled = true
     }
   }, [pollMetaById, relayUrlsKey, trackedPollEvents])
+
+  useEffect(() => {
+    if (!legacyPollEvents.length) return
+
+    let cancelled = false
+
+    const prefetchLegacyPollStats = async () => {
+      await Promise.allSettled(
+        legacyPollEvents.map(async (event) => {
+          const poll = pollMetaById.get(event.id)
+          if (!poll) return
+          await noteStatsService.fetchNoteStats(event, pubkey, poll.relayUrls)
+        })
+      )
+
+      if (!cancelled && isMountedRef.current) {
+        setNoteStatsVersion((prev) => prev + 1)
+      }
+    }
+
+    void prefetchLegacyPollStats()
+
+    return () => {
+      cancelled = true
+    }
+  }, [legacyPollEvents, pollMetaById, pubkey, relayUrlsKey])
 
   useEffect(() => {
     activitySubCloserRef.current?.close()
@@ -353,43 +452,54 @@ export default function PollsWidget() {
   }, [addReplies, pollMetaById, relayUrls, trackedPollIdsKey])
 
   const pollItems = useMemo(() => {
-    return trackedPollEvents
-      .map((event) => {
-        const poll = pollMetaById.get(event.id)
-        if (!poll) return null
+    return trackedPollEvents.reduce<PollWidgetItem[]>((items, event) => {
+      const poll = pollMetaById.get(event.id)
+      if (!poll) return items
 
-        const pollResults = pollResultsService.getPollResults(event.id)
-        const votedOptionIds = pubkey
-          ? Object.entries(pollResults?.results ?? {})
+      const pollResults =
+        poll.format === 'nip88' ? pollResultsService.getPollResults(event.id) : undefined
+      const legacyResults =
+        poll.format === 'legacy_zap'
+          ? getLegacyZapPollResults(poll, noteStatsService.getNoteStats(event.id)?.zaps ?? [])
+          : undefined
+      const votedOptionIds = pubkey
+        ? poll.format === 'legacy_zap'
+          ? Object.entries(legacyResults?.results ?? {})
+              .filter(([, result]) => result.voters.has(pubkey))
+              .map(([optionId]) => optionId)
+          : Object.entries(pollResults?.results ?? {})
               .filter(([, voters]) => voters.has(pubkey))
               .map(([optionId]) => optionId)
-          : []
-        const isExpired = !!poll.endsAt && now > poll.endsAt
-        const commentCount = getVisibleReplyCount({
-          eventId: event.id,
-          repliesMap,
-          hideUntrustedInteractions,
-          isUserTrustedForInteractions,
-          mutePubkeySet,
-          hideContentMentioningMutedUsers
-        })
-
-        return {
-          event,
-          poll,
-          pollResults,
-          votedOptionIds,
-          isExpired,
-          hasVoted: votedOptionIds.length > 0,
-          commentCount
-        }
+        : []
+      const isExpired = !!poll.endsAt && now > poll.endsAt
+      const commentCount = getVisibleReplyCount({
+        eventId: event.id,
+        repliesMap,
+        hideUntrustedInteractions,
+        isUserTrustedForInteractions,
+        mutePubkeySet,
+        hideContentMentioningMutedUsers
       })
-      .filter((item): item is PollWidgetItem => !!item)
+
+      items.push({
+        event,
+        poll,
+        pollResults,
+        legacyResults,
+        votedOptionIds,
+        isExpired,
+        hasVoted: votedOptionIds.length > 0,
+        commentCount
+      })
+
+      return items
+    }, [])
   }, [
     hideContentMentioningMutedUsers,
     hideUntrustedInteractions,
     isUserTrustedForInteractions,
     mutePubkeySet,
+    noteStatsVersion,
     now,
     pollMetaById,
     pollResultsVersion,
@@ -553,6 +663,7 @@ export default function PollsWidget() {
                       key={item.event.id}
                       event={item.event}
                       poll={item.poll}
+                      legacyResults={item.legacyResults}
                       now={now}
                       commentCount={item.commentCount}
                       votedOptionIds={item.votedOptionIds}
@@ -573,6 +684,7 @@ export default function PollsWidget() {
 function CompactPollCard({
   event,
   poll,
+  legacyResults,
   now,
   commentCount,
   votedOptionIds,
@@ -581,6 +693,7 @@ function CompactPollCard({
 }: {
   event: Event
   poll: PollMetadata
+  legacyResults?: TLegacyZapPollResults
   now: number
   commentCount: number
   votedOptionIds: string[]
@@ -589,18 +702,25 @@ function CompactPollCard({
 }) {
   const { t } = useTranslation()
   const { pubkey, publish, checkLogin } = useNostr()
+  const { defaultZapSats } = useZap()
   const pollResults = useFetchPollResults(event.id)
   const [isVoting, setIsVoting] = useState(false)
   const [isLoadingResults, setIsLoadingResults] = useState(false)
+  const [openZapDialog, setOpenZapDialog] = useState(false)
   const [selectedOptionIds, setSelectedOptionIds] = useState<string[]>([])
 
-  const isMultipleChoice = poll.pollType === POLL_TYPE.MULTIPLE_CHOICE
+  const isLegacyZapPoll = poll.format === 'legacy_zap'
+  const isMultipleChoice = !isLegacyZapPoll && poll.pollType === POLL_TYPE.MULTIPLE_CHOICE
   const hasVoted = votedOptionIds.length > 0
-  const canVote = !isExpired && !hasVoted && !isVoting
+  const canVote = !isExpired && !hasVoted && !isVoting && event.pubkey !== pubkey
   const showResults = isExpired || hasVoted || event.pubkey === pubkey
+  const defaultZapAmount = useMemo(
+    () => getDefaultLegacyZapPollAmount(poll, defaultZapSats),
+    [defaultZapSats, poll]
+  )
 
   const fetchResults = useCallback(async () => {
-    if (isLoadingResults) return
+    if (isLegacyZapPoll || isLoadingResults) return
 
     setIsLoadingResults(true)
     try {
@@ -619,15 +739,16 @@ function CompactPollCard({
     } finally {
       setIsLoadingResults(false)
     }
-  }, [event.id, event.pubkey, isLoadingResults, isMultipleChoice, poll])
+  }, [event.id, event.pubkey, isLegacyZapPoll, isLoadingResults, isMultipleChoice, poll])
 
   useEffect(() => {
-    if (!showResults || pollResults || isLoadingResults) return
+    if (isLegacyZapPoll || !showResults || pollResults || isLoadingResults) return
     void fetchResults()
-  }, [fetchResults, isLoadingResults, pollResults, showResults])
+  }, [fetchResults, isLegacyZapPoll, isLoadingResults, pollResults, showResults])
 
   const handleVote = useCallback(
     async (optionIds: string[]) => {
+      if (isLegacyZapPoll) return
       if (!optionIds.length) return
 
       await checkLogin(async () => {
@@ -656,11 +777,16 @@ function CompactPollCard({
         }
       })
     },
-    [checkLogin, event, fetchResults, poll, pollResults, pubkey, publish]
+    [checkLogin, event, fetchResults, isLegacyZapPoll, poll, pollResults, pubkey, publish]
   )
 
   const handleOptionClick = (optionId: string) => {
     if (!canVote) return
+
+    if (isLegacyZapPoll) {
+      setSelectedOptionIds((prev) => (prev.includes(optionId) ? [] : [optionId]))
+      return
+    }
 
     if (isMultipleChoice) {
       setSelectedOptionIds((prev) =>
@@ -673,20 +799,33 @@ function CompactPollCard({
   }
 
   const optionResults = poll.options.map((option) => {
-    const votes = pollResults?.results?.[option.id]?.size ?? 0
-    const totalVotes = pollResults?.totalVotes ?? 0
-    const percentage = totalVotes > 0 ? (votes / totalVotes) * 100 : 0
+    const legacyOptionResult = legacyResults?.results?.[option.id]
+    const votes = isLegacyZapPoll
+      ? legacyOptionResult?.votes ?? 0
+      : pollResults?.results?.[option.id]?.size ?? 0
+    const amount = legacyOptionResult?.amount ?? 0
+    const percentage = isLegacyZapPoll
+      ? legacyOptionResult?.percentage ?? 0
+      : (pollResults?.totalVotes ?? 0) > 0
+        ? (votes / (pollResults?.totalVotes ?? 0)) * 100
+        : 0
 
     return {
       ...option,
+      amount,
       votes,
       percentage
     }
   })
-  const highestVoteCount = optionResults.reduce((maxVotes, option) => Math.max(maxVotes, option.votes), 0)
+  const highestVoteCount = optionResults.reduce(
+    (maxVotes, option) => Math.max(maxVotes, isLegacyZapPoll ? option.amount : option.votes),
+    0
+  )
   const winningOptionCount =
     highestVoteCount > 0
-      ? optionResults.filter((option) => option.votes === highestVoteCount).length
+      ? optionResults.filter((option) =>
+          (isLegacyZapPoll ? option.amount : option.votes) === highestVoteCount
+        ).length
       : 0
 
   return (
@@ -741,7 +880,9 @@ function CompactPollCard({
           showResults ? (
             (() => {
               const isWinningOption =
-                isExpired && highestVoteCount > 0 && option.votes === highestVoteCount
+                isExpired &&
+                highestVoteCount > 0 &&
+                (isLegacyZapPoll ? option.amount : option.votes) === highestVoteCount
 
               return (
                 <div
@@ -753,45 +894,46 @@ function CompactPollCard({
                       : 'border-border/70'
                   )}
                 >
-              <div
-                className={cn(
-                  'absolute inset-y-0 left-0 rounded-r-sm transition-all duration-700',
-                  isWinningOption ? 'bg-primary/30' : 'bg-primary/18',
-                  votedOptionIds.includes(option.id) && 'bg-primary/28'
-                )}
-                style={{ width: `${option.percentage}%` }}
-              />
-              <div className="relative flex items-center gap-2 px-2 py-1.5">
-                <PollOptionThumbnail image={option.image} alt={option.label} className="size-7" />
-                <span
-                  className={cn(
-                    'min-w-0 flex-1 truncate text-[11px] leading-tight',
-                    (votedOptionIds.includes(option.id) || isWinningOption) && 'font-medium text-foreground'
-                  )}
-                >
-                  {option.label}
-                </span>
-                {isWinningOption && (
-                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/12 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary">
-                    <Trophy className="h-2.5 w-2.5" />
-                    {winningOptionCount > 1
-                      ? t('Tied', { defaultValue: 'Tied' })
-                      : t('Winner', { defaultValue: 'Winner' })}
-                  </span>
-                )}
-                {votedOptionIds.includes(option.id) && (
-                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />
-                )}
-                <span
-                  className={cn(
-                    'shrink-0 text-[10px] text-muted-foreground',
-                    isWinningOption && 'font-semibold text-foreground'
-                  )}
-                >
-                  {Math.round(option.percentage)}%
-                </span>
-              </div>
-            </div>
+                  <div
+                    className={cn(
+                      'absolute inset-y-0 left-0 rounded-r-sm transition-all duration-700',
+                      isWinningOption ? 'bg-primary/30' : 'bg-primary/18',
+                      votedOptionIds.includes(option.id) && 'bg-primary/28'
+                    )}
+                    style={{ width: `${option.percentage}%` }}
+                  />
+                  <div className="relative flex items-center gap-2 px-2 py-1.5">
+                    <PollOptionThumbnail image={option.image} alt={option.label} className="size-7" />
+                    <span
+                      className={cn(
+                        'min-w-0 flex-1 truncate text-[11px] leading-tight',
+                        (votedOptionIds.includes(option.id) || isWinningOption) &&
+                          'font-medium text-foreground'
+                      )}
+                    >
+                      {option.label}
+                    </span>
+                    {isWinningOption && (
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/12 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary">
+                        <Trophy className="h-2.5 w-2.5" />
+                        {winningOptionCount > 1
+                          ? t('Tied', { defaultValue: 'Tied' })
+                          : t('Winner', { defaultValue: 'Winner' })}
+                      </span>
+                    )}
+                    {votedOptionIds.includes(option.id) && (
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />
+                    )}
+                    <span
+                      className={cn(
+                        'shrink-0 text-[10px] text-muted-foreground',
+                        isWinningOption && 'font-semibold text-foreground'
+                      )}
+                    >
+                      {Math.round(option.percentage)}%
+                    </span>
+                  </div>
+                </div>
               )
             })()
           ) : (
@@ -834,14 +976,48 @@ function CompactPollCard({
         </Button>
       )}
 
+      {isLegacyZapPoll && canVote && selectedOptionIds.length > 0 && (
+        <>
+          <Button
+            className="mt-2 h-7 w-full text-xs"
+            onClick={(event) => {
+              event.stopPropagation()
+              void checkLogin(() => setOpenZapDialog(true))
+            }}
+          >
+            {t('Vote with Zap', { defaultValue: 'Vote with Zap' })}
+          </Button>
+
+          <ZapDialog
+            open={openZapDialog}
+            setOpen={setOpenZapDialog}
+            pubkey={event.pubkey}
+            event={event}
+            defaultAmount={defaultZapAmount}
+            defaultComment=""
+            extraZapRequestTags={[['poll_option', selectedOptionIds[0]]]}
+            pollOptionId={selectedOptionIds[0]}
+            onSuccess={() => {
+              setSelectedOptionIds([])
+            }}
+          />
+        </>
+      )}
+
       <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
         <div className="flex min-w-0 items-center gap-2">
           <span className="truncate">
             {showResults
-              ? t('{{number}} votes', {
-                  number: pollResults?.totalVotes ?? 0,
-                  defaultValue: '{{number}} votes'
-                })
+              ? isLegacyZapPoll
+                ? t('{{sats}} sats / {{count}} zaps', {
+                    sats: legacyResults?.totalAmount ?? 0,
+                    count: legacyResults?.totalVotes ?? 0,
+                    defaultValue: '{{sats}} sats / {{count}} zaps'
+                  })
+                : t('{{number}} votes', {
+                    number: pollResults?.totalVotes ?? 0,
+                    defaultValue: '{{number}} votes'
+                  })
               : formatPollStatusLabel(poll.endsAt, now, t)}
           </span>
           <span
@@ -856,16 +1032,39 @@ function CompactPollCard({
         </div>
         <span className="shrink-0">
           {showResults
-            ? isLoadingResults && !pollResults
+            ? !isLegacyZapPoll && isLoadingResults && !pollResults
               ? t('Loading...', { defaultValue: 'Loading...' })
               : t('Open note', { defaultValue: 'Open note' })
-            : isMultipleChoice
+            : isLegacyZapPoll
+              ? t('Vote with zap', { defaultValue: 'Vote with zap' })
+              : isMultipleChoice
               ? t('Vote below', { defaultValue: 'Vote below' })
               : t('Tap an option', { defaultValue: 'Tap an option' })}
         </span>
       </div>
     </div>
   )
+}
+
+function areSamePollEventLists(currentEvents: Event[], nextEvents: Event[]) {
+  if (currentEvents.length !== nextEvents.length) {
+    return false
+  }
+
+  for (let index = 0; index < currentEvents.length; index += 1) {
+    const currentEvent = currentEvents[index]
+    const nextEvent = nextEvents[index]
+
+    if (
+      currentEvent.id !== nextEvent.id ||
+      currentEvent.created_at !== nextEvent.created_at ||
+      currentEvent.pubkey !== nextEvent.pubkey
+    ) {
+      return false
+    }
+  }
+
+  return true
 }
 
 function PollOptionThumbnail({

@@ -35,7 +35,10 @@ export default function ZapDialog({
   pubkey,
   event,
   defaultAmount,
-  defaultComment
+  defaultComment,
+  extraZapRequestTags,
+  pollOptionId,
+  onSuccess
 }: {
   open: boolean
   setOpen: Dispatch<SetStateAction<boolean>>
@@ -43,6 +46,9 @@ export default function ZapDialog({
   event?: NostrEvent
   defaultAmount?: number
   defaultComment?: string
+  extraZapRequestTags?: string[][]
+  pollOptionId?: string
+  onSuccess?: (payload: { invoice: string; preimage: string; amount: number; comment: string }) => void
 }) {
   const { t } = useTranslation()
   const { isSmallScreen } = useScreenSize()
@@ -92,6 +98,9 @@ export default function ZapDialog({
             event={event}
             defaultAmount={defaultAmount}
             defaultComment={defaultComment}
+            extraZapRequestTags={extraZapRequestTags}
+            pollOptionId={pollOptionId}
+            onSuccess={onSuccess}
           />
         </DrawerContent>
       </Drawer>
@@ -115,6 +124,9 @@ export default function ZapDialog({
           event={event}
           defaultAmount={defaultAmount}
           defaultComment={defaultComment}
+          extraZapRequestTags={extraZapRequestTags}
+          pollOptionId={pollOptionId}
+          onSuccess={onSuccess}
         />
       </DialogContent>
     </Dialog>
@@ -126,7 +138,10 @@ function ZapDialogContent({
   recipient,
   event,
   defaultAmount,
-  defaultComment
+  defaultComment,
+  extraZapRequestTags,
+  pollOptionId,
+  onSuccess
 }: {
   open: boolean
   setOpen: Dispatch<SetStateAction<boolean>>
@@ -134,6 +149,9 @@ function ZapDialogContent({
   event?: NostrEvent
   defaultAmount?: number
   defaultComment?: string
+  extraZapRequestTags?: string[][]
+  pollOptionId?: string
+  onSuccess?: (payload: { invoice: string; preimage: string; amount: number; comment: string }) => void
 }) {
   const { t, i18n } = useTranslation()
   const { pubkey } = useNostr()
@@ -197,16 +215,22 @@ function ZapDialogContent({
       }
 
       setZapping(true)
-      const zapResult = await lightning.zap(pubkey, event ?? recipient, sats, comment, () =>
-        setOpen(false)
+      const zapResult = await lightning.zap(
+        pubkey,
+        event ?? recipient,
+        sats,
+        comment,
+        () => setOpen(false),
+        extraZapRequestTags
       )
       // user canceled
       if (!zapResult) {
         return
       }
       if (event) {
-        noteStatsService.addZap(pubkey, event.id, zapResult.invoice, sats, comment)
+        noteStatsService.addZap(pubkey, event.id, zapResult.invoice, sats, comment, undefined, true, pollOptionId)
       }
+      onSuccess?.({ ...zapResult, amount: sats, comment })
     } catch (error) {
       toast.error(`${t('Zap failed')}: ${(error as Error).message}`)
     } finally {
