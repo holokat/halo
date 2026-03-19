@@ -940,22 +940,67 @@ class ClientService extends EventTarget {
     set.add(relay)
   }
 
-  private async query(urls: string[], filter: Filter | Filter[], onevent?: (evt: NEvent) => void) {
+  private async query(
+    urls: string[],
+    filter: Filter | Filter[],
+    onevent?: (evt: NEvent) => void,
+    {
+      timeoutMs,
+      eoseThreshold
+    }: {
+      timeoutMs?: number
+      eoseThreshold?: number
+    } = {}
+  ) {
     return await new Promise<NEvent[]>((resolve) => {
       const events: NEvent[] = []
-      const sub = this.subscribe(urls, filter, {
+      const relayCount = Array.from(new Set(urls)).length
+      const resolvedThreshold = Math.max(
+        1,
+        Math.min(
+          relayCount,
+          Number.isFinite(eoseThreshold)
+            ? Math.ceil(relayCount * (eoseThreshold as number))
+            : relayCount
+        )
+      )
+      let eoseCount = 0
+      let done = false
+      let timeout: number | undefined
+
+      let sub: { close: () => void } | null = null
+
+      const finish = () => {
+        if (done) return
+        done = true
+        if (timeout) {
+          window.clearTimeout(timeout)
+        }
+        sub?.close()
+        resolve(events)
+      }
+
+      if (timeoutMs && Number.isFinite(timeoutMs) && timeoutMs > 0) {
+        timeout = window.setTimeout(() => {
+          finish()
+        }, timeoutMs)
+      }
+
+      sub = this.subscribe(urls, filter, {
         onevent(evt) {
           onevent?.(evt)
           events.push(evt)
         },
         oneose: (eosed) => {
-          if (eosed) {
-            sub.close()
-            resolve(events)
+          if (done) return
+          eoseCount += 1
+
+          if (eosed || eoseCount >= resolvedThreshold) {
+            finish()
           }
         },
         onAllClose: () => {
-          resolve(events)
+          finish()
         }
       })
     })
@@ -966,14 +1011,21 @@ class ClientService extends EventTarget {
     filter: Filter | Filter[],
     {
       onevent,
-      cache = false
+      cache = false,
+      timeoutMs,
+      eoseThreshold
     }: {
       onevent?: (evt: NEvent) => void
       cache?: boolean
+      timeoutMs?: number
+      eoseThreshold?: number
     } = {}
   ) {
     const relays = Array.from(new Set(urls))
-    const events = await this.query(relays.length > 0 ? relays : BIG_RELAY_URLS, filter, onevent)
+    const events = await this.query(relays.length > 0 ? relays : BIG_RELAY_URLS, filter, onevent, {
+      timeoutMs,
+      eoseThreshold
+    })
     if (cache) {
       events.forEach((evt) => {
         this.addEventToCache(evt)

@@ -85,7 +85,12 @@ type TMessagesContext = {
   sendMessage: (
     recipientPubkeys: string[],
     content: string,
-    options?: { replyToId?: string; subject?: string; additionalTags?: string[][] }
+    options?: {
+      replyToId?: string
+      subject?: string
+      additionalTags?: string[][]
+      kind?: number
+    }
   ) => Promise<void>
   sendReaction: (
     recipientPubkeys: string[],
@@ -103,6 +108,9 @@ const MESSAGE_BACKFILL_MAX_PAGES = 8
 const MESSAGE_SUBSCRIPTION_REPLAY_LIMIT = 200
 const MESSAGE_LOOKUP_READ_RELAYS = 4
 const MESSAGE_LOOKUP_WRITE_RELAYS = 2
+const MESSAGE_DECRYPT_BATCH_SIZE = 24
+const MESSAGE_FAST_QUERY_TIMEOUT_MS = 3_500
+const MESSAGE_FAST_QUERY_EOSE_THRESHOLD = 0.6
 const RELAY_INFO_LOOKUP_TIMEOUT_MS = 1_500
 const TWO_DAYS_IN_SECONDS = 2 * 24 * 60 * 60
 
@@ -497,41 +505,55 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
     let subscription: { close: () => void } | null = null
 
     const applyWrappedEvents = async (wrappedEvents: Event[]) => {
-      const unwrappedEvents = (
-        await Promise.all(
-          wrappedEvents.map((wrappedEvent) => unwrapDirectMessage(wrappedEvent, pubkey))
-        )
-      ).filter((event): event is TConversationEvent => !!event)
+      if (wrappedEvents.length === 0) {
+        return 0
+      }
 
-      const unwrappedMessages = unwrappedEvents.filter(isDirectMessageEvent)
-      const unwrappedReactions = unwrappedEvents.filter(isDirectMessageReactionEvent)
+      let unwrappedCount = 0
+      const participantPubkeySet = new Set<string>()
 
-      if (unwrappedEvents.length > 0) {
-        const participantPubkeys = Array.from(
-          new Set(
-            unwrappedEvents.flatMap((event) => [
-              event.senderPubkey,
-              ...event.participantPubkeys
-            ])
+      for (let index = 0; index < wrappedEvents.length; index += MESSAGE_DECRYPT_BATCH_SIZE) {
+        const wrappedChunk = wrappedEvents.slice(index, index + MESSAGE_DECRYPT_BATCH_SIZE)
+        const unwrappedChunk = (
+          await Promise.all(
+            wrappedChunk.map((wrappedEvent) => unwrapDirectMessage(wrappedEvent, pubkey))
           )
-        )
+        ).filter((event): event is TConversationEvent => !!event)
 
-        void client.prefetchProfiles(participantPubkeys)
+        if (unwrappedChunk.length === 0) {
+          continue
+        }
+
+        unwrappedCount += unwrappedChunk.length
+
+        unwrappedChunk.forEach((event) => {
+          participantPubkeySet.add(event.senderPubkey)
+          event.participantPubkeys.forEach((participantPubkey) => {
+            participantPubkeySet.add(participantPubkey)
+          })
+        })
+
+        if (!isMounted) {
+          continue
+        }
+
+        const unwrappedMessages = unwrappedChunk.filter(isDirectMessageEvent)
+        const unwrappedReactions = unwrappedChunk.filter(isDirectMessageReactionEvent)
+
+        if (unwrappedMessages.length > 0) {
+          setMessages((currentMessages) => mergeMessages(currentMessages, unwrappedMessages))
+        }
+
+        if (unwrappedReactions.length > 0) {
+          setReactions((currentReactions) => mergeReactions(currentReactions, unwrappedReactions))
+        }
       }
 
-      if (!isMounted || unwrappedEvents.length === 0) {
-        return unwrappedEvents.length
+      if (participantPubkeySet.size > 0) {
+        void client.prefetchProfiles(Array.from(participantPubkeySet))
       }
 
-      if (unwrappedMessages.length > 0) {
-        setMessages((currentMessages) => mergeMessages(currentMessages, unwrappedMessages))
-      }
-
-      if (unwrappedReactions.length > 0) {
-        setReactions((currentReactions) => mergeReactions(currentReactions, unwrappedReactions))
-      }
-
-      return unwrappedEvents.length
+      return unwrappedCount
     }
 
     const startSubscription = () => {
@@ -573,12 +595,16 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
         const seenWrapIds = new Set<string>()
 
         for (let pageIndex = 0; pageIndex < MESSAGE_BACKFILL_MAX_PAGES; pageIndex += 1) {
+          const isInitialPage = pageIndex === 0
           const wrappedEvents = dedupeWrappedEvents(
             await client.fetchEvents(messageLookupRelayUrls, {
               kinds: [kinds.GiftWrap],
               '#p': [pubkey],
               limit: MESSAGE_BACKFILL_PAGE_LIMIT,
               ...(nextUntil ? { until: nextUntil } : {})
+            }, {
+              timeoutMs: isInitialPage ? MESSAGE_FAST_QUERY_TIMEOUT_MS : undefined,
+              eoseThreshold: isInitialPage ? MESSAGE_FAST_QUERY_EOSE_THRESHOLD : undefined
             })
           ).filter((wrappedEvent) => {
             if (seenWrapIds.has(wrappedEvent.id)) {
@@ -827,7 +853,12 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
     async (
       recipientPubkeys: string[],
       content: string,
-      options: { replyToId?: string; subject?: string; additionalTags?: string[][] } = {}
+      options: {
+        replyToId?: string
+        subject?: string
+        additionalTags?: string[][]
+        kind?: number
+      } = {}
     ) => {
       if (!pubkey || account?.signerType === 'npub' || !nip44Supported) {
         throw new Error('Direct messages require a signer that can encrypt NIP-17 messages.')
@@ -851,6 +882,10 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
 
       const createdAt = Math.ceil(Date.now() / 1000)
       const rumorTags = uniqueRecipients.map((recipientPubkey) => ['p', recipientPubkey])
+      const rumorKind =
+        options.kind === 15 || options.kind === kinds.PrivateDirectMessage
+          ? options.kind
+          : kinds.PrivateDirectMessage
       const subject = options.subject?.trim()
 
       if (options.replyToId) {
@@ -867,7 +902,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
 
       const rumor = {
         created_at: createdAt,
-        kind: kinds.PrivateDirectMessage,
+        kind: rumorKind,
         content: trimmedContent,
         tags: rumorTags,
         pubkey
@@ -960,7 +995,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
       )
       const rumorTags = rumorRecipientPubkeys.map((recipientPubkey) => ['p', recipientPubkey])
       rumorTags.push(['e', targetMessage.id])
-      rumorTags.push(['k', String(kinds.PrivateDirectMessage)])
+      rumorTags.push(['k', String(targetMessage.kind)])
 
       const rumor = {
         created_at: createdAt,

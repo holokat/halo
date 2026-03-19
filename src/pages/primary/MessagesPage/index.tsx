@@ -1,7 +1,6 @@
 import AlertCard from '@/components/AlertCard'
 import Content from '@/components/Content'
 import Emoji from '@/components/Emoji'
-import Uploader from '@/components/PostEditor/Uploader'
 import SearchInput from '@/components/SearchInput'
 import { FormattedTimestamp } from '@/components/FormattedTimestamp'
 import SuggestedEmojis from '@/components/SuggestedEmojis'
@@ -23,6 +22,11 @@ import {
 import { useNostr } from '@/providers/NostrProvider'
 import { useZap } from '@/providers/ZapProvider'
 import client from '@/services/client.service'
+import dmMediaService, {
+  buildEncryptedDmFileTags,
+  createEncryptedDmFilePayload,
+  getDmFileEncryptionInfo
+} from '@/services/dm-media.service'
 import lightning from '@/services/lightning.service'
 import mediaUpload, { UPLOAD_ABORTED_ERROR_MSG } from '@/services/media-upload.service'
 import { TEmoji, TPageRef, TProfile } from '@/types'
@@ -79,6 +83,7 @@ import {
   Zap
 } from 'lucide-react'
 import {
+  ChangeEvent,
   MouseEvent,
   TouchEvent,
   ClipboardEvent as ReactClipboardEvent,
@@ -213,13 +218,20 @@ type TReactionSummary = {
 
 type TComposerAttachment = {
   url: string
-  imetaTag?: string[]
+  fileTags: string[][]
+  previewUrl?: string
 }
 
 type TUploadProgressItem = {
   file: File
   progress: number
   cancel: () => void
+}
+
+function revokeBlobUrl(url?: string) {
+  if (url?.startsWith('blob:')) {
+    URL.revokeObjectURL(url)
+  }
 }
 
 function summarizeMessageReactions(
@@ -261,15 +273,71 @@ function summarizeMessageReactions(
   return Array.from(summaries.values()).sort((a, b) => a.lastCreatedAt - b.lastCreatedAt)
 }
 
-function toRenderableConversationEvent(message: TDirectMessage) {
+function toRenderableConversationEvent(message: TDirectMessage, contentOverride?: string) {
   return {
     id: message.id,
     pubkey: message.senderPubkey,
     created_at: message.createdAt,
     kind: message.kind,
     tags: message.tags,
-    content: message.content
+    content: contentOverride ?? message.content
   } as Event
+}
+
+function useRenderableMessageContent(message: TDirectMessage) {
+  const encryptionInfo = useMemo(
+    () => (message.kind === 15 ? getDmFileEncryptionInfo(message.tags) : null),
+    [message.kind, message.tags]
+  )
+  const [renderableContent, setRenderableContent] = useState(
+    encryptionInfo ? '' : message.content
+  )
+  const [isDecrypting, setIsDecrypting] = useState(!!encryptionInfo)
+  const [hasDecryptError, setHasDecryptError] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+
+    if (!encryptionInfo) {
+      setRenderableContent(message.content)
+      setIsDecrypting(false)
+      setHasDecryptError(false)
+      return () => {
+        cancelled = true
+      }
+    }
+
+    setRenderableContent('')
+    setIsDecrypting(true)
+    setHasDecryptError(false)
+
+    void dmMediaService
+      .decryptMessageFileContent(message.id, message.content, message.tags)
+      .then((decryptedContentUrl) => {
+        if (cancelled) return
+        setRenderableContent(decryptedContentUrl)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setRenderableContent('')
+        setHasDecryptError(true)
+      })
+      .finally(() => {
+        if (cancelled) return
+        setIsDecrypting(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [encryptionInfo, message.content, message.id, message.tags])
+
+  return {
+    renderableContent,
+    isDecrypting,
+    hasDecryptError,
+    isEncryptedFileMessage: !!encryptionInfo
+  }
 }
 
 const MessagesPage = forwardRef(({ composeTo }: { composeTo?: string | null }, ref) => {
@@ -1507,6 +1575,7 @@ function MessageBubble({
   recipientPubkeys: string[]
   reactions: TDirectMessageReaction[]
 }) {
+  const { t } = useTranslation()
   const { pubkey } = useNostr()
   const showSender = !!conversation?.isGroup && !message.isOutgoing
   const showSenderAvatar = !!conversation?.isGroup && !message.isOutgoing
@@ -1514,7 +1583,16 @@ function MessageBubble({
     () => summarizeMessageReactions(reactions, pubkey),
     [pubkey, reactions]
   )
-  const renderableEvent = useMemo(() => toRenderableConversationEvent(message), [message])
+  const {
+    renderableContent,
+    isDecrypting,
+    hasDecryptError,
+    isEncryptedFileMessage
+  } = useRenderableMessageContent(message)
+  const renderableEvent = useMemo(
+    () => toRenderableConversationEvent(message, renderableContent),
+    [message, renderableContent]
+  )
 
   return (
     <div
@@ -1549,11 +1627,28 @@ function MessageBubble({
               <SimpleUsername userId={message.senderPubkey} />
             </div>
           )}
-          <Content
-            event={renderableEvent}
-            className="text-sm whitespace-pre-wrap break-words"
-            mustLoadMedia
-          />
+          {isEncryptedFileMessage && isDecrypting ? (
+            <div className="flex items-center gap-2 text-xs opacity-80">
+              <Loader className="size-3.5 animate-spin" />
+              <span>
+                {t('Decrypting attachment...', {
+                  defaultValue: 'Decrypting attachment...'
+                })}
+              </span>
+            </div>
+          ) : isEncryptedFileMessage && hasDecryptError ? (
+            <div className="text-xs opacity-80">
+              {t('Unable to decrypt attachment', {
+                defaultValue: 'Unable to decrypt attachment'
+              })}
+            </div>
+          ) : (
+            <Content
+              event={renderableEvent}
+              className="text-sm whitespace-pre-wrap break-words"
+              mustLoadMedia
+            />
+          )}
           <div className="text-[11px] opacity-70">
             <FormattedTimestamp timestamp={message.createdAt} short />
           </div>
@@ -1744,11 +1839,24 @@ function ConversationComposer({
 }) {
   const { t } = useTranslation()
   const { sendMessage } = useMessages()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const attachmentsRef = useRef<TComposerAttachment[]>([])
   const [content, setContent] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [attachments, setAttachments] = useState<TComposerAttachment[]>([])
   const [uploadProgresses, setUploadProgresses] = useState<TUploadProgressItem[]>([])
   const canSend = !isSending && uploadProgresses.length === 0 && (!!content.trim() || attachments.length > 0)
+
+  useEffect(() => {
+    attachmentsRef.current = attachments
+  }, [attachments])
+
+  useEffect(
+    () => () => {
+      attachmentsRef.current.forEach((attachment) => revokeBlobUrl(attachment.previewUrl))
+    },
+    []
+  )
 
   const handleUploadStart = (file: File, cancel: () => void) => {
     setUploadProgresses((current) => [...current, { file, progress: 0, cancel }])
@@ -1764,13 +1872,22 @@ function ConversationComposer({
     setUploadProgresses((current) => current.filter((item) => item.file !== file))
   }
 
-  const handleUploadSuccess = ({ url }: { url: string; tags: string[][] }) => {
+  const handleEncryptedUploadSuccess = ({
+    url,
+    fileTags,
+    previewUrl
+  }: {
+    url: string
+    fileTags: string[][]
+    previewUrl: string
+  }) => {
     setAttachments((current) => {
       if (current.some((attachment) => attachment.url === url)) {
+        revokeBlobUrl(previewUrl)
         return current
       }
 
-      return [...current, { url, imetaTag: mediaUpload.getImetaTagByUrl(url) }]
+      return [...current, { url, fileTags, previewUrl }]
     })
   }
 
@@ -1788,11 +1905,16 @@ function ConversationComposer({
     for (const file of files) {
       try {
         const abortController = abortControllerMap.get(file)
-        const result = await mediaUpload.upload(file, {
+        const encryptedPayload = await createEncryptedDmFilePayload(file)
+        const result = await mediaUpload.upload(encryptedPayload.encryptedFile, {
           onProgress: (progress) => handleUploadProgress(file, progress),
           signal: abortController?.signal
         })
-        handleUploadSuccess(result)
+        handleEncryptedUploadSuccess({
+          url: result.url,
+          fileTags: buildEncryptedDmFileTags(encryptedPayload),
+          previewUrl: URL.createObjectURL(file)
+        })
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         if (message !== UPLOAD_ABORTED_ERROR_MSG) {
@@ -1816,30 +1938,53 @@ function ConversationComposer({
     void uploadAttachmentFiles(imageFiles)
   }
 
+  const handleAttachmentInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? [])
+    event.target.value = ''
+    if (!files.length) {
+      return
+    }
+
+    void uploadAttachmentFiles(files)
+  }
+
   const handleRemoveAttachment = (url: string) => {
-    setAttachments((current) => current.filter((attachment) => attachment.url !== url))
+    setAttachments((current) => {
+      const attachmentToRemove = current.find((attachment) => attachment.url === url)
+      if (attachmentToRemove) {
+        revokeBlobUrl(attachmentToRemove.previewUrl)
+      }
+      return current.filter((attachment) => attachment.url !== url)
+    })
   }
 
   const handleSend = async () => {
     const trimmedContent = content.trim()
-    const attachmentUrls = attachments.map((attachment) => attachment.url)
-    const messageContent = attachmentUrls.length
-      ? [trimmedContent, ...attachmentUrls].filter(Boolean).join('\n')
-      : trimmedContent
-    const additionalTags = attachments
-      .map((attachment) => attachment.imetaTag)
-      .filter((tag): tag is string[] => !!tag)
-
-    if ((!messageContent && attachments.length === 0) || isSending || uploadProgresses.length > 0) {
+    if ((!trimmedContent && attachments.length === 0) || isSending || uploadProgresses.length > 0) {
       return
     }
 
     setIsSending(true)
 
     try {
-      await sendMessage(recipientPubkeys, messageContent, { replyToId, subject, additionalTags })
+      if (trimmedContent) {
+        await sendMessage(recipientPubkeys, trimmedContent, { replyToId, subject })
+      }
+
+      for (const attachment of attachments) {
+        await sendMessage(recipientPubkeys, attachment.url, {
+          replyToId,
+          subject,
+          kind: 15,
+          additionalTags: attachment.fileTags
+        })
+      }
+
       setContent('')
-      setAttachments([])
+      setAttachments((current) => {
+        current.forEach((attachment) => revokeBlobUrl(attachment.previewUrl))
+        return []
+      })
       onSent?.()
     } catch (error) {
       const message = error instanceof Error ? error.message : t('Failed to send message')
@@ -1870,7 +2015,7 @@ function ConversationComposer({
                     <X className="size-4" />
                   </button>
                   <Content
-                    content={attachment.url}
+                    content={attachment.previewUrl || attachment.url}
                     className="max-w-[220px] pr-6 text-sm"
                     mustLoadMedia
                     compactMedia
@@ -1923,24 +2068,24 @@ function ConversationComposer({
           style={{ borderRadius: 'var(--card-radius, 8px)' }}
         />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between gap-3 px-3 py-2">
-          <Uploader
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
             accept="image/*,video/*,audio/*"
-            className={cn('pointer-events-auto', isSending && 'pointer-events-none opacity-60')}
-            onUploadSuccess={handleUploadSuccess}
-            onUploadStart={handleUploadStart}
-            onUploadEnd={handleUploadEnd}
-            onProgress={handleUploadProgress}
+            className="hidden"
+            onChange={handleAttachmentInputChange}
+          />
+          <button
+            type="button"
+            className="pointer-events-auto inline-flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+            aria-label={t('Attach media')}
+            title={t('Attach media')}
+            disabled={isSending}
+            onClick={() => fileInputRef.current?.click()}
           >
-            <button
-              type="button"
-              className="inline-flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
-              aria-label={t('Attach media')}
-              title={t('Attach media')}
-              disabled={isSending}
-            >
-              <Paperclip className="size-4" />
-            </button>
-          </Uploader>
+            <Paperclip className="size-4" />
+          </button>
           <button
             type="button"
             className={cn(
