@@ -218,9 +218,17 @@ type TReactionSummary = {
 
 type TComposerAttachment = {
   url: string
-  fileTags: string[][]
   previewUrl?: string
-}
+} & (
+  | {
+      mode: 'encrypted'
+      fileTags: string[][]
+    }
+  | {
+      mode: 'legacy'
+      imetaTag?: string[]
+    }
+)
 
 type TUploadProgressItem = {
   file: File
@@ -1887,7 +1895,26 @@ function ConversationComposer({
         return current
       }
 
-      return [...current, { url, fileTags, previewUrl }]
+      return [...current, { url, previewUrl, mode: 'encrypted', fileTags }]
+    })
+  }
+
+  const handleLegacyUploadSuccess = ({
+    url,
+    previewUrl,
+    imetaTag
+  }: {
+    url: string
+    previewUrl: string
+    imetaTag?: string[]
+  }) => {
+    setAttachments((current) => {
+      if (current.some((attachment) => attachment.url === url)) {
+        revokeBlobUrl(previewUrl)
+        return current
+      }
+
+      return [...current, { url, previewUrl, mode: 'legacy', imetaTag }]
     })
   }
 
@@ -1917,8 +1944,39 @@ function ConversationComposer({
         })
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
-        if (message !== UPLOAD_ABORTED_ERROR_MSG) {
-          toast.error(`${t('Failed to upload file')}: ${message}`)
+        if (message === UPLOAD_ABORTED_ERROR_MSG) {
+          continue
+        }
+
+        const abortController = abortControllerMap.get(file)
+
+        try {
+          handleUploadProgress(file, 0)
+          const fallbackResult = await mediaUpload.upload(file, {
+            onProgress: (progress) => handleUploadProgress(file, progress),
+            signal: abortController?.signal
+          })
+          handleLegacyUploadSuccess({
+            url: fallbackResult.url,
+            previewUrl: URL.createObjectURL(file),
+            imetaTag: mediaUpload.getImetaTagByUrl(fallbackResult.url)
+          })
+          toast.warning(
+            t(
+              'Your media host rejected encrypted file upload, so this attachment was sent in compatibility mode.',
+              {
+                defaultValue:
+                  'Your media host rejected encrypted file upload, so this attachment was sent in compatibility mode.'
+              }
+            )
+          )
+        } catch (fallbackError) {
+          const fallbackMessage =
+            fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
+
+          if (fallbackMessage !== UPLOAD_ABORTED_ERROR_MSG) {
+            toast.error(`${t('Failed to upload file')}: ${fallbackMessage}`)
+          }
         }
       } finally {
         handleUploadEnd(file)
@@ -1972,12 +2030,20 @@ function ConversationComposer({
       }
 
       for (const attachment of attachments) {
-        await sendMessage(recipientPubkeys, attachment.url, {
-          replyToId,
-          subject,
-          kind: 15,
-          additionalTags: attachment.fileTags
-        })
+        if (attachment.mode === 'encrypted') {
+          await sendMessage(recipientPubkeys, attachment.url, {
+            replyToId,
+            subject,
+            kind: 15,
+            additionalTags: attachment.fileTags
+          })
+        } else {
+          await sendMessage(recipientPubkeys, attachment.url, {
+            replyToId,
+            subject,
+            additionalTags: attachment.imetaTag ? [attachment.imetaTag] : undefined
+          })
+        }
       }
 
       setContent('')
