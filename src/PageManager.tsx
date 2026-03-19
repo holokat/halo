@@ -439,13 +439,13 @@ export function PageManager({ maxStackSize = 5 }: { maxStackSize?: number }) {
                   />
                 ) : (
                   <div className={cn(
-                    "grid grid-cols-2 gap-2 w-full px-2 py-2",
+                    "grid h-full min-h-0 grid-cols-2 gap-2 w-full px-2 py-2",
                     layoutMode === LAYOUT_MODE.BOXED && "max-w-screen-xl",
                     layoutMode === LAYOUT_MODE.ISLAND && "max-w-screen-xl ml-16"
                   )}>
                     <div
                       className={cn(
-                        "bg-card min-w-0 overflow-hidden",
+                        "bg-card min-w-0 min-h-0 overflow-hidden",
                         pageTheme === 'pure-black' && "border border-neutral-900",
                         pageTheme === 'white' ? "border border-border" : "shadow-lg"
                       )}
@@ -479,7 +479,7 @@ export function PageManager({ maxStackSize = 5 }: { maxStackSize?: number }) {
                       {!widgetSidebarDismissed && (
                         <div
                           key="home"
-                          className="w-full"
+                          className="h-full min-h-0 w-full"
                           style={{ display: secondaryStack.length === 0 ? 'block' : 'none' }}
                         >
                           <HomePage />
@@ -593,7 +593,7 @@ function HomePageWrapper({
   return (
     <div
       className={cn(
-        'overflow-hidden',
+        'h-full min-h-0 overflow-hidden',
         // Make the wrapper transparent when on home page or when dismissed
         isHomePage || isDismissed ? 'bg-transparent shadow-none' : cn(
           'bg-card',
