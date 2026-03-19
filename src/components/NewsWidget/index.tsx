@@ -150,29 +150,29 @@ export default function NewsWidget() {
         title={widgetName}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
+        titleActions={
+          <button
+            type="button"
+            className="shrink-0 cursor-pointer text-muted-foreground transition-colors hover:text-foreground disabled:cursor-default disabled:opacity-60"
+            onClick={() => void fetchNews()}
+            title={t('Refresh news', { defaultValue: 'Refresh news' })}
+            aria-label={t('Refresh news', { defaultValue: 'Refresh news' })}
+            disabled={loading || refreshing}
+          >
+            <RefreshCcw className={cn('h-3.5 w-3.5', (loading || refreshing) && 'animate-spin')} />
+          </button>
+        }
         actions={
-          <>
+          isHovered ? (
             <button
               type="button"
-              className="shrink-0 cursor-pointer text-muted-foreground transition-colors hover:text-foreground disabled:cursor-default disabled:opacity-60"
-              onClick={() => void fetchNews()}
-              title={t('Refresh news', { defaultValue: 'Refresh news' })}
-              aria-label={t('Refresh news', { defaultValue: 'Refresh news' })}
-              disabled={loading || refreshing}
+              className="shrink-0 cursor-pointer text-muted-foreground transition-colors hover:text-foreground"
+              onClick={() => toggleWidget('news')}
+              title={t('Hide widget', { defaultValue: 'Hide widget' })}
             >
-              <RefreshCcw className={cn('h-3.5 w-3.5', (loading || refreshing) && 'animate-spin')} />
+              <EyeOff className="h-3.5 w-3.5" />
             </button>
-            {isHovered && (
-              <button
-                type="button"
-                className="shrink-0 cursor-pointer text-muted-foreground transition-colors hover:text-foreground"
-                onClick={() => toggleWidget('news')}
-                title={t('Hide widget', { defaultValue: 'Hide widget' })}
-              >
-                <EyeOff className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </>
+          ) : null
         }
       />
 

@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next'
 type WidgetHeaderProps = {
   widgetId: string
   title: ReactNode
+  titleActions?: ReactNode
   actions?: ReactNode
   className?: string
   titleClassName?: string
@@ -20,6 +21,7 @@ type WidgetHeaderProps = {
 export default function WidgetHeader({
   widgetId,
   title,
+  titleActions,
   actions,
   className,
   titleClassName,
@@ -49,7 +51,7 @@ export default function WidgetHeader({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      <div className="flex min-w-0 items-center gap-1.5">
+      <div className="flex min-w-0 flex-1 items-center gap-1.5">
         <button
           type="button"
           className="shrink-0 rounded-sm p-0.5 text-muted-foreground transition-colors hover:text-foreground"
@@ -68,7 +70,7 @@ export default function WidgetHeader({
           <button
             type="button"
             className={cn(
-              'min-w-0 text-left text-sm font-semibold leading-none transition-colors',
+              'min-w-0 flex-1 text-left text-sm font-semibold leading-none transition-colors',
               titleClassName
             )}
             onClick={onTitleClick}
@@ -78,12 +80,14 @@ export default function WidgetHeader({
           </button>
         ) : (
           <div
-            className={cn('min-w-0 text-sm font-semibold leading-none', titleClassName)}
+            className={cn('min-w-0 flex-1 text-sm font-semibold leading-none', titleClassName)}
             title={titleTooltip}
           >
             {title}
           </div>
         )}
+
+        {titleActions ? <div className="flex shrink-0 items-center gap-1">{titleActions}</div> : null}
       </div>
 
       {actions ? <div className="flex shrink-0 items-center gap-1">{actions}</div> : null}

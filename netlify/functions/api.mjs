@@ -3210,6 +3210,7 @@ function normalizePolymarketWidgetData(eventBatches) {
       categoryCountMap.set(slug, { slug, label, count: 1 })
     })
 
+    const eventSlug = pickString([event.slug])
     const eventMarkets = Array.isArray(event.markets) ? event.markets : []
     for (const market of eventMarkets) {
       if (!market || typeof market !== 'object') continue
@@ -3229,7 +3230,7 @@ function normalizePolymarketWidgetData(eventBatches) {
       markets.push({
         id: marketId,
         slug,
-        url: `https://polymarket.com/event/${slug}`,
+        url: `https://polymarket.com/event/${eventSlug || slug}`,
         question,
         eventTitle: pickString([event.title]) || null,
         image: pickString([market.image, market.icon, event.image, event.icon]) || null,
