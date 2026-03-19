@@ -168,7 +168,7 @@ function normalizeScheduledPost(post: Partial<TScheduledPost>): TScheduledPost |
   }
 }
 
-function getRetryDelaySeconds(attempts: number) {
+export function getScheduledPostRetryDelaySeconds(attempts: number) {
   if (attempts <= 1) return 60
   if (attempts === 2) return 5 * 60
   if (attempts === 3) return 15 * 60
@@ -292,7 +292,7 @@ class ScheduledPostsService {
         if (post.scheduledFor > now) return false
         if (!post.lastAttemptAt) return true
 
-        return post.lastAttemptAt + getRetryDelaySeconds(post.attempts) <= now
+        return post.lastAttemptAt + getScheduledPostRetryDelaySeconds(post.attempts) <= now
       })
     )
   }
@@ -305,7 +305,7 @@ class ScheduledPostsService {
       if (post.accountPubkey !== accountPubkey) continue
 
       const retryReadyAt = post.lastAttemptAt
-        ? post.lastAttemptAt + getRetryDelaySeconds(post.attempts)
+        ? post.lastAttemptAt + getScheduledPostRetryDelaySeconds(post.attempts)
         : post.scheduledFor
       const candidateReadyAt = Math.max(post.scheduledFor, retryReadyAt)
 

@@ -1,7 +1,9 @@
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { toScheduledPostsSettings } from '@/lib/link'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
+import { useSecondaryPage } from '@/PageManager'
 import { TSignerType } from '@/types'
 import dayjs from 'dayjs'
 import { Clock } from 'lucide-react'
@@ -36,6 +38,7 @@ export default function PostSchedulePopover({
   signerType?: TSignerType | null
 }) {
   const { t } = useTranslation()
+  const { push } = useSecondaryPage()
   const [open, setOpen] = useState(false)
   const quickOptions = useMemo(() => {
     const now = dayjs()
@@ -112,16 +115,30 @@ export default function PostSchedulePopover({
         )}
 
         <div className="flex items-center justify-between gap-3">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 px-0 text-xs text-muted-foreground"
-            onClick={() => onScheduledForChange(null)}
-            disabled={!scheduledFor}
-          >
-            {t('Clear')}
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 px-0 text-xs text-muted-foreground"
+              onClick={() => {
+                setOpen(false)
+                push(toScheduledPostsSettings())
+              }}
+            >
+              {t('View queue', { defaultValue: 'View queue' })}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 px-0 text-xs text-muted-foreground"
+              onClick={() => onScheduledForChange(null)}
+              disabled={!scheduledFor}
+            >
+              {t('Clear')}
+            </Button>
+          </div>
           {signerType === 'nip-07' && (
             <p className="text-right text-[11px] leading-4 text-muted-foreground">
               {t('Your signer may still ask you to approve when it is time to send.')}

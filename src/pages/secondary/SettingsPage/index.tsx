@@ -12,6 +12,7 @@ import {
   toKeysSettings,
   toPostSettings,
   toRelaySettings,
+  toScheduledPostsSettings,
   toTranslation,
   toVanityAddressSettings,
   toWallet,
@@ -26,6 +27,7 @@ import {
   AtSign,
   ChevronRight,
   Cloud,
+  Clock3,
   Info,
   KeyRound,
   Languages,
@@ -376,6 +378,14 @@ const SettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
           title: t('Post settings'),
           route: toPostSettings(),
           keywords: ['post', 'composer', 'posting']
+        },
+        {
+          id: 'scheduled-posts',
+          icon: <Clock3 />,
+          iconToneClassName: SETTINGS_ICON_TONE_CLASSNAME,
+          title: t('Scheduled posts', { defaultValue: 'Scheduled posts' }),
+          route: toScheduledPostsSettings(),
+          keywords: ['schedule', 'queue', 'scheduled notes', 'cancel scheduled']
         }
       )
     }
@@ -496,6 +506,16 @@ const SettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
             <SettingItem className="clickable" iconToneClassName={SETTINGS_ICON_TONE_CLASSNAME} onClick={() => push(toPostSettings())}>
               <PencilLine />
               {t('Post settings')}
+            </SettingItem>
+          )}
+          {!!pubkey && (
+            <SettingItem
+              className="clickable"
+              iconToneClassName={SETTINGS_ICON_TONE_CLASSNAME}
+              onClick={() => push(toScheduledPostsSettings())}
+            >
+              <Clock3 />
+              {t('Scheduled posts', { defaultValue: 'Scheduled posts' })}
             </SettingItem>
           )}
           <AboutInfoDialog>

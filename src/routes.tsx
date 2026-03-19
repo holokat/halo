@@ -29,6 +29,7 @@ const TranslationPage = lazy(() => import('./pages/secondary/TranslationPage'))
 const VanityAddressPage = lazy(() => import('./pages/secondary/VanityAddressPage'))
 const WalletPage = lazy(() => import('./pages/secondary/WalletPage'))
 const WidgetsSettingsPage = lazy(() => import('./pages/secondary/WidgetsSettingsPage'))
+const ScheduledPostsPage = lazy(() => import('./pages/secondary/ScheduledPostsPage'))
 const ListsIndexPage = lazy(() => import('./pages/secondary/ListsIndexPage'))
 const ListPage = lazy(() => import('./pages/secondary/ListPage'))
 const ListEditorPage = lazy(() => import('./pages/secondary/ListEditorPage'))
@@ -87,6 +88,7 @@ const SuspendedTranslationPage = withSuspense(TranslationPage, 'TranslationPage'
 const SuspendedVanityAddressPage = withSuspense(VanityAddressPage, 'VanityAddressPage')
 const SuspendedWalletPage = withSuspense(WalletPage, 'WalletPage')
 const SuspendedWidgetsSettingsPage = withSuspense(WidgetsSettingsPage, 'WidgetsSettingsPage')
+const SuspendedScheduledPostsPage = withSuspense(ScheduledPostsPage, 'ScheduledPostsPage')
 const SuspendedListsIndexPage = withSuspense(ListsIndexPage, 'ListsIndexPage')
 const SuspendedListPage = withSuspense(ListPage, 'ListPage')
 const SuspendedListEditorPage = withSuspense(ListEditorPage, 'ListEditorPage')
@@ -116,6 +118,7 @@ const ROUTES = [
   { path: '/settings/vanity-address', element: <SuspendedVanityAddressPage /> },
   { path: '/settings/ai-tools', element: <SuspendedAIToolsPage /> },
   { path: '/settings/backup', element: <SuspendedBackupSettingsPage /> },
+  { path: '/settings/scheduled', element: <SuspendedScheduledPostsPage /> },
   { path: '/profile-editor', element: <SuspendedProfileEditorPage /> },
   { path: '/mutes', element: <SuspendedMuteListPage /> },
   { path: '/rizful', element: <SuspendedRizfulPage /> },

@@ -64,7 +64,8 @@ const NoteList = forwardRef(
       additionalFilteredOutMessage,
       stopAutoLoadWhenNoVisibleEvents = true,
       maxAutoLoadWhenNoVisibleEvents = 2,
-      emptyStateMessage
+      emptyStateMessage,
+      initialEoseThreshold
     }: {
       subRequests: TFeedSubRequest[]
       showKinds: number[]
@@ -83,6 +84,7 @@ const NoteList = forwardRef(
       stopAutoLoadWhenNoVisibleEvents?: boolean
       maxAutoLoadWhenNoVisibleEvents?: number
       emptyStateMessage?: string
+      initialEoseThreshold?: number
     },
     ref
   ) => {
@@ -353,7 +355,8 @@ const NoteList = forwardRef(
           {
             startLogin,
             needSort: !areAlgoRelays,
-            cacheRecentEvents: isMainFeed && !areAlgoRelays
+            cacheRecentEvents: isMainFeed && !areAlgoRelays,
+            initialEoseThreshold
           }
         )
         setTimelineKey(timelineKey)
@@ -364,7 +367,7 @@ const NoteList = forwardRef(
       return () => {
         promise.then((closer) => closer())
       }
-    }, [subRequestsKey, refreshCount, showKindsKey, isMainFeed, areAlgoRelays])
+    }, [subRequestsKey, refreshCount, showKindsKey, isMainFeed, areAlgoRelays, initialEoseThreshold])
 
     useEffect(() => {
       if (onEventsChange) {

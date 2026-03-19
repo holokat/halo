@@ -278,7 +278,6 @@ export default function PollsFeed() {
 
   const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab as PollFeedTab)
-    noteListRef.current?.scrollToTop('smooth')
   }, [])
 
   return (
@@ -310,6 +309,7 @@ export default function PollsFeed() {
         subRequests={subRequests}
         showKinds={pollKinds}
         isMainFeed
+        initialEoseThreshold={1}
         hideReplies
         hideUntrustedNotes={hideUntrustedNotes}
         onEventsChange={setLoadedEvents}

@@ -80,6 +80,7 @@ export const toVanityAddressSettings = () => '/settings/vanity-address'
 export const toAITools = () => '/settings/ai-tools'
 export const toBackupSettings = () => '/settings/backup'
 export const toKeysSettings = () => '/settings/keys'
+export const toScheduledPostsSettings = () => '/settings/scheduled'
 export const toProfileEditor = () => '/profile-editor'
 export const toRelay = (url: string) => `/relays/${encodeURIComponent(url)}`
 export const toRelayReviews = (url: string) => `/relays/${encodeURIComponent(url)}/reviews`

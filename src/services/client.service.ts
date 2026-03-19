@@ -382,16 +382,21 @@ class ClientService extends EventTarget {
     {
       startLogin,
       needSort = true,
-      cacheRecentEvents = false
+      cacheRecentEvents = false,
+      initialEoseThreshold
     }: {
       startLogin?: () => void
       needSort?: boolean
       cacheRecentEvents?: boolean
+      initialEoseThreshold?: number
     } = {}
   ) {
     const newEventIdSet = new Set<string>()
     const requestCount = subRequests.length
-    const threshold = Math.floor(requestCount / 2)
+    const threshold =
+      typeof initialEoseThreshold === 'number' && Number.isFinite(initialEoseThreshold)
+        ? Math.max(1, Math.min(requestCount, Math.floor(initialEoseThreshold)))
+        : Math.floor(requestCount / 2)
     const key = this.generateMultipleTimelinesKey(subRequests)
     const recentFeedKey = cacheRecentEvents && needSort ? `recentFeed:${key}` : undefined
     const displayLimit = Math.max(...subRequests.map(({ filter }) => filter.limit ?? 0), 50)
