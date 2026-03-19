@@ -1493,6 +1493,7 @@ function MessageBubble({
 }) {
   const { pubkey } = useNostr()
   const showSender = !!conversation?.isGroup && !message.isOutgoing
+  const showSenderAvatar = !!conversation?.isGroup && !message.isOutgoing
   const reactionSummaries = useMemo(
     () => summarizeMessageReactions(reactions, pubkey),
     [pubkey, reactions]
@@ -1506,7 +1507,14 @@ function MessageBubble({
         message.isOutgoing ? 'justify-end' : 'justify-start'
       )}
     >
-      {!message.isOutgoing && (
+      {showSenderAvatar && (
+        <SimpleUserAvatar
+          userId={message.senderPubkey}
+          size="small"
+          className="mt-0.5 shrink-0 self-start"
+        />
+      )}
+      {!message.isOutgoing && !showSenderAvatar && (
         <MessageReactionPicker message={message} recipientPubkeys={recipientPubkeys} />
       )}
       <div className="max-w-[85%]">
@@ -1556,6 +1564,9 @@ function MessageBubble({
           </div>
         )}
       </div>
+      {!message.isOutgoing && showSenderAvatar && (
+        <MessageReactionPicker message={message} recipientPubkeys={recipientPubkeys} />
+      )}
       {message.isOutgoing && (
         <MessageReactionPicker message={message} recipientPubkeys={recipientPubkeys} />
       )}

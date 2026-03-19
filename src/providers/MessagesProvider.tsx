@@ -64,7 +64,7 @@ export type TMessageConversation = {
   subject?: string
   messages: TDirectMessage[]
   reactionsByMessageId: Record<string, TDirectMessageReaction[]>
-  hasOutgoingMessages: boolean
+  hasOutgoingActivity: boolean
 }
 
 type TMessagesContext = {
@@ -623,7 +623,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
           subject: message.subject,
           messages: [message],
           reactionsByMessageId: {},
-          hasOutgoingMessages: message.isOutgoing
+          hasOutgoingActivity: message.isOutgoing
         })
         return
       }
@@ -632,8 +632,8 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
       existingConversation.lastMessageAt = message.createdAt
       existingConversation.lastMessagePreview = getConversationMessagePreview(message)
       existingConversation.subject = message.subject ?? existingConversation.subject
-      existingConversation.hasOutgoingMessages =
-        existingConversation.hasOutgoingMessages || message.isOutgoing
+      existingConversation.hasOutgoingActivity =
+        existingConversation.hasOutgoingActivity || message.isOutgoing
     })
 
     const messageIdsByConversation = new Map<string, Set<string>>(
@@ -659,6 +659,8 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
           ...existingReactions,
           reaction
         ]
+        conversation.hasOutgoingActivity =
+          conversation.hasOutgoingActivity || reaction.isOutgoing
       })
 
     return Array.from(conversationMap.values())
@@ -671,16 +673,19 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
           (message) => !message.isOutgoing && message.createdAt > conversationReadAt
         ).length
         const isSingleParticipantConversation = conversation.participantPubkeys.length === 1
+        const isGroupConversation = conversation.participantPubkeys.length > 1
         const primaryParticipantPubkey = conversation.primaryPubkey
 
         return {
           ...conversation,
           unreadCount,
           isRequest:
-            isSingleParticipantConversation &&
-            !!primaryParticipantPubkey &&
-            !followingSet.has(primaryParticipantPubkey) &&
-            !conversation.hasOutgoingMessages
+            isGroupConversation
+              ? !conversation.hasOutgoingActivity
+              : isSingleParticipantConversation &&
+                !!primaryParticipantPubkey &&
+                !followingSet.has(primaryParticipantPubkey) &&
+                !conversation.hasOutgoingActivity
         }
       })
       .sort((a, b) => b.lastMessageAt - a.lastMessageAt)
