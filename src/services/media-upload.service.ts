@@ -13,6 +13,20 @@ type UploadOptions = {
 
 export const UPLOAD_ABORTED_ERROR_MSG = 'Upload aborted'
 
+const MIME_EXTENSION_MAP: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+  'image/avif': 'avif',
+  'image/heic': 'heic',
+  'video/mp4': 'mp4',
+  'video/webm': 'webm',
+  'audio/mpeg': 'mp3',
+  'audio/mp4': 'm4a'
+}
+
 class MediaUploadService {
   static instance: MediaUploadService
 
@@ -31,10 +45,26 @@ class MediaUploadService {
     this.serviceConfig = config
   }
 
-  private async convertToWebP(file: File): Promise<File> {
-    // Only convert PNG and JPEG images
-    if (!file.type.match(/^image\/(png|jpeg|jpg)$/)) {
+  private ensureFileHasName(file: File) {
+    const existingName = file.name.trim()
+    if (existingName) {
       return file
+    }
+
+    const extension = MIME_EXTENSION_MAP[file.type] ?? 'bin'
+    const fallbackName = `upload-${Date.now()}.${extension}`
+    return new File([file], fallbackName, {
+      type: file.type || 'application/octet-stream',
+      lastModified: file.lastModified || Date.now()
+    })
+  }
+
+  private async convertToWebP(file: File): Promise<File> {
+    const namedFile = this.ensureFileHasName(file)
+
+    // Only convert PNG and JPEG images
+    if (!namedFile.type.match(/^image\/(png|jpeg|jpg)$/)) {
+      return namedFile
     }
 
     try {
@@ -47,20 +77,23 @@ class MediaUploadService {
         useWebWorker: true
       }
 
-      const compressedFile = await imageCompression(file, options)
+      const compressedFile = await imageCompression(namedFile, options)
 
       // Update filename to have .webp extension
-      const fileName = file.name.replace(/\.(png|jpe?g)$/i, '.webp')
-      return new File([compressedFile], fileName, { type: 'image/webp' })
+      const fileName = namedFile.name.replace(/\.(png|jpe?g)$/i, '.webp')
+      const finalFileName = fileName.toLowerCase().endsWith('.webp') ? fileName : `${fileName}.webp`
+      return new File([compressedFile], finalFileName, { type: 'image/webp' })
     } catch (error) {
       console.error('Failed to convert to WebP, using original file:', error)
-      return file
+      return namedFile
     }
   }
 
   async upload(file: File, options?: UploadOptions) {
+    const namedFile = this.ensureFileHasName(file)
+
     // Convert PNG/JPEG to WebP before uploading
-    const fileToUpload = await this.convertToWebP(file)
+    const fileToUpload = await this.convertToWebP(namedFile)
 
     let result: { url: string; tags: string[][] }
     if (this.serviceConfig.type === 'nip96') {
