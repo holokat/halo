@@ -343,11 +343,13 @@ export function getPollMetadataFromEvent(event: Event) {
   const options: TPollOption[] = []
   const optionImageMap = new Map<string, string>()
   const relayUrls: string[] = []
+  const isLegacyZapPoll = event.kind === ExtendedKind.LEGACY_ZAP_POLL
+  const format = isLegacyZapPoll ? 'legacy_zap' : 'nip88'
   let pollType: TPollType = POLL_TYPE.SINGLE_CHOICE
   let endsAt: number | undefined
 
   for (const [tagName, ...tagValues] of event.tags) {
-    if (tagName === 'option' && tagValues.length >= 2) {
+    if ((tagName === 'option' || tagName === 'poll_option') && tagValues.length >= 2) {
       const [optionId, label] = tagValues
       if (optionId && label) {
         options.push({ id: optionId, label })
@@ -365,7 +367,17 @@ export function getPollMetadataFromEvent(event: Event) {
       if (tagValues[0] === POLL_TYPE.MULTIPLE_CHOICE) {
         pollType = POLL_TYPE.MULTIPLE_CHOICE
       }
+    } else if (isLegacyZapPoll && tagName === 'value_maximum' && tagValues[0]) {
+      const valueMaximum = parseInt(tagValues[0])
+      if (!isNaN(valueMaximum) && valueMaximum > 1) {
+        pollType = POLL_TYPE.MULTIPLE_CHOICE
+      }
     } else if (tagName === 'endsAt' && tagValues[0]) {
+      const timestamp = parseInt(tagValues[0])
+      if (!isNaN(timestamp)) {
+        endsAt = timestamp
+      }
+    } else if (isLegacyZapPoll && tagName === 'closed_at' && tagValues[0]) {
       const timestamp = parseInt(tagValues[0])
       if (!isNaN(timestamp)) {
         endsAt = timestamp
@@ -378,6 +390,7 @@ export function getPollMetadataFromEvent(event: Event) {
   }
 
   return {
+    format,
     options: options.map((option) => ({
       ...option,
       image: optionImageMap.get(option.id)

@@ -13,6 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
+import useDeferredAction from '@/hooks/useDeferredAction'
 import { pubkeyToNpub } from '@/lib/pubkey'
 import { useMuteList } from '@/providers/MuteListProvider'
 import { useNostr } from '@/providers/NostrProvider'
@@ -28,13 +29,20 @@ export default function ProfileOptions({ pubkey }: { pubkey: string }) {
   const { pubkey: accountPubkey } = useNostr()
   const { mutePubkeySet, mutePubkey, unmutePubkey } = useMuteList()
   const isMuted = useMemo(() => mutePubkeySet.has(pubkey), [mutePubkeySet, pubkey])
+  const [menuOpen, setMenuOpen] = useState(false)
   const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false)
   const [isQrCodeOpen, setIsQrCodeOpen] = useState(false)
+  const deferAction = useDeferredAction()
   const isSelf = pubkey === accountPubkey
+
+  const openDialogFromMenu = (setDialogOpen: (open: boolean) => void) => {
+    setMenuOpen(false)
+    deferAction(() => setDialogOpen(true))
+  }
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger asChild>
           <Button variant="secondary" size="icon" className="rounded-full">
             <Ellipsis />
@@ -53,13 +61,23 @@ export default function ProfileOptions({ pubkey }: { pubkey: string }) {
             <Copy />
             {t('Copy public key')}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setIsQrCodeOpen(true)}>
+          <DropdownMenuItem
+            onSelect={(e) => {
+              e.preventDefault()
+              openDialogFromMenu(setIsQrCodeOpen)
+            }}
+          >
             <QrCode />
             {t('Show QR code')}
           </DropdownMenuItem>
           {!isSelf && (
             <>
-              <DropdownMenuItem onClick={() => setIsNoteDialogOpen(true)}>
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault()
+                  openDialogFromMenu(setIsNoteDialogOpen)
+                }}
+              >
                 <StickyNote />
                 {t('Add private note')}
               </DropdownMenuItem>

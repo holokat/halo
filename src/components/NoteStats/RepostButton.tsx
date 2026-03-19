@@ -6,6 +6,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
+import useDeferredAction from '@/hooks/useDeferredAction'
 import { useNoteStatsById } from '@/hooks/useNoteStatsById'
 import { createRepostDraftEvent } from '@/lib/draft-event'
 import { getNoteBech32Id } from '@/lib/event'
@@ -30,6 +31,8 @@ export default function RepostButton({ event }: { event: Event }) {
   const [reposting, setReposting] = useState(false)
   const [isPostDialogOpen, setIsPostDialogOpen] = useState(false)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const deferAction = useDeferredAction()
   const { repostCount, hasReposted } = useMemo(() => {
     return {
       repostCount: hideUntrustedInteractions
@@ -97,6 +100,11 @@ export default function RepostButton({ event }: { event: Event }) {
     />
   )
 
+  const runMenuAction = (action: () => void) => {
+    setMenuOpen(false)
+    deferAction(action)
+  }
+
   if (isSmallScreen) {
     return (
       <>
@@ -140,23 +148,25 @@ export default function RepostButton({ event }: { event: Event }) {
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
         <DropdownMenuContent>
           <DropdownMenuItem
-            onClick={(e) => {
-              e.stopPropagation()
-              repost()
+            onSelect={(event) => {
+              event.preventDefault()
+              runMenuAction(repost)
             }}
             disabled={!canRepost}
           >
             <Repeat /> {t('Repost')}
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={(e) => {
-              e.stopPropagation()
-              checkLogin(() => {
-                setIsPostDialogOpen(true)
+            onSelect={(event) => {
+              event.preventDefault()
+              runMenuAction(() => {
+                checkLogin(() => {
+                  setIsPostDialogOpen(true)
+                })
               })
             }}
           >

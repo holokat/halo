@@ -1,5 +1,6 @@
 import WidgetContainer from '@/components/WidgetContainer'
 import WidgetHeader from '@/components/WidgetHeader'
+import ResizableWidgetBody from '@/components/ResizableWidgetBody'
 import Image from '@/components/Image'
 import { Skeleton } from '@/components/ui/skeleton'
 import { URL_REGEX } from '@/constants'
@@ -177,7 +178,10 @@ export default function NewsWidget() {
       />
 
       {!isCollapsed && (
-        <div
+        <ResizableWidgetBody
+          widgetId="news"
+          minHeight={160}
+          maxHeight={720}
           className={cn(
             WIDGET_HEIGHT_CLASS,
             'overflow-y-auto overflow-x-hidden overscroll-y-contain touch-pan-y scrollbar-hide px-4 pb-4',
@@ -226,7 +230,7 @@ export default function NewsWidget() {
               ))}
             </div>
           )}
-        </div>
+        </ResizableWidgetBody>
       )}
     </WidgetContainer>
   )

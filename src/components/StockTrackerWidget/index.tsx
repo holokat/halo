@@ -1,4 +1,5 @@
 import { SecondaryPageLink } from '@/PageManager'
+import ResizableWidgetBody from '@/components/ResizableWidgetBody'
 import WidgetContainer from '@/components/WidgetContainer'
 import WidgetHeader from '@/components/WidgetHeader'
 import { Button } from '@/components/ui/button'
@@ -92,7 +93,15 @@ export default function StockTrackerWidget() {
       />
 
       {!isCollapsed && (
-        <div className={cn('space-y-3 p-4', hideWidgetTitles && 'pt-4')}>
+        <ResizableWidgetBody
+          widgetId="stock-tracker"
+          minHeight={150}
+          maxHeight={700}
+          className={cn(
+            'space-y-3 overflow-y-auto overflow-x-hidden overscroll-y-contain touch-pan-y scrollbar-hide p-4',
+            hideWidgetTitles && 'pt-4'
+          )}
+        >
           {stockTrackerSymbols.length ? (
             <div className="divide-y divide-border/70">
               {stockTrackerSymbols.map((symbol) => (
@@ -137,7 +146,7 @@ export default function StockTrackerWidget() {
           </div>
 
           {error ? <p className="text-xs text-destructive">{error}</p> : null}
-        </div>
+        </ResizableWidgetBody>
       )}
     </WidgetContainer>
   )

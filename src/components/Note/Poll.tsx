@@ -28,6 +28,7 @@ export default function Poll({ event, className }: { event: Event; className?: s
     () => getPollMetadataFromEvent(translatedEvent ?? event),
     [event, translatedEvent]
   )
+  const supportsStandardPollInteractions = poll?.format === 'nip88'
   const votedOptionIds = useMemo(() => {
     if (!pollResults || !pubkey) return []
     return Object.entries(pollResults.results)
@@ -35,16 +36,21 @@ export default function Poll({ event, className }: { event: Event; className?: s
       .map(([optionId]) => optionId)
   }, [pollResults, pubkey])
   const validPollOptionIds = useMemo(() => poll?.options.map((option) => option.id) || [], [poll])
-  const isExpired = useMemo(() => poll?.endsAt && dayjs().unix() > poll.endsAt, [poll])
+  const isExpired = useMemo(() => !!poll?.endsAt && dayjs().unix() > poll.endsAt, [poll])
   const isMultipleChoice = useMemo(() => poll?.pollType === POLL_TYPE.MULTIPLE_CHOICE, [poll])
-  const canVote = useMemo(() => !isExpired && !votedOptionIds.length, [isExpired, votedOptionIds])
+  const canVote = useMemo(
+    () => supportsStandardPollInteractions && !isExpired && !votedOptionIds.length,
+    [supportsStandardPollInteractions, isExpired, votedOptionIds]
+  )
   const showResults = useMemo(() => {
-    return event.pubkey === pubkey || !canVote
-  }, [event, pubkey, canVote])
+    return supportsStandardPollInteractions && (event.pubkey === pubkey || !canVote)
+  }, [supportsStandardPollInteractions, event, pubkey, canVote])
   const [containerElement, setContainerElement] = useState<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    if (pollResults || isLoadingResults || !containerElement) return
+    if (!supportsStandardPollInteractions || pollResults || isLoadingResults || !containerElement) {
+      return
+    }
 
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -64,13 +70,14 @@ export default function Poll({ event, className }: { event: Event; className?: s
     return () => {
       observer.unobserve(containerElement)
     }
-  }, [pollResults, isLoadingResults, containerElement])
+  }, [supportsStandardPollInteractions, pollResults, isLoadingResults, containerElement])
 
   if (!poll) {
     return null
   }
 
   const fetchResults = async () => {
+    if (!supportsStandardPollInteractions) return
     setIsLoadingResults(true)
     try {
       const relays = await ensurePollRelays(event.pubkey, poll)
@@ -90,7 +97,7 @@ export default function Poll({ event, className }: { event: Event; className?: s
   }
 
   const handleOptionClick = (optionId: string) => {
-    if (isExpired) return
+    if (!supportsStandardPollInteractions || isExpired) return
 
     if (isMultipleChoice) {
       setSelectedOptionIds((prev) =>
@@ -143,6 +150,12 @@ export default function Poll({ event, className }: { event: Event; className?: s
               t('Multiple choice (select one or more)')}
           </p>
           <p>
+            {!supportsStandardPollInteractions &&
+              t('Legacy zap poll (view only)', {
+                defaultValue: 'Legacy zap poll (view only)'
+              })}
+          </p>
+          <p>
             {!!poll.endsAt &&
               (isExpired
                 ? t('Poll has ended')
@@ -169,7 +182,11 @@ export default function Poll({ event, className }: { event: Event; className?: s
                 title={option.label}
                 className={cn(
                   'relative w-full px-4 py-3 rounded-lg border transition-all flex items-center gap-2 overflow-hidden',
-                  canVote ? 'cursor-pointer' : 'cursor-not-allowed',
+                  canVote
+                    ? 'cursor-pointer'
+                    : supportsStandardPollInteractions
+                      ? 'cursor-not-allowed'
+                      : 'cursor-default',
                   canVote &&
                     (selectedOptionIds.includes(option.id)
                       ? 'border-primary bg-primary/20'
@@ -230,7 +247,13 @@ export default function Poll({ event, className }: { event: Event; className?: s
 
         {/* Results Summary */}
         <div className="flex justify-between items-center text-sm text-muted-foreground">
-          <div>{t('{{number}} votes', { number: pollResults?.totalVotes ?? 0 })}</div>
+          <div>
+            {supportsStandardPollInteractions
+              ? t('{{number}} votes', { number: pollResults?.totalVotes ?? 0 })
+              : t('Voting for this poll format is not supported here yet.', {
+                  defaultValue: 'Voting for this poll format is not supported here yet.'
+                })}
+          </div>
 
           {isLoadingResults && t('Loading...')}
           {!isLoadingResults && showResults && (

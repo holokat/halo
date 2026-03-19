@@ -113,6 +113,9 @@ type TWidgetsContext = {
   isWidgetEnabled: (widgetId: TWidgetId) => boolean
   toggleWidgetCollapsed: (widgetId: TWidgetId) => void
   isWidgetCollapsed: (widgetId: TWidgetId) => boolean
+  getWidgetHeight: (widgetId: TWidgetId) => number | undefined
+  setWidgetHeight: (widgetId: TWidgetId, height: number) => void
+  clearWidgetHeight: (widgetId: TWidgetId) => void
   getWidgetById: (widgetId: TWidgetId) => TWidget | undefined
   reorderWidgets: (newOrder: TWidgetId[]) => void
   hideWidgetTitles: boolean
@@ -164,6 +167,10 @@ export function WidgetsProvider({ children }: { children: ReactNode }) {
 
   const [collapsedWidgetIds, setCollapsedWidgetIds] = useState<TWidgetId[]>(() => {
     return localStorageService.getCollapsedWidgets() as TWidgetId[]
+  })
+
+  const [widgetHeights, setWidgetHeightsState] = useState<Record<string, number>>(() => {
+    return localStorageService.getWidgetHeights()
   })
 
   const [pinnedNoteWidgets, setPinnedNoteWidgets] = useState<TPinnedNoteWidget[]>(() => {
@@ -221,6 +228,10 @@ export function WidgetsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorageService.setCollapsedWidgets(collapsedWidgetIds)
   }, [collapsedWidgetIds])
+
+  useEffect(() => {
+    localStorageService.setWidgetHeights(widgetHeights)
+  }, [widgetHeights])
 
   useEffect(() => {
     localStorageService.setPinnedNoteWidgets(pinnedNoteWidgets)
@@ -370,6 +381,29 @@ export function WidgetsProvider({ children }: { children: ReactNode }) {
     return collapsedWidgetIds.includes(widgetId)
   }
 
+  const getWidgetHeight = (widgetId: TWidgetId) => {
+    return widgetHeights[widgetId]
+  }
+
+  const setWidgetHeight = (widgetId: TWidgetId, height: number) => {
+    setWidgetHeightsState((prev) => ({
+      ...prev,
+      [widgetId]: Math.round(height)
+    }))
+  }
+
+  const clearWidgetHeight = (widgetId: TWidgetId) => {
+    setWidgetHeightsState((prev) => {
+      if (!(widgetId in prev)) {
+        return prev
+      }
+
+      const next = { ...prev }
+      delete next[widgetId]
+      return next
+    })
+  }
+
   const getWidgetById = (widgetId: TWidgetId) => {
     return AVAILABLE_WIDGETS.find((w) => w.id === widgetId)
   }
@@ -501,6 +535,9 @@ export function WidgetsProvider({ children }: { children: ReactNode }) {
         isWidgetEnabled,
         toggleWidgetCollapsed,
         isWidgetCollapsed,
+        getWidgetHeight,
+        setWidgetHeight,
+        clearWidgetHeight,
         getWidgetById,
         reorderWidgets,
         hideWidgetTitles,

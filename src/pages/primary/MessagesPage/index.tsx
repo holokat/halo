@@ -5,11 +5,13 @@ import Uploader from '@/components/PostEditor/Uploader'
 import SearchInput from '@/components/SearchInput'
 import { FormattedTimestamp } from '@/components/FormattedTimestamp'
 import SuggestedEmojis from '@/components/SuggestedEmojis'
+import { useFetchProfile } from '@/hooks/useFetchProfile'
 import { useSearchProfiles } from '@/hooks/useSearchProfiles'
 import PrimaryPageLayout from '@/layouts/PrimaryPageLayout'
 import ZapDialog from '@/components/ZapDialog'
 import { usePaymentsEnabled } from '@/providers/PaymentsEnabledProvider'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
+import { formatUserId } from '@/lib/pubkey'
 import { cn } from '@/lib/utils'
 import { getLightningAddressFromProfile } from '@/lib/lightning'
 import {
@@ -29,7 +31,21 @@ import { SimpleUsername } from '@/components/Username'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Drawer, DrawerContent, DrawerOverlay } from '@/components/ui/drawer'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerOverlay,
+  DrawerTitle
+} from '@/components/ui/drawer'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,9 +60,11 @@ import {
 } from '@/constants'
 import {
   ArrowLeft,
+  Check,
   CheckCheck,
   EyeOff,
   Inbox,
+  Info,
   Loader,
   MessageCircle,
   MessageCirclePlus,
@@ -63,6 +81,7 @@ import {
   MouseEvent,
   TouchEvent,
   forwardRef,
+  Fragment,
   lazy,
   Suspense,
   useEffect,
@@ -165,6 +184,24 @@ function findDirectConversationByPubkey(
   )
 }
 
+function normalizeRecipientPubkeys(pubkeys: string[], accountPubkey?: string | null) {
+  return Array.from(new Set(pubkeys.map((pubkey) => pubkey.trim()).filter(Boolean))).filter(
+    (pubkey) => pubkey !== accountPubkey
+  )
+}
+
+function findConversationByParticipants(
+  conversations: TMessageConversation[],
+  participantPubkeys: string[]
+) {
+  if (participantPubkeys.length === 0) {
+    return null
+  }
+
+  const conversationId = toConversationId(participantPubkeys)
+  return conversations.find((conversation) => conversation.id === conversationId) ?? null
+}
+
 type TReactionSummary = {
   emoji: string
   count: number
@@ -253,8 +290,9 @@ const MessagesPage = forwardRef(({ composeTo }: { composeTo?: string | null }, r
   } = useMessages()
   const [activeTab, setActiveTab] = useState<TOverviewTab>('conversations')
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null)
-  const [draftRecipientPubkey, setDraftRecipientPubkey] = useState<string | null>(null)
+  const [draftRecipientPubkeys, setDraftRecipientPubkeys] = useState<string[]>([])
   const [isComposePickerOpen, setIsComposePickerOpen] = useState(false)
+  const [composeRecipientPubkeys, setComposeRecipientPubkeys] = useState<string[]>([])
   const [composeQuery, setComposeQuery] = useState('')
   const [debouncedComposeQuery, setDebouncedComposeQuery] = useState('')
   const { profiles: composeProfiles, isFetching: isFetchingComposeProfiles } = useSearchProfiles(
@@ -274,11 +312,21 @@ const MessagesPage = forwardRef(({ composeTo }: { composeTo?: string | null }, r
     [allConversations, selectedConversationId]
   )
 
-  const viewMode: TMessagesViewMode = selectedConversationId || draftRecipientPubkey
+  const viewMode: TMessagesViewMode = selectedConversationId || draftRecipientPubkeys.length > 0
     ? 'thread'
     : isComposePickerOpen
       ? 'compose'
       : 'index'
+
+  const normalizedComposeRecipientPubkeys = useMemo(
+    () => normalizeRecipientPubkeys(composeRecipientPubkeys, pubkey),
+    [composeRecipientPubkeys, pubkey]
+  )
+
+  const matchingComposeConversation = useMemo(
+    () => findConversationByParticipants(allConversations, normalizedComposeRecipientPubkeys),
+    [allConversations, normalizedComposeRecipientPubkeys]
+  )
 
   const visibleConversations = activeTab === 'conversations' ? activeConversations : requests
 
@@ -313,7 +361,8 @@ const MessagesPage = forwardRef(({ composeTo }: { composeTo?: string | null }, r
 
     if (!composeTo) {
       setSelectedConversationId(null)
-      setDraftRecipientPubkey(null)
+      setDraftRecipientPubkeys([])
+      setComposeRecipientPubkeys([])
       setIsComposePickerOpen(false)
       return
     }
@@ -323,20 +372,23 @@ const MessagesPage = forwardRef(({ composeTo }: { composeTo?: string | null }, r
     if (matchingConversation) {
       setActiveTab(matchingConversation.isRequest ? 'requests' : 'conversations')
       setSelectedConversationId(matchingConversation.id)
-      setDraftRecipientPubkey(null)
+      setDraftRecipientPubkeys([])
+      setComposeRecipientPubkeys([])
       setIsComposePickerOpen(false)
       return
     }
 
     setSelectedConversationId(null)
-    setDraftRecipientPubkey(composeTo)
+    setDraftRecipientPubkeys([composeTo])
+    setComposeRecipientPubkeys([])
     setIsComposePickerOpen(false)
   }, [allConversations, composeTo])
 
   const openConversation = (conversation: TMessageConversation) => {
     setActiveTab(conversation.isRequest ? 'requests' : 'conversations')
     setSelectedConversationId(conversation.id)
-    setDraftRecipientPubkey(null)
+    setDraftRecipientPubkeys([])
+    setComposeRecipientPubkeys([])
     setIsComposePickerOpen(false)
     markConversationAsRead(conversation.id)
   }
@@ -344,27 +396,56 @@ const MessagesPage = forwardRef(({ composeTo }: { composeTo?: string | null }, r
   const handleOpenCompose = () => {
     setComposeQuery('')
     setDebouncedComposeQuery('')
-    setDraftRecipientPubkey(null)
+    setDraftRecipientPubkeys([])
     setSelectedConversationId(null)
+    setComposeRecipientPubkeys([])
     setIsComposePickerOpen(true)
   }
 
   const handleBack = () => {
     setSelectedConversationId(null)
-    setDraftRecipientPubkey(null)
+    setDraftRecipientPubkeys([])
+    setComposeRecipientPubkeys([])
     setIsComposePickerOpen(false)
   }
 
-  const handleSelectProfile = (profile: TProfile) => {
-    const matchingConversation = findDirectConversationByPubkey(allConversations, profile.pubkey)
-
-    if (matchingConversation) {
-      openConversation(matchingConversation)
+  const handleToggleComposeRecipient = (profile: TProfile) => {
+    if (profile.pubkey === pubkey) {
       return
     }
 
-    setDraftRecipientPubkey(profile.pubkey)
+    const isAlreadySelected = normalizedComposeRecipientPubkeys.includes(profile.pubkey)
+
+    setComposeRecipientPubkeys((current) => {
+      if (current.includes(profile.pubkey)) {
+        return current.filter((item) => item !== profile.pubkey)
+      }
+
+      return [...current, profile.pubkey]
+    })
+
+    if (!isAlreadySelected) {
+      setComposeQuery('')
+      setDebouncedComposeQuery('')
+    }
+  }
+
+  const handleRemoveComposeRecipient = (recipientPubkey: string) => {
+    setComposeRecipientPubkeys((current) => current.filter((item) => item !== recipientPubkey))
+  }
+
+  const handleStartConversation = () => {
+    if (normalizedComposeRecipientPubkeys.length === 0) {
+      return
+    }
+
+    if (matchingComposeConversation) {
+      openConversation(matchingComposeConversation)
+      return
+    }
+
     setSelectedConversationId(null)
+    setDraftRecipientPubkeys(normalizedComposeRecipientPubkeys)
     setIsComposePickerOpen(false)
   }
 
@@ -376,7 +457,7 @@ const MessagesPage = forwardRef(({ composeTo }: { composeTo?: string | null }, r
         <MessagesPageTitlebar
           viewMode={viewMode}
           conversation={selectedConversation}
-          draftRecipientPubkey={draftRecipientPubkey}
+          draftRecipientPubkeys={draftRecipientPubkeys}
           unreadMessageCount={unreadMessageCount}
           hasUnreadMessages={hasUnreadMessages}
           onBack={handleBack}
@@ -429,23 +510,28 @@ const MessagesPage = forwardRef(({ composeTo }: { composeTo?: string | null }, r
 
         {pubkey && isSupported && viewMode === 'compose' && (
           <ComposeMessageView
+            accountPubkey={pubkey}
             query={composeQuery}
             onQueryChange={setComposeQuery}
             profiles={composeProfiles}
             isFetching={isFetchingComposeProfiles}
-            onSelectProfile={handleSelectProfile}
+            selectedRecipientPubkeys={normalizedComposeRecipientPubkeys}
+            matchingConversation={matchingComposeConversation}
+            onToggleProfile={handleToggleComposeRecipient}
+            onRemoveRecipient={handleRemoveComposeRecipient}
+            onStartConversation={handleStartConversation}
           />
         )}
 
         {pubkey && isSupported && viewMode === 'thread' && (
           <ConversationThreadView
             conversation={selectedConversation}
-            draftRecipientPubkey={draftRecipientPubkey}
+            draftRecipientPubkeys={draftRecipientPubkeys}
             onOpenCompose={handleOpenCompose}
             onSent={() => {
-              if (draftRecipientPubkey) {
-                setSelectedConversationId(toConversationId([draftRecipientPubkey]))
-                setDraftRecipientPubkey(null)
+              if (draftRecipientPubkeys.length > 0) {
+                setSelectedConversationId(toConversationId(draftRecipientPubkeys))
+                setDraftRecipientPubkeys([])
                 setActiveTab('conversations')
               }
             }}
@@ -463,7 +549,7 @@ export default MessagesPage
 function MessagesPageTitlebar({
   viewMode,
   conversation,
-  draftRecipientPubkey,
+  draftRecipientPubkeys,
   unreadMessageCount,
   hasUnreadMessages,
   onBack,
@@ -472,7 +558,7 @@ function MessagesPageTitlebar({
 }: {
   viewMode: TMessagesViewMode
   conversation: TMessageConversation | null
-  draftRecipientPubkey: string | null
+  draftRecipientPubkeys: string[]
   unreadMessageCount: number
   hasUnreadMessages: boolean
   onBack: () => void
@@ -484,20 +570,23 @@ function MessagesPageTitlebar({
   if (viewMode === 'thread') {
     const zapTargetPubkey = conversation?.isGroup
       ? null
-      : conversation?.primaryPubkey ?? draftRecipientPubkey
+      : conversation?.primaryPubkey ?? draftRecipientPubkeys[0]
 
     return (
       <div className="flex items-center h-full pl-1 pr-2 gap-2">
         <Button variant="ghost" size="titlebar-icon" onClick={onBack} aria-label={t('Back')}>
           <ArrowLeft />
         </Button>
-        <ConversationAvatar conversation={conversation} draftRecipientPubkey={draftRecipientPubkey} size="small" />
+        <ConversationAvatar
+          conversation={conversation}
+          draftRecipientPubkeys={draftRecipientPubkeys}
+          size="small"
+        />
         <div className="min-w-0 flex-1">
-          {conversation ? (
-            <ConversationTitle conversation={conversation} className="text-lg font-semibold truncate" />
-          ) : draftRecipientPubkey ? (
-            <SimpleUsername
-              userId={draftRecipientPubkey}
+          {conversation || draftRecipientPubkeys.length > 0 ? (
+            <ConversationTitle
+              conversation={conversation}
+              draftRecipientPubkeys={draftRecipientPubkeys}
               className="text-lg font-semibold truncate"
             />
           ) : (
@@ -771,20 +860,63 @@ function ConversationRowSkeleton() {
 }
 
 function ComposeMessageView({
+  accountPubkey,
   query,
   onQueryChange,
   profiles,
   isFetching,
-  onSelectProfile
+  selectedRecipientPubkeys,
+  matchingConversation,
+  onToggleProfile,
+  onRemoveRecipient,
+  onStartConversation
 }: {
+  accountPubkey: string
   query: string
   onQueryChange: (value: string) => void
   profiles: TProfile[]
   isFetching: boolean
-  onSelectProfile: (profile: TProfile) => void
+  selectedRecipientPubkeys: string[]
+  matchingConversation: TMessageConversation | null
+  onToggleProfile: (profile: TProfile) => void
+  onRemoveRecipient: (recipientPubkey: string) => void
+  onStartConversation: () => void
 }) {
   const { t } = useTranslation()
   const hasQuery = !!query.trim()
+  const selectedCount = selectedRecipientPubkeys.length
+  const isGroupSelection = selectedCount > 1
+  const actionLabel =
+    selectedCount === 0
+      ? t('Start chat', { defaultValue: 'Start chat' })
+      : matchingConversation
+        ? isGroupSelection
+          ? t('Open Group', { defaultValue: 'Open Group' })
+          : t('Open Chat', { defaultValue: 'Open Chat' })
+        : isGroupSelection
+          ? t('Start Group', { defaultValue: 'Start Group' })
+          : t('Start Chat', { defaultValue: 'Start Chat' })
+  const helperText =
+    selectedCount === 0
+      ? t('Search for one or more people, then start your chat when you are ready.', {
+          defaultValue: 'Search for one or more people, then start your chat when you are ready.'
+        })
+      : matchingConversation
+        ? isGroupSelection
+          ? t('This participant group already has a conversation.', {
+              defaultValue: 'This participant group already has a conversation.'
+            })
+          : t('You already have a conversation with this person.', {
+              defaultValue: 'You already have a conversation with this person.'
+            })
+        : isGroupSelection
+          ? t('Start a new group chat with the selected people.', {
+              defaultValue: 'Start a new group chat with the selected people.'
+            })
+          : t('Start a direct chat with the selected person.', {
+              defaultValue: 'Start a direct chat with the selected person.'
+            })
+  const visibleProfiles = profiles.filter((profile) => profile.pubkey !== accountPubkey)
 
   return (
     <div className="space-y-4">
@@ -794,11 +926,53 @@ function ComposeMessageView({
         placeholder={t('Search people by name, nip05, or npub')}
       />
 
+      <div className="rounded-xl border bg-muted/20 px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-sm font-medium">
+              {selectedCount > 0
+                ? t('{{count}} selected', {
+                    defaultValue: '{{count}} selected',
+                    count: selectedCount
+                  })
+                : t('No one selected yet', { defaultValue: 'No one selected yet' })}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">{helperText}</p>
+          </div>
+          <Button
+            type="button"
+            className="shrink-0"
+            disabled={selectedCount === 0}
+            onClick={onStartConversation}
+          >
+            {actionLabel}
+          </Button>
+        </div>
+
+        {selectedCount > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {selectedRecipientPubkeys.map((recipientPubkey) => (
+              <SelectedRecipientChip
+                key={recipientPubkey}
+                recipientPubkey={recipientPubkey}
+                onRemove={() => onRemoveRecipient(recipientPubkey)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
       {!hasQuery ? (
         <div className="rounded-xl border px-4 py-10 text-center">
-          <div className="text-base font-semibold">{t('Start a new DM')}</div>
+          <div className="text-base font-semibold">
+            {t('Pick people for your next chat', {
+              defaultValue: 'Pick people for your next chat'
+            })}
+          </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            {t('Search for someone, then open a conversation and send your message.')}
+            {t('Search multiple names if you want to start a group.', {
+              defaultValue: 'Search multiple names if you want to start a group.'
+            })}
           </p>
         </div>
       ) : (
@@ -809,17 +983,23 @@ function ComposeMessageView({
               <ComposeProfileRowSkeleton />
               <ComposeProfileRowSkeleton />
             </>
-          ) : profiles.length === 0 ? (
+          ) : visibleProfiles.length === 0 ? (
             <div className="px-4 py-10 text-center text-sm text-muted-foreground">
               {t('No users found')}
             </div>
           ) : (
-            profiles.map((profile) => (
-              <button
+            visibleProfiles.map((profile) => {
+              const isSelected = selectedRecipientPubkeys.includes(profile.pubkey)
+
+              return (
+                <button
                 key={profile.pubkey}
                 type="button"
-                className="flex w-full items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-muted/40 border-b last:border-b-0"
-                onClick={() => onSelectProfile(profile)}
+                className={cn(
+                  'flex w-full items-center gap-3 border-b px-3 py-3 text-left transition-colors last:border-b-0 hover:bg-muted/40',
+                  isSelected && 'bg-primary/5'
+                )}
+                onClick={() => onToggleProfile(profile)}
               >
                 <SimpleUserAvatar userId={profile.pubkey} size="small" />
                 <div className="min-w-0 flex-1">
@@ -828,11 +1008,53 @@ function ComposeMessageView({
                     {profile.nip05 || profile.npub}
                   </div>
                 </div>
+                <div
+                  className={cn(
+                    'inline-flex h-8 min-w-8 items-center justify-center rounded-full border px-2 text-xs font-medium transition-colors',
+                    isSelected
+                      ? 'border-primary/30 bg-primary/10 text-primary'
+                      : 'border-border bg-background text-muted-foreground'
+                  )}
+                >
+                  {isSelected ? (
+                    <>
+                      <Check className="mr-1 size-3.5" />
+                      {t('Added', { defaultValue: 'Added' })}
+                    </>
+                  ) : (
+                    t('Add', { defaultValue: 'Add' })
+                  )}
+                </div>
               </button>
-            ))
+              )
+            })
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+function SelectedRecipientChip({
+  recipientPubkey,
+  onRemove
+}: {
+  recipientPubkey: string
+  onRemove: () => void
+}) {
+  return (
+    <div className="inline-flex items-center gap-2 rounded-full border bg-background px-2.5 py-1.5">
+      <SimpleUserAvatar userId={recipientPubkey} size="xSmall" />
+      <ParticipantDisplayName pubkey={recipientPubkey} className="max-w-[10rem] truncate text-xs font-medium" />
+      <button
+        type="button"
+        className="inline-flex size-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
+        onClick={onRemove}
+        aria-label="Remove recipient"
+        title="Remove recipient"
+      >
+        <X className="size-3" />
+      </button>
     </div>
   )
 }
@@ -851,12 +1073,12 @@ function ComposeProfileRowSkeleton() {
 
 function ConversationThreadView({
   conversation,
-  draftRecipientPubkey,
+  draftRecipientPubkeys,
   onOpenCompose,
   onSent
 }: {
   conversation: TMessageConversation | null
-  draftRecipientPubkey: string | null
+  draftRecipientPubkeys: string[]
   onOpenCompose: () => void
   onSent: () => void
 }) {
@@ -865,10 +1087,10 @@ function ConversationThreadView({
     () => conversation?.messages.slice(-MAX_VISIBLE_MESSAGES) ?? [],
     [conversation]
   )
-  const recipientPubkeys = conversation?.participantPubkeys ?? (draftRecipientPubkey ? [draftRecipientPubkey] : [])
+  const recipientPubkeys = conversation?.participantPubkeys ?? draftRecipientPubkeys
   const bottomAnchorRef = useRef<HTMLDivElement | null>(null)
   const previousThreadKeyRef = useRef<string | null>(null)
-  const threadKey = conversation?.id ?? draftRecipientPubkey ?? null
+  const threadKey = conversation?.id ?? (draftRecipientPubkeys.length > 0 ? toConversationId(draftRecipientPubkeys) : null)
   const lastVisibleMessageKey = visibleMessages[visibleMessages.length - 1]?.wrapId ?? null
 
   useEffect(() => {
@@ -905,6 +1127,13 @@ function ConversationThreadView({
   return (
     <div className="flex min-h-[calc(100dvh-9.5rem)] flex-col">
       <div className="flex-1 space-y-4 pb-32">
+        {recipientPubkeys.length > 1 && (
+          <ConversationParticipantsSummary
+            participantPubkeys={recipientPubkeys}
+            subject={conversation?.subject}
+            isDraft={!conversation}
+          />
+        )}
         {visibleMessages.length > 0 ? (
           <div className="space-y-3">
             {conversation && conversation.messages.length > MAX_VISIBLE_MESSAGES && (
@@ -958,24 +1187,15 @@ function ConversationThreadView({
 
 function ConversationAvatar({
   conversation,
-  draftRecipientPubkey,
+  draftRecipientPubkeys,
   size = 'medium'
 }: {
   conversation?: TMessageConversation | null
-  draftRecipientPubkey?: string | null
+  draftRecipientPubkeys?: string[]
   size?: 'medium' | 'small'
 }) {
-  const resolvedSize = size === 'small' ? 'small' : 'medium'
-
-  if (conversation?.isGroup) {
-    return (
-      <div className="w-8 h-8 shrink-0 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
-        <Users className="size-4" />
-      </div>
-    )
-  }
-
-  const pubkey = conversation?.primaryPubkey ?? draftRecipientPubkey
+  const participantPubkeys = conversation?.participantPubkeys ?? draftRecipientPubkeys ?? []
+  const pubkey = conversation?.primaryPubkey ?? participantPubkeys[0]
 
   if (!pubkey) {
     return (
@@ -985,21 +1205,279 @@ function ConversationAvatar({
     )
   }
 
-  return <SimpleUserAvatar userId={pubkey} size={resolvedSize} />
+  if (participantPubkeys.length > 1 || conversation?.isGroup) {
+    return <ConversationAvatarStack participantPubkeys={participantPubkeys} size={size} />
+  }
+
+  return <SimpleUserAvatar userId={pubkey} size={size === 'small' ? 'small' : 'medium'} />
 }
 
 function ConversationTitle({
   conversation,
+  draftRecipientPubkeys,
   className
 }: {
-  conversation: TMessageConversation
+  conversation?: TMessageConversation | null
+  draftRecipientPubkeys?: string[]
   className?: string
 }) {
-  if (conversation.isGroup || !conversation.primaryPubkey) {
-    return <div className={className}>Group conversation</div>
+  const { t } = useTranslation()
+  const participantPubkeys = conversation?.participantPubkeys ?? draftRecipientPubkeys ?? []
+
+  if (participantPubkeys.length > 1 || conversation?.isGroup) {
+    return (
+      <GroupConversationTitle
+        participantPubkeys={participantPubkeys}
+        className={className}
+        fallbackLabel={t('Group conversation', { defaultValue: 'Group conversation' })}
+      />
+    )
   }
 
-  return <SimpleUsername userId={conversation.primaryPubkey} className={className} />
+  if (conversation?.primaryPubkey) {
+    return <SimpleUsername userId={conversation.primaryPubkey} className={className} />
+  }
+
+  if (participantPubkeys[0]) {
+    return <SimpleUsername userId={participantPubkeys[0]} className={className} />
+  }
+
+  return <div className={className}>{t('Messages')}</div>
+}
+
+function ConversationAvatarStack({
+  participantPubkeys,
+  size = 'medium'
+}: {
+  participantPubkeys: string[]
+  size?: 'medium' | 'small'
+}) {
+  const visiblePubkeys = participantPubkeys.slice(0, 3)
+  const extraCount = Math.max(participantPubkeys.length - visiblePubkeys.length, 0)
+  const avatarSizeClass = size === 'small' ? 'h-6 w-6' : 'h-8 w-8'
+  const countSizeClass = size === 'small' ? 'h-7 min-w-7 text-[10px]' : 'h-8 min-w-8 text-[11px]'
+
+  return (
+    <div className="flex shrink-0 items-center -space-x-2">
+      {visiblePubkeys.map((participantPubkey, index) => (
+        <SimpleUserAvatar
+          key={participantPubkey}
+          userId={participantPubkey}
+          size={size === 'small' ? 'xSmall' : 'compact'}
+          className={cn('ring-2 ring-background', avatarSizeClass, index > 0 && 'relative z-[1]')}
+        />
+      ))}
+      {extraCount > 0 && (
+        <div
+          className={cn(
+            'relative z-[1] inline-flex items-center justify-center rounded-full border border-border bg-muted font-medium text-muted-foreground ring-2 ring-background',
+            countSizeClass
+          )}
+        >
+          +{extraCount}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function GroupConversationTitle({
+  participantPubkeys,
+  className,
+  fallbackLabel
+}: {
+  participantPubkeys: string[]
+  className?: string
+  fallbackLabel: string
+}) {
+  const visiblePubkeys = participantPubkeys.slice(0, 3)
+  const extraCount = Math.max(participantPubkeys.length - visiblePubkeys.length, 0)
+
+  if (visiblePubkeys.length === 0) {
+    return <div className={className}>{fallbackLabel}</div>
+  }
+
+  return (
+    <div className={cn('min-w-0 truncate', className)}>
+      {visiblePubkeys.map((participantPubkey, index) => (
+        <Fragment key={participantPubkey}>
+          {index > 0 && <span>, </span>}
+          <ParticipantDisplayName pubkey={participantPubkey} className="inline" />
+        </Fragment>
+      ))}
+      {extraCount > 0 && <span>{` +${extraCount}`}</span>}
+    </div>
+  )
+}
+
+function ParticipantDisplayName({
+  pubkey,
+  className
+}: {
+  pubkey: string
+  className?: string
+}) {
+  const { profile } = useFetchProfile(pubkey)
+
+  return <span className={className}>{profile?.username || formatUserId(pubkey)}</span>
+}
+
+function ConversationParticipantsSummary({
+  participantPubkeys,
+  subject,
+  isDraft
+}: {
+  participantPubkeys: string[]
+  subject?: string
+  isDraft: boolean
+}) {
+  const { t } = useTranslation()
+  const totalParticipants = participantPubkeys.length + 1
+  const summaryText = isDraft
+    ? t('Your new group will include {{count}} people total.', {
+        defaultValue: 'Your new group will include {{count}} people total.',
+        count: totalParticipants
+      })
+    : t('{{count}} people are in this chat.', {
+        defaultValue: '{{count}} people are in this chat.',
+        count: totalParticipants
+      })
+
+  return (
+    <div className="rounded-xl border bg-muted/20 px-4 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-3">
+            <ConversationAvatarStack participantPubkeys={participantPubkeys} />
+            <div className="min-w-0">
+              <div className="text-sm font-medium">
+                {subject?.trim()
+                  ? subject
+                  : t('Group chat', { defaultValue: 'Group chat' })}
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">{summaryText}</div>
+            </div>
+          </div>
+        </div>
+        <ConversationParticipantsDialog participantPubkeys={participantPubkeys} />
+      </div>
+    </div>
+  )
+}
+
+function ConversationParticipantsDialog({
+  participantPubkeys
+}: {
+  participantPubkeys: string[]
+}) {
+  const { t } = useTranslation()
+  const { pubkey } = useNostr()
+  const { isSmallScreen } = useScreenSize()
+  const [open, setOpen] = useState(false)
+  const allParticipantPubkeys = useMemo(
+    () => Array.from(new Set([pubkey, ...participantPubkeys].filter(Boolean))) as string[],
+    [participantPubkeys, pubkey]
+  )
+
+  const content = (
+    <div className="space-y-3">
+      {allParticipantPubkeys.map((participantPubkey) => (
+        <ConversationParticipantRow
+          key={participantPubkey}
+          participantPubkey={participantPubkey}
+          isYou={participantPubkey === pubkey}
+        />
+      ))}
+    </div>
+  )
+
+  if (isSmallScreen) {
+    return (
+      <>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+          onClick={() => setOpen(true)}
+        >
+          <Info className="size-4" />
+          {t('Members', { defaultValue: 'Members' })}
+        </Button>
+        <Drawer open={open} onOpenChange={setOpen}>
+          <DrawerOverlay onClick={() => setOpen(false)} />
+          <DrawerContent hideOverlay className="px-4 pb-4">
+            <DrawerHeader className="px-0">
+              <DrawerTitle>{t('Group members', { defaultValue: 'Group members' })}</DrawerTitle>
+              <DrawerDescription>
+                {t('Everyone currently included in this chat.', {
+                  defaultValue: 'Everyone currently included in this chat.'
+                })}
+              </DrawerDescription>
+            </DrawerHeader>
+            {content}
+          </DrawerContent>
+        </Drawer>
+      </>
+    )
+  }
+
+  return (
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="shrink-0"
+        onClick={() => setOpen(true)}
+      >
+        <Info className="size-4" />
+        {t('Members', { defaultValue: 'Members' })}
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('Group members', { defaultValue: 'Group members' })}</DialogTitle>
+            <DialogDescription>
+              {t('Everyone currently included in this chat.', {
+                defaultValue: 'Everyone currently included in this chat.'
+              })}
+            </DialogDescription>
+          </DialogHeader>
+          {content}
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+function ConversationParticipantRow({
+  participantPubkey,
+  isYou
+}: {
+  participantPubkey: string
+  isYou: boolean
+}) {
+  const { t } = useTranslation()
+  const { profile } = useFetchProfile(participantPubkey)
+  const secondaryText = profile?.nip05 || profile?.npub || formatUserId(participantPubkey)
+
+  return (
+    <div className="flex items-center gap-3 rounded-xl border bg-background px-3 py-3">
+      <SimpleUserAvatar userId={participantPubkey} size="small" />
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-sm font-medium">
+          {isYou ? t('You', { defaultValue: 'You' }) : profile?.username || formatUserId(participantPubkey)}
+        </div>
+        <div className="truncate text-xs text-muted-foreground">{secondaryText}</div>
+      </div>
+      {isYou && (
+        <Badge variant="secondary" className="shrink-0">
+          {t('You', { defaultValue: 'You' })}
+        </Badge>
+      )}
+    </div>
+  )
 }
 
 function MessageBubble({

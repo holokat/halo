@@ -22,7 +22,7 @@ export default function WidgetContainer({
   const { hideWidgetTitles } = useWidgets()
 
   return (
-    <div className={cn('flex flex-col overflow-hidden', className)}>
+    <div className={cn('group/widget flex flex-col overflow-hidden', className)}>
       {title && !hideWidgetTitles && (
         <div className="flex items-center justify-between px-4 py-3 border-b">
           <h3 className="font-semibold text-sm">{title}</h3>

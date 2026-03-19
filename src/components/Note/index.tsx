@@ -128,7 +128,7 @@ export default function Note({
     content = <GroupMetadata className="mt-2" event={event} originalNoteId={originalNoteId} />
   } else if (event.kind === kinds.CommunityDefinition) {
     content = <CommunityDefinition className="mt-2" event={event} />
-  } else if (event.kind === ExtendedKind.POLL) {
+  } else if ([ExtendedKind.POLL, ExtendedKind.LEGACY_ZAP_POLL].includes(event.kind)) {
     content = (
       <>
         <Content className="mt-2" event={event} compactMedia={compactMedia} />

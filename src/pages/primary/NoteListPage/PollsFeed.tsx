@@ -1,5 +1,5 @@
 import NoteList from '@/components/NoteList'
-import { ExtendedKind } from '@/constants'
+import { POLL_KINDS } from '@/constants'
 import { useFeed } from '@/providers/FeedProvider'
 import { useNostr } from '@/providers/NostrProvider'
 import { useUserTrust } from '@/providers/UserTrustProvider'
@@ -38,7 +38,7 @@ export default function PollsFeed() {
   return (
     <NoteList
       subRequests={subRequests}
-      showKinds={[ExtendedKind.POLL]}
+      showKinds={[...POLL_KINDS]}
       isMainFeed
       hideReplies
       hideUntrustedNotes={hideUntrustedNotes}

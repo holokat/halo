@@ -73,7 +73,7 @@ export default function ContentPreview({
     return <HighlightPreview event={event} className={className} />
   }
 
-  if (event.kind === ExtendedKind.POLL) {
+  if ([ExtendedKind.POLL, ExtendedKind.LEGACY_ZAP_POLL].includes(event.kind)) {
     return <PollPreview event={event} className={className} />
   }
 

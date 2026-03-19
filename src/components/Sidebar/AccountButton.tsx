@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import useDeferredAction from '@/hooks/useDeferredAction'
 import { cn } from '@/lib/utils'
 import { toWallet } from '@/lib/link'
 import { formatPubkey, generateImageByPubkey } from '@/lib/pubkey'
@@ -67,15 +68,23 @@ function ProfileButton() {
   const pubkey = account?.pubkey
   const { navigate } = usePrimaryPage()
   const { push } = useSecondaryPage()
+  const [menuOpen, setMenuOpen] = useState(false)
   const [loginDialogOpen, setLoginDialogOpen] = useState(false)
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
+  const deferAction = useDeferredAction()
+
   if (!pubkey) return null
 
   const defaultAvatar = generateImageByPubkey(pubkey)
   const { username, avatar } = profile || { username: formatPubkey(pubkey), avatar: defaultAvatar }
 
+  const openDialogFromMenu = (setDialogOpen: React.Dispatch<React.SetStateAction<boolean>>) => {
+    setMenuOpen(false)
+    deferAction(() => setDialogOpen(true))
+  }
+
   const dropdownMenu = (
-    <DropdownMenu>
+    <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
       <DropdownMenuTrigger asChild>
         <ProfileButtonContent username={username} avatar={avatar} defaultAvatar={defaultAvatar} />
       </DropdownMenuTrigger>
@@ -93,26 +102,31 @@ function ProfileButton() {
           {t('Wallet')}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => setLoginDialogOpen(true)}>
+        <DropdownMenuItem
+          onSelect={(e) => {
+            e.preventDefault()
+            openDialogFromMenu(setLoginDialogOpen)
+          }}
+        >
           <ArrowDownUp />
           {t('Switch account')}
         </DropdownMenuItem>
         <DropdownMenuItem
           className="text-destructive focus:text-destructive"
-          onClick={() => setLogoutDialogOpen(true)}
+          onSelect={(e) => {
+            e.preventDefault()
+            openDialogFromMenu(setLogoutDialogOpen)
+          }}
         >
           <LogOut />
           {t('Logout')}
         </DropdownMenuItem>
       </DropdownMenuContent>
-      <LoginDialog open={loginDialogOpen} setOpen={setLoginDialogOpen} />
-      <LogoutDialog open={logoutDialogOpen} setOpen={setLogoutDialogOpen} />
     </DropdownMenu>
   )
 
-  // Show tooltip in compact mode or on screens where username is hidden
-  if (compactSidebar) {
-    return (
+  return (
+    <>
       <Tooltip delayDuration={200}>
         <TooltipTrigger asChild>
           <div>
@@ -122,37 +136,16 @@ function ProfileButton() {
         <TooltipContent
           side="right"
           sideOffset={8}
-          className="font-medium text-sm px-3 py-2 bg-card border-border shadow-lg"
+          className={cn(
+            'font-medium text-sm px-3 py-2 bg-card border-border shadow-lg',
+            !compactSidebar && 'xl:hidden'
+          )}
         >
           {username}
         </TooltipContent>
       </Tooltip>
-    )
-  }
-
-  return (
-    <>
-      {/* Tooltip for smaller screens where username is hidden */}
-      <span className="xl:hidden">
-        <Tooltip delayDuration={200}>
-          <TooltipTrigger asChild>
-            <div>
-              {dropdownMenu}
-            </div>
-          </TooltipTrigger>
-          <TooltipContent
-            side="right"
-            sideOffset={8}
-            className="font-medium text-sm px-3 py-2 bg-card border-border shadow-lg"
-          >
-            {username}
-          </TooltipContent>
-        </Tooltip>
-      </span>
-      {/* No tooltip when username is visible */}
-      <span className="max-xl:hidden">
-        {dropdownMenu}
-      </span>
+      <LoginDialog open={loginDialogOpen} setOpen={setLoginDialogOpen} />
+      <LogoutDialog open={logoutDialogOpen} setOpen={setLogoutDialogOpen} />
     </>
   )
 }

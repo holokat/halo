@@ -92,6 +92,7 @@ export const StorageKey = {
   HIDE_WIDGET_TITLES: 'hideWidgetTitles',
   ENABLED_WIDGETS: 'enabledWidgets',
   COLLAPSED_WIDGETS: 'collapsedWidgets',
+  WIDGET_HEIGHTS: 'widgetHeights',
   NEWS_WIDGET_RELAYS: 'newsWidgetRelays',
   NEWS_WIDGET_HASHTAGS: 'newsWidgetHashtags',
   PINNED_NOTE_WIDGETS: 'pinnedNoteWidgets',
@@ -167,6 +168,7 @@ export const ExtendedKind = {
   SHORT_VIDEO: 22,
   FILE_METADATA: 1063,
   POLL: 1068,
+  LEGACY_ZAP_POLL: 6969,
   POLL_RESPONSE: 1018,
   COMMENT: 1111,
   VOICE: 1222,
@@ -181,6 +183,8 @@ export const ExtendedKind = {
   STARTER_PACK: 39089
 }
 
+export const POLL_KINDS = [ExtendedKind.POLL, ExtendedKind.LEGACY_ZAP_POLL]
+
 export const SUPPORTED_KINDS = [
   kinds.ShortTextNote,
   kinds.Repost,
@@ -188,7 +192,7 @@ export const SUPPORTED_KINDS = [
   ExtendedKind.PICTURE,
   ExtendedKind.VIDEO,
   ExtendedKind.SHORT_VIDEO,
-  ExtendedKind.POLL,
+  ...POLL_KINDS,
   ExtendedKind.COMMENT,
   ExtendedKind.VOICE,
   ExtendedKind.VOICE_COMMENT,

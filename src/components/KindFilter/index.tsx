@@ -3,7 +3,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Drawer, DrawerContent, DrawerHeader, DrawerTrigger } from '@/components/ui/drawer'
 import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { ExtendedKind } from '@/constants'
+import { ExtendedKind, POLL_KINDS } from '@/constants'
 import { cn } from '@/lib/utils'
 import { useKindFilter } from '@/providers/KindFilterProvider'
 import { useMediaOnly } from '@/providers/MediaOnlyProvider'
@@ -17,7 +17,7 @@ const KIND_FILTER_OPTIONS = [
   { kindGroup: [kinds.ShortTextNote, ExtendedKind.COMMENT], label: 'Posts' },
   { kindGroup: [kinds.Repost], label: 'Reposts' },
   { kindGroup: [kinds.LongFormArticle], label: 'Articles' },
-  { kindGroup: [ExtendedKind.POLL], label: 'Polls' },
+  { kindGroup: POLL_KINDS, label: 'Polls' },
   { kindGroup: [ExtendedKind.VOICE, ExtendedKind.VOICE_COMMENT], label: 'Voice Posts' },
   { kindGroup: [ExtendedKind.PICTURE], label: 'Photo Posts' },
   { kindGroup: [ExtendedKind.VIDEO, ExtendedKind.SHORT_VIDEO], label: 'Video Posts' }

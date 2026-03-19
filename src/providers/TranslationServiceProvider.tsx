@@ -82,7 +82,7 @@ export function TranslationServiceProvider({ children }: { children: React.React
       })
     }
 
-    if (event.kind === ExtendedKind.POLL) {
+    if ([ExtendedKind.POLL, ExtendedKind.LEGACY_ZAP_POLL].includes(event.kind)) {
       const pollMetadata = getPollMetadataFromEvent(event)
       return joinTexts({
         question: event.content,
@@ -233,7 +233,9 @@ export function TranslationServiceProvider({ children }: { children: React.React
       ...event,
       content: translatedTexts.question ?? '',
       tags: event.tags.map((tag) =>
-        tag[0] === 'option' ? ['option', tag[1], translatedTexts[tag[1]] ?? tag[2]] : tag
+        tag[0] === 'option' || tag[0] === 'poll_option'
+          ? [tag[0], tag[1], translatedTexts[tag[1]] ?? tag[2]]
+          : tag
       )
     }
   }
@@ -258,7 +260,7 @@ export function TranslationServiceProvider({ children }: { children: React.React
     let translatedEvent: Event | undefined
     if (event.kind === kinds.Highlights) {
       translatedEvent = await translateHighlightEvent(event)
-    } else if (event.kind === ExtendedKind.POLL) {
+    } else if ([ExtendedKind.POLL, ExtendedKind.LEGACY_ZAP_POLL].includes(event.kind)) {
       translatedEvent = await translatePollEvent(event)
     } else {
       const translatedText = await translate(event.content, target)

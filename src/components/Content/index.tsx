@@ -76,6 +76,7 @@ export default function Content({
       ExtendedKind.COMMENT,
       ExtendedKind.PICTURE,
       ExtendedKind.POLL,
+      ExtendedKind.LEGACY_ZAP_POLL,
       ExtendedKind.RELAY_REVIEW
     ].includes(event.kind)
 

@@ -130,6 +130,7 @@ class LocalStorageService {
   private hideWidgetTitles: boolean = false
   private enabledWidgets: string[] = []
   private collapsedWidgets: string[] = []
+  private widgetHeights: Record<string, number> = {}
   private pinnedNoteWidgets: { id: string; eventId: string }[] = []
   private liveStreamWidgets: {
     id: string
@@ -319,10 +320,13 @@ class LocalStorageService {
       if (showKindsVersion < 1) {
         showKinds.push(ExtendedKind.VIDEO, ExtendedKind.SHORT_VIDEO)
       }
+      if (showKindsVersion < 2 && showKinds.includes(ExtendedKind.POLL)) {
+        showKinds.push(ExtendedKind.LEGACY_ZAP_POLL)
+      }
       this.showKinds = showKinds
     }
     window.localStorage.setItem(StorageKey.SHOW_KINDS, JSON.stringify(this.showKinds))
-    window.localStorage.setItem(StorageKey.SHOW_KINDS_VERSION, '1')
+    window.localStorage.setItem(StorageKey.SHOW_KINDS_VERSION, '2')
 
     const mediaOnlyStr = window.localStorage.getItem(StorageKey.MEDIA_ONLY)
     // Default to false so text-heavy relays do not appear empty on first load.
@@ -494,6 +498,10 @@ class LocalStorageService {
         )
       )
     }
+
+    this.widgetHeights = sanitizeWidgetHeights(
+      getStorageJson<Record<string, number>>(StorageKey.WIDGET_HEIGHTS, {})
+    )
 
     const pinnedNoteWidgetsStr = window.localStorage.getItem(StorageKey.PINNED_NOTE_WIDGETS)
     if (pinnedNoteWidgetsStr) {
@@ -1350,6 +1358,43 @@ class LocalStorageService {
     this.setJson(StorageKey.COLLAPSED_WIDGETS, this.collapsedWidgets)
   }
 
+  getWidgetHeights() {
+    return this.widgetHeights
+  }
+
+  setWidgetHeights(heights: Record<string, number>) {
+    this.widgetHeights = sanitizeWidgetHeights(heights)
+    this.setJson(StorageKey.WIDGET_HEIGHTS, this.widgetHeights)
+  }
+
+  getWidgetHeight(widgetId: string) {
+    return this.widgetHeights[widgetId]
+  }
+
+  setWidgetHeight(widgetId: string, height: number) {
+    const normalizedHeight = normalizeWidgetHeight(height)
+    if (!widgetId || normalizedHeight === null) {
+      return
+    }
+
+    this.widgetHeights = {
+      ...this.widgetHeights,
+      [widgetId]: normalizedHeight
+    }
+    this.setJson(StorageKey.WIDGET_HEIGHTS, this.widgetHeights)
+  }
+
+  clearWidgetHeight(widgetId: string) {
+    if (!widgetId || !(widgetId in this.widgetHeights)) {
+      return
+    }
+
+    const nextHeights = { ...this.widgetHeights }
+    delete nextHeights[widgetId]
+    this.widgetHeights = nextHeights
+    this.setJson(StorageKey.WIDGET_HEIGHTS, this.widgetHeights)
+  }
+
   getTrendingNotesHeight() {
     return this.trendingNotesHeight
   }
@@ -1772,4 +1817,32 @@ export default instance
 
 function normalizeWidgetHashtag(tag: string) {
   return tag.trim().replace(/^#/, '').toLowerCase()
+}
+
+function sanitizeWidgetHeights(heights: Record<string, number> | null | undefined) {
+  if (!heights || typeof heights !== 'object') {
+    return {}
+  }
+
+  return Object.fromEntries(
+    Object.entries(heights)
+      .map(([widgetId, height]) => [widgetId, normalizeWidgetHeight(height)])
+      .filter(
+        (entry): entry is [string, number] =>
+          typeof entry[0] === 'string' && entry[0].trim().length > 0 && entry[1] !== null
+      )
+  )
+}
+
+function normalizeWidgetHeight(height: number) {
+  if (!Number.isFinite(height)) {
+    return null
+  }
+
+  const roundedHeight = Math.round(height)
+  if (roundedHeight < 120 || roundedHeight > 1200) {
+    return null
+  }
+
+  return roundedHeight
 }

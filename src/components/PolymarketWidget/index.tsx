@@ -1,13 +1,7 @@
 import Image from '@/components/Image'
+import ResizableWidgetBody from '@/components/ResizableWidgetBody'
 import WidgetContainer from '@/components/WidgetContainer'
 import WidgetHeader from '@/components/WidgetHeader'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { AVAILABLE_WIDGETS, useWidgets } from '@/providers/WidgetsProvider'
@@ -153,30 +147,43 @@ export default function PolymarketWidget() {
 
       {!isCollapsed && (
         <div className={cn('px-4 pb-4', hideWidgetTitles && 'pt-4')}>
-          <div className="pt-1">
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger
-                className="h-8 text-xs"
-                aria-label={t('Choose Polymarket category', {
-                  defaultValue: 'Choose Polymarket category'
-                })}
-              >
-                <SelectValue placeholder={t('All', { defaultValue: 'All' })} />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((category) => (
-                  <SelectItem key={category.slug} value={category.slug}>
+          <div
+            className="overflow-x-auto pt-1 scrollbar-hide"
+            aria-label={t('Choose Polymarket category', {
+              defaultValue: 'Choose Polymarket category'
+            })}
+          >
+            <div className="flex min-w-max items-center gap-1.5 pr-1">
+              {categories.map((category) => {
+                const isSelected = category.slug === selectedCategory
+
+                return (
+                  <button
+                    key={category.slug}
+                    type="button"
+                    className={cn(
+                      'shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium leading-none whitespace-nowrap transition-colors',
+                      isSelected
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-border/70 bg-background/40 text-muted-foreground hover:border-border hover:bg-accent/50 hover:text-foreground'
+                    )}
+                    onClick={() => setSelectedCategory(category.slug)}
+                    aria-pressed={isSelected}
+                  >
                     {category.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  </button>
+                )
+              })}
+            </div>
           </div>
 
-          <div
+          <ResizableWidgetBody
+            widgetId="polymarket"
+            minHeight={160}
+            maxHeight={640}
             className={cn(
               WIDGET_LIST_HEIGHT_CLASS,
-              'mt-3 overflow-y-auto overflow-x-hidden overscroll-y-contain touch-pan-y scrollbar-hide'
+              'mt-2.5 overflow-y-auto overflow-x-hidden overscroll-y-contain touch-pan-y scrollbar-hide'
             )}
           >
             {loading ? (
@@ -214,7 +221,7 @@ export default function PolymarketWidget() {
                 ))}
               </div>
             )}
-          </div>
+          </ResizableWidgetBody>
         </div>
       )}
     </WidgetContainer>

@@ -5,6 +5,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
+import useDeferredAction from '@/hooks/useDeferredAction'
 import {
   Drawer,
   DrawerContent,
@@ -29,6 +30,8 @@ export default function ArticleOptions({ event }: ArticleOptionsProps) {
   const { isSmallScreen } = useScreenSize()
   const [isRawEventDialogOpen, setIsRawEventDialogOpen] = useState(false)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const deferAction = useDeferredAction()
 
   const getArticleUrl = () => {
     const noteId = nip19.naddrEncode({
@@ -70,6 +73,11 @@ export default function ArticleOptions({ event }: ArticleOptionsProps) {
   const handleViewRawSource = () => {
     setIsDrawerOpen(false)
     setIsRawEventDialogOpen(true)
+  }
+
+  const runMenuAction = (action: () => void) => {
+    setMenuOpen(false)
+    deferAction(action)
   }
 
   if (isSmallScreen) {
@@ -126,22 +134,37 @@ export default function ArticleOptions({ event }: ArticleOptionsProps) {
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="titlebar-icon">
             <MoreVertical />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={handleCopyUrl}>
+          <DropdownMenuItem
+            onSelect={(event) => {
+              event.preventDefault()
+              runMenuAction(handleCopyUrl)
+            }}
+          >
             <Link className="w-4 h-4 mr-2" />
             {t('Copy URL')}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleCopyEventId}>
+          <DropdownMenuItem
+            onSelect={(event) => {
+              event.preventDefault()
+              runMenuAction(handleCopyEventId)
+            }}
+          >
             <Copy className="w-4 h-4 mr-2" />
             {t('Copy Event ID')}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleViewRawSource}>
+          <DropdownMenuItem
+            onSelect={(event) => {
+              event.preventDefault()
+              runMenuAction(handleViewRawSource)
+            }}
+          >
             <Code className="w-4 h-4 mr-2" />
             {t('View Raw Source')}
           </DropdownMenuItem>

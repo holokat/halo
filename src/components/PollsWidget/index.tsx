@@ -1,4 +1,5 @@
 import Image from '@/components/Image'
+import ResizableWidgetBody from '@/components/ResizableWidgetBody'
 import WidgetContainer from '@/components/WidgetContainer'
 import WidgetHeader from '@/components/WidgetHeader'
 import { SimpleUserAvatar } from '@/components/UserAvatar'
@@ -478,7 +479,10 @@ export default function PollsWidget() {
       />
 
       {!isCollapsed && (
-        <div
+        <ResizableWidgetBody
+          widgetId="polls"
+          minHeight={220}
+          maxHeight={820}
           className={cn(
             WIDGET_HEIGHT_CLASS,
             'overflow-y-auto overflow-x-hidden overscroll-y-contain touch-pan-y scrollbar-hide px-4 pb-4',
@@ -560,7 +564,7 @@ export default function PollsWidget() {
               )}
             </div>
           )}
-        </div>
+        </ResizableWidgetBody>
       )}
     </WidgetContainer>
   )
