@@ -2,6 +2,7 @@ import { useFetchProfile } from '@/hooks'
 import FollowButton from '../FollowButton'
 import Nip05 from '../Nip05'
 import ProfileAbout from '../ProfileAbout'
+import ProfileMessageButton from '../ProfileMessageButton'
 import { SimpleUserAvatar } from '../UserAvatar'
 
 export default function ProfileCard({ pubkey }: { pubkey: string }) {
@@ -13,6 +14,7 @@ export default function ProfileCard({ pubkey }: { pubkey: string }) {
       <div className="flex space-x-2 w-full items-start justify-between">
         <SimpleUserAvatar userId={pubkey} className="w-12 h-12" />
         <div className="flex gap-1.5">
+          <ProfileMessageButton pubkey={pubkey} />
           <FollowButton pubkey={pubkey} />
         </div>
       </div>
