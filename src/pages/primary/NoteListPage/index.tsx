@@ -29,6 +29,7 @@ import ReadsLink from '@/components/Titlebar/ReadsLink'
 import SlowConnectionToggle from '@/components/Titlebar/SlowConnectionToggle'
 import FeedButton from './FeedButton'
 import FollowingFeed from './FollowingFeed'
+import PollsFeed from './PollsFeed'
 import RelaysFeed from './RelaysFeed'
 import OneNotePerPersonFeed from './OneNotePerPersonFeed'
 
@@ -91,6 +92,18 @@ const NoteListPage = forwardRef((_, ref) => {
       )
     } else {
       content = <HighlightsList />
+    }
+  } else if (feedInfo.feedType === 'polls') {
+    if (!pubkey) {
+      content = (
+        <div className="flex justify-center w-full">
+          <Button size="lg" onClick={() => checkLogin()}>
+            {t('Please login to view polls', { defaultValue: 'Please login to view polls' })}
+          </Button>
+        </div>
+      )
+    } else {
+      content = <PollsFeed />
     }
   } else if (feedInfo.feedType === 'custom') {
     const customFeed = customFeeds.find((f) => f.id === feedInfo.id)

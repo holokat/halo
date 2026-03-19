@@ -110,6 +110,10 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       if (feedInfo.feedType === 'one-per-person' && pubkey) {
         return await switchFeed('one-per-person', { pubkey })
       }
+
+      if (feedInfo.feedType === 'polls' && pubkey) {
+        return await switchFeed('polls', { pubkey })
+      }
     }
 
     init()
@@ -231,6 +235,21 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       return
     }
     if (feedType === 'one-per-person') {
+      if (!options.pubkey) {
+        setIsReady(true)
+        return
+      }
+
+      const newFeedInfo = { feedType }
+      setFeedInfo(newFeedInfo)
+      feedInfoRef.current = newFeedInfo
+      storage.setFeedInfo(newFeedInfo, pubkey)
+
+      setRelayUrls([])
+      setIsReady(true)
+      return
+    }
+    if (feedType === 'polls') {
       if (!options.pubkey) {
         setIsReady(true)
         return

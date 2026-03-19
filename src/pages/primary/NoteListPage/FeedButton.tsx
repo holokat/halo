@@ -7,7 +7,7 @@ import { useCustomFeeds } from '@/providers/CustomFeedsProvider'
 import { useFavoriteRelays } from '@/providers/FavoriteRelaysProvider'
 import { useFeed } from '@/providers/FeedProvider'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
-import { BookmarkIcon, Box, ChevronDown, Hash, Highlighter, Search, UserRound, UsersRound } from 'lucide-react'
+import { BarChart3, BookmarkIcon, Box, ChevronDown, Hash, Highlighter, Search, UserRound, UsersRound } from 'lucide-react'
 import { forwardRef, HTMLAttributes, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -75,6 +75,9 @@ const FeedSwitcherTrigger = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEle
       if (feedInfo.feedType === 'highlights') {
         return t('Highlights')
       }
+      if (feedInfo.feedType === 'polls') {
+        return t('Polls')
+      }
       if (feedInfo.feedType === 'one-per-person') {
         return t('Latest Note')
       }
@@ -100,6 +103,9 @@ const FeedSwitcherTrigger = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEle
       }
       if (feedInfo.feedType === 'highlights') {
         return <Highlighter />
+      }
+      if (feedInfo.feedType === 'polls') {
+        return <BarChart3 />
       }
       if (feedInfo.feedType === 'one-per-person') {
         return <UserRound />

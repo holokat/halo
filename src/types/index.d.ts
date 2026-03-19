@@ -177,7 +177,15 @@ export type TAccount = {
 
 export type TAccountPointer = Pick<TAccount, 'pubkey' | 'signerType'>
 
-export type TFeedType = 'following' | 'relays' | 'relay' | 'bookmarks' | 'highlights' | 'custom' | 'one-per-person'
+export type TFeedType =
+  | 'following'
+  | 'relays'
+  | 'relay'
+  | 'bookmarks'
+  | 'highlights'
+  | 'custom'
+  | 'one-per-person'
+  | 'polls'
 export type TFeedInfo = { feedType: TFeedType; id?: string }
 
 export type TCustomFeed = {

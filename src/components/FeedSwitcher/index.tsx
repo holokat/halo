@@ -7,6 +7,7 @@ import { useFeed } from '@/providers/FeedProvider'
 import { useNostr } from '@/providers/NostrProvider'
 import {
   BookmarkIcon,
+  BarChart3,
   Hash,
   Highlighter,
   Loader2,
@@ -101,6 +102,24 @@ export default function FeedSwitcher({ close }: { close?: () => void }) {
               <Highlighter className="size-4" />
             </div>
             <div>{t('Highlights')}</div>
+          </div>
+        </FeedSwitcherItem>
+      )}
+
+      {pubkey && (
+        <FeedSwitcherItem
+          isActive={feedInfo.feedType === 'polls'}
+          onClick={() => {
+            if (!pubkey) return
+            switchFeed('polls', { pubkey })
+            close?.()
+          }}
+        >
+          <div className="flex gap-2 items-center">
+            <div className="flex justify-center items-center w-6 h-6 shrink-0">
+              <BarChart3 className="size-4" />
+            </div>
+            <div>{t('Polls')}</div>
           </div>
         </FeedSwitcherItem>
       )}

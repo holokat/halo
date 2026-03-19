@@ -26,7 +26,7 @@ import { AVAILABLE_WIDGETS, useWidgets } from '@/providers/WidgetsProvider'
 import client from '@/services/client.service'
 import pollResultsService, { type TPollResults } from '@/services/poll-results.service'
 import dayjs from 'dayjs'
-import { CheckCircle2, EyeOff, Loader2, MessageCircle, RefreshCcw } from 'lucide-react'
+import { CheckCircle2, EyeOff, Loader2, MessageCircle, RefreshCcw, Trophy } from 'lucide-react'
 import { Event, kinds } from 'nostr-tools'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -679,6 +679,11 @@ function CompactPollCard({
       percentage
     }
   })
+  const highestVoteCount = optionResults.reduce((maxVotes, option) => Math.max(maxVotes, option.votes), 0)
+  const winningOptionCount =
+    highestVoteCount > 0
+      ? optionResults.filter((option) => option.votes === highestVoteCount).length
+      : 0
 
   return (
     <div
@@ -730,13 +735,24 @@ function CompactPollCard({
       <div className="mt-2 space-y-1.5">
         {optionResults.map((option) =>
           showResults ? (
-            <div
-              key={option.id}
-              className="relative overflow-hidden rounded-md border border-border/70 bg-muted/20"
-            >
+            (() => {
+              const isWinningOption =
+                isExpired && highestVoteCount > 0 && option.votes === highestVoteCount
+
+              return (
+                <div
+                  key={option.id}
+                  className={cn(
+                    'relative overflow-hidden rounded-md border bg-muted/20',
+                    isWinningOption
+                      ? 'border-primary/50 bg-primary/5 shadow-sm'
+                      : 'border-border/70'
+                  )}
+                >
               <div
                 className={cn(
-                  'absolute inset-y-0 left-0 rounded-r-sm bg-primary/18 transition-all duration-700',
+                  'absolute inset-y-0 left-0 rounded-r-sm transition-all duration-700',
+                  isWinningOption ? 'bg-primary/30' : 'bg-primary/18',
                   votedOptionIds.includes(option.id) && 'bg-primary/28'
                 )}
                 style={{ width: `${option.percentage}%` }}
@@ -746,19 +762,34 @@ function CompactPollCard({
                 <span
                   className={cn(
                     'min-w-0 flex-1 truncate text-[11px] leading-tight',
-                    votedOptionIds.includes(option.id) && 'font-medium text-foreground'
+                    (votedOptionIds.includes(option.id) || isWinningOption) && 'font-medium text-foreground'
                   )}
                 >
                   {option.label}
                 </span>
+                {isWinningOption && (
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/12 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary">
+                    <Trophy className="h-2.5 w-2.5" />
+                    {winningOptionCount > 1
+                      ? t('Tied', { defaultValue: 'Tied' })
+                      : t('Winner', { defaultValue: 'Winner' })}
+                  </span>
+                )}
                 {votedOptionIds.includes(option.id) && (
                   <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />
                 )}
-                <span className="shrink-0 text-[10px] text-muted-foreground">
+                <span
+                  className={cn(
+                    'shrink-0 text-[10px] text-muted-foreground',
+                    isWinningOption && 'font-semibold text-foreground'
+                  )}
+                >
                   {Math.round(option.percentage)}%
                 </span>
               </div>
             </div>
+              )
+            })()
           ) : (
             <button
               key={option.id}

@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { createPollOption, normalizePollOptions } from '@/lib/poll'
 import { normalizeUrl } from '@/lib/url'
+import { cn } from '@/lib/utils'
 import { TPollCreateData } from '@/types'
 import dayjs from 'dayjs'
 import { ChevronDown, ChevronUp, Eraser, ImageUp, Trash2, X } from 'lucide-react'
@@ -83,46 +84,53 @@ export default function PollEditor({
     <div className="space-y-4 border rounded-lg p-3">
       <div className="space-y-2">
         {options.map((option, index) => (
-          <div key={option.id} className="flex gap-2">
-            {option.image && (
-              <Image
-                image={{ url: option.image }}
-                alt={option.label}
-                className="h-full w-full object-cover"
-                classNames={{ wrapper: 'size-10 shrink-0 rounded-md border bg-muted/30' }}
-                hideIfError
-              />
-            )}
+          <div key={option.id} className="flex items-center gap-2">
+            <Uploader
+              className="shrink-0"
+              onUploadSuccess={({ url }) => handleOptionImageUpload(index, url)}
+            >
+              <div
+                className={cn(
+                  'relative flex size-10 cursor-pointer items-center justify-center overflow-hidden rounded-md transition-colors',
+                  option.image
+                    ? 'border bg-muted/30'
+                    : 'border border-dashed border-border/70 bg-muted/20 text-muted-foreground hover:border-border hover:bg-muted/35'
+                )}
+                title={option.image ? t('Replace option image') : t('Add option image')}
+              >
+                {option.image ? (
+                  <>
+                    <Image
+                      image={{ url: option.image }}
+                      alt={option.label}
+                      className="h-full w-full object-cover"
+                      classNames={{ wrapper: 'size-full' }}
+                      hideIfError
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="icon"
+                      className="absolute right-1 top-1 h-5 w-5 rounded-full bg-background/85 p-0 shadow-sm"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        handleRemoveOptionImage(index)
+                      }}
+                      title={t('Remove option image')}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </>
+                ) : (
+                  <ImageUp className="h-4 w-4" />
+                )}
+              </div>
+            </Uploader>
             <Input
               value={option.label}
               onChange={(e) => handleOptionChange(index, e.target.value)}
               placeholder={t('Option {{number}}', { number: index + 1 })}
             />
-            <Uploader onUploadSuccess={({ url }) => handleOptionImageUpload(index, url)}>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                title={
-                  option.image
-                    ? t('Replace option image')
-                    : t('Add option image')
-                }
-              >
-                <ImageUp />
-              </Button>
-            </Uploader>
-            {option.image && (
-              <Button
-                type="button"
-                variant="ghost-destructive"
-                size="icon"
-                onClick={() => handleRemoveOptionImage(index)}
-                title={t('Remove option image')}
-              >
-                <Trash2 />
-              </Button>
-            )}
             <Button
               type="button"
               variant="ghost-destructive"
