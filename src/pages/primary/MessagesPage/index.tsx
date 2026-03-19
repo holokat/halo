@@ -11,7 +11,7 @@ import PrimaryPageLayout from '@/layouts/PrimaryPageLayout'
 import ZapDialog from '@/components/ZapDialog'
 import { usePaymentsEnabled } from '@/providers/PaymentsEnabledProvider'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
-import { formatUserId } from '@/lib/pubkey'
+import { formatUserId, pubkeyToNpub } from '@/lib/pubkey'
 import { cn } from '@/lib/utils'
 import { getLightningAddressFromProfile } from '@/lib/lightning'
 import {
@@ -24,10 +24,11 @@ import { useNostr } from '@/providers/NostrProvider'
 import { useZap } from '@/providers/ZapProvider'
 import client from '@/services/client.service'
 import lightning from '@/services/lightning.service'
-import mediaUpload from '@/services/media-upload.service'
+import mediaUpload, { UPLOAD_ABORTED_ERROR_MSG } from '@/services/media-upload.service'
 import { TEmoji, TPageRef, TProfile } from '@/types'
 import { SimpleUserAvatar } from '@/components/UserAvatar'
 import { SimpleUsername } from '@/components/Username'
+import { useSecondaryPage } from '@/PageManager'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -80,6 +81,7 @@ import {
 import {
   MouseEvent,
   TouchEvent,
+  ClipboardEvent as ReactClipboardEvent,
   forwardRef,
   Fragment,
   lazy,
@@ -1386,6 +1388,7 @@ function ConversationParticipantsDialog({
           key={participantPubkey}
           participantPubkey={participantPubkey}
           isYou={participantPubkey === pubkey}
+          onOpenProfile={() => setOpen(false)}
         />
       ))}
     </div>
@@ -1453,17 +1456,30 @@ function ConversationParticipantsDialog({
 
 function ConversationParticipantRow({
   participantPubkey,
-  isYou
+  isYou,
+  onOpenProfile
 }: {
   participantPubkey: string
   isYou: boolean
+  onOpenProfile?: () => void
 }) {
   const { t } = useTranslation()
+  const { push } = useSecondaryPage()
   const { profile } = useFetchProfile(participantPubkey)
   const secondaryText = profile?.nip05 || profile?.npub || formatUserId(participantPubkey)
+  const profileId = pubkeyToNpub(participantPubkey) || participantPubkey
+
+  const handleOpenProfile = () => {
+    onOpenProfile?.()
+    push(`/users/${profileId}`)
+  }
 
   return (
-    <div className="flex items-center gap-3 rounded-xl border bg-background px-3 py-3">
+    <button
+      type="button"
+      onClick={handleOpenProfile}
+      className="flex w-full items-center gap-3 rounded-xl border bg-background px-3 py-3 text-left transition-colors hover:bg-accent/60"
+    >
       <SimpleUserAvatar userId={participantPubkey} size="small" />
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium">
@@ -1476,7 +1492,7 @@ function ConversationParticipantRow({
           {t('You', { defaultValue: 'You' })}
         </Badge>
       )}
-    </div>
+    </button>
   )
 }
 
@@ -1758,6 +1774,48 @@ function ConversationComposer({
     })
   }
 
+  const uploadAttachmentFiles = async (files: File[]) => {
+    if (!files.length || isSending) return
+
+    const abortControllerMap = new Map<File, AbortController>()
+
+    files.forEach((file) => {
+      const abortController = new AbortController()
+      abortControllerMap.set(file, abortController)
+      handleUploadStart(file, () => abortController.abort())
+    })
+
+    for (const file of files) {
+      try {
+        const abortController = abortControllerMap.get(file)
+        const result = await mediaUpload.upload(file, {
+          onProgress: (progress) => handleUploadProgress(file, progress),
+          signal: abortController?.signal
+        })
+        handleUploadSuccess(result)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        if (message !== UPLOAD_ABORTED_ERROR_MSG) {
+          toast.error(`${t('Failed to upload file')}: ${message}`)
+        }
+      } finally {
+        handleUploadEnd(file)
+      }
+    }
+  }
+
+  const handleTextareaPaste = (event: ReactClipboardEvent<HTMLTextAreaElement>) => {
+    const imageFiles = Array.from(event.clipboardData?.items ?? [])
+      .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
+      .map((item) => item.getAsFile())
+      .filter((file): file is File => !!file)
+
+    if (!imageFiles.length) return
+
+    event.preventDefault()
+    void uploadAttachmentFiles(imageFiles)
+  }
+
   const handleRemoveAttachment = (url: string) => {
     setAttachments((current) => current.filter((attachment) => attachment.url !== url))
   }
@@ -1859,6 +1917,7 @@ function ConversationComposer({
         <Textarea
           value={content}
           onChange={(event) => setContent(event.target.value)}
+          onPaste={handleTextareaPaste}
           placeholder={placeholder}
           className="min-h-[104px] max-h-[220px] resize-none border-0 bg-transparent px-4 pt-3 pb-14 text-sm shadow-none focus-visible:ring-0"
           style={{ borderRadius: 'var(--card-radius, 8px)' }}
