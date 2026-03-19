@@ -5,7 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { URL_REGEX } from '@/constants'
 import { toNote } from '@/lib/link'
 import { cn } from '@/lib/utils'
-import { useSecondaryPage } from '@/PageManager'
+import { SecondaryPageLink } from '@/PageManager'
 import { useContentPolicy } from '@/providers/ContentPolicyProvider'
 import { useDeletedEvent } from '@/providers/DeletedEventProvider'
 import { useMuteList } from '@/providers/MuteListProvider'
@@ -26,7 +26,6 @@ const WIDGET_HEIGHT_CLASS = 'max-h-[320px]'
 
 export default function NewsWidget() {
   const { t } = useTranslation()
-  const { push } = useSecondaryPage()
   const { shouldAutoLoadMedia } = useContentPolicy()
   const { isEventDeleted } = useDeletedEvent()
   const { mutePubkeySet } = useMuteList()
@@ -217,7 +216,6 @@ export default function NewsWidget() {
                     next.add(itemKey)
                     return next
                   })
-                  push(toNote(event.id))
                 }}
               />
             ))}
@@ -247,9 +245,9 @@ function NewsRow({
     'flex w-full items-center gap-2 rounded-md px-1 py-1.5 text-left transition-colors hover:bg-accent/50'
 
   return (
-    <button
-      type="button"
-      className={cn(rowClassName, isRead && 'opacity-55')}
+    <SecondaryPageLink
+      to={toNote(event)}
+      className={cn(rowClassName, 'block', isRead && 'opacity-55')}
       title={headline}
       onClick={() => onOpenNote(itemKey)}
     >
@@ -257,7 +255,7 @@ function NewsRow({
       <span className="min-w-0 flex-1 truncate text-[12px] font-medium leading-tight">
         {headline}
       </span>
-    </button>
+    </SecondaryPageLink>
   )
 }
 

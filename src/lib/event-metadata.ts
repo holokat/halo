@@ -6,7 +6,7 @@ import {
   MAX_PINNED_NOTES,
   POLL_TYPE
 } from '@/constants'
-import { TEmoji, TPollType, TRelayList, TRelaySet } from '@/types'
+import { TEmoji, TPollOption, TPollType, TRelayList, TRelaySet } from '@/types'
 import { Event, kinds } from 'nostr-tools'
 import { buildATag } from './draft-event'
 import { getReplaceableEventIdentifier } from './event'
@@ -340,7 +340,8 @@ export function getCommunityDefinitionFromEvent(event: Event) {
 }
 
 export function getPollMetadataFromEvent(event: Event) {
-  const options: { id: string; label: string }[] = []
+  const options: TPollOption[] = []
+  const optionImageMap = new Map<string, string>()
   const relayUrls: string[] = []
   let pollType: TPollType = POLL_TYPE.SINGLE_CHOICE
   let endsAt: number | undefined
@@ -351,9 +352,15 @@ export function getPollMetadataFromEvent(event: Event) {
       if (optionId && label) {
         options.push({ id: optionId, label })
       }
+    } else if (tagName === 'option_image' && tagValues.length >= 2) {
+      const [optionId, imageUrl] = tagValues
+      const normalizedImageUrl = imageUrl ? normalizeHttpUrl(imageUrl) : undefined
+      if (optionId && normalizedImageUrl) {
+        optionImageMap.set(optionId, normalizedImageUrl)
+      }
     } else if (tagName === 'relay' && tagValues[0]) {
       const normalizedUrl = normalizeUrl(tagValues[0])
-      if (normalizedUrl) relayUrls.push(tagValues[0])
+      if (normalizedUrl) relayUrls.push(normalizedUrl)
     } else if (tagName === 'polltype' && tagValues[0]) {
       if (tagValues[0] === POLL_TYPE.MULTIPLE_CHOICE) {
         pollType = POLL_TYPE.MULTIPLE_CHOICE
@@ -371,7 +378,10 @@ export function getPollMetadataFromEvent(event: Event) {
   }
 
   return {
-    options,
+    options: options.map((option) => ({
+      ...option,
+      image: optionImageMap.get(option.id)
+    })),
     pollType,
     relayUrls,
     endsAt

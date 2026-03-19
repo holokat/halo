@@ -8,6 +8,7 @@ import { isWebsocketUrl, normalizeUrl } from '@/lib/url'
 export type TWidgetId =
   | 'trending-notes'
   | 'news'
+  | 'polymarket'
   | 'polls'
   | 'bitcoin-ticker'
   | 'stock-tracker'
@@ -68,6 +69,13 @@ export const AVAILABLE_WIDGETS: TWidget[] = [
     description: 'Display a compact relay-powered news feed in your sidebar',
     defaultEnabled: false,
     icon: <Newspaper className="h-5 w-5" />
+  },
+  {
+    id: 'polymarket',
+    name: 'Polymarket',
+    description: 'Display compact latest prediction markets from Polymarket',
+    defaultEnabled: false,
+    icon: <div className="text-lg font-semibold leading-none">%</div>
   },
   {
     id: 'polls',

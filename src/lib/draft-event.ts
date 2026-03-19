@@ -26,6 +26,7 @@ import {
   isProtectedEvent,
   isReplaceableEvent
 } from './event'
+import { normalizePollOptions } from './poll'
 import { randomString } from './random'
 import { generateBech32IdFromETag, tagNameEquals } from './tag'
 
@@ -398,8 +399,20 @@ export async function createPollDraftEvent(
   // p tags
   tags.push(...mentions.map((pubkey) => buildPTag(pubkey)))
 
-  const validOptions = options.filter((opt) => opt.trim())
-  tags.push(...validOptions.map((option) => ['option', randomString(9), option.trim()]))
+  const validOptions = normalizePollOptions(options)
+    .map((option) => ({
+      id: option.id || randomString(9),
+      label: option.label.trim(),
+      image: option.image?.trim()
+    }))
+    .filter((option) => !!option.label)
+
+  tags.push(...validOptions.map((option) => ['option', option.id, option.label]))
+  tags.push(
+    ...validOptions
+      .filter((option) => !!option.image)
+      .map((option) => ['option_image', option.id, option.image!])
+  )
   tags.push(['polltype', isMultipleChoice ? POLL_TYPE.MULTIPLE_CHOICE : POLL_TYPE.SINGLE_CHOICE])
 
   if (endsAt) {

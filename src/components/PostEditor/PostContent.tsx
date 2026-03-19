@@ -8,6 +8,7 @@ import {
   deleteDraftEventCache
 } from '@/lib/draft-event'
 import { minePow } from '@/lib/event'
+import { createDefaultPollCreateData, normalizePollCreateData } from '@/lib/poll'
 import { isTouchDevice } from '@/lib/utils'
 import { useNostr } from '@/providers/NostrProvider'
 import { useReply } from '@/providers/ReplyProvider'
@@ -63,12 +64,7 @@ export default function PostContent({
   const [mentions, setMentions] = useState<string[]>([])
   const [isNsfw, setIsNsfw] = useState(false)
   const [isPoll, setIsPoll] = useState(false)
-  const [pollCreateData, setPollCreateData] = useState<TPollCreateData>({
-    isMultipleChoice: false,
-    options: ['', ''],
-    endsAt: undefined,
-    relays: []
-  })
+  const [pollCreateData, setPollCreateData] = useState<TPollCreateData>(createDefaultPollCreateData)
   const [minPow, setMinPow] = useState(0)
   const isFirstRender = useRef(true)
   const hasAppliedInitialMentions = useRef(false)
@@ -106,7 +102,8 @@ export default function PostContent({
       !!text &&
       !posting &&
       !uploadProgresses.length &&
-      (!isPoll || pollCreateData.options.filter((option) => !!option.trim()).length >= 2) &&
+      (!isPoll ||
+        pollCreateData.options.filter((option) => !!option.label.trim()).length >= 2) &&
       (!isProtectedEvent || additionalRelayUrls.length > 0)
     )
   }, [
@@ -130,14 +127,7 @@ export default function PostContent({
       if (cachedSettings) {
         setIsNsfw(cachedSettings.isNsfw ?? false)
         setIsPoll(cachedSettings.isPoll ?? false)
-        setPollCreateData(
-          cachedSettings.pollCreateData ?? {
-            isMultipleChoice: false,
-            options: ['', ''],
-            endsAt: undefined,
-            relays: []
-          }
-        )
+        setPollCreateData(normalizePollCreateData(cachedSettings.pollCreateData))
         setAddClientTag(cachedSettings.addClientTag ?? false)
         setImages(cachedSettings.images ?? [])
       }

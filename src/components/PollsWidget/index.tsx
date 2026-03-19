@@ -1,34 +1,59 @@
+import Image from '@/components/Image'
 import WidgetContainer from '@/components/WidgetContainer'
 import { SimpleUserAvatar } from '@/components/UserAvatar'
 import { SimpleUsername } from '@/components/Username'
+import { Button } from '@/components/ui/button'
 import { CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { formatCount } from '@/components/NoteStats/utils'
 import { BIG_RELAY_URLS, ExtendedKind, POLL_TYPE } from '@/constants'
 import { useFetchPollResults } from '@/hooks/useFetchPollResults'
-import { getPollMetadataFromEvent } from '@/lib/event-metadata'
+import { createPollResponseDraftEvent } from '@/lib/draft-event'
+import { isMentioningMutedUsers } from '@/lib/event'
+import { getPollMetadataFromEvent, getPollResponseFromEvent } from '@/lib/event-metadata'
 import { toNote } from '@/lib/link'
 import { cn } from '@/lib/utils'
 import { useSecondaryPage } from '@/PageManager'
+import { useContentPolicy } from '@/providers/ContentPolicyProvider'
 import { useDeletedEvent } from '@/providers/DeletedEventProvider'
 import { useFollowList } from '@/providers/FollowListProvider'
 import { useMuteList } from '@/providers/MuteListProvider'
 import { useNostr } from '@/providers/NostrProvider'
+import { useReply } from '@/providers/ReplyProvider'
+import { useUserTrust } from '@/providers/UserTrustProvider'
 import { AVAILABLE_WIDGETS, useWidgets } from '@/providers/WidgetsProvider'
 import client from '@/services/client.service'
-import pollResultsService from '@/services/poll-results.service'
+import pollResultsService, { type TPollResults } from '@/services/poll-results.service'
 import dayjs from 'dayjs'
-import { BarChart3, EyeOff, RefreshCcw } from 'lucide-react'
-import { Event } from 'nostr-tools'
+import { CheckCircle2, EyeOff, Loader2, MessageCircle, RefreshCcw } from 'lucide-react'
+import { Event, kinds } from 'nostr-tools'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
 const POLL_LIMIT = 60
-const DISPLAY_COUNT = 12
 const POLL_REFRESH_INTERVAL_MS = 60 * 1000
 const CLOCK_REFRESH_INTERVAL_MS = 30 * 1000
 const MAX_POLL_WIDGET_RELAYS = 24
 const RELAYS_PER_AUTHOR = 2
 const WIDGET_HEIGHT_CLASS = 'max-h-[420px]'
+const RESULTS_PREFETCH_BATCH_SIZE = 6
+const INTERACTION_FETCH_LIMIT_MULTIPLIER = 24
+
+type PollWidgetTab = 'active' | 'voted' | 'ended'
+
+type PollMetadata = NonNullable<ReturnType<typeof getPollMetadataFromEvent>>
+
+type PollWidgetItem = {
+  event: Event
+  poll: PollMetadata
+  pollResults: TPollResults | undefined
+  votedOptionIds: string[]
+  isExpired: boolean
+  hasVoted: boolean
+  commentCount: number
+}
 
 export default function PollsWidget() {
   const { t } = useTranslation()
@@ -37,6 +62,9 @@ export default function PollsWidget() {
   const { followings } = useFollowList()
   const { isEventDeleted } = useDeletedEvent()
   const { mutePubkeySet } = useMuteList()
+  const { hideContentMentioningMutedUsers } = useContentPolicy()
+  const { repliesMap, addReplies } = useReply()
+  const { hideUntrustedInteractions, isUserTrustedForInteractions } = useUserTrust()
   const { toggleWidget, hideWidgetTitles } = useWidgets()
   const [isHovered, setIsHovered] = useState(false)
   const [events, setEvents] = useState<Event[]>([])
@@ -44,15 +72,19 @@ export default function PollsWidget() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [now, setNow] = useState(() => dayjs().unix())
+  const [activeTab, setActiveTab] = useState<PollWidgetTab>('active')
+  const [pollResultsVersion, setPollResultsVersion] = useState(0)
   const isMountedRef = useRef(true)
-  const subCloserRef = useRef<{ close: () => void } | null>(null)
+  const pollSubCloserRef = useRef<{ close: () => void } | null>(null)
+  const activitySubCloserRef = useRef<{ close: () => void } | null>(null)
 
   const widgetName = AVAILABLE_WIDGETS.find((widget) => widget.id === 'polls')?.name || 'Polls'
 
   useEffect(() => {
     return () => {
       isMountedRef.current = false
-      subCloserRef.current?.close()
+      pollSubCloserRef.current?.close()
+      activitySubCloserRef.current?.close()
     }
   }, [])
 
@@ -100,7 +132,7 @@ export default function PollsWidget() {
         })
 
         if (!isMountedRef.current) return
-        setEvents(sortPollEvents(fetchedEvents, dayjs().unix()).slice(0, POLL_LIMIT))
+        setEvents(sortEventsByRecency(fetchedEvents).slice(0, POLL_LIMIT))
       } catch (error) {
         console.error('Failed to fetch polls widget events:', error)
         if (showSkeleton && isMountedRef.current) {
@@ -133,7 +165,7 @@ export default function PollsWidget() {
   }, [fetchPolls])
 
   useEffect(() => {
-    subCloserRef.current?.close()
+    pollSubCloserRef.current?.close()
 
     if (!followings.length) {
       return
@@ -149,7 +181,7 @@ export default function PollsWidget() {
       {
         onevent: (event: Event) => {
           if (!isMountedRef.current) return
-          setEvents((prev) => sortPollEvents(mergePollEvents(prev, [event]), dayjs().unix()).slice(0, POLL_LIMIT))
+          setEvents((prev) => sortEventsByRecency(mergePollEvents(prev, [event])).slice(0, POLL_LIMIT))
           setLoading(false)
           setRefreshing(false)
         },
@@ -161,14 +193,14 @@ export default function PollsWidget() {
       }
     )
 
-    subCloserRef.current = sub
+    pollSubCloserRef.current = sub
 
     return () => {
       sub.close()
     }
   }, [followings, relayUrls])
 
-  const visibleEvents = useMemo(() => {
+  const trackedPollEvents = useMemo(() => {
     const idSet = new Set<string>()
 
     return events
@@ -181,9 +213,235 @@ export default function PollsWidget() {
         idSet.add(event.id)
         return true
       })
-      .sort((a, b) => comparePollEvents(a, b, now))
-      .slice(0, DISPLAY_COUNT)
-  }, [events, followings, isEventDeleted, mutePubkeySet, now])
+      .sort((a, b) => b.created_at - a.created_at)
+  }, [events, followings, isEventDeleted, mutePubkeySet])
+
+  const trackedPollIds = useMemo(() => trackedPollEvents.map((event) => event.id), [trackedPollEvents])
+  const trackedPollIdsKey = useMemo(() => trackedPollIds.join('|'), [trackedPollIds])
+  const relayUrlsKey = useMemo(() => relayUrls.join('|'), [relayUrls])
+
+  const pollMetaById = useMemo(() => {
+    const map = new Map<string, PollMetadata>()
+    trackedPollEvents.forEach((event) => {
+      const poll = getPollMetadataFromEvent(event)
+      if (poll) {
+        map.set(event.id, poll)
+      }
+    })
+    return map
+  }, [trackedPollEvents])
+
+  useEffect(() => {
+    if (!trackedPollIds.length) return
+
+    const unsubscribers = trackedPollIds.map((pollId) =>
+      pollResultsService.subscribePollResults(pollId, () => {
+        setPollResultsVersion((prev) => prev + 1)
+      })
+    )
+
+    return () => {
+      unsubscribers.forEach((unsubscribe) => unsubscribe())
+    }
+  }, [trackedPollIds])
+
+  useEffect(() => {
+    let cancelled = false
+
+    if (!trackedPollEvents.length) return
+
+    const prefetchPollResults = async () => {
+      const pollEntries = trackedPollEvents
+        .map((event) => {
+          const poll = pollMetaById.get(event.id)
+          if (!poll) return null
+          return { event, poll }
+        })
+        .filter((entry): entry is { event: Event; poll: PollMetadata } => !!entry)
+
+      for (let index = 0; index < pollEntries.length; index += RESULTS_PREFETCH_BATCH_SIZE) {
+        const batch = pollEntries.slice(index, index + RESULTS_PREFETCH_BATCH_SIZE)
+        await Promise.allSettled(
+          batch.map(async ({ event, poll }) => {
+            const relays = await ensurePollRelays(event.pubkey, poll)
+            await pollResultsService.fetchResults(
+              event.id,
+              relays,
+              poll.options.map((option) => option.id),
+              poll.pollType === POLL_TYPE.MULTIPLE_CHOICE,
+              poll.endsAt
+            )
+          })
+        )
+
+        if (cancelled) return
+      }
+
+      if (!cancelled && isMountedRef.current) {
+        setPollResultsVersion((prev) => prev + 1)
+      }
+    }
+
+    void prefetchPollResults()
+
+    return () => {
+      cancelled = true
+    }
+  }, [pollMetaById, relayUrlsKey, trackedPollEvents])
+
+  useEffect(() => {
+    activitySubCloserRef.current?.close()
+
+    if (!trackedPollIds.length) return
+
+    const interactionFilters = buildInteractionFilters(trackedPollIds)
+    const pollResponseFilter = buildPollResponseFilter(trackedPollIds)
+    let cancelled = false
+
+    const fetchReplies = async () => {
+      try {
+        const replyGroups = await Promise.all(
+          interactionFilters.map((filter) => client.fetchEvents(relayUrls, filter))
+        )
+
+        if (cancelled || !isMountedRef.current) return
+        addReplies(replyGroups.flat())
+      } catch (error) {
+        console.error('Failed to fetch poll widget replies:', error)
+      }
+    }
+
+    void fetchReplies()
+
+    const sub = client.subscribe(relayUrls, [...interactionFilters, pollResponseFilter], {
+      onevent: (event) => {
+        if (!isMountedRef.current) return
+
+        if (event.kind === ExtendedKind.POLL_RESPONSE) {
+          const pollEventId = event.tags.find(([tagName]) => tagName === 'e')?.[1]
+          const poll = pollEventId ? pollMetaById.get(pollEventId) : undefined
+          if (!pollEventId || !poll) return
+
+          const parsedResponse = getPollResponseFromEvent(
+            event,
+            poll.options.map((option) => option.id),
+            poll.pollType === POLL_TYPE.MULTIPLE_CHOICE
+          )
+          if (!parsedResponse) return
+
+          if (!pollResultsService.getPollResults(pollEventId)) return
+          pollResultsService.addPollResponse(
+            pollEventId,
+            parsedResponse.pubkey,
+            parsedResponse.selectedOptionIds
+          )
+          return
+        }
+
+        addReplies([event])
+      }
+    })
+
+    activitySubCloserRef.current = sub
+
+    return () => {
+      cancelled = true
+      sub.close()
+    }
+  }, [addReplies, pollMetaById, relayUrls, trackedPollIdsKey])
+
+  const pollItems = useMemo(() => {
+    return trackedPollEvents
+      .map((event) => {
+        const poll = pollMetaById.get(event.id)
+        if (!poll) return null
+
+        const pollResults = pollResultsService.getPollResults(event.id)
+        const votedOptionIds = pubkey
+          ? Object.entries(pollResults?.results ?? {})
+              .filter(([, voters]) => voters.has(pubkey))
+              .map(([optionId]) => optionId)
+          : []
+        const isExpired = !!poll.endsAt && now > poll.endsAt
+        const commentCount = getVisibleReplyCount({
+          eventId: event.id,
+          repliesMap,
+          hideUntrustedInteractions,
+          isUserTrustedForInteractions,
+          mutePubkeySet,
+          hideContentMentioningMutedUsers
+        })
+
+        return {
+          event,
+          poll,
+          pollResults,
+          votedOptionIds,
+          isExpired,
+          hasVoted: votedOptionIds.length > 0,
+          commentCount
+        }
+      })
+      .filter((item): item is PollWidgetItem => !!item)
+  }, [
+    hideContentMentioningMutedUsers,
+    hideUntrustedInteractions,
+    isUserTrustedForInteractions,
+    mutePubkeySet,
+    now,
+    pollMetaById,
+    pollResultsVersion,
+    pubkey,
+    repliesMap,
+    trackedPollEvents
+  ])
+
+  const activeItems = useMemo(
+    () =>
+      pollItems
+        .filter((item) => !item.isExpired && !item.hasVoted)
+        .sort((a, b) => b.event.created_at - a.event.created_at),
+    [pollItems]
+  )
+
+  const votedItems = useMemo(
+    () =>
+      pollItems
+        .filter((item) => !item.isExpired && item.hasVoted)
+        .sort((a, b) => b.event.created_at - a.event.created_at),
+    [pollItems]
+  )
+
+  const endedItems = useMemo(
+    () =>
+      pollItems
+        .filter((item) => item.isExpired)
+        .sort((a, b) => {
+          const aEndedAt = a.poll.endsAt ?? a.event.created_at
+          const bEndedAt = b.poll.endsAt ?? b.event.created_at
+          if (aEndedAt !== bEndedAt) {
+            return bEndedAt - aEndedAt
+          }
+          return b.event.created_at - a.event.created_at
+        }),
+    [pollItems]
+  )
+
+  const currentItems =
+    activeTab === 'active' ? activeItems : activeTab === 'voted' ? votedItems : endedItems
+
+  const emptyTabText =
+    activeTab === 'active'
+      ? t('No active polls you have not voted in yet.', {
+          defaultValue: 'No active polls you have not voted in yet.'
+        })
+      : activeTab === 'voted'
+        ? t('No active polls you have voted in yet.', {
+            defaultValue: 'No active polls you have voted in yet.'
+          })
+        : t('No ended polls right now.', {
+            defaultValue: 'No ended polls right now.'
+          })
 
   return (
     <WidgetContainer className="flex flex-col">
@@ -254,21 +512,53 @@ export default function PollsWidget() {
           />
         ) : followings.length === 0 ? (
           <EmptyState
-            text={t('Follow people to see their active and finished polls here.', {
-              defaultValue: 'Follow people to see their active and finished polls here.'
+            text={t('Follow people to see their polls here.', {
+              defaultValue: 'Follow people to see their polls here.'
             })}
           />
-        ) : visibleEvents.length === 0 ? (
+        ) : trackedPollEvents.length === 0 ? (
           <EmptyState
             text={t('No polls from people you follow right now.', {
               defaultValue: 'No polls from people you follow right now.'
             })}
           />
         ) : (
-          <div className="space-y-2.5 pt-1">
-            {visibleEvents.map((event) => (
-              <CompactPollCard key={event.id} event={event} now={now} onOpen={() => push(toNote(event.id))} />
-            ))}
+          <div className="pt-1">
+            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as PollWidgetTab)}>
+              <TabsList className="grid h-8 w-full grid-cols-3 rounded-full bg-muted/40 p-1">
+                <TabsTrigger value="active" className="gap-1 rounded-full px-2 text-[11px]">
+                  <span>{t('Active', { defaultValue: 'Active' })}</span>
+                  <span className="text-[10px] text-muted-foreground">{activeItems.length}</span>
+                </TabsTrigger>
+                <TabsTrigger value="voted" className="gap-1 rounded-full px-2 text-[11px]">
+                  <span>{t('Voted', { defaultValue: 'Voted' })}</span>
+                  <span className="text-[10px] text-muted-foreground">{votedItems.length}</span>
+                </TabsTrigger>
+                <TabsTrigger value="ended" className="gap-1 rounded-full px-2 text-[11px]">
+                  <span>{t('Ended', { defaultValue: 'Ended' })}</span>
+                  <span className="text-[10px] text-muted-foreground">{endedItems.length}</span>
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+
+            {currentItems.length === 0 ? (
+              <EmptyState className="mt-2" text={emptyTabText} />
+            ) : (
+              <div className="mt-2 space-y-2">
+                {currentItems.map((item) => (
+                  <CompactPollCard
+                    key={item.event.id}
+                    event={item.event}
+                    poll={item.poll}
+                    now={now}
+                    commentCount={item.commentCount}
+                    votedOptionIds={item.votedOptionIds}
+                    isExpired={item.isExpired}
+                    onOpen={() => push(toNote(item.event))}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -278,75 +568,130 @@ export default function PollsWidget() {
 
 function CompactPollCard({
   event,
+  poll,
   now,
+  commentCount,
+  votedOptionIds,
+  isExpired,
   onOpen
 }: {
   event: Event
+  poll: PollMetadata
   now: number
+  commentCount: number
+  votedOptionIds: string[]
+  isExpired: boolean
   onOpen: () => void
 }) {
   const { t } = useTranslation()
-  const poll = useMemo(() => getPollMetadataFromEvent(event), [event])
+  const { pubkey, publish, checkLogin } = useNostr()
   const pollResults = useFetchPollResults(event.id)
+  const [isVoting, setIsVoting] = useState(false)
   const [isLoadingResults, setIsLoadingResults] = useState(false)
+  const [selectedOptionIds, setSelectedOptionIds] = useState<string[]>([])
 
-  const isExpired = !!poll?.endsAt && now > poll.endsAt
-  const isMultipleChoice = poll?.pollType === POLL_TYPE.MULTIPLE_CHOICE
-  const validPollOptionIds = useMemo(() => poll?.options.map((option) => option.id) || [], [poll])
+  const isMultipleChoice = poll.pollType === POLL_TYPE.MULTIPLE_CHOICE
+  const hasVoted = votedOptionIds.length > 0
+  const canVote = !isExpired && !hasVoted && !isVoting
+  const showResults = isExpired || hasVoted || event.pubkey === pubkey
 
   const fetchResults = useCallback(async () => {
-    if (!poll || isLoadingResults) return
+    if (isLoadingResults) return
 
     setIsLoadingResults(true)
     try {
       const relays = await ensurePollRelays(event.pubkey, poll)
-      await pollResultsService.fetchResults(
+      const results = await pollResultsService.fetchResults(
         event.id,
         relays,
-        validPollOptionIds,
+        poll.options.map((option) => option.id),
         isMultipleChoice,
         poll.endsAt
       )
+      return results
     } catch (error) {
       console.error('Failed to fetch compact poll results:', error)
+      toast.error('Failed to fetch poll results: ' + (error as Error).message)
     } finally {
       setIsLoadingResults(false)
     }
-  }, [event.id, event.pubkey, isLoadingResults, isMultipleChoice, poll, validPollOptionIds])
+  }, [event.id, event.pubkey, isLoadingResults, isMultipleChoice, poll])
 
   useEffect(() => {
-    if (!poll || !isExpired || pollResults || isLoadingResults) return
+    if (!showResults || pollResults || isLoadingResults) return
     void fetchResults()
-  }, [fetchResults, isExpired, isLoadingResults, poll, pollResults])
+  }, [fetchResults, isLoadingResults, pollResults, showResults])
 
-  if (!poll) {
-    return null
+  const handleVote = useCallback(
+    async (optionIds: string[]) => {
+      if (!optionIds.length) return
+
+      await checkLogin(async () => {
+        if (!pubkey) return
+
+        setIsVoting(true)
+        try {
+          const existingResults = pollResults ?? (await fetchResults())
+          if (existingResults?.voters.has(pubkey)) {
+            return
+          }
+
+          const additionalRelayUrls = await ensurePollRelays(event.pubkey, poll)
+          const draftEvent = createPollResponseDraftEvent(event, optionIds)
+          await publish(draftEvent, {
+            additionalRelayUrls
+          })
+
+          setSelectedOptionIds([])
+          pollResultsService.addPollResponse(event.id, pubkey, optionIds)
+        } catch (error) {
+          console.error('Failed to vote from polls widget:', error)
+          toast.error('Failed to vote: ' + (error as Error).message)
+        } finally {
+          setIsVoting(false)
+        }
+      })
+    },
+    [checkLogin, event, fetchResults, poll, pollResults, pubkey, publish]
+  )
+
+  const handleOptionClick = (optionId: string) => {
+    if (!canVote) return
+
+    if (isMultipleChoice) {
+      setSelectedOptionIds((prev) =>
+        prev.includes(optionId) ? prev.filter((id) => id !== optionId) : [...prev, optionId]
+      )
+      return
+    }
+
+    void handleVote([optionId])
   }
 
-  const sortedResults = poll.options
-    .map((option) => {
-      const votes = pollResults?.results?.[option.id]?.size ?? 0
-      const totalVotes = pollResults?.totalVotes ?? 0
-      const percentage = totalVotes > 0 ? (votes / totalVotes) * 100 : 0
-      return { ...option, votes, percentage }
-    })
-    .sort((a, b) => {
-      if (b.votes !== a.votes) {
-        return b.votes - a.votes
-      }
-      return a.label.localeCompare(b.label)
-    })
+  const optionResults = poll.options.map((option) => {
+    const votes = pollResults?.results?.[option.id]?.size ?? 0
+    const totalVotes = pollResults?.totalVotes ?? 0
+    const percentage = totalVotes > 0 ? (votes / totalVotes) * 100 : 0
 
-  const visibleActiveOptions = poll.options.slice(0, 3)
-  const hiddenActiveOptionsCount = Math.max(poll.options.length - visibleActiveOptions.length, 0)
-  const visibleFinishedOptions = sortedResults.slice(0, 4)
-  const hiddenFinishedOptionsCount = Math.max(sortedResults.length - visibleFinishedOptions.length, 0)
+    return {
+      ...option,
+      votes,
+      percentage
+    }
+  })
 
   return (
-    <button
-      type="button"
-      className="w-full rounded-lg border border-border/70 bg-background/50 p-3 text-left transition-colors hover:bg-accent/40"
+    <div
+      role="button"
+      tabIndex={0}
+      className="rounded-lg border border-border/70 bg-background/50 p-3 text-left transition-colors hover:bg-accent/40"
       onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          onOpen()
+        }
+      }}
     >
       <div className="mb-2 flex items-center gap-2">
         <SimpleUserAvatar userId={event.pubkey} size="tiny" className="shrink-0" />
@@ -357,101 +702,167 @@ function CompactPollCard({
         <span
           className={cn(
             'ml-auto shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide',
-            isExpired ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary'
+            isExpired
+              ? 'bg-muted text-muted-foreground'
+              : hasVoted
+                ? 'bg-primary/10 text-primary'
+                : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
           )}
         >
           {isExpired
-            ? t('Finished', { defaultValue: 'Finished' })
-            : t('Active', { defaultValue: 'Active' })}
+            ? t('Ended', { defaultValue: 'Ended' })
+            : hasVoted
+              ? t('Voted', { defaultValue: 'Voted' })
+              : t('Active', { defaultValue: 'Active' })}
         </span>
       </div>
 
       <p className="line-clamp-2 text-[13px] font-medium leading-tight">{getPollPrompt(event.content, t)}</p>
 
+      {isMultipleChoice && canVote && (
+        <div className="mt-1 text-[10px] text-muted-foreground">
+          {t('Select one or more options', {
+            defaultValue: 'Select one or more options'
+          })}
+        </div>
+      )}
+
       <div className="mt-2 space-y-1.5">
-        {isExpired ? (
-          pollResults ? (
-            <>
-              {visibleFinishedOptions.map((option) => (
-                <div
-                  key={option.id}
-                  className="relative overflow-hidden rounded-md border border-border/70 bg-muted/20"
-                >
-                  <div
-                    className={cn(
-                      'absolute inset-y-0 left-0 rounded-r-sm bg-primary/20 transition-all duration-700',
-                      option.votes > 0 && 'bg-primary/25'
-                    )}
-                    style={{ width: `${option.percentage}%` }}
-                  />
-                  <div className="relative flex items-center justify-between gap-2 px-2 py-1.5">
-                    <span className="truncate text-[11px] leading-tight">{option.label}</span>
-                    <span className="shrink-0 text-[10px] text-muted-foreground">
-                      {Math.round(option.percentage)}%
-                    </span>
-                  </div>
-                </div>
-              ))}
-              {hiddenFinishedOptionsCount > 0 && (
-                <div className="text-[10px] text-muted-foreground">
-                  {t('+{{count}} more options', {
-                    count: hiddenFinishedOptionsCount,
-                    defaultValue: '+{{count}} more options'
-                  })}
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="rounded-md border border-dashed border-border/70 bg-muted/15 px-2 py-2 text-[11px] text-muted-foreground">
-              {isLoadingResults
-                ? t('Loading results...', { defaultValue: 'Loading results...' })
-                : t('Loading results...', { defaultValue: 'Loading results...' })}
-            </div>
-          )
-        ) : (
-          <>
-            {visibleActiveOptions.map((option) => (
+        {optionResults.map((option) =>
+          showResults ? (
+            <div
+              key={option.id}
+              className="relative overflow-hidden rounded-md border border-border/70 bg-muted/20"
+            >
               <div
-                key={option.id}
-                className="truncate rounded-md border border-border/70 bg-muted/20 px-2 py-1.5 text-[11px] text-muted-foreground"
-              >
-                {option.label}
+                className={cn(
+                  'absolute inset-y-0 left-0 rounded-r-sm bg-primary/18 transition-all duration-700',
+                  votedOptionIds.includes(option.id) && 'bg-primary/28'
+                )}
+                style={{ width: `${option.percentage}%` }}
+              />
+              <div className="relative flex items-center gap-2 px-2 py-1.5">
+                <PollOptionThumbnail image={option.image} alt={option.label} className="size-7" />
+                <span
+                  className={cn(
+                    'min-w-0 flex-1 truncate text-[11px] leading-tight',
+                    votedOptionIds.includes(option.id) && 'font-medium text-foreground'
+                  )}
+                >
+                  {option.label}
+                </span>
+                {votedOptionIds.includes(option.id) && (
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />
+                )}
+                <span className="shrink-0 text-[10px] text-muted-foreground">
+                  {Math.round(option.percentage)}%
+                </span>
               </div>
-            ))}
-            {hiddenActiveOptionsCount > 0 && (
-              <div className="text-[10px] text-muted-foreground">
-                {t('+{{count}} more options', {
-                  count: hiddenActiveOptionsCount,
-                  defaultValue: '+{{count}} more options'
-                })}
+            </div>
+          ) : (
+            <button
+              key={option.id}
+              type="button"
+              className={cn(
+                'flex w-full items-center justify-between gap-2 rounded-md border border-border/70 px-2 py-1.5 text-left text-[11px] transition-colors',
+                selectedOptionIds.includes(option.id)
+                  ? 'border-primary bg-primary/10 text-foreground'
+                  : 'bg-muted/20 text-muted-foreground hover:border-primary/30 hover:bg-primary/5'
+              )}
+              onClick={(event) => {
+                event.stopPropagation()
+                void handleOptionClick(option.id)
+              }}
+              disabled={!canVote}
+            >
+              <div className="flex min-w-0 items-center gap-2">
+                <PollOptionThumbnail image={option.image} alt={option.label} className="size-7" />
+                <span className="truncate leading-tight">{option.label}</span>
               </div>
-            )}
-          </>
+              {isVoting && !isMultipleChoice && <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />}
+            </button>
+          )
         )}
       </div>
 
+      {isMultipleChoice && canVote && selectedOptionIds.length > 0 && (
+        <Button
+          className="mt-2 h-7 w-full text-xs"
+          disabled={isVoting}
+          onClick={(event) => {
+            event.stopPropagation()
+            void handleVote(selectedOptionIds)
+          }}
+        >
+          {isVoting && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
+          {t('Vote', { defaultValue: 'Vote' })}
+        </Button>
+      )}
+
       <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
-        <span className="truncate">
-          {isExpired
-            ? t('{{number}} votes', {
-                number: pollResults?.totalVotes ?? 0,
-                defaultValue: '{{number}} votes'
-              })
-            : formatPollStatusLabel(poll.endsAt, now, t)}
-        </span>
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="truncate">
+            {showResults
+              ? t('{{number}} votes', {
+                  number: pollResults?.totalVotes ?? 0,
+                  defaultValue: '{{number}} votes'
+                })
+              : formatPollStatusLabel(poll.endsAt, now, t)}
+          </span>
+          <span
+            className={cn(
+              'inline-flex shrink-0 items-center gap-1',
+              commentCount === 0 && 'opacity-60'
+            )}
+          >
+            <MessageCircle className="h-3 w-3" />
+            <span>{formatCount(commentCount) || 0}</span>
+          </span>
+        </div>
         <span className="shrink-0">
-          {isExpired
-            ? t('Open poll', { defaultValue: 'Open poll' })
-            : t('Tap to vote', { defaultValue: 'Tap to vote' })}
+          {showResults
+            ? isLoadingResults && !pollResults
+              ? t('Loading...', { defaultValue: 'Loading...' })
+              : t('Open note', { defaultValue: 'Open note' })
+            : isMultipleChoice
+              ? t('Vote below', { defaultValue: 'Vote below' })
+              : t('Tap an option', { defaultValue: 'Tap an option' })}
         </span>
       </div>
-    </button>
+    </div>
   )
 }
 
-function EmptyState({ text }: { text: string }) {
+function PollOptionThumbnail({
+  image,
+  alt,
+  className
+}: {
+  image?: string
+  alt: string
+  className?: string
+}) {
+  if (!image) return null
+
   return (
-    <div className="rounded-lg border border-dashed border-border/80 bg-muted/20 px-3 py-4 text-center text-xs text-muted-foreground">
+    <Image
+      image={{ url: image }}
+      alt={alt}
+      className="h-full w-full object-cover"
+      classNames={{ wrapper: cn('shrink-0 rounded-[6px] border bg-muted/30', className) }}
+      hideIfError
+    />
+  )
+}
+
+function EmptyState({ text, className }: { text: string; className?: string }) {
+  return (
+    <div
+      className={cn(
+        'rounded-lg border border-dashed border-border/80 bg-muted/20 px-3 py-4 text-center text-xs text-muted-foreground',
+        className
+      )}
+    >
       {text}
     </div>
   )
@@ -465,31 +876,64 @@ function mergePollEvents(existing: Event[], incoming: Event[]) {
   return Array.from(eventMap.values())
 }
 
-function sortPollEvents(events: Event[], now: number) {
-  return [...events].sort((a, b) => comparePollEvents(a, b, now))
+function sortEventsByRecency(events: Event[]) {
+  return [...events].sort((a, b) => b.created_at - a.created_at)
 }
 
-function comparePollEvents(a: Event, b: Event, now: number) {
-  const aMeta = getPollMetadataFromEvent(a)
-  const bMeta = getPollMetadataFromEvent(b)
-  const aExpired = !!aMeta?.endsAt && now > aMeta.endsAt
-  const bExpired = !!bMeta?.endsAt && now > bMeta.endsAt
+function getVisibleReplyCount({
+  eventId,
+  repliesMap,
+  hideUntrustedInteractions,
+  isUserTrustedForInteractions,
+  mutePubkeySet,
+  hideContentMentioningMutedUsers
+}: {
+  eventId: string
+  repliesMap: Map<string, { events: Event[]; eventIdSet: Set<string> }>
+  hideUntrustedInteractions: boolean
+  isUserTrustedForInteractions: (pubkey: string) => boolean
+  mutePubkeySet: Set<string>
+  hideContentMentioningMutedUsers?: boolean
+}) {
+  return (
+    repliesMap.get(eventId)?.events.filter((reply) => {
+      if (hideUntrustedInteractions && !isUserTrustedForInteractions(reply.pubkey)) {
+        return false
+      }
+      if (mutePubkeySet.has(reply.pubkey)) {
+        return false
+      }
+      if (hideContentMentioningMutedUsers && isMentioningMutedUsers(reply, mutePubkeySet)) {
+        return false
+      }
+      return true
+    }).length ?? 0
+  )
+}
 
-  if (aExpired !== bExpired) {
-    return aExpired ? 1 : -1
+function buildInteractionFilters(eventIds: string[]) {
+  const limit = Math.max(200, eventIds.length * INTERACTION_FETCH_LIMIT_MULTIPLIER)
+
+  return [
+    {
+      kinds: [kinds.ShortTextNote],
+      '#e': eventIds,
+      limit
+    },
+    {
+      kinds: [ExtendedKind.COMMENT, ExtendedKind.VOICE_COMMENT],
+      '#E': eventIds,
+      limit
+    }
+  ]
+}
+
+function buildPollResponseFilter(eventIds: string[]) {
+  return {
+    kinds: [ExtendedKind.POLL_RESPONSE],
+    '#e': eventIds,
+    limit: Math.max(200, eventIds.length * INTERACTION_FETCH_LIMIT_MULTIPLIER)
   }
-
-  if (!aExpired && !bExpired) {
-    return b.created_at - a.created_at
-  }
-
-  const aEndedAt = aMeta?.endsAt ?? a.created_at
-  const bEndedAt = bMeta?.endsAt ?? b.created_at
-  if (aEndedAt !== bEndedAt) {
-    return bEndedAt - aEndedAt
-  }
-
-  return b.created_at - a.created_at
 }
 
 function getPollPrompt(content: string, t: (key: string, options?: Record<string, unknown>) => string) {

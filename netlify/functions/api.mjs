@@ -198,6 +198,29 @@ const ALPHAVANTAGE_API_KEY = process.env.ALPHAVANTAGE_API_KEY || ''
 const STOCK_QUOTE_TTL_MS = 15 * 60 * 1000
 const STOCK_QUOTE_CACHE_MAX = 200
 const STOCK_QUOTE_CACHE_CONTROL = 'public, max-age=60, stale-while-revalidate=300'
+const POLYMARKET_EVENTS_TTL_MS = 2 * 60 * 1000
+const POLYMARKET_EVENTS_FETCH_LIMIT = 60
+const POLYMARKET_MARKETS_MAX = 80
+const POLYMARKET_CACHE_CONTROL = 'public, max-age=60, stale-while-revalidate=300'
+const POLYMARKET_CATEGORY_PRIORITY = [
+  ['politics', 'Politics'],
+  ['crypto', 'Crypto'],
+  ['sports', 'Sports'],
+  ['finance', 'Finance'],
+  ['tech', 'Tech'],
+  ['business', 'Business'],
+  ['world', 'World'],
+  ['economy', 'Economy'],
+  ['ai', 'AI']
+]
+const POLYMARKET_IGNORED_CATEGORY_SLUGS = new Set([
+  'featured',
+  '2025-predictions',
+  'up-or-down',
+  'crypto-prices',
+  'hide-from-new',
+  'recurring'
+])
 
 const PACKAGE_CHARACTERS = [100_000, 500_000, 1_000_000, 2_500_000, 5_000_000, 10_000_000]
 
@@ -229,6 +252,11 @@ let openRouterStatusCache = {
 }
 const stockQuoteCache = new Map()
 const stockQuoteInflight = new Map()
+let polymarketMarketsCache = {
+  fetchedAt: 0,
+  data: null
+}
+let polymarketMarketsInflight = null
 
 const headers = {
   'Content-Type': 'application/json'
@@ -296,6 +324,10 @@ export default async (request) => {
 
     if (request.method === 'GET' && route === '/v1/stocks/quote') {
       return await getStockQuote(request)
+    }
+
+    if (request.method === 'GET' && route === '/v1/polymarket/markets') {
+      return await getPolymarketMarkets()
     }
 
     if (request.method === 'GET' && route === '/v1/admin/translation/config') {
@@ -714,6 +746,20 @@ async function getStockQuote(request) {
   } catch (error) {
     if (typeof error?.statusCode === 'number') {
       return json(error.statusCode, { error: error.message || 'Failed to load stock quote' })
+    }
+    throw error
+  }
+}
+
+async function getPolymarketMarkets() {
+  try {
+    const payload = await fetchPolymarketWidgetData()
+    return json(200, payload, { 'Cache-Control': POLYMARKET_CACHE_CONTROL })
+  } catch (error) {
+    if (typeof error?.statusCode === 'number') {
+      return json(error.statusCode, {
+        error: error.message || 'Failed to load Polymarket markets'
+      })
     }
     throw error
   }
@@ -2973,6 +3019,284 @@ async function getAlphaVantageStockQuote(symbol) {
 
   stockQuoteInflight.set(symbol, request)
   return request
+}
+
+async function fetchPolymarketWidgetData() {
+  if (
+    polymarketMarketsCache.data &&
+    Date.now() - polymarketMarketsCache.fetchedAt < POLYMARKET_EVENTS_TTL_MS
+  ) {
+    return polymarketMarketsCache.data
+  }
+
+  if (polymarketMarketsInflight) {
+    return polymarketMarketsInflight
+  }
+
+  const request = (async () => {
+    const url = new URL('https://gamma-api.polymarket.com/events')
+    url.searchParams.set('closed', 'false')
+    url.searchParams.set('limit', String(POLYMARKET_EVENTS_FETCH_LIMIT))
+    url.searchParams.set('order', 'createdAt')
+    url.searchParams.set('ascending', 'false')
+
+    const response = await fetch(url.toString(), {
+      headers: { Accept: 'application/json' }
+    })
+
+    if (!response.ok) {
+      throw createHttpError(502, `Polymarket request failed (${response.status})`)
+    }
+
+    const payload = await response.json()
+    if (!Array.isArray(payload)) {
+      throw createHttpError(502, 'Invalid Polymarket payload')
+    }
+
+    const normalized = normalizePolymarketWidgetData(payload)
+    polymarketMarketsCache = {
+      fetchedAt: Date.now(),
+      data: normalized
+    }
+    return normalized
+  })().finally(() => {
+    polymarketMarketsInflight = null
+  })
+
+  polymarketMarketsInflight = request
+  return request
+}
+
+function normalizePolymarketWidgetData(events) {
+  const categoryCountMap = new Map()
+  const seenMarketIds = new Set()
+  const markets = []
+
+  for (const event of events) {
+    if (!event || typeof event !== 'object') continue
+
+    const eventTags = normalizePolymarketCategories(event.tags)
+    eventTags.forEach((category) => {
+      const existing = categoryCountMap.get(category.slug)
+      if (existing) {
+        existing.count += 1
+      } else {
+        categoryCountMap.set(category.slug, { ...category, count: 1 })
+      }
+    })
+
+    const eventMarkets = Array.isArray(event.markets) ? event.markets : []
+    for (const market of eventMarkets) {
+      if (!market || typeof market !== 'object') continue
+      if (market.closed || !market.active) continue
+
+      const slug = pickString([market.slug, event.slug])
+      const question = pickString([market.question, market.title, event.title])
+      if (!slug || !question) continue
+
+      const marketId = String(market.id || slug).trim()
+      if (!marketId || seenMarketIds.has(marketId)) continue
+      seenMarketIds.add(marketId)
+
+      const leadingOutcome = getLeadingPolymarketOutcome(market.outcomes, market.outcomePrices)
+      const primaryCategory = pickPrimaryPolymarketCategory(eventTags)
+
+      markets.push({
+        id: marketId,
+        slug,
+        url: `https://polymarket.com/event/${slug}`,
+        question,
+        eventTitle: pickString([event.title]) || null,
+        image: pickString([market.image, market.icon, event.image, event.icon]) || null,
+        createdAt: pickString([market.createdAt, event.createdAt, event.creationDate]) || null,
+        endDate: pickString([market.endDate, event.endDate]) || null,
+        volume24hr: pickFiniteNumber([market.volume24hr]),
+        volume: pickFiniteNumber([market.volume, market.volumeNum]),
+        primaryCategory: primaryCategory?.label || null,
+        categorySlugs: eventTags.map((category) => category.slug),
+        leadingOutcomeLabel: leadingOutcome?.label || null,
+        leadingOutcomeProbability: leadingOutcome?.probability ?? null
+      })
+    }
+  }
+
+  markets.sort((a, b) => {
+    const createdDiff = toTimestamp(b.createdAt) - toTimestamp(a.createdAt)
+    if (createdDiff !== 0) return createdDiff
+
+    const volume24hrDiff = (b.volume24hr ?? -1) - (a.volume24hr ?? -1)
+    if (volume24hrDiff !== 0) return volume24hrDiff
+
+    return (b.volume ?? -1) - (a.volume ?? -1)
+  })
+
+  return {
+    fetchedAt: Date.now(),
+    categories: buildPolymarketCategories(categoryCountMap),
+    markets: markets.slice(0, POLYMARKET_MARKETS_MAX)
+  }
+}
+
+function normalizePolymarketCategories(tags) {
+  if (!Array.isArray(tags)) return []
+
+  const seen = new Set()
+  const categories = []
+
+  for (const tag of tags) {
+    if (!tag || typeof tag !== 'object') continue
+
+    const slug = normalizePolymarketSlug(tag.slug || tag.label || '')
+    if (
+      !slug ||
+      seen.has(slug) ||
+      POLYMARKET_IGNORED_CATEGORY_SLUGS.has(slug) ||
+      /^\d+[mhdwy]$/i.test(slug)
+    ) {
+      continue
+    }
+
+    const label =
+      typeof tag.label === 'string' && tag.label.trim()
+        ? tag.label.trim()
+        : humanizePolymarketSlug(slug)
+
+    seen.add(slug)
+    categories.push({ slug, label })
+  }
+
+  return categories
+}
+
+function buildPolymarketCategories(categoryCountMap) {
+  const categories = [{ slug: 'all', label: 'All' }]
+  const seen = new Set(['all'])
+
+  for (const [slug, label] of POLYMARKET_CATEGORY_PRIORITY) {
+    const category = categoryCountMap.get(slug)
+    if (!category || seen.has(slug)) continue
+
+    categories.push({
+      slug,
+      label: category.label || label
+    })
+    seen.add(slug)
+  }
+
+  const fallbackCategories = Array.from(categoryCountMap.values())
+    .filter((category) => !seen.has(category.slug) && category.count >= 2)
+    .sort((a, b) => {
+      if (b.count !== a.count) {
+        return b.count - a.count
+      }
+      return a.label.localeCompare(b.label)
+    })
+    .slice(0, 6)
+
+  fallbackCategories.forEach((category) => {
+    categories.push({
+      slug: category.slug,
+      label: category.label
+    })
+  })
+
+  return categories
+}
+
+function pickPrimaryPolymarketCategory(categories) {
+  if (!categories.length) return null
+
+  for (const [slug] of POLYMARKET_CATEGORY_PRIORITY) {
+    const match = categories.find((category) => category.slug === slug)
+    if (match) return match
+  }
+
+  return categories[0]
+}
+
+function getLeadingPolymarketOutcome(outcomesValue, outcomePricesValue) {
+  const outcomes = parsePolymarketStringArray(outcomesValue)
+  const prices = parsePolymarketNumberArray(outcomePricesValue)
+
+  if (!outcomes.length || !prices.length) {
+    return null
+  }
+
+  let bestIndex = -1
+  let bestPrice = -1
+
+  for (let index = 0; index < Math.min(outcomes.length, prices.length); index += 1) {
+    const price = prices[index]
+    if (!Number.isFinite(price) || price < bestPrice) continue
+
+    bestPrice = price
+    bestIndex = index
+  }
+
+  if (bestIndex === -1) {
+    return null
+  }
+
+  return {
+    label: outcomes[bestIndex],
+    probability: bestPrice
+  }
+}
+
+function parsePolymarketStringArray(value) {
+  const parsed = parsePolymarketArrayValue(value)
+  return parsed
+    .map((item) => (typeof item === 'string' ? item.trim() : ''))
+    .filter(Boolean)
+}
+
+function parsePolymarketNumberArray(value) {
+  return parsePolymarketArrayValue(value)
+    .map((item) => Number(item))
+    .filter((item) => Number.isFinite(item))
+}
+
+function parsePolymarketArrayValue(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+
+  if (typeof value !== 'string' || !value.trim()) {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+function normalizePolymarketSlug(value) {
+  return typeof value === 'string' ? value.trim().toLowerCase() : ''
+}
+
+function humanizePolymarketSlug(slug) {
+  return String(slug)
+    .split('-')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
+function pickString(values) {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim()
+    }
+  }
+  return ''
+}
+
+function toTimestamp(value) {
+  const parsed = typeof value === 'string' ? Date.parse(value) : Number.NaN
+  return Number.isFinite(parsed) ? parsed : 0
 }
 
 function safeEqualConstantTime(a, b) {

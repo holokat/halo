@@ -265,9 +265,15 @@ export type TStockQuote = {
 
 export type TPollType = (typeof POLL_TYPE)[keyof typeof POLL_TYPE]
 
+export type TPollOption = {
+  id: string
+  label: string
+  image?: string
+}
+
 export type TPollCreateData = {
   isMultipleChoice: boolean
-  options: string[]
+  options: TPollOption[]
   relays: string[]
   endsAt?: number
 }

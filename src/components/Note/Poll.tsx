@@ -1,3 +1,4 @@
+import Image from '@/components/Image'
 import { Button } from '@/components/ui/button'
 import { POLL_TYPE } from '@/constants'
 import { useTranslatedEvent } from '@/hooks'
@@ -181,8 +182,22 @@ export default function Poll({ event, className }: { event: Event; className?: s
                 disabled={!canVote}
               >
                 {/* Content */}
-                <div className="flex items-center gap-2 flex-1 w-0 z-10">
-                  <div className={cn('line-clamp-2 text-left', isMax ? 'font-semibold' : '')}>
+                <div className="z-10 flex min-w-0 flex-1 items-center gap-3">
+                  {option.image && (
+                    <Image
+                      image={{ url: option.image }}
+                      alt={option.label}
+                      className="h-full w-full object-cover"
+                      classNames={{ wrapper: 'size-10 shrink-0 rounded-md border bg-muted/30' }}
+                      hideIfError
+                    />
+                  )}
+                  <div
+                    className={cn(
+                      'min-w-0 flex-1 line-clamp-2 text-left',
+                      isMax ? 'font-semibold' : ''
+                    )}
+                  >
                     {option.label}
                   </div>
                   {votedOptionIds.includes(option.id) && (
@@ -192,7 +207,7 @@ export default function Poll({ event, className }: { event: Event; className?: s
                 {showResults && (
                   <div
                     className={cn(
-                      'text-muted-foreground shrink-0 z-10',
+                      'z-10 shrink-0 text-muted-foreground',
                       isMax ? 'font-semibold text-foreground' : ''
                     )}
                   >
