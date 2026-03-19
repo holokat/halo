@@ -15,14 +15,16 @@ import { useReply } from '@/providers/ReplyProvider'
 import { useNoteExpiration } from '@/providers/NoteExpirationProvider'
 import client from '@/services/client.service'
 import postEditorCache, { ImageAttachment } from '@/services/post-editor-cache.service'
+import scheduledPostsService from '@/services/scheduled-posts.service'
 import { TPollCreateData } from '@/types'
-import { ImagePlay, ImageUp, ListTodo, LoaderCircle, Settings, Smile, X, HelpCircle } from 'lucide-react'
+import { Clock, HelpCircle, ImagePlay, ImageUp, ListTodo, LoaderCircle, Settings, Smile, X } from 'lucide-react'
 import { Event, kinds, nip19 } from 'nostr-tools'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import EmojiPickerDialog from '../EmojiPickerDialog'
 import GifPicker from '../GifPicker'
+import PostSchedulePopover from './PostSchedulePopover'
 import ImagePreview from './ImagePreview'
 import Mentions from './Mentions'
 import PollEditor from './PollEditor'
@@ -49,7 +51,7 @@ export default function PostContent({
   additionalRelayUrls: string[]
 }) {
   const { t } = useTranslation()
-  const { pubkey, publish, checkLogin, signEvent } = useNostr()
+  const { account, pubkey, publish, checkLogin, signEvent } = useNostr()
   const { addReplies, removeReplies } = useReply()
   const { defaultExpiration, getExpirationTimestamp } = useNoteExpiration()
   const [text, setText] = useState('')
@@ -65,6 +67,7 @@ export default function PostContent({
   const [isNsfw, setIsNsfw] = useState(false)
   const [isPoll, setIsPoll] = useState(false)
   const [pollCreateData, setPollCreateData] = useState<TPollCreateData>(createDefaultPollCreateData)
+  const [scheduledFor, setScheduledFor] = useState<number | null>(null)
   const [minPow, setMinPow] = useState(0)
   const isFirstRender = useRef(true)
   const hasAppliedInitialMentions = useRef(false)
@@ -130,6 +133,7 @@ export default function PostContent({
         setPollCreateData(normalizePollCreateData(cachedSettings.pollCreateData))
         setAddClientTag(cachedSettings.addClientTag ?? false)
         setImages(cachedSettings.images ?? [])
+        setScheduledFor(cachedSettings.scheduledFor ?? null)
       }
       return
     }
@@ -140,10 +144,11 @@ export default function PostContent({
         isPoll,
         pollCreateData,
         addClientTag,
-        images
+        images,
+        scheduledFor
       }
     )
-  }, [defaultContent, parentEvent, isNsfw, isPoll, pollCreateData, addClientTag, images])
+  }, [defaultContent, parentEvent, isNsfw, isPoll, pollCreateData, addClientTag, images, scheduledFor])
 
   useEffect(() => {
     if (hasAppliedInitialMentions.current || !initialMentionIds.length || !textareaRef.current) {
@@ -276,6 +281,110 @@ export default function PostContent({
     })
   }
 
+  const formatScheduledDateTime = useCallback((timestamp: number) => {
+    return new Intl.DateTimeFormat(undefined, {
+      dateStyle: 'medium',
+      timeStyle: 'short'
+    }).format(timestamp * 1000)
+  }, [])
+
+  const schedulePost = useCallback(
+    (e?: React.MouseEvent) => {
+      e?.stopPropagation()
+
+      checkLogin(() => {
+        if (!canPost || !account || !scheduledFor) return
+
+        const now = Math.floor(Date.now() / 1000)
+        if (scheduledFor <= now) {
+          toast.error(t('Choose a time in the future'))
+          return
+        }
+
+        const allMentions = Array.from(new Set([...mentions, ...requiredMentionPubkeys]))
+
+        scheduledPostsService.addScheduledPost(
+          account.pubkey,
+          account.signerType,
+          {
+            text,
+            images,
+            mentions: allMentions,
+            parentEvent,
+            isProtectedEvent,
+            additionalRelayUrls,
+            isPoll,
+            pollCreateData,
+            addClientTag,
+            isNsfw,
+            defaultExpiration,
+            minPow
+          },
+          scheduledFor
+        )
+
+        postEditorCache.clearPostCache({ defaultContent, parentEvent })
+        close()
+        toast.success(
+          t('Scheduled for {{time}}', {
+            time: formatScheduledDateTime(scheduledFor)
+          }),
+          {
+            description: t(
+              'This note will publish locally from this browser when this account is active.'
+            ),
+            duration: 4000
+          }
+        )
+      })
+    },
+    [
+      canPost,
+      account,
+      scheduledFor,
+      mentions,
+      requiredMentionPubkeys,
+      text,
+      images,
+      parentEvent,
+      isProtectedEvent,
+      additionalRelayUrls,
+      isPoll,
+      pollCreateData,
+      addClientTag,
+      isNsfw,
+      defaultExpiration,
+      minPow,
+      defaultContent,
+      close,
+      formatScheduledDateTime,
+      checkLogin,
+      t
+    ]
+  )
+
+  const hasValidSchedule = !scheduledFor || scheduledFor > Math.floor(Date.now() / 1000)
+  const canSubmit = canPost && hasValidSchedule
+  const primaryActionLabel = scheduledFor
+    ? parentEvent
+      ? t('Schedule Reply')
+      : t('Schedule')
+    : parentEvent
+      ? t('Reply')
+      : t('Post')
+  const primaryActionBusyLabel = parentEvent ? t('Replying...') : t('Posting...')
+  const handlePrimaryAction = useCallback(
+    (e?: React.MouseEvent) => {
+      if (scheduledFor) {
+        schedulePost(e)
+        return
+      }
+
+      void post(e)
+    },
+    [scheduledFor, schedulePost]
+  )
+
   const handlePollToggle = () => {
     if (parentEvent) return
 
@@ -344,7 +453,7 @@ export default function PostContent({
         setText={setText}
         defaultContent={defaultContent}
         parentEvent={parentEvent}
-        onSubmit={() => post()}
+        onSubmit={() => handlePrimaryAction()}
         className={isPoll ? 'min-h-20' : 'min-h-32'}
         onUploadStart={handleUploadStart}
         onUploadProgress={handleUploadProgress}
@@ -388,6 +497,28 @@ export default function PostContent({
             </button>
           </div>
         ))}
+
+      {scheduledFor && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs">
+          <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
+            <Clock className="h-3.5 w-3.5 shrink-0 text-primary" />
+            <span className="truncate">
+              {t('Scheduled for {{time}}', {
+                time: formatScheduledDateTime(scheduledFor)
+              })}
+            </span>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+            onClick={() => setScheduledFor(null)}
+          >
+            {t('Clear')}
+          </Button>
+        </div>
+      )}
 
       <div className="flex items-center justify-between">
         <div className="flex gap-2 items-center">
@@ -439,6 +570,11 @@ export default function PostContent({
               <ListTodo />
             </Button>
           )}
+          <PostSchedulePopover
+            scheduledFor={scheduledFor}
+            onScheduledForChange={setScheduledFor}
+            signerType={account?.signerType}
+          />
           <Button
             variant="ghost"
             size="icon"
@@ -477,13 +613,13 @@ export default function PostContent({
             </Button>
             <Button
               type="submit"
-              disabled={!canPost}
-              onClick={post}
+              disabled={!canSubmit}
+              onClick={handlePrimaryAction}
               aria-busy={posting}
-              aria-label={posting ? (parentEvent ? t('Replying...') : t('Posting...')) : (parentEvent ? t('Reply') : t('Post'))}
+              aria-label={posting ? primaryActionBusyLabel : primaryActionLabel}
             >
               {posting && <LoaderCircle className="animate-spin" aria-hidden="true" />}
-              {parentEvent ? t('Reply') : t('Post')}
+              {primaryActionLabel}
             </Button>
           </div>
         </div>
@@ -509,9 +645,9 @@ export default function PostContent({
         >
           {t('Cancel')}
         </Button>
-        <Button className="w-full" type="submit" disabled={!canPost} onClick={post}>
+        <Button className="w-full" type="submit" disabled={!canSubmit} onClick={handlePrimaryAction}>
           {posting && <LoaderCircle className="animate-spin" />}
-          {parentEvent ? t('Reply') : t('Post')}
+          {primaryActionLabel}
         </Button>
       </div>
     </div>

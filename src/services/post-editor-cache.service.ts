@@ -13,6 +13,7 @@ type TPostSettings = {
   pollCreateData?: TPollCreateData
   addClientTag?: boolean
   images?: ImageAttachment[]
+  scheduledFor?: number | null
 }
 
 class PostEditorCacheService {

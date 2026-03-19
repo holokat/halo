@@ -938,6 +938,9 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
       if (!pubkey || account?.signerType === 'npub' || !nip44Supported) {
         throw new Error('Direct messages require a signer that can encrypt NIP-17 messages.')
       }
+      if (targetMessage.isOutgoing) {
+        throw new Error('You can only react to messages from other people.')
+      }
       if (publishedInboxRelayUrls.length === 0) {
         throw new Error('Set up inbox relays before sending direct messages.')
       }

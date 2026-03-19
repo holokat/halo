@@ -117,6 +117,7 @@ export const StorageKey = {
   FAVORITE_LISTS: 'favoriteLists',
   MEDIA_STYLE: 'mediaStyle',
   DEFAULT_NOTE_EXPIRATION: 'defaultNoteExpiration',
+  SCHEDULED_POSTS: 'scheduledPosts',
   READ_ARTICLES: 'readArticles',
   BOOKMARK_TAGS: 'bookmarkTags',
   PINNED_REPLIES: 'pinnedReplies',

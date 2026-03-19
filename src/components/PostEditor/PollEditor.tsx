@@ -23,6 +23,7 @@ export default function PollEditor({
   setIsPoll: Dispatch<SetStateAction<boolean>>
 }) {
   const { t } = useTranslation()
+  const cardRadiusStyle = { borderRadius: 'var(--card-radius, 8px)' }
   const [isMultipleChoice, setIsMultipleChoice] = useState(pollCreateData.isMultipleChoice)
   const [options, setOptions] = useState(() => normalizePollOptions(pollCreateData.options))
   const [endsAt, setEndsAt] = useState(
@@ -81,7 +82,7 @@ export default function PollEditor({
   }
 
   return (
-    <div className="space-y-4 border rounded-lg p-3">
+    <div className="space-y-4 border p-3" style={cardRadiusStyle}>
       <div className="space-y-2">
         {options.map((option, index) => (
           <div key={option.id} className="flex items-center gap-2">
@@ -96,6 +97,7 @@ export default function PollEditor({
                     ? 'border bg-muted/30'
                     : 'border border-dashed border-border/70 bg-muted/20 text-muted-foreground hover:border-border hover:bg-muted/35'
                 )}
+                style={cardRadiusStyle}
                 title={option.image ? t('Replace option image') : t('Add option image')}
               >
                 {option.image ? (
@@ -130,6 +132,7 @@ export default function PollEditor({
               value={option.label}
               onChange={(e) => handleOptionChange(index, e.target.value)}
               placeholder={t('Option {{number}}', { number: index + 1 })}
+              style={cardRadiusStyle}
             />
             <Button
               type="button"
@@ -167,6 +170,7 @@ export default function PollEditor({
             onChange={(e) => setEndsAt(e.target.value)}
             aria-label={t('End Date (optional)')}
             className="h-9 min-w-0 max-w-[220px]"
+            style={cardRadiusStyle}
           />
           <Button
             type="button"
@@ -193,7 +197,10 @@ export default function PollEditor({
         </Button>
 
         {showAdvanced && (
-          <div className="grid gap-2 rounded-md border border-dashed border-border/70 p-3">
+          <div
+            className="grid gap-2 border border-dashed border-border/70 p-3"
+            style={cardRadiusStyle}
+          >
             <Label htmlFor="relay-urls" className="text-xs text-muted-foreground">
               {t('Relay URLs (optional, comma-separated)')}
             </Label>
@@ -202,13 +209,18 @@ export default function PollEditor({
               value={relayUrls}
               onChange={(e) => setRelayUrls(e.target.value)}
               placeholder="wss://relay1.com, wss://relay2.com"
+              style={cardRadiusStyle}
             />
           </div>
         )}
       </div>
 
       <div className="grid gap-2">
-        <Button variant="ghost-destructive" className="w-full" onClick={() => setIsPoll(false)}>
+        <Button
+          variant="ghost-destructive"
+          className="w-full bg-destructive/10 hover:bg-destructive/15"
+          onClick={() => setIsPoll(false)}
+        >
           {t('Remove poll')}
         </Button>
       </div>

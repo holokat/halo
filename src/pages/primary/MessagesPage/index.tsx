@@ -68,11 +68,11 @@ import {
   Info,
   Loader,
   MessageCircle,
-  MessageCirclePlus,
   MoreHorizontal,
   Paperclip,
   Plus,
   PlugZap,
+  SmilePlus,
   Users,
   X,
   Zap
@@ -1503,7 +1503,7 @@ function MessageBubble({
   return (
     <div
       className={cn(
-        'group flex items-end gap-2',
+        'group flex w-full items-end gap-2',
         message.isOutgoing ? 'justify-end' : 'justify-start'
       )}
     >
@@ -1553,7 +1553,7 @@ function MessageBubble({
               <div
                 key={reaction.emoji}
                 className={cn(
-                  'inline-flex min-h-7 items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-xs shadow-sm',
+                  'inline-flex min-h-7 items-center gap-1 rounded-full border border-border/80 bg-card px-2 py-0.5 text-xs shadow-sm',
                   reaction.isMine && 'border-primary/30 bg-primary/5'
                 )}
               >
@@ -1565,9 +1565,6 @@ function MessageBubble({
         )}
       </div>
       {!message.isOutgoing && showSenderAvatar && (
-        <MessageReactionPicker message={message} recipientPubkeys={recipientPubkeys} />
-      )}
-      {message.isOutgoing && (
         <MessageReactionPicker message={message} recipientPubkeys={recipientPubkeys} />
       )}
     </div>
@@ -1589,10 +1586,14 @@ function MessageReactionPicker({
   const [isPickerOpen, setIsPickerOpen] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const triggerClassName = cn(
-    'mt-2 flex size-8 shrink-0 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm transition',
+    'mt-2 flex size-8 shrink-0 items-center justify-center rounded-full border bg-card text-muted-foreground shadow-sm transition',
     'opacity-80 hover:text-foreground sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100',
     isSending && 'opacity-100 text-foreground'
   )
+
+  if (message.isOutgoing) {
+    return null
+  }
 
   const handleReaction = (emoji: string | TEmoji) => {
     checkLogin(async () => {
@@ -1638,7 +1639,7 @@ function MessageReactionPicker({
           aria-label={t('React')}
           title={t('React')}
         >
-          {isSending ? <Loader className="size-4 animate-spin" /> : <MessageCirclePlus className="size-4" />}
+          {isSending ? <Loader className="size-4 animate-spin" /> : <SmilePlus className="size-4" />}
         </button>
         <Drawer open={isOpen} onOpenChange={setIsOpen}>
           <DrawerOverlay onClick={() => setIsOpen(false)} />
@@ -1686,7 +1687,7 @@ function MessageReactionPicker({
           disabled={isSending}
           onClick={(event) => event.stopPropagation()}
         >
-          {isSending ? <Loader className="size-4 animate-spin" /> : <MessageCirclePlus className="size-4" />}
+          {isSending ? <Loader className="size-4 animate-spin" /> : <SmilePlus className="size-4" />}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent side="top" align={message.isOutgoing ? 'end' : 'start'} className="w-fit p-0">
@@ -1913,7 +1914,7 @@ function DirectMessageZapActions({ pubkey }: { pubkey: string }) {
   const showChargeZap = isWalletConnected && chargeZapEnabled && quickZap
 
   return (
-    <div className="flex items-center gap-1 shrink-0">
+    <div className="relative flex shrink-0 items-center gap-1 overflow-visible">
       {showChargeZap && <DirectMessageChargeZapButton pubkey={pubkey} />}
       <DirectMessageZapButton pubkey={pubkey} />
     </div>
@@ -2205,9 +2206,9 @@ function DirectMessageChargeZapButton({ pubkey: recipientPubkey }: { pubkey: str
   }
 
   return (
-    <div className="relative shrink-0">
+    <div className="relative shrink-0 overflow-visible">
       {isCharging && (
-        <div className="absolute -top-8 left-1/2 -translate-x-1/2 rounded-md bg-yellow-400 px-2 py-1 text-xs font-bold text-black whitespace-nowrap z-10 animate-pulse">
+        <div className="absolute -top-8 left-1/2 z-20 -translate-x-1/2 rounded-md bg-yellow-400 px-2 py-1 text-xs font-bold text-black whitespace-nowrap animate-pulse">
           {chargeAmount} {t('Sats')}
         </div>
       )}
@@ -2215,7 +2216,7 @@ function DirectMessageChargeZapButton({ pubkey: recipientPubkey }: { pubkey: str
         ref={buttonRef}
         type="button"
         className={cn(
-          'flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors',
+          'flex h-10 min-w-10 shrink-0 items-center justify-center gap-1 rounded-full px-2 transition-colors',
           disable
             ? 'cursor-not-allowed text-muted-foreground/40'
             : 'text-muted-foreground hover:text-yellow-400',
@@ -2223,6 +2224,7 @@ function DirectMessageChargeZapButton({ pubkey: recipientPubkey }: { pubkey: str
         )}
         title={t('Charge Zap')}
         aria-label={t('Charge Zap')}
+        aria-live="polite"
         disabled={disable || zapping}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
@@ -2233,7 +2235,14 @@ function DirectMessageChargeZapButton({ pubkey: recipientPubkey }: { pubkey: str
         {zapping ? (
           <Loader className="animate-spin" />
         ) : (
-          <PlugZap className={cn(isCharging && 'fill-yellow-400')} />
+          <>
+            <PlugZap className={cn(isCharging && 'fill-yellow-400')} />
+            {isCharging && (
+              <span className="text-[11px] font-semibold tabular-nums leading-none">
+                {chargeAmount}
+              </span>
+            )}
+          </>
         )}
       </button>
     </div>

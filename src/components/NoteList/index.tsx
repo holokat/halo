@@ -59,7 +59,12 @@ const NoteList = forwardRef(
       areAlgoRelays = false,
       showRelayCloseReason = false,
       pinnedEventIds = [],
-      onEventsChange
+      onEventsChange,
+      additionalFilter,
+      additionalFilteredOutMessage,
+      stopAutoLoadWhenNoVisibleEvents = true,
+      maxAutoLoadWhenNoVisibleEvents = 2,
+      emptyStateMessage
     }: {
       subRequests: TFeedSubRequest[]
       showKinds: number[]
@@ -73,6 +78,11 @@ const NoteList = forwardRef(
       showRelayCloseReason?: boolean
       pinnedEventIds?: string[]
       onEventsChange?: (events: Event[]) => void
+      additionalFilter?: (event: Event) => boolean
+      additionalFilteredOutMessage?: string
+      stopAutoLoadWhenNoVisibleEvents?: boolean
+      maxAutoLoadWhenNoVisibleEvents?: number
+      emptyStateMessage?: string
     },
     ref
   ) => {
@@ -99,6 +109,8 @@ const NoteList = forwardRef(
     const supportTouch = useMemo(() => isTouchDevice(), [])
     const bottomRef = useRef<HTMLDivElement | null>(null)
     const topRef = useRef<HTMLDivElement | null>(null)
+    const refreshTimeoutRef = useRef<number | null>(null)
+    const filteredOutAutoLoadCountRef = useRef(0)
     const pinnedEventHexIdSet = useMemo(() => {
       const set = new Set<string>()
       pinnedEventIds.forEach((id) => {
@@ -154,9 +166,14 @@ const NoteList = forwardRef(
           return true
         }
 
+        if (additionalFilter && !additionalFilter(evt)) {
+          return true
+        }
+
         return false
       },
       [
+        additionalFilter,
         hideReplies,
         hideUntrustedNotes,
         mutePubkeySet,
@@ -204,7 +221,7 @@ const NoteList = forwardRef(
     const showFilteredOutState = !loading && events.length > 0 && visibleEvents.length === 0
     const filteredOutMessage = mediaOnlyFilteredOutAll
       ? t('This relay is returning posts, but the media-only filter is hiding them.')
-      : t('No notes match the current filters.')
+      : additionalFilteredOutMessage || t('No notes match the current filters.')
 
     const filteredEvents = useMemo(
       () => visibleEvents.slice(0, showCount),
@@ -236,12 +253,32 @@ const NoteList = forwardRef(
 
     const refresh = () => {
       scrollToTop()
-      setTimeout(() => {
+      if (refreshTimeoutRef.current !== null) {
+        window.clearTimeout(refreshTimeoutRef.current)
+      }
+
+      refreshTimeoutRef.current = window.setTimeout(() => {
+        filteredOutAutoLoadCountRef.current = 0
         setRefreshCount((count) => count + 1)
-      }, 500)
+        refreshTimeoutRef.current = null
+      }, 250)
     }
 
     useImperativeHandle(ref, () => ({ scrollToTop, refresh }), [])
+
+    useEffect(() => {
+      return () => {
+        if (refreshTimeoutRef.current !== null) {
+          window.clearTimeout(refreshTimeoutRef.current)
+        }
+      }
+    }, [])
+
+    useEffect(() => {
+      if (visibleEvents.length > 0) {
+        filteredOutAutoLoadCountRef.current = 0
+      }
+    }, [visibleEvents.length])
 
     useEffect(() => {
       if (!subRequests.length) return
@@ -361,7 +398,17 @@ const NoteList = forwardRef(
         }
 
         // Avoid a runaway load-more loop when filters hide every fetched event.
-        if (visibleEvents.length === 0 && events.length > 0) return
+        const noVisibleEventsButLoaded = visibleEvents.length === 0 && events.length > 0
+
+        if (noVisibleEventsButLoaded) {
+          if (stopAutoLoadWhenNoVisibleEvents) {
+            return
+          }
+
+          if (filteredOutAutoLoadCountRef.current >= maxAutoLoadWhenNoVisibleEvents) {
+            return
+          }
+        }
 
         if (!timelineKey || loading || !hasMore) return
         setLoading(true)
@@ -375,6 +422,11 @@ const NoteList = forwardRef(
           setHasMore(false)
           return
         }
+
+        if (noVisibleEventsButLoaded) {
+          filteredOutAutoLoadCountRef.current += 1
+        }
+
         setEvents((oldEvents) => [...oldEvents, ...newEvents])
       }
 
@@ -395,7 +447,17 @@ const NoteList = forwardRef(
           observerInstance.unobserve(currentBottomRef)
         }
       }
-    }, [loading, hasMore, events, showCount, showCountIncrement, timelineKey, visibleEvents.length])
+    }, [
+      loading,
+      hasMore,
+      events,
+      showCount,
+      showCountIncrement,
+      timelineKey,
+      visibleEvents.length,
+      stopAutoLoadWhenNoVisibleEvents,
+      maxAutoLoadWhenNoVisibleEvents
+    ])
 
     const showNewEvents = () => {
       setEvents((oldEvents) => [...newEvents, ...oldEvents])
@@ -445,6 +507,10 @@ const NoteList = forwardRef(
           </div>
         ) : events.length ? (
           <div role="status" aria-live="polite" className="text-center text-sm text-muted-foreground mt-2">{t('no more notes')}</div>
+        ) : emptyStateMessage ? (
+          <div className="text-center text-sm text-muted-foreground mt-4 px-4">
+            {emptyStateMessage}
+          </div>
         ) : (
           <div className="flex justify-center w-full mt-2">
             <Button size="lg" onClick={() => setRefreshCount((count) => count + 1)}>

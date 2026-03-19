@@ -12,7 +12,8 @@ import {
   createFollowListDraftEvent,
   createMuteListDraftEvent,
   createRelayListDraftEvent,
-  createSeenNotificationsAtDraftEvent
+  createSeenNotificationsAtDraftEvent,
+  deleteDraftEventCache
 } from '@/lib/draft-event'
 import {
   getLatestEvent,
@@ -32,6 +33,9 @@ import inboxRelayRecommendationsService from '@/services/inbox-relay-recommendat
 import indexedDb from '@/services/indexed-db.service'
 import storage from '@/services/local-storage.service'
 import noteStatsService from '@/services/note-stats.service'
+import scheduledPostsService, {
+  scheduledPostsChangedEventName
+} from '@/services/scheduled-posts.service'
 import {
   ISigner,
   TAccount,
@@ -46,7 +50,7 @@ import dayjs from 'dayjs'
 import { Event, kinds, VerifiedEvent } from 'nostr-tools'
 import * as nip19 from 'nostr-tools/nip19'
 import * as nip49 from 'nostr-tools/nip49'
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useDeletedEvent } from '../DeletedEventProvider'
@@ -145,6 +149,9 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
   const [notificationsSeenAt, setNotificationsSeenAt] = useState(-1)
   const [isInitialized, setIsInitialized] = useState(false)
   const [nip44Supported, setNip44Supported] = useState(false)
+  const activeAccountRef = useRef<TAccountPointer | null>(null)
+  const scheduledPostProcessingIdsRef = useRef<Set<string>>(new Set())
+  const scheduledPostFailureToastAtRef = useRef<Map<string, number>>(new Map())
 
   const getDefaultInboxRelayUrls = async (nextRelayList: TRelayList | null) => {
     const fallbackRelayUrls = Array.from(
@@ -165,6 +172,10 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
       return fallbackRelayUrls
     }
   }
+
+  useEffect(() => {
+    activeAccountRef.current = account
+  }, [account])
 
   useEffect(() => {
     const init = async () => {
@@ -525,6 +536,7 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
   }
 
   const removeAccount = (act: TAccountPointer) => {
+    scheduledPostsService.removeScheduledPostsForAccount(act.pubkey)
     const newAccounts = storage.removeAccount(act)
     setAccounts(newAccounts)
     if (account?.pubkey === act.pubkey) {
@@ -770,6 +782,99 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
     await client.publishEvent(relays, event)
     return event
   }
+
+  const processScheduledPosts = useCallback(async () => {
+    if (!isInitialized || !account || account.signerType === 'npub') {
+      return
+    }
+
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+      return
+    }
+
+    const duePosts = scheduledPostsService.getReadyScheduledPosts(account.pubkey)
+    for (const scheduledPost of duePosts) {
+      if (scheduledPostProcessingIdsRef.current.has(scheduledPost.id)) {
+        continue
+      }
+
+      scheduledPostProcessingIdsRef.current.add(scheduledPost.id)
+      let draftEvent: TDraftEvent | null = null
+
+      try {
+        const activeAccount = activeAccountRef.current
+        if (!activeAccount || activeAccount.pubkey !== scheduledPost.accountPubkey) {
+          continue
+        }
+
+        const scheduledDraft = await scheduledPostsService.createDraftEventFromScheduledPost(
+          scheduledPost
+        )
+        draftEvent = scheduledDraft.draftEvent
+
+        const event = await publish(draftEvent, scheduledDraft.publishOptions)
+        client.addEventToCache(event)
+        scheduledPostsService.removeScheduledPost(scheduledPost.id)
+        scheduledPostFailureToastAtRef.current.delete(scheduledPost.id)
+        toast.success(t('Scheduled post published'), { duration: 3000 })
+      } catch (error) {
+        console.error('Failed to publish scheduled post:', error)
+        scheduledPostsService.markAttemptFailed(scheduledPost.id, error)
+
+        const now = Date.now()
+        const lastToastAt = scheduledPostFailureToastAtRef.current.get(scheduledPost.id) ?? 0
+        if (now - lastToastAt > 5 * 60 * 1000) {
+          toast.error(
+            t('A scheduled post could not be sent. We will retry when this account is active.'),
+            { duration: 5000 }
+          )
+          scheduledPostFailureToastAtRef.current.set(scheduledPost.id, now)
+        }
+      } finally {
+        if (draftEvent) {
+          deleteDraftEventCache(draftEvent)
+        }
+        scheduledPostProcessingIdsRef.current.delete(scheduledPost.id)
+      }
+    }
+  }, [account, isInitialized, publish, t])
+
+  useEffect(() => {
+    if (!isInitialized) return
+
+    void processScheduledPosts()
+  }, [isInitialized, processScheduledPosts])
+
+  useEffect(() => {
+    if (!isInitialized) return
+
+    const run = () => {
+      void processScheduledPosts()
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        run()
+      }
+    }
+
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        run()
+      }
+    }, 30_000)
+
+    window.addEventListener('focus', run)
+    window.addEventListener(scheduledPostsChangedEventName, run)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.clearInterval(intervalId)
+      window.removeEventListener('focus', run)
+      window.removeEventListener(scheduledPostsChangedEventName, run)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [isInitialized, processScheduledPosts])
 
   const attemptDelete = async (targetEvent: Event) => {
     if (!signer) {
