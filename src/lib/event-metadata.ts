@@ -6,7 +6,7 @@ import {
   MAX_PINNED_NOTES,
   POLL_TYPE
 } from '@/constants'
-import { TEmoji, TPollOption, TPollType, TRelayList, TRelaySet } from '@/types'
+import { TEmoji, TPollOption, TPollType, TRelayDiscovery, TRelayList, TRelaySet } from '@/types'
 import { Event, kinds } from 'nostr-tools'
 import { buildATag } from './draft-event'
 import { getReplaceableEventIdentifier } from './event'
@@ -87,6 +87,114 @@ export function getInboxRelayUrlsFromEvent(event?: Event | null) {
   })
 
   return Array.from(relaySet)
+}
+
+export function getRelayDiscoveryFromEvent(event?: Event | null): TRelayDiscovery | null {
+  if (!event || event.kind !== ExtendedKind.RELAY_DISCOVERY) {
+    return null
+  }
+
+  const torBrowserDetected = isTorBrowser()
+  const dTagValue = event.tags.find(([tagName]) => tagName === 'd')?.[1]
+  if (!dTagValue || !isWebsocketUrl(dTagValue)) {
+    return null
+  }
+
+  const normalizedUrl = normalizeUrl(dTagValue)
+  if (!normalizedUrl) {
+    return null
+  }
+
+  if (normalizedUrl.endsWith('.onion/') && !torBrowserDetected) {
+    return null
+  }
+
+  const supportedNips = new Set<number>()
+  const requirementFlags = new Set<string>()
+  const relayTypes = new Set<string>()
+  const acceptedKinds = new Set<number>()
+  const rejectedKinds = new Set<number>()
+  let rttOpen: number | undefined
+  let rttRead: number | undefined
+  let rttWrite: number | undefined
+
+  event.tags.forEach(([tagName, ...values]) => {
+    if (!values.length) return
+
+    if (tagName === 'N') {
+      const supportedNip = Number.parseInt(values[0], 10)
+      if (Number.isFinite(supportedNip)) {
+        supportedNips.add(supportedNip)
+      }
+      return
+    }
+
+    if (tagName === 'R') {
+      if (values[0]) {
+        requirementFlags.add(values[0])
+      }
+      return
+    }
+
+    if (tagName === 'T') {
+      if (values[0]) {
+        relayTypes.add(values[0])
+      }
+      return
+    }
+
+    if (tagName === 'k') {
+      const rawKindValue = values[0]
+      if (!rawKindValue) return
+
+      const isRejected = rawKindValue.startsWith('!')
+      const parsedKind = Number.parseInt(isRejected ? rawKindValue.slice(1) : rawKindValue, 10)
+      if (!Number.isFinite(parsedKind)) return
+
+      if (isRejected) {
+        rejectedKinds.add(parsedKind)
+      } else {
+        acceptedKinds.add(parsedKind)
+      }
+      return
+    }
+
+    if (tagName === 'rtt-open') {
+      const value = Number.parseInt(values[0], 10)
+      if (Number.isFinite(value)) {
+        rttOpen = value
+      }
+      return
+    }
+
+    if (tagName === 'rtt-read') {
+      const value = Number.parseInt(values[0], 10)
+      if (Number.isFinite(value)) {
+        rttRead = value
+      }
+      return
+    }
+
+    if (tagName === 'rtt-write') {
+      const value = Number.parseInt(values[0], 10)
+      if (Number.isFinite(value)) {
+        rttWrite = value
+      }
+    }
+  })
+
+  return {
+    url: normalizedUrl,
+    supportedNips: Array.from(supportedNips),
+    requirementFlags: Array.from(requirementFlags),
+    relayTypes: Array.from(relayTypes),
+    acceptedKinds: Array.from(acceptedKinds),
+    rejectedKinds: Array.from(rejectedKinds),
+    rttOpen,
+    rttRead,
+    rttWrite,
+    created_at: event.created_at
+  }
 }
 
 function buildDefaultRelayList() {

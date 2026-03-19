@@ -28,6 +28,7 @@ import {
 import { formatPubkey, pubkeyToNpub } from '@/lib/pubkey'
 import client from '@/services/client.service'
 import customEmojiService from '@/services/custom-emoji.service'
+import inboxRelayRecommendationsService from '@/services/inbox-relay-recommendations.service'
 import indexedDb from '@/services/indexed-db.service'
 import storage from '@/services/local-storage.service'
 import noteStatsService from '@/services/note-stats.service'
@@ -145,10 +146,24 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false)
   const [nip44Supported, setNip44Supported] = useState(false)
 
-  const getDefaultInboxRelayUrls = (nextRelayList: TRelayList | null) => {
-    return Array.from(
+  const getDefaultInboxRelayUrls = async (nextRelayList: TRelayList | null) => {
+    const fallbackRelayUrls = Array.from(
       new Set((nextRelayList?.read.length ? nextRelayList.read : DEFAULT_READ_RELAY_URLS).slice(0, 3))
     )
+
+    if (!account?.pubkey) {
+      return fallbackRelayUrls
+    }
+
+    try {
+      return await inboxRelayRecommendationsService.getAutoPickInboxRelayUrls(
+        account.pubkey,
+        fallbackRelayUrls
+      )
+    } catch (error) {
+      console.error('Failed to auto-pick inbox relays:', error)
+      return fallbackRelayUrls
+    }
   }
 
   useEffect(() => {
@@ -309,7 +324,7 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
         inboxRelayEvent?.tags.some(([tagName]) => tagName === 'relay') ?? false
 
       if ((!inboxRelayEvent || !hasPublishedInboxRelays) && signer?.supportsNip44() && account.signerType !== 'npub') {
-        const defaultInboxRelayUrls = getDefaultInboxRelayUrls(relayList)
+        const defaultInboxRelayUrls = await getDefaultInboxRelayUrls(relayList)
         if (defaultInboxRelayUrls.length > 0) {
           try {
             inboxRelayEvent = await signer.signEvent(

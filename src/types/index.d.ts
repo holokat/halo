@@ -93,6 +93,19 @@ export type TRelayInfo = {
   }
 }
 
+export type TRelayDiscovery = {
+  url: string
+  supportedNips: number[]
+  requirementFlags: string[]
+  relayTypes: string[]
+  acceptedKinds: number[]
+  rejectedKinds: number[]
+  rttOpen?: number
+  rttRead?: number
+  rttWrite?: number
+  created_at: number
+}
+
 export type TWebMetadata = {
   title?: string | null
   description?: string | null
