@@ -1,9 +1,9 @@
 import Image from '@/components/Image'
 import WidgetContainer from '@/components/WidgetContainer'
+import WidgetHeader from '@/components/WidgetHeader'
 import { SimpleUserAvatar } from '@/components/UserAvatar'
 import { SimpleUsername } from '@/components/Username'
 import { Button } from '@/components/ui/button'
-import { CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { formatCount } from '@/components/NoteStats/utils'
@@ -65,7 +65,7 @@ export default function PollsWidget() {
   const { hideContentMentioningMutedUsers } = useContentPolicy()
   const { repliesMap, addReplies } = useReply()
   const { hideUntrustedInteractions, isUserTrustedForInteractions } = useUserTrust()
-  const { toggleWidget, hideWidgetTitles } = useWidgets()
+  const { toggleWidget, hideWidgetTitles, isWidgetCollapsed } = useWidgets()
   const [isHovered, setIsHovered] = useState(false)
   const [events, setEvents] = useState<Event[]>([])
   const [relayUrls, setRelayUrls] = useState<string[]>(BIG_RELAY_URLS)
@@ -79,6 +79,7 @@ export default function PollsWidget() {
   const activitySubCloserRef = useRef<{ close: () => void } | null>(null)
 
   const widgetName = AVAILABLE_WIDGETS.find((widget) => widget.id === 'polls')?.name || 'Polls'
+  const isCollapsed = !hideWidgetTitles && isWidgetCollapsed('polls')
 
   useEffect(() => {
     return () => {
@@ -445,16 +446,13 @@ export default function PollsWidget() {
 
   return (
     <WidgetContainer className="flex flex-col">
-      {!hideWidgetTitles && (
-        <CardHeader
-          className="group flex flex-row items-center justify-between space-y-0 border-b p-4 pb-3"
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-        >
-          <CardTitle className="font-semibold" style={{ fontSize: '14px' }}>
-            {widgetName}
-          </CardTitle>
-          <div className="flex items-center gap-1">
+      <WidgetHeader
+        widgetId="polls"
+        title={widgetName}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        actions={
+          <>
             <button
               type="button"
               className="shrink-0 cursor-pointer text-muted-foreground transition-colors hover:text-foreground disabled:cursor-default disabled:opacity-60"
@@ -475,93 +473,95 @@ export default function PollsWidget() {
                 <EyeOff className="h-3.5 w-3.5" />
               </button>
             )}
-          </div>
-        </CardHeader>
+          </>
+        }
+      />
+
+      {!isCollapsed && (
+        <div
+          className={cn(
+            WIDGET_HEIGHT_CLASS,
+            'overflow-y-auto overflow-x-hidden overscroll-y-contain touch-pan-y scrollbar-hide px-4 pb-4',
+            hideWidgetTitles ? 'pt-4' : ''
+          )}
+        >
+          {loading ? (
+            <div className="space-y-2.5 pt-1">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="rounded-lg border border-border/70 p-3">
+                  <div className="mb-2 flex items-center gap-2">
+                    <Skeleton className="h-6 w-6 rounded-full" />
+                    <Skeleton className="h-3.5 w-24" />
+                    <Skeleton className="ml-auto h-5 w-14 rounded-full" />
+                  </div>
+                  <Skeleton className="mb-2 h-4 w-full" />
+                  <Skeleton className="mb-2 h-4 w-3/4" />
+                  <div className="space-y-1.5">
+                    <Skeleton className="h-7 w-full rounded-md" />
+                    <Skeleton className="h-7 w-full rounded-md" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : !pubkey ? (
+            <EmptyState
+              text={t('Log in and follow people to see polls in this widget.', {
+                defaultValue: 'Log in and follow people to see polls in this widget.'
+              })}
+            />
+          ) : followings.length === 0 ? (
+            <EmptyState
+              text={t('Follow people to see their polls here.', {
+                defaultValue: 'Follow people to see their polls here.'
+              })}
+            />
+          ) : trackedPollEvents.length === 0 ? (
+            <EmptyState
+              text={t('No polls from people you follow right now.', {
+                defaultValue: 'No polls from people you follow right now.'
+              })}
+            />
+          ) : (
+            <div className="pt-1">
+              <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as PollWidgetTab)}>
+                <TabsList className="grid h-8 w-full grid-cols-3 rounded-full bg-muted/40 p-1">
+                  <TabsTrigger value="active" className="gap-1 rounded-full px-2 text-[11px]">
+                    <span>{t('Active', { defaultValue: 'Active' })}</span>
+                    <span className="text-[10px] text-muted-foreground">{activeItems.length}</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="voted" className="gap-1 rounded-full px-2 text-[11px]">
+                    <span>{t('Voted', { defaultValue: 'Voted' })}</span>
+                    <span className="text-[10px] text-muted-foreground">{votedItems.length}</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="ended" className="gap-1 rounded-full px-2 text-[11px]">
+                    <span>{t('Ended', { defaultValue: 'Ended' })}</span>
+                    <span className="text-[10px] text-muted-foreground">{endedItems.length}</span>
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+
+              {currentItems.length === 0 ? (
+                <EmptyState className="mt-2" text={emptyTabText} />
+              ) : (
+                <div className="mt-2 space-y-2">
+                  {currentItems.map((item) => (
+                    <CompactPollCard
+                      key={item.event.id}
+                      event={item.event}
+                      poll={item.poll}
+                      now={now}
+                      commentCount={item.commentCount}
+                      votedOptionIds={item.votedOptionIds}
+                      isExpired={item.isExpired}
+                      onOpen={() => push(toNote(item.event))}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       )}
-
-      <div
-        className={cn(
-          WIDGET_HEIGHT_CLASS,
-          'overflow-y-auto overflow-x-hidden overscroll-y-contain touch-pan-y scrollbar-hide px-4 pb-4',
-          hideWidgetTitles ? 'pt-4' : ''
-        )}
-      >
-        {loading ? (
-          <div className="space-y-2.5 pt-1">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div key={index} className="rounded-lg border border-border/70 p-3">
-                <div className="mb-2 flex items-center gap-2">
-                  <Skeleton className="h-6 w-6 rounded-full" />
-                  <Skeleton className="h-3.5 w-24" />
-                  <Skeleton className="ml-auto h-5 w-14 rounded-full" />
-                </div>
-                <Skeleton className="mb-2 h-4 w-full" />
-                <Skeleton className="mb-2 h-4 w-3/4" />
-                <div className="space-y-1.5">
-                  <Skeleton className="h-7 w-full rounded-md" />
-                  <Skeleton className="h-7 w-full rounded-md" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : !pubkey ? (
-          <EmptyState
-            text={t('Log in and follow people to see polls in this widget.', {
-              defaultValue: 'Log in and follow people to see polls in this widget.'
-            })}
-          />
-        ) : followings.length === 0 ? (
-          <EmptyState
-            text={t('Follow people to see their polls here.', {
-              defaultValue: 'Follow people to see their polls here.'
-            })}
-          />
-        ) : trackedPollEvents.length === 0 ? (
-          <EmptyState
-            text={t('No polls from people you follow right now.', {
-              defaultValue: 'No polls from people you follow right now.'
-            })}
-          />
-        ) : (
-          <div className="pt-1">
-            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as PollWidgetTab)}>
-              <TabsList className="grid h-8 w-full grid-cols-3 rounded-full bg-muted/40 p-1">
-                <TabsTrigger value="active" className="gap-1 rounded-full px-2 text-[11px]">
-                  <span>{t('Active', { defaultValue: 'Active' })}</span>
-                  <span className="text-[10px] text-muted-foreground">{activeItems.length}</span>
-                </TabsTrigger>
-                <TabsTrigger value="voted" className="gap-1 rounded-full px-2 text-[11px]">
-                  <span>{t('Voted', { defaultValue: 'Voted' })}</span>
-                  <span className="text-[10px] text-muted-foreground">{votedItems.length}</span>
-                </TabsTrigger>
-                <TabsTrigger value="ended" className="gap-1 rounded-full px-2 text-[11px]">
-                  <span>{t('Ended', { defaultValue: 'Ended' })}</span>
-                  <span className="text-[10px] text-muted-foreground">{endedItems.length}</span>
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-
-            {currentItems.length === 0 ? (
-              <EmptyState className="mt-2" text={emptyTabText} />
-            ) : (
-              <div className="mt-2 space-y-2">
-                {currentItems.map((item) => (
-                  <CompactPollCard
-                    key={item.event.id}
-                    event={item.event}
-                    poll={item.poll}
-                    now={now}
-                    commentCount={item.commentCount}
-                    votedOptionIds={item.votedOptionIds}
-                    isExpired={item.isExpired}
-                    onOpen={() => push(toNote(item.event))}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
     </WidgetContainer>
   )
 }

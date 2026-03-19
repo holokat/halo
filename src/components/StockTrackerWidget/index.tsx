@@ -1,7 +1,7 @@
 import { SecondaryPageLink } from '@/PageManager'
 import WidgetContainer from '@/components/WidgetContainer'
+import WidgetHeader from '@/components/WidgetHeader'
 import { Button } from '@/components/ui/button'
-import { CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toNoteList } from '@/lib/link'
@@ -29,6 +29,7 @@ export default function StockTrackerWidget() {
   const {
     toggleWidget,
     hideWidgetTitles,
+    isWidgetCollapsed,
     stockTrackerSymbols,
     addStockTrackerSymbol,
     removeStockTrackerSymbol
@@ -40,6 +41,7 @@ export default function StockTrackerWidget() {
   const widgetName =
     AVAILABLE_WIDGETS.find((widget) => widget.id === 'stock-tracker')?.name || 'Stock Tracker'
   const isInputMuted = !isSmallScreen && !inputValue.trim() && !error
+  const isCollapsed = !hideWidgetTitles && isWidgetCollapsed('stock-tracker')
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -71,16 +73,13 @@ export default function StockTrackerWidget() {
 
   return (
     <WidgetContainer className="flex flex-col">
-      {!hideWidgetTitles && (
-        <CardHeader
-          className="flex flex-row items-center justify-between space-y-0 border-b p-4 pb-3 group"
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-        >
-          <CardTitle className="font-semibold" style={{ fontSize: '14px' }}>
-            {widgetName}
-          </CardTitle>
-          {isHovered && (
+      <WidgetHeader
+        widgetId="stock-tracker"
+        title={widgetName}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        actions={
+          isHovered ? (
             <button
               className="shrink-0 cursor-pointer text-muted-foreground transition-colors hover:text-foreground"
               onClick={() => toggleWidget('stock-tracker')}
@@ -88,56 +87,58 @@ export default function StockTrackerWidget() {
             >
               <EyeOff className="h-3.5 w-3.5" />
             </button>
-          )}
-        </CardHeader>
-      )}
+          ) : null
+        }
+      />
 
-      <div className={cn('space-y-3 p-4', hideWidgetTitles && 'pt-4')}>
-        {stockTrackerSymbols.length ? (
-          <div className="divide-y divide-border/70">
-            {stockTrackerSymbols.map((symbol) => (
-              <StockTrackerRow
-                key={symbol}
-                symbol={symbol}
-                onRemove={() => removeStockTrackerSymbol(symbol)}
+      {!isCollapsed && (
+        <div className={cn('space-y-3 p-4', hideWidgetTitles && 'pt-4')}>
+          {stockTrackerSymbols.length ? (
+            <div className="divide-y divide-border/70">
+              {stockTrackerSymbols.map((symbol) => (
+                <StockTrackerRow
+                  key={symbol}
+                  symbol={symbol}
+                  onRemove={() => removeStockTrackerSymbol(symbol)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-border/80 bg-muted/20 px-3 py-4 text-center text-xs text-muted-foreground">
+              {t('Add a symbol to start tracking it here.', {
+                defaultValue: 'Add a symbol to start tracking it here.'
+              })}
+            </div>
+          )}
+
+          <div
+            className={cn(
+              'transition-opacity duration-200',
+              isInputMuted && 'opacity-20 hover:opacity-60 focus-within:opacity-100'
+            )}
+          >
+            <form className="flex items-center gap-2" onSubmit={handleSubmit}>
+              <Input
+                value={inputValue}
+                onChange={(event) => {
+                  setInputValue(event.target.value)
+                  if (error) {
+                    setError(null)
+                  }
+                }}
+                placeholder="$TSLA"
+                aria-label={t('Add stock symbol', { defaultValue: 'Add stock symbol' })}
+                className="h-9"
               />
-            ))}
+              <Button type="submit" size="icon" className="h-9 w-9 shrink-0 rounded-full">
+                <Plus className="h-4 w-4" />
+              </Button>
+            </form>
           </div>
-        ) : (
-          <div className="rounded-xl border border-dashed border-border/80 bg-muted/20 px-3 py-4 text-center text-xs text-muted-foreground">
-            {t('Add a symbol to start tracking it here.', {
-              defaultValue: 'Add a symbol to start tracking it here.'
-            })}
-          </div>
-        )}
 
-        <div
-          className={cn(
-            'transition-opacity duration-200',
-            isInputMuted && 'opacity-20 hover:opacity-60 focus-within:opacity-100'
-          )}
-        >
-          <form className="flex items-center gap-2" onSubmit={handleSubmit}>
-            <Input
-              value={inputValue}
-              onChange={(event) => {
-                setInputValue(event.target.value)
-                if (error) {
-                  setError(null)
-                }
-              }}
-              placeholder="$TSLA"
-              aria-label={t('Add stock symbol', { defaultValue: 'Add stock symbol' })}
-              className="h-9"
-            />
-            <Button type="submit" size="icon" className="h-9 w-9 shrink-0 rounded-full">
-              <Plus className="h-4 w-4" />
-            </Button>
-          </form>
+          {error ? <p className="text-xs text-destructive">{error}</p> : null}
         </div>
-
-        {error ? <p className="text-xs text-destructive">{error}</p> : null}
-      </div>
+      )}
     </WidgetContainer>
   )
 }

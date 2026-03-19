@@ -1,6 +1,6 @@
 import Image from '@/components/Image'
 import WidgetContainer from '@/components/WidgetContainer'
-import { CardHeader, CardTitle } from '@/components/ui/card'
+import WidgetHeader from '@/components/WidgetHeader'
 import {
   Select,
   SelectContent,
@@ -26,7 +26,7 @@ const WIDGET_LIST_HEIGHT_CLASS = 'max-h-[232px]'
 
 export default function PolymarketWidget() {
   const { t } = useTranslation()
-  const { toggleWidget, hideWidgetTitles } = useWidgets()
+  const { toggleWidget, hideWidgetTitles, isWidgetCollapsed } = useWidgets()
   const [isHovered, setIsHovered] = useState(false)
   const [payload, setPayload] = useState<TPolymarketWidgetPayload | null>(() =>
     polymarketService.peekWidgetData()
@@ -40,6 +40,7 @@ export default function PolymarketWidget() {
 
   const widgetName =
     AVAILABLE_WIDGETS.find((widget) => widget.id === 'polymarket')?.name || 'Polymarket'
+  const isCollapsed = !hideWidgetTitles && isWidgetCollapsed('polymarket')
 
   const fetchMarkets = useCallback(async ({ showSkeleton = false, force = false } = {}) => {
     const requestId = ++latestRequestIdRef.current
@@ -119,16 +120,13 @@ export default function PolymarketWidget() {
 
   return (
     <WidgetContainer className="flex flex-col">
-      {!hideWidgetTitles && (
-        <CardHeader
-          className="group flex flex-row items-center justify-between space-y-0 border-b p-4 pb-3"
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-        >
-          <CardTitle className="font-semibold" style={{ fontSize: '14px' }}>
-            {widgetName}
-          </CardTitle>
-          <div className="flex items-center gap-1">
+      <WidgetHeader
+        widgetId="polymarket"
+        title={widgetName}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        actions={
+          <>
             <button
               type="button"
               className="shrink-0 cursor-pointer text-muted-foreground transition-colors hover:text-foreground disabled:cursor-default disabled:opacity-60"
@@ -149,74 +147,76 @@ export default function PolymarketWidget() {
                 <EyeOff className="h-3.5 w-3.5" />
               </button>
             )}
+          </>
+        }
+      />
+
+      {!isCollapsed && (
+        <div className={cn('px-4 pb-4', hideWidgetTitles && 'pt-4')}>
+          <div className="pt-1">
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger
+                className="h-8 text-xs"
+                aria-label={t('Choose Polymarket category', {
+                  defaultValue: 'Choose Polymarket category'
+                })}
+              >
+                <SelectValue placeholder={t('All', { defaultValue: 'All' })} />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((category) => (
+                  <SelectItem key={category.slug} value={category.slug}>
+                    {category.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </CardHeader>
-      )}
 
-      <div className={cn('px-4 pb-4', hideWidgetTitles && 'pt-4')}>
-        <div className="pt-1">
-          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger
-              className="h-8 text-xs"
-              aria-label={t('Choose Polymarket category', {
-                defaultValue: 'Choose Polymarket category'
-              })}
-            >
-              <SelectValue placeholder={t('All', { defaultValue: 'All' })} />
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map((category) => (
-                <SelectItem key={category.slug} value={category.slug}>
-                  {category.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div
-          className={cn(
-            WIDGET_LIST_HEIGHT_CLASS,
-            'mt-3 overflow-y-auto overflow-x-hidden overscroll-y-contain touch-pan-y scrollbar-hide'
-          )}
-        >
-          {loading ? (
-            <div className="space-y-2">
-              {Array.from({ length: 5 }).map((_, index) => (
-                <div key={index} className="rounded-lg border border-border/70 p-2">
-                  <div className="flex items-center gap-2">
-                    <Skeleton className="h-11 w-11 shrink-0 rounded-md" />
-                    <div className="min-w-0 flex-1 space-y-1.5">
-                      <Skeleton className="h-3.5 w-full" />
-                      <Skeleton className="h-3.5 w-4/5" />
-                      <Skeleton className="h-3 w-2/3" />
+          <div
+            className={cn(
+              WIDGET_LIST_HEIGHT_CLASS,
+              'mt-3 overflow-y-auto overflow-x-hidden overscroll-y-contain touch-pan-y scrollbar-hide'
+            )}
+          >
+            {loading ? (
+              <div className="space-y-2">
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <div key={index} className="rounded-lg border border-border/70 p-2">
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-11 w-11 shrink-0 rounded-md" />
+                      <div className="min-w-0 flex-1 space-y-1.5">
+                        <Skeleton className="h-3.5 w-full" />
+                        <Skeleton className="h-3.5 w-4/5" />
+                        <Skeleton className="h-3 w-2/3" />
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : error ? (
-            <EmptyState
-              text={t('Polymarket data is unavailable right now.', {
-                defaultValue: 'Polymarket data is unavailable right now.'
-              })}
-              subtext={error}
-            />
-          ) : filteredMarkets.length === 0 ? (
-            <EmptyState
-              text={t('No active predictions in this category right now.', {
-                defaultValue: 'No active predictions in this category right now.'
-              })}
-            />
-          ) : (
-            <div className="space-y-2">
-              {filteredMarkets.map((market) => (
-                <PolymarketRow key={market.id} market={market} />
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            ) : error ? (
+              <EmptyState
+                text={t('Polymarket data is unavailable right now.', {
+                  defaultValue: 'Polymarket data is unavailable right now.'
+                })}
+                subtext={error}
+              />
+            ) : filteredMarkets.length === 0 ? (
+              <EmptyState
+                text={t('No active predictions in this category right now.', {
+                  defaultValue: 'No active predictions in this category right now.'
+                })}
+              />
+            ) : (
+              <div className="space-y-2">
+                {filteredMarkets.map((market) => (
+                  <PolymarketRow key={market.id} market={market} />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </WidgetContainer>
   )
 }

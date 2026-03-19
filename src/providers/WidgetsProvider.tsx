@@ -111,6 +111,8 @@ type TWidgetsContext = {
   enabledWidgets: TWidgetId[]
   toggleWidget: (widgetId: TWidgetId) => void
   isWidgetEnabled: (widgetId: TWidgetId) => boolean
+  toggleWidgetCollapsed: (widgetId: TWidgetId) => void
+  isWidgetCollapsed: (widgetId: TWidgetId) => boolean
   getWidgetById: (widgetId: TWidgetId) => TWidget | undefined
   reorderWidgets: (newOrder: TWidgetId[]) => void
   hideWidgetTitles: boolean
@@ -158,6 +160,10 @@ const WidgetsContext = createContext<TWidgetsContext | undefined>(undefined)
 export function WidgetsProvider({ children }: { children: ReactNode }) {
   const [enabledWidgets, setEnabledWidgets] = useState<TWidgetId[]>(() => {
     return localStorageService.getEnabledWidgets() as TWidgetId[]
+  })
+
+  const [collapsedWidgetIds, setCollapsedWidgetIds] = useState<TWidgetId[]>(() => {
+    return localStorageService.getCollapsedWidgets() as TWidgetId[]
   })
 
   const [pinnedNoteWidgets, setPinnedNoteWidgets] = useState<TPinnedNoteWidget[]>(() => {
@@ -211,6 +217,10 @@ export function WidgetsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorageService.setEnabledWidgets(enabledWidgets)
   }, [enabledWidgets])
+
+  useEffect(() => {
+    localStorageService.setCollapsedWidgets(collapsedWidgetIds)
+  }, [collapsedWidgetIds])
 
   useEffect(() => {
     localStorageService.setPinnedNoteWidgets(pinnedNoteWidgets)
@@ -350,6 +360,16 @@ export function WidgetsProvider({ children }: { children: ReactNode }) {
     return enabledWidgets.includes(widgetId)
   }
 
+  const toggleWidgetCollapsed = (widgetId: TWidgetId) => {
+    setCollapsedWidgetIds((prev) =>
+      prev.includes(widgetId) ? prev.filter((id) => id !== widgetId) : [...prev, widgetId]
+    )
+  }
+
+  const isWidgetCollapsed = (widgetId: TWidgetId) => {
+    return collapsedWidgetIds.includes(widgetId)
+  }
+
   const getWidgetById = (widgetId: TWidgetId) => {
     return AVAILABLE_WIDGETS.find((w) => w.id === widgetId)
   }
@@ -479,6 +499,8 @@ export function WidgetsProvider({ children }: { children: ReactNode }) {
         enabledWidgets,
         toggleWidget,
         isWidgetEnabled,
+        toggleWidgetCollapsed,
+        isWidgetCollapsed,
         getWidgetById,
         reorderWidgets,
         hideWidgetTitles,

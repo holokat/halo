@@ -91,6 +91,7 @@ export const StorageKey = {
   WIDGET_SIDEBAR_ICON: 'widgetSidebarIcon',
   HIDE_WIDGET_TITLES: 'hideWidgetTitles',
   ENABLED_WIDGETS: 'enabledWidgets',
+  COLLAPSED_WIDGETS: 'collapsedWidgets',
   NEWS_WIDGET_RELAYS: 'newsWidgetRelays',
   NEWS_WIDGET_HASHTAGS: 'newsWidgetHashtags',
   PINNED_NOTE_WIDGETS: 'pinnedNoteWidgets',

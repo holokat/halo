@@ -1,6 +1,6 @@
 import WidgetContainer from '@/components/WidgetContainer'
+import WidgetHeader from '@/components/WidgetHeader'
 import Image from '@/components/Image'
-import { CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { URL_REGEX } from '@/constants'
 import { toNote } from '@/lib/link'
@@ -29,7 +29,13 @@ export default function NewsWidget() {
   const { shouldAutoLoadMedia } = useContentPolicy()
   const { isEventDeleted } = useDeletedEvent()
   const { mutePubkeySet } = useMuteList()
-  const { toggleWidget, hideWidgetTitles, newsWidgetRelays, newsWidgetHashtags } = useWidgets()
+  const {
+    toggleWidget,
+    hideWidgetTitles,
+    newsWidgetRelays,
+    newsWidgetHashtags,
+    isWidgetCollapsed
+  } = useWidgets()
   const [isHovered, setIsHovered] = useState(false)
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
@@ -39,6 +45,7 @@ export default function NewsWidget() {
   const latestRequestIdRef = useRef(0)
 
   const widgetName = AVAILABLE_WIDGETS.find((widget) => widget.id === 'news')?.name || 'News'
+  const isCollapsed = !hideWidgetTitles && isWidgetCollapsed('news')
 
   useEffect(() => {
     return () => {
@@ -138,16 +145,13 @@ export default function NewsWidget() {
 
   return (
     <WidgetContainer className="flex flex-col">
-      {!hideWidgetTitles && (
-        <CardHeader
-          className="group flex flex-row items-center justify-between space-y-0 border-b p-4 pb-3"
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-        >
-          <CardTitle className="font-semibold" style={{ fontSize: '14px' }}>
-            {widgetName}
-          </CardTitle>
-          <div className="flex items-center gap-1">
+      <WidgetHeader
+        widgetId="news"
+        title={widgetName}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        actions={
+          <>
             <button
               type="button"
               className="shrink-0 cursor-pointer text-muted-foreground transition-colors hover:text-foreground disabled:cursor-default disabled:opacity-60"
@@ -168,60 +172,62 @@ export default function NewsWidget() {
                 <EyeOff className="h-3.5 w-3.5" />
               </button>
             )}
-          </div>
-        </CardHeader>
-      )}
+          </>
+        }
+      />
 
-      <div
-        className={cn(
-          WIDGET_HEIGHT_CLASS,
-          'overflow-y-auto overflow-x-hidden overscroll-y-contain touch-pan-y scrollbar-hide px-4 pb-4',
-          hideWidgetTitles ? 'pt-4' : ''
-        )}
-      >
-        {loading ? (
-          <div className="space-y-2 pt-1">
-            {Array.from({ length: 8 }).map((_, index) => (
-              <div key={index} className="flex items-center gap-2 rounded-md py-1.5">
-                <Skeleton className="h-8 w-8 shrink-0 rounded-md" />
-                <Skeleton className="h-3.5 flex-1" />
-              </div>
-            ))}
-          </div>
-        ) : newsWidgetRelays.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border/80 bg-muted/20 px-3 py-4 text-center text-xs text-muted-foreground">
-            {t('Add at least one relay in Widgets settings to populate this news feed.', {
-              defaultValue: 'Add at least one relay in Widgets settings to populate this news feed.'
-            })}
-          </div>
-        ) : displayedEvents.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border/80 bg-muted/20 px-3 py-4 text-center text-xs text-muted-foreground">
-            {t('No news items available right now.', {
-              defaultValue: 'No news items available right now.'
-            })}
-          </div>
-        ) : (
-          <div className="space-y-1.5 pt-1">
-            {displayedEvents.map((event) => (
-              <NewsRow
-                key={event.id}
-                event={event}
-                canAutoLoad={shouldAutoLoadMedia(event.pubkey)}
-                isRead={isNewsItemRead(event, readItemKeys)}
-                onOpenNote={(itemKey) => {
-                  localStorageService.markArticleAsRead(itemKey)
-                  setReadItemKeys((prev) => {
-                    if (prev.has(itemKey)) return prev
-                    const next = new Set(prev)
-                    next.add(itemKey)
-                    return next
-                  })
-                }}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      {!isCollapsed && (
+        <div
+          className={cn(
+            WIDGET_HEIGHT_CLASS,
+            'overflow-y-auto overflow-x-hidden overscroll-y-contain touch-pan-y scrollbar-hide px-4 pb-4',
+            hideWidgetTitles ? 'pt-4' : ''
+          )}
+        >
+          {loading ? (
+            <div className="space-y-2 pt-1">
+              {Array.from({ length: 8 }).map((_, index) => (
+                <div key={index} className="flex items-center gap-2 rounded-md py-1.5">
+                  <Skeleton className="h-8 w-8 shrink-0 rounded-md" />
+                  <Skeleton className="h-3.5 flex-1" />
+                </div>
+              ))}
+            </div>
+          ) : newsWidgetRelays.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-border/80 bg-muted/20 px-3 py-4 text-center text-xs text-muted-foreground">
+              {t('Add at least one relay in Widgets settings to populate this news feed.', {
+                defaultValue: 'Add at least one relay in Widgets settings to populate this news feed.'
+              })}
+            </div>
+          ) : displayedEvents.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-border/80 bg-muted/20 px-3 py-4 text-center text-xs text-muted-foreground">
+              {t('No news items available right now.', {
+                defaultValue: 'No news items available right now.'
+              })}
+            </div>
+          ) : (
+            <div className="space-y-1.5 pt-1">
+              {displayedEvents.map((event) => (
+                <NewsRow
+                  key={event.id}
+                  event={event}
+                  canAutoLoad={shouldAutoLoadMedia(event.pubkey)}
+                  isRead={isNewsItemRead(event, readItemKeys)}
+                  onOpenNote={(itemKey) => {
+                    localStorageService.markArticleAsRead(itemKey)
+                    setReadItemKeys((prev) => {
+                      if (prev.has(itemKey)) return prev
+                      const next = new Set(prev)
+                      next.add(itemKey)
+                      return next
+                    })
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </WidgetContainer>
   )
 }
@@ -247,7 +253,7 @@ function NewsRow({
   return (
     <SecondaryPageLink
       to={toNote(event)}
-      className={cn(rowClassName, 'block', isRead && 'opacity-55')}
+      className={cn(rowClassName, isRead && 'opacity-55')}
       title={headline}
       onClick={() => onOpenNote(itemKey)}
     >

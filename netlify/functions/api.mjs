@@ -3361,7 +3361,9 @@ function shouldExcludePolymarketEventFromWidget(event, tagSlugs) {
     return true
   }
 
-  if (event.closed || event.archived || event.restricted || !event.active) {
+  // Gamma now marks many normal homepage events as "restricted" even though they are still
+  // valid to browse and represent the site's current mix. Excluding them empties the widget.
+  if (event.closed || event.archived || !event.active) {
     return true
   }
 

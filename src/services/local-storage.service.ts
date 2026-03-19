@@ -129,6 +129,7 @@ class LocalStorageService {
   private widgetSidebarIcon: string | null = null
   private hideWidgetTitles: boolean = false
   private enabledWidgets: string[] = []
+  private collapsedWidgets: string[] = []
   private pinnedNoteWidgets: { id: string; eventId: string }[] = []
   private liveStreamWidgets: {
     id: string
@@ -481,6 +482,17 @@ class LocalStorageService {
       // Default to trending notes and invite widget enabled for new users
       this.enabledWidgets = ['trending-notes', 'invite']
       window.localStorage.setItem(StorageKey.ENABLED_WIDGETS, JSON.stringify(this.enabledWidgets))
+    }
+
+    const collapsedWidgets = getStorageJson<string[]>(StorageKey.COLLAPSED_WIDGETS, [])
+    if (Array.isArray(collapsedWidgets)) {
+      this.collapsedWidgets = Array.from(
+        new Set(
+          collapsedWidgets.filter(
+            (widgetId): widgetId is string => typeof widgetId === 'string' && widgetId.trim().length > 0
+          )
+        )
+      )
     }
 
     const pinnedNoteWidgetsStr = window.localStorage.getItem(StorageKey.PINNED_NOTE_WIDGETS)
@@ -1321,6 +1333,21 @@ class LocalStorageService {
   setEnabledWidgets(widgets: string[]) {
     this.enabledWidgets = widgets
     this.setJson(StorageKey.ENABLED_WIDGETS, widgets)
+  }
+
+  getCollapsedWidgets() {
+    return this.collapsedWidgets
+  }
+
+  setCollapsedWidgets(widgets: string[]) {
+    this.collapsedWidgets = Array.from(
+      new Set(
+        widgets.filter(
+          (widgetId): widgetId is string => typeof widgetId === 'string' && widgetId.trim().length > 0
+        )
+      )
+    )
+    this.setJson(StorageKey.COLLAPSED_WIDGETS, this.collapsedWidgets)
   }
 
   getTrendingNotesHeight() {
