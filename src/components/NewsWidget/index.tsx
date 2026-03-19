@@ -252,6 +252,7 @@ function NewsRow({
 
   return (
     <SecondaryPageLink
+      as="div"
       to={toNote(event)}
       className={cn(rowClassName, isRead && 'opacity-55')}
       title={headline}

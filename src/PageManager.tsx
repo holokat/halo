@@ -500,26 +500,41 @@ export function PageManager({ maxStackSize = 5 }: { maxStackSize?: number }) {
   )
 }
 
-type SecondaryPageLinkProps = HTMLAttributes<HTMLSpanElement> & {
+type SecondaryPageLinkProps = HTMLAttributes<HTMLSpanElement | HTMLDivElement> & {
   to: string
   children: React.ReactNode
+  as?: 'span' | 'div'
 }
 
-export const SecondaryPageLink = forwardRef<HTMLSpanElement, SecondaryPageLinkProps>(
-  ({ to, children, className, onClick, ...props }, ref) => {
+export const SecondaryPageLink = forwardRef<HTMLSpanElement | HTMLDivElement, SecondaryPageLinkProps>(
+  ({ to, children, className, onClick, as = 'span', ...props }, ref) => {
     const { push } = useSecondaryPage()
+    const handleClick = (e: React.MouseEvent<HTMLSpanElement | HTMLDivElement>) => {
+      onClick?.(e)
+      if (!e.defaultPrevented) {
+        push(to)
+      }
+    }
+
+    if (as === 'div') {
+      return (
+        <div
+          ref={ref as React.ForwardedRef<HTMLDivElement>}
+          className={cn('cursor-pointer', className)}
+          onClick={handleClick}
+          {...(props as HTMLAttributes<HTMLDivElement>)}
+        >
+          {children}
+        </div>
+      )
+    }
 
     return (
       <span
-        ref={ref}
+        ref={ref as React.ForwardedRef<HTMLSpanElement>}
         className={cn('cursor-pointer', className)}
-        onClick={(e) => {
-          onClick?.(e)
-          if (!e.defaultPrevented) {
-            push(to)
-          }
-        }}
-        {...props}
+        onClick={handleClick}
+        {...(props as HTMLAttributes<HTMLSpanElement>)}
       >
         {children}
       </span>
