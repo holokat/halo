@@ -112,6 +112,13 @@ type TNostrContext = {
 const NostrContext = createContext<TNostrContext | undefined>(undefined)
 
 const lastPublishedSeenNotificationsAtEventAtMap = new Map<string, number>()
+const SCHEDULED_POSTS_HEARTBEAT_MS = 30_000
+
+type TScheduledPostsTickerTick = {
+  type: 'tick'
+  atMs: number
+  reason: 'schedule' | 'heartbeat'
+}
 
 export const useNostr = () => {
   const context = useContext(NostrContext)
@@ -842,39 +849,158 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isInitialized) return
 
-    void processScheduledPosts()
-  }, [isInitialized, processScheduledPosts])
+    let isDisposed = false
+    let isRunning = false
+    let runQueued = false
+    let worker: Worker | null = null
+    let heartbeatIntervalId: number | null = null
+    let nextRunTimeoutId: number | null = null
 
-  useEffect(() => {
-    if (!isInitialized) return
+    const clearMainThreadTimers = () => {
+      if (heartbeatIntervalId !== null) {
+        window.clearInterval(heartbeatIntervalId)
+        heartbeatIntervalId = null
+      }
+      if (nextRunTimeoutId !== null) {
+        window.clearTimeout(nextRunTimeoutId)
+        nextRunTimeoutId = null
+      }
+    }
 
-    const run = () => {
-      void processScheduledPosts()
+    const getNextRunAtMs = () => {
+      if (!account || account.signerType === 'npub') return null
+
+      const nextRunAt = scheduledPostsService.getNextScheduledRunAt(account.pubkey)
+      return typeof nextRunAt === 'number' ? nextRunAt * 1000 : null
+    }
+
+    const queueRun = () => {
+      if (isDisposed) return
+      if (isRunning) {
+        runQueued = true
+        return
+      }
+      void run()
+    }
+
+    const scheduleMainThreadNextRun = () => {
+      if (nextRunTimeoutId !== null) {
+        window.clearTimeout(nextRunTimeoutId)
+        nextRunTimeoutId = null
+      }
+
+      const nextRunAtMs = getNextRunAtMs()
+      if (!nextRunAtMs) return
+
+      const delay = Math.max(250, nextRunAtMs - Date.now())
+      nextRunTimeoutId = window.setTimeout(() => {
+        nextRunTimeoutId = null
+        queueRun()
+      }, delay)
+    }
+
+    const configureTicker = () => {
+      const nextRunAtMs = getNextRunAtMs()
+      if (worker) {
+        worker.postMessage({
+          type: 'configure',
+          nextRunAtMs,
+          heartbeatMs: SCHEDULED_POSTS_HEARTBEAT_MS
+        })
+        return
+      }
+
+      scheduleMainThreadNextRun()
+    }
+
+    const run = async () => {
+      if (isDisposed || isRunning) return
+      isRunning = true
+
+      try {
+        await processScheduledPosts()
+      } finally {
+        isRunning = false
+        configureTicker()
+
+        if (runQueued) {
+          runQueued = false
+          queueRun()
+        }
+      }
     }
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        run()
+        queueRun()
       }
     }
 
-    const intervalId = window.setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        run()
-      }
-    }, 30_000)
+    const handleScheduledPostsChanged = () => {
+      configureTicker()
+      queueRun()
+    }
 
-    window.addEventListener('focus', run)
-    window.addEventListener(scheduledPostsChangedEventName, run)
+    const handleFocus = () => {
+      queueRun()
+    }
+
+    if (typeof Worker !== 'undefined') {
+      try {
+        worker = new Worker(new URL('../../workers/scheduled-posts-ticker.worker.ts', import.meta.url), {
+          type: 'module'
+        })
+        worker.onmessage = (event: MessageEvent<TScheduledPostsTickerTick>) => {
+          if (event.data?.type !== 'tick') return
+          if (document.visibilityState !== 'visible') return
+          queueRun()
+        }
+        worker.onerror = (event) => {
+          console.error('Scheduled posts ticker worker failed:', event)
+          worker?.terminate()
+          worker = null
+          clearMainThreadTimers()
+          heartbeatIntervalId = window.setInterval(() => {
+            if (document.visibilityState === 'visible') {
+              queueRun()
+            }
+          }, SCHEDULED_POSTS_HEARTBEAT_MS)
+          scheduleMainThreadNextRun()
+        }
+        configureTicker()
+      } catch (error) {
+        console.error('Failed to initialize scheduled posts ticker worker:', error)
+        worker = null
+      }
+    }
+
+    if (!worker) {
+      heartbeatIntervalId = window.setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          queueRun()
+        }
+      }, SCHEDULED_POSTS_HEARTBEAT_MS)
+      scheduleMainThreadNextRun()
+    }
+
+    window.addEventListener('focus', handleFocus)
+    window.addEventListener(scheduledPostsChangedEventName, handleScheduledPostsChanged)
     document.addEventListener('visibilitychange', handleVisibilityChange)
+    queueRun()
 
     return () => {
-      window.clearInterval(intervalId)
-      window.removeEventListener('focus', run)
-      window.removeEventListener(scheduledPostsChangedEventName, run)
+      isDisposed = true
+      clearMainThreadTimers()
+      window.removeEventListener('focus', handleFocus)
+      window.removeEventListener(scheduledPostsChangedEventName, handleScheduledPostsChanged)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
+      if (worker) {
+        worker.postMessage({ type: 'stop' })
+        worker.terminate()
+        worker = null
+      }
     }
-  }, [isInitialized, processScheduledPosts])
+  }, [account, isInitialized, processScheduledPosts])
 
   const attemptDelete = async (targetEvent: Event) => {
     if (!signer) {

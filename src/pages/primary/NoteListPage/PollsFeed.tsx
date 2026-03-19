@@ -37,6 +37,7 @@ export default function PollsFeed() {
   const [now, setNow] = useState(() => dayjs().unix())
   const [pollResultsVersion, setPollResultsVersion] = useState(0)
   const [noteStatsVersion, setNoteStatsVersion] = useState(0)
+  const pollKinds = useMemo(() => [...POLL_KINDS], [])
 
   useEffect(() => {
     let cancelled = false
@@ -307,7 +308,7 @@ export default function PollsFeed() {
       <NoteList
         ref={noteListRef}
         subRequests={subRequests}
-        showKinds={[...POLL_KINDS]}
+        showKinds={pollKinds}
         isMainFeed
         hideReplies
         hideUntrustedNotes={hideUntrustedNotes}

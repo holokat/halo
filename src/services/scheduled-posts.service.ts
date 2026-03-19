@@ -297,6 +297,30 @@ class ScheduledPostsService {
     )
   }
 
+  getNextScheduledRunAt(accountPubkey: string, now = dayjs().unix()) {
+    this.ensureLoaded()
+
+    let nextRunAt: number | null = null
+    for (const post of this.scheduledPosts ?? []) {
+      if (post.accountPubkey !== accountPubkey) continue
+
+      const retryReadyAt = post.lastAttemptAt
+        ? post.lastAttemptAt + getRetryDelaySeconds(post.attempts)
+        : post.scheduledFor
+      const candidateReadyAt = Math.max(post.scheduledFor, retryReadyAt)
+
+      if (candidateReadyAt <= now) {
+        return now
+      }
+
+      if (nextRunAt === null || candidateReadyAt < nextRunAt) {
+        nextRunAt = candidateReadyAt
+      }
+    }
+
+    return nextRunAt
+  }
+
   async createDraftEventFromScheduledPost(scheduledPost: TScheduledPost): Promise<{
     draftEvent: TDraftEvent
     publishOptions: TPublishOptions

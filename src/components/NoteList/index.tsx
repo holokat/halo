@@ -111,6 +111,8 @@ const NoteList = forwardRef(
     const topRef = useRef<HTMLDivElement | null>(null)
     const refreshTimeoutRef = useRef<number | null>(null)
     const filteredOutAutoLoadCountRef = useRef(0)
+    const subRequestsKey = JSON.stringify(subRequests)
+    const showKindsKey = JSON.stringify(showKinds)
     const pinnedEventHexIdSet = useMemo(() => {
       const set = new Set<string>()
       pinnedEventIds.forEach((id) => {
@@ -362,7 +364,7 @@ const NoteList = forwardRef(
       return () => {
         promise.then((closer) => closer())
       }
-    }, [JSON.stringify(subRequests), refreshCount, showKinds, isMainFeed, areAlgoRelays])
+    }, [subRequestsKey, refreshCount, showKindsKey, isMainFeed, areAlgoRelays])
 
     useEffect(() => {
       if (onEventsChange) {
