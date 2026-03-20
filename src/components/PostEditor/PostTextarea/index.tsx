@@ -83,7 +83,7 @@ const PostTextarea = forwardRef<
     const composerPlaceholder = placeholder ?? t('Enter text, paste or upload media')
     const editorClassName = cn(
       isMobileComposer
-        ? 'rounded-none border-0 bg-transparent p-0 text-[length:var(--font-size,15px)] leading-6 focus-visible:outline-none focus-visible:ring-0'
+        ? 'rounded-none border-0 bg-transparent p-0 text-[16px] leading-6 focus-visible:outline-none focus-visible:ring-0'
         : 'rounded-lg border p-3 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
       className
     )

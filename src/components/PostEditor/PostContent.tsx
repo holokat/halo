@@ -52,6 +52,32 @@ import Uploader from './Uploader'
 import ComposerHelpDialog from './ComposerHelpDialog'
 import GifIcon from '@/components/icons/GifIcon'
 
+const NSEC_CANDIDATE_REGEX = /(?:nostr:)?nsec1[023456789acdefghjklmnpqrstuvwxyz]{20,}/gi
+
+function extractPrivateKeyCandidates(content: string) {
+  const matches = content.match(NSEC_CANDIDATE_REGEX) ?? []
+  const validNsecs = new Set<string>()
+
+  matches.forEach((match) => {
+    const normalized = match.toLowerCase().replace(/^nostr:/, '')
+    try {
+      const decoded = nip19.decode(normalized)
+      if (decoded.type === 'nsec') {
+        validNsecs.add(normalized)
+      }
+    } catch {
+      // Ignore invalid bech32 strings that only look like nsec tokens.
+    }
+  })
+
+  return Array.from(validNsecs)
+}
+
+function hasPrivateKeyInDraft(content: string, tags: string[][]) {
+  const serializedTags = tags.flat().join('\n')
+  return extractPrivateKeyCandidates(`${content}\n${serializedTags}`).length > 0
+}
+
 export default function PostContent({
   defaultContent = '',
   initialMentionIds = [],
@@ -125,11 +151,24 @@ export default function PostContent({
       )
     )
   }, [initialMentionIds])
+  const privateKeyScanText = useMemo(() => {
+    const imageAltText = images.map((image) => image.alt?.trim() ?? '').filter(Boolean)
+    const pollOptionLabels = isPoll
+      ? pollCreateData.options.map((option) => option.label.trim()).filter(Boolean)
+      : []
+    return [text, ...imageAltText, ...pollOptionLabels].join('\n')
+  }, [images, isPoll, pollCreateData.options, text])
+  const detectedPrivateKeys = useMemo(
+    () => extractPrivateKeyCandidates(privateKeyScanText),
+    [privateKeyScanText]
+  )
+  const hasDetectedPrivateKey = detectedPrivateKeys.length > 0
 
   const canPost = useMemo(() => {
     return (
       !!pubkey &&
       !!text &&
+      !hasDetectedPrivateKey &&
       !posting &&
       !uploadProgresses.length &&
       (!isPoll || pollCreateData.options.filter((option) => !!option.label.trim()).length >= 2) &&
@@ -138,6 +177,7 @@ export default function PostContent({
   }, [
     pubkey,
     text,
+    hasDetectedPrivateKey,
     posting,
     uploadProgresses,
     isPoll,
@@ -204,6 +244,14 @@ export default function PostContent({
   const post = async (e?: React.MouseEvent) => {
     e?.stopPropagation()
     checkLogin(async () => {
+      if (hasDetectedPrivateKey) {
+        toast.error(
+          t('Posting blocked: this note includes an nsec private key. Remove it to protect your account.'),
+          { duration: 6000 }
+        )
+        return
+      }
+
       if (!canPost) return
 
       setPosting(true)
@@ -257,6 +305,14 @@ export default function PostContent({
         const expirationTimestamp = getExpirationTimestamp(defaultExpiration)
         if (expirationTimestamp !== null) {
           draftEvent.tags.push(['expiration', String(expirationTimestamp)])
+        }
+
+        if (hasPrivateKeyInDraft(draftEvent.content, draftEvent.tags)) {
+          toast.error(
+            t('Posting blocked: this note includes an nsec private key. Remove it to protect your account.'),
+            { duration: 6000 }
+          )
+          return
         }
 
         const publishOptions = {
@@ -334,6 +390,16 @@ export default function PostContent({
       e?.stopPropagation()
 
       checkLogin(() => {
+        if (hasDetectedPrivateKey) {
+          toast.error(
+            t(
+              'Scheduling blocked: this note includes an nsec private key. Remove it to protect your account.'
+            ),
+            { duration: 6000 }
+          )
+          return
+        }
+
         if (!canPost || !account || !scheduledFor) return
 
         const now = Math.floor(Date.now() / 1000)
@@ -383,6 +449,7 @@ export default function PostContent({
       canPost,
       account,
       scheduledFor,
+      hasDetectedPrivateKey,
       mentions,
       requiredMentionPubkeys,
       text,
@@ -416,6 +483,14 @@ export default function PostContent({
   const primaryActionBusyLabel = parentEvent ? t('Replying...') : t('Posting...')
   const handlePrimaryAction = useCallback(
     (e?: React.MouseEvent) => {
+      if (hasDetectedPrivateKey) {
+        toast.error(
+          t('Posting blocked: this note includes an nsec private key. Remove it to protect your account.'),
+          { duration: 6000 }
+        )
+        return
+      }
+
       if (scheduledFor) {
         schedulePost(e)
         return
@@ -423,7 +498,7 @@ export default function PostContent({
 
       void post(e)
     },
-    [scheduledFor, schedulePost]
+    [scheduledFor, schedulePost, hasDetectedPrivateKey, post, t]
   )
 
   const handlePollToggle = () => {
@@ -629,6 +704,20 @@ export default function PostContent({
       </Button>
     </div>
   ) : null
+  const privateKeyWarningBanner = hasDetectedPrivateKey ? (
+    <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+      <p className="font-medium">
+        {t('Private key detected. Posting is blocked for your safety.', {
+          defaultValue: 'Private key detected. Posting is blocked for your safety.'
+        })}
+      </p>
+      <p className="mt-1 text-destructive/90">
+        {t('Remove any nsec value from this note, then post again.', {
+          defaultValue: 'Remove any nsec value from this note, then post again.'
+        })}
+      </p>
+    </div>
+  ) : null
 
   const pollOptionsCount = pollCreateData.options.filter((option) => option.label.trim()).length
   const hasMinimumPollOptions = pollOptionsCount >= 2
@@ -784,6 +873,7 @@ export default function PostContent({
               <div className="min-w-0 flex-1">{composerTextarea}</div>
             </div>
             {pollBanner}
+            {privateKeyWarningBanner}
             {uploadProgressList}
             {scheduledBanner}
           </div>
@@ -866,6 +956,7 @@ export default function PostContent({
       )}
       {uploadProgressList}
       {scheduledBanner}
+      {privateKeyWarningBanner}
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">{composerTools}</div>

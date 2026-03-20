@@ -197,13 +197,13 @@ function MobileNavSheet({
               >
                 <SimpleUserAvatar userId={pubkey} size="big" />
                 <div className="min-w-0">
-                  <div className="truncate text-xl font-semibold leading-tight">{displayName}</div>
+                  <div className="truncate text-base font-semibold leading-tight">{displayName}</div>
                 </div>
               </button>
 
               <div className="flex items-center gap-3">
                 <Button
-                  className="h-10 rounded-full px-4 text-base font-semibold"
+                  className="h-10 rounded-full px-4 text-sm font-semibold"
                   onClick={() =>
                     void handleCopy(
                       inviteLink,
@@ -266,7 +266,7 @@ function MobileNavSheet({
                   <CircleUserRound className="size-7" />
                 </div>
                 <div className="min-w-0">
-                  <div className="truncate text-xl font-semibold leading-tight">{t('Login')}</div>
+                  <div className="truncate text-base font-semibold leading-tight">{t('Login')}</div>
                   <div className="truncate text-sm text-muted-foreground">
                     {t('Sign in to your account')}
                   </div>
