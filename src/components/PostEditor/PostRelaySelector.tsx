@@ -37,11 +37,13 @@ type TPostTargetItem =
 export default function PostRelaySelector({
   parentEvent,
   openFrom,
+  mobileCompact = false,
   setIsProtectedEvent,
   setAdditionalRelayUrls
 }: {
   parentEvent?: NostrEvent
   openFrom?: string[]
+  mobileCompact?: boolean
   setIsProtectedEvent: Dispatch<SetStateAction<boolean>>
   setAdditionalRelayUrls: Dispatch<SetStateAction<string[]>>
 }) {
@@ -60,6 +62,13 @@ export default function PostRelaySelector({
   const selectableRelays = useMemo(() => {
     return Array.from(new Set(parentEventSeenOnRelays.concat(relayUrls).concat(favoriteRelays)))
   }, [parentEventSeenOnRelays, relayUrls, favoriteRelays])
+  const writeRelaysLabel = useMemo(
+    () =>
+      mobileCompact
+        ? t('My Relays', { defaultValue: 'My Relays' })
+        : t('Write relays', { defaultValue: 'Write relays' }),
+    [mobileCompact, t]
+  )
   const description = useMemo(() => {
     if (postTargetItems.length === 0) {
       return t('No relays selected')
@@ -67,7 +76,7 @@ export default function PostRelaySelector({
     if (postTargetItems.length === 1) {
       const item = postTargetItems[0]
       if (item.type === 'writeRelays') {
-        return t('Write relays')
+        return writeRelaysLabel
       }
       if (item.type === 'relay') {
         return simplifyUrl(item.url)
@@ -89,10 +98,15 @@ export default function PostRelaySelector({
       return count
     }, 0)
     if (hasWriteRelays) {
+      if (mobileCompact) {
+        return relayCount > 0
+          ? t('My Relays + {{count}}', { count: relayCount, defaultValue: 'My Relays + {{count}}' })
+          : writeRelaysLabel
+      }
       return t('Write relays and {{count}} other relays', { count: relayCount })
     }
     return t('{{count}} relays', { count: relayCount })
-  }, [postTargetItems])
+  }, [mobileCompact, postTargetItems, t, writeRelaysLabel])
 
   useEffect(() => {
     if (openFrom && openFrom.length) {
@@ -204,6 +218,36 @@ export default function PostRelaySelector({
   }, [postTargetItems, relaySets, selectableRelays])
 
   if (isSmallScreen) {
+    if (mobileCompact) {
+      return (
+        <>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 max-w-[44vw] gap-1 px-2 text-xs font-medium text-muted-foreground hover:text-foreground"
+            onClick={() => setIsDrawerOpen(true)}
+          >
+            <span className="truncate">
+              {t('To', { defaultValue: 'To' })} {description}
+            </span>
+            <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
+          </Button>
+          <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
+            <DrawerOverlay onClick={() => setIsDrawerOpen(false)} />
+            <DrawerContent className="max-h-[80vh]" hideOverlay>
+              <div
+                className="overflow-y-auto overscroll-contain py-2"
+                style={{ touchAction: 'pan-y' }}
+              >
+                {content}
+              </div>
+            </DrawerContent>
+          </Drawer>
+        </>
+      )
+    }
+
     return (
       <>
         <div

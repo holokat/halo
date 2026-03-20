@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils'
 import { SecondaryPageLink, useSecondaryPage } from '@/PageManager'
 import { useMuteList } from '@/providers/MuteListProvider'
 import { useNostr } from '@/providers/NostrProvider'
+import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import client from '@/services/client.service'
 import { BellOff, Link, Zap } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -47,6 +48,7 @@ export default function Profile({
   const { push } = useSecondaryPage()
   const { profile, isFetching } = useFetchProfile(id)
   const { pubkey: accountPubkey } = useNostr()
+  const { isSmallScreen } = useScreenSize()
   const { mutePubkeySet } = useMuteList()
   const { followings } = useFetchFollowings(profile?.pubkey)
   const isFollowingYou = useMemo(() => {
@@ -121,7 +123,10 @@ export default function Profile({
       <>
         <div>
           <div className="relative bg-cover bg-center mb-2">
-            <Skeleton className="w-full aspect-[3/1] rounded-none" />
+            <Skeleton
+              className="w-full aspect-[3/1]"
+              style={{ borderRadius: isSmallScreen ? 'var(--media-radius, 14px)' : '0px' }}
+            />
             <Skeleton className="w-24 h-24 absolute bottom-0 left-3 translate-y-1/2 border-4 border-background rounded-full" />
           </div>
         </div>
@@ -163,6 +168,7 @@ export default function Profile({
               'w-full aspect-[3/1]',
               banner && 'cursor-pointer hover:opacity-90 transition-opacity'
             )}
+            borderRadius={isSmallScreen ? 'var(--media-radius, 14px)' : '0px'}
             onClick={handleBannerClick}
             isLCP={true}
           />

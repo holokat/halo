@@ -1,11 +1,12 @@
 import HideUntrustedContentButton from '@/components/HideUntrustedContentButton'
+import MobileTopNavMenuButton from '@/components/MobileTopNavMenuButton'
 import NotificationList from '@/components/NotificationList'
 import PinButton from '@/components/PinButton'
 import PrimaryPageLayout from '@/layouts/PrimaryPageLayout'
 import { usePrimaryPage } from '@/PageManager'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
 
-import { Bell } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { forwardRef, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -40,10 +41,20 @@ function NotificationListPageTitlebar() {
   const { isSmallScreen } = useScreenSize()
 
   return (
-    <div className="flex gap-2 items-center justify-between h-full pl-3">
-      <div className="flex items-center gap-2 [&_svg]:text-muted-foreground">
-        <Bell />
-        <div className="text-lg font-semibold" style={{ fontSize: `var(--title-font-size, 18px)` }}>{t('Notifications')}</div>
+    <div
+      className={cn(
+        'flex gap-2 items-center justify-between h-full pr-2',
+        isSmallScreen ? 'pl-1' : 'pl-3'
+      )}
+    >
+      <div className="flex items-center gap-2 min-w-0">
+        {isSmallScreen && <MobileTopNavMenuButton />}
+        <div
+          className="text-lg font-semibold truncate"
+          style={{ fontSize: `var(--title-font-size, ${isSmallScreen ? 19 : 18}px)` }}
+        >
+          {t('Notifications')}
+        </div>
       </div>
       <div className="flex gap-1 items-center">
         <PinButton column={{ type: 'notifications' }} size="titlebar-icon" />

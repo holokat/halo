@@ -6,9 +6,10 @@ import { Switch } from '@/components/ui/switch'
 import { createPollOption, normalizePollOptions } from '@/lib/poll'
 import { normalizeUrl } from '@/lib/url'
 import { cn } from '@/lib/utils'
+import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import { TPollCreateData } from '@/types'
 import dayjs from 'dayjs'
-import { ChevronDown, ChevronUp, Eraser, ImageUp, Trash2, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, Eraser, ImageUp, RotateCcw, Trash2, X } from 'lucide-react'
 import { Dispatch, SetStateAction, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import Uploader from './Uploader'
@@ -16,19 +17,20 @@ import Uploader from './Uploader'
 export default function PollEditor({
   pollCreateData,
   setPollCreateData,
-  setIsPoll
+  setIsPoll,
+  onRemovePoll
 }: {
   pollCreateData: TPollCreateData
   setPollCreateData: Dispatch<SetStateAction<TPollCreateData>>
   setIsPoll: Dispatch<SetStateAction<boolean>>
+  onRemovePoll?: () => void
 }) {
   const { t } = useTranslation()
+  const { isSmallScreen } = useScreenSize()
   const cardRadiusStyle = { borderRadius: 'var(--card-radius, 8px)' }
   const [isMultipleChoice, setIsMultipleChoice] = useState(pollCreateData.isMultipleChoice)
   const [options, setOptions] = useState(() => normalizePollOptions(pollCreateData.options))
-  const [endsAt, setEndsAt] = useState(
-    pollCreateData.endsAt ? dayjs(pollCreateData.endsAt * 1000).format('YYYY-MM-DDTHH:mm') : ''
-  )
+  const [endsAt, setEndsAt] = useState<number | null>(pollCreateData.endsAt ?? null)
   const [relayUrls, setRelayUrls] = useState(pollCreateData.relays.join(', '))
   const [showAdvanced, setShowAdvanced] = useState(() => pollCreateData.relays.length > 0)
 
@@ -36,7 +38,7 @@ export default function PollEditor({
     setPollCreateData({
       isMultipleChoice,
       options,
-      endsAt: endsAt ? dayjs(endsAt).startOf('minute').unix() : undefined,
+      endsAt: endsAt ?? undefined,
       relays: relayUrls
         ? relayUrls
             .split(',')
@@ -45,6 +47,28 @@ export default function PollEditor({
         : []
     })
   }, [isMultipleChoice, options, endsAt, relayUrls])
+
+  const endsAtDateValue = endsAt ? dayjs(endsAt * 1000).format('YYYY-MM-DD') : ''
+  const endsAtTimeValue = endsAt ? dayjs(endsAt * 1000).format('HH:mm') : ''
+  const endsAtDateTimeValue = endsAt ? dayjs(endsAt * 1000).format('YYYY-MM-DDTHH:mm') : ''
+
+  const handleEndsAtDateChange = (dateValue: string) => {
+    if (!dateValue) {
+      setEndsAt(null)
+      return
+    }
+
+    const timeValue =
+      endsAtTimeValue || dayjs().add(1, 'hour').startOf('hour').format('HH:mm')
+    const nextDateTime = dayjs(`${dateValue}T${timeValue}`)
+    setEndsAt(nextDateTime.isValid() ? nextDateTime.startOf('minute').unix() : null)
+  }
+
+  const handleEndsAtTimeChange = (timeValue: string) => {
+    if (!endsAtDateValue) return
+    const nextDateTime = dayjs(`${endsAtDateValue}T${timeValue || '00:00'}`)
+    setEndsAt(nextDateTime.isValid() ? nextDateTime.startOf('minute').unix() : null)
+  }
 
   const handleAddOption = () => {
     setOptions([...options, createPollOption()])
@@ -151,8 +175,8 @@ export default function PollEditor({
         </Button>
       </div>
 
-      <div className="flex items-center gap-3">
-        <div className="flex shrink-0 items-center gap-2">
+      <div className={cn('flex gap-3', isSmallScreen ? 'flex-col' : 'items-center')}>
+        <div className="flex items-center gap-2">
           <Label htmlFor="multiple-choice" className="text-sm">
             {t('Allow multiple choices')}
           </Label>
@@ -162,27 +186,72 @@ export default function PollEditor({
             onCheckedChange={setIsMultipleChoice}
           />
         </div>
-        <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
-          <Input
-            id="ends-at"
-            type="datetime-local"
-            value={endsAt}
-            onChange={(e) => setEndsAt(e.target.value)}
-            aria-label={t('End Date (optional)')}
-            className="h-9 min-w-0 max-w-[220px]"
-            style={cardRadiusStyle}
-          />
-          <Button
-            type="button"
-            variant="ghost-destructive"
-            size="icon"
-            onClick={() => setEndsAt('')}
-            disabled={!endsAt}
-            title={t('Clear end date')}
-          >
-            <Eraser />
-          </Button>
-        </div>
+
+        {isSmallScreen ? (
+          <div className="grid gap-2">
+            <Label htmlFor="poll-end-date" className="text-xs text-muted-foreground">
+              {t('End Date (optional)')}
+            </Label>
+            <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
+              <Input
+                id="poll-end-date"
+                type="date"
+                value={endsAtDateValue}
+                onChange={(e) => handleEndsAtDateChange(e.target.value)}
+                aria-label={t('End date')}
+                className="h-10 text-sm"
+                style={cardRadiusStyle}
+              />
+              <Input
+                id="poll-end-time"
+                type="time"
+                value={endsAtTimeValue}
+                onChange={(e) => handleEndsAtTimeChange(e.target.value)}
+                aria-label={t('End time')}
+                className="h-10 text-sm"
+                disabled={!endsAtDateValue}
+                style={cardRadiusStyle}
+              />
+              <Button
+                type="button"
+                variant="ghost-destructive"
+                size="icon"
+                className="h-10 w-10"
+                onClick={() => setEndsAt(null)}
+                disabled={!endsAt}
+                title={t('Reset end date')}
+                aria-label={t('Reset end date')}
+              >
+                <RotateCcw className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+            <Input
+              id="ends-at"
+              type="datetime-local"
+              value={endsAtDateTimeValue}
+              onChange={(e) => {
+                const nextDateTime = dayjs(e.target.value)
+                setEndsAt(nextDateTime.isValid() ? nextDateTime.startOf('minute').unix() : null)
+              }}
+              aria-label={t('End Date (optional)')}
+              className="h-9 min-w-0 max-w-[260px]"
+              style={cardRadiusStyle}
+            />
+            <Button
+              type="button"
+              variant="ghost-destructive"
+              size="icon"
+              onClick={() => setEndsAt(null)}
+              disabled={!endsAt}
+              title={t('Clear end date')}
+            >
+              <Eraser />
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="grid gap-2">
@@ -219,7 +288,10 @@ export default function PollEditor({
         <Button
           variant="ghost-destructive"
           className="w-full bg-destructive/10 hover:bg-destructive/15"
-          onClick={() => setIsPoll(false)}
+          onClick={() => {
+            setIsPoll(false)
+            onRemovePoll?.()
+          }}
         >
           {t('Remove poll')}
         </Button>

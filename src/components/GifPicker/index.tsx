@@ -4,12 +4,13 @@ import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import gifService, { GifData } from '@/services/gif.service'
-import { ImagePlay, Loader2, X, Upload, Plus } from 'lucide-react'
+import { Loader2, X, Upload, Plus } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import Tabs from '@/components/Tabs'
 import { useNostr } from '@/providers/NostrProvider'
 import GifUploadDialog from './GifUploadDialog'
+import GifIcon from '@/components/icons/GifIcon'
 
 export interface GifPickerProps {
   onGifSelect: (url: string) => void
@@ -347,7 +348,7 @@ export default function GifPicker({ onGifSelect, children }: GifPickerProps) {
         <DrawerTrigger asChild>
           {children || (
             <Button variant="ghost" size="icon" title={t('Add GIF')}>
-              <ImagePlay />
+              <GifIcon />
             </Button>
           )}
         </DrawerTrigger>
@@ -367,7 +368,7 @@ export default function GifPicker({ onGifSelect, children }: GifPickerProps) {
       <PopoverTrigger asChild>
         {children || (
           <Button variant="ghost" size="icon" title={t('Add GIF')}>
-            <ImagePlay />
+            <GifIcon />
           </Button>
         )}
       </PopoverTrigger>

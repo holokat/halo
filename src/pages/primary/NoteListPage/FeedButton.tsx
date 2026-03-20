@@ -25,7 +25,7 @@ export default function FeedButton({ className }: { className?: string }) {
               className="overflow-y-auto overscroll-contain py-2 px-4"
               style={{ touchAction: 'pan-y' }}
             >
-              <FeedSwitcher close={() => setOpen(false)} />
+              <FeedSwitcher close={() => setOpen(false)} showReadsOption />
             </div>
           </DrawerContent>
         </Drawer>

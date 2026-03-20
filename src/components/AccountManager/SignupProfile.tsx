@@ -66,11 +66,21 @@ export default function SignupProfile({
 
   if (!generatedKeys) return null
 
-  const handleContinue = async () => {
+  const handleContinue = () => {
     setSaving(true)
-    try {
-      // Create and publish profile if user entered any data
-      if (displayName || username || about || avatar || inviterPubkey) {
+    // Move to keys display immediately so backup is never blocked by relay latency.
+    onProfileComplete(
+      { nsec: generatedKeys.nsec, npub: generatedKeys.npub },
+      { displayName, username }
+    )
+
+    // Continue publishing profile metadata in the background.
+    void (async () => {
+      try {
+        if (!displayName && !username && !about && !avatar && !inviterPubkey) {
+          return
+        }
+
         const profileContent: any = {
           display_name: displayName,
           displayName: displayName,
@@ -79,7 +89,6 @@ export default function SignupProfile({
           picture: avatar
         }
 
-        // Add join info if invited by someone
         if (inviterPubkey) {
           profileContent.joined_through = inviterPubkey
           profileContent.joined_at = Math.floor(Date.now() / 1000)
@@ -88,17 +97,10 @@ export default function SignupProfile({
         const profileDraftEvent = createProfileDraftEvent(JSON.stringify(profileContent))
         const newProfileEvent = await publish(profileDraftEvent)
         await updateProfileEvent(newProfileEvent)
+      } catch (error) {
+        console.error('Failed to create profile:', error)
       }
-
-      // Move to keys display
-      onProfileComplete(
-        { nsec: generatedKeys.nsec, npub: generatedKeys.npub },
-        { displayName, username }
-      )
-    } catch (error) {
-      console.error('Failed to create profile:', error)
-      setSaving(false)
-    }
+    })()
   }
 
   const onAvatarUploadSuccess = ({ url }: { url: string }) => {

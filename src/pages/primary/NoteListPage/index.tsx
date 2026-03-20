@@ -1,20 +1,19 @@
-import { useSecondaryPage } from '@/PageManager'
 import BookmarkList from '@/components/BookmarkList'
 import HighlightsList from '@/components/HighlightsList'
+import MobileTopNavMenuButton from '@/components/MobileTopNavMenuButton'
 import NormalFeed from '@/components/NormalFeed'
 import RelayInfo from '@/components/RelayInfo'
 import PinButton from '@/components/PinButton'
 import { Button } from '@/components/ui/button'
 import { BIG_RELAY_URLS, SEARCHABLE_RELAY_URLS } from '@/constants'
 import PrimaryPageLayout from '@/layouts/PrimaryPageLayout'
-import { toSearch } from '@/lib/link'
 import { useCurrentRelays } from '@/providers/CurrentRelaysProvider'
 import { useCustomFeeds } from '@/providers/CustomFeedsProvider'
 import { useFeed } from '@/providers/FeedProvider'
 import { useNostr } from '@/providers/NostrProvider'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import { TPageRef } from '@/types'
-import { Info, Search } from 'lucide-react'
+import { Info } from 'lucide-react'
 import {
   Dispatch,
   forwardRef,
@@ -25,7 +24,6 @@ import {
   useState
 } from 'react'
 import { useTranslation } from 'react-i18next'
-import ReadsLink from '@/components/Titlebar/ReadsLink'
 import SlowConnectionToggle from '@/components/Titlebar/SlowConnectionToggle'
 import FeedButton from './FeedButton'
 import FollowingFeed from './FollowingFeed'
@@ -212,14 +210,13 @@ function NoteListPageTitlebar({
 
   if (isSmallScreen) {
     return (
-      <div className="flex gap-1 items-center h-full justify-between w-full">
-        {/* Left-aligned FeedButton */}
-        <FeedButton className="flex-1 max-w-fit w-0" />
-        {/* Right controls */}
+      <div className="grid h-full w-full grid-cols-[auto_1fr_auto] items-center gap-2">
+        <MobileTopNavMenuButton />
+        <div className="min-w-0">
+          <FeedButton className="mx-auto max-w-[min(70vw,20rem)] justify-center" />
+        </div>
         <div className="shrink-0 flex gap-1 items-center">
           <SlowConnectionToggle />
-          <ReadsLink />
-          <SearchButton />
         </div>
       </div>
     )
@@ -249,15 +246,5 @@ function NoteListPageTitlebar({
         )}
       </div>
     </div>
-  )
-}
-
-function SearchButton() {
-  const { push } = useSecondaryPage()
-
-  return (
-    <Button variant="ghost" size="titlebar-icon" onClick={() => push(toSearch())}>
-      <Search />
-    </Button>
   )
 }

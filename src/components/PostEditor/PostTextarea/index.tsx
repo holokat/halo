@@ -47,6 +47,8 @@ const PostTextarea = forwardRef<
     parentEvent?: Event
     onSubmit?: () => void
     className?: string
+    isMobileComposer?: boolean
+    placeholder?: string
     onUploadStart?: (file: File, cancel: () => void) => void
     onUploadProgress?: (file: File, progress: number) => void
     onUploadEnd?: (file: File) => void
@@ -64,6 +66,8 @@ const PostTextarea = forwardRef<
       parentEvent,
       onSubmit,
       className,
+      isMobileComposer = false,
+      placeholder,
       onUploadStart,
       onUploadProgress,
       onUploadEnd,
@@ -76,6 +80,13 @@ const PostTextarea = forwardRef<
   ) => {
     const { t } = useTranslation()
     const [tabValue, setTabValue] = useState('edit')
+    const composerPlaceholder = placeholder ?? t('Enter text, paste or upload media')
+    const editorClassName = cn(
+      isMobileComposer
+        ? 'rounded-none border-0 bg-transparent p-0 text-[length:var(--font-size,15px)] leading-6 focus-visible:outline-none focus-visible:ring-0'
+        : 'rounded-lg border p-3 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+      className
+    )
     const editor = useEditor({
       extensions: [
         Document,
@@ -84,7 +95,7 @@ const PostTextarea = forwardRef<
         History,
         HardBreak,
         Placeholder.configure({
-          placeholder: t('Enter text, paste or upload media')
+          placeholder: composerPlaceholder
         }),
         Emoji.configure({
           suggestion: emojiSuggestion
@@ -118,11 +129,8 @@ const PostTextarea = forwardRef<
       ],
       editorProps: {
         attributes: {
-          class: cn(
-            'border rounded-lg p-3 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
-            className
-          ),
-          'aria-label': t('Enter text, paste or upload media'),
+          class: editorClassName,
+          'aria-label': composerPlaceholder,
           role: 'textbox',
           'aria-multiline': 'true'
         },
@@ -220,13 +228,26 @@ const PostTextarea = forwardRef<
       return null
     }
 
+    if (isMobileComposer) {
+      return (
+        <div className="space-y-3">
+          <EditorContent className="tiptap" editor={editor} />
+          {onRemoveImage && onUpdateImageAlt && (
+            <ImagePreview
+              images={images}
+              onRemove={onRemoveImage}
+              onUpdateAlt={onUpdateImageAlt}
+              mode="mobile"
+              hideAltControls
+            />
+          )}
+        </div>
+      )
+    }
+
     return (
       <div className="space-y-2">
-        <Tabs
-          defaultValue="edit"
-          value={tabValue}
-          onValueChange={(v) => setTabValue(v)}
-        >
+        <Tabs defaultValue="edit" value={tabValue} onValueChange={(v) => setTabValue(v)}>
           <TabsList>
             <TabsTrigger value="edit">{t('Edit')}</TabsTrigger>
             <TabsTrigger value="preview">{t('Preview')}</TabsTrigger>
@@ -246,7 +267,12 @@ const PostTextarea = forwardRef<
           </TabsContent>
         </Tabs>
         {tabValue === 'edit' && onRemoveImage && onUpdateImageAlt && (
-          <ImagePreview images={images} onRemove={onRemoveImage} onUpdateAlt={onUpdateImageAlt} />
+          <ImagePreview
+            images={images}
+            onRemove={onRemoveImage}
+            onUpdateAlt={onUpdateImageAlt}
+            mode="default"
+          />
         )}
       </div>
     )

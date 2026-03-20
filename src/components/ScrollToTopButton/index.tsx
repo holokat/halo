@@ -17,6 +17,7 @@ export default function ScrollToTopButton({
   const { deepBrowsing, lastScrollTop } = useDeepBrowsing()
   const hasBackgroundAudio = useAtomValue(hasBackgroundAudioAtom)
   const visible = !deepBrowsing && lastScrollTop > 800
+  const mobileBottomOffsetRem = hasBackgroundAudio ? 10.75 : 8.5
 
   const handleScrollToTop = () => {
     if (!scrollAreaRef) {
@@ -34,7 +35,7 @@ export default function ScrollToTopButton({
       )}
       style={{
         bottom: isSmallScreen
-          ? `calc(env(safe-area-inset-bottom) + ${hasBackgroundAudio ? 7.25 : 3.85}rem)`
+          ? `calc(env(safe-area-inset-bottom) + ${mobileBottomOffsetRem}rem)`
           : `calc(env(safe-area-inset-bottom) + 0.85rem)`
       }}
     >

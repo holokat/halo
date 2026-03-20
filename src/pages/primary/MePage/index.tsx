@@ -126,7 +126,7 @@ const MePage = forwardRef((_, ref) => {
       <div className="flex gap-2 px-4 pb-3">
         <Button
           variant="default"
-          className="flex-1 gap-2"
+          className="w-fit gap-2 px-3"
           onClick={handleCopyInvite}
         >
           <Star className="h-4 w-4" />

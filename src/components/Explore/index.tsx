@@ -1,15 +1,15 @@
 import FollowingFavoriteRelayList from '@/components/FollowingFavoriteRelayList'
-import RelayPulse from '@/components/Explore/RelayPulse'
+import PinButton from '@/components/PinButton'
+import SearchBar from '@/components/SearchBar'
+import SearchResult from '@/components/SearchResult'
 import Tabs from '@/components/Tabs'
 import { useFetchRelayInfo } from '@/hooks'
 import { toRelay } from '@/lib/link'
 import { useSecondaryPage } from '@/PageManager'
-import { useLowBandwidthMode } from '@/providers/LowBandwidthModeProvider'
 import { useNostr } from '@/providers/NostrProvider'
-import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import relayInfoService from '@/services/relay-info.service'
 import client from '@/services/client.service'
-import { TAwesomeRelayCollection } from '@/types'
+import { TAwesomeRelayCollection, TSearchParams } from '@/types'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import RelaySimpleInfo, { RelaySimpleInfoSkeleton } from '../RelaySimpleInfo'
@@ -17,20 +17,36 @@ import TrendingNotes from '../TrendingNotes'
 
 type TExploreTab = 'trending' | 'global-communities' | 'followed-favorites'
 type TFavoriteRelayEntry = [string, string[]]
-type TPulseTarget = 'global-feeds' | 'communities' | 'followed-favorites'
 
 const GLOBAL_COLLECTION_IDS = new Set(['featured', 'global'])
 
-export default function Explore({ isInDeckView = false }: { isInDeckView?: boolean } = {}) {
+export default function Explore({
+  isInDeckView = false,
+  input: controlledInput,
+  setInput: controlledSetInput,
+  searchParams: controlledSearchParams,
+  onSearch: controlledOnSearch,
+  showInlineSearch = true
+}: {
+  isInDeckView?: boolean
+  input?: string
+  setInput?: (input: string) => void
+  searchParams?: TSearchParams | null
+  onSearch?: (params: TSearchParams | null) => void
+  showInlineSearch?: boolean
+} = {}) {
   const { t } = useTranslation()
   const { pubkey } = useNostr()
-  const { isSmallScreen } = useScreenSize()
-  const { lowBandwidthMode } = useLowBandwidthMode()
+  const [localInput, setLocalInput] = useState('')
+  const [localSearchParams, setLocalSearchParams] = useState<TSearchParams | null>(null)
   const [tab, setTab] = useState<TExploreTab>('trending')
-  const [pendingPulseTarget, setPendingPulseTarget] = useState<TPulseTarget | null>(null)
   const [collections, setCollections] = useState<TAwesomeRelayCollection[] | null>(null)
   const [favoriteRelays, setFavoriteRelays] = useState<TFavoriteRelayEntry[]>([])
   const [favoritesLoading, setFavoritesLoading] = useState(false)
+
+  const input = controlledInput ?? localInput
+  const searchParams = controlledSearchParams ?? localSearchParams
+  const setInput = controlledSetInput ?? setLocalInput
 
   useEffect(() => {
     relayInfoService.getAwesomeRelayCollections().then(setCollections)
@@ -53,95 +69,59 @@ export default function Explore({ isInDeckView = false }: { isInDeckView?: boole
   const { globalCollections, communityCollections } = useMemo(() => {
     const allCollections = collections ?? []
     return {
-      globalCollections: allCollections.filter((collection) => GLOBAL_COLLECTION_IDS.has(collection.id)),
-      communityCollections: allCollections.filter((collection) => !GLOBAL_COLLECTION_IDS.has(collection.id))
+      globalCollections: allCollections.filter((collection) =>
+        GLOBAL_COLLECTION_IDS.has(collection.id)
+      ),
+      communityCollections: allCollections.filter(
+        (collection) => !GLOBAL_COLLECTION_IDS.has(collection.id)
+      )
     }
   }, [collections])
 
-  const globalRelayCount = useMemo(
-    () => new Set(globalCollections.flatMap((collection) => collection.relays)).size,
-    [globalCollections]
-  )
-  const communityRelayCount = useMemo(
-    () => new Set(communityCollections.flatMap((collection) => collection.relays)).size,
-    [communityCollections]
-  )
-  const favoriteRelayCount = useMemo(
-    () => new Set(favoriteRelays.map(([url]) => url)).size,
-    [favoriteRelays]
-  )
-  const favoriteProfileCount = useMemo(
-    () => new Set(favoriteRelays.flatMap(([, users]) => users)).size,
-    [favoriteRelays]
-  )
-  const totalRelayCount = useMemo(
-    () =>
-      new Set([
-        ...globalCollections.flatMap((collection) => collection.relays),
-        ...communityCollections.flatMap((collection) => collection.relays),
-        ...favoriteRelays.map(([url]) => url)
-      ]).size,
-    [communityCollections, favoriteRelays, globalCollections]
-  )
-
-  useEffect(() => {
-    if (!pendingPulseTarget) return
-
-    if (pendingPulseTarget === 'followed-favorites') {
-      if (tab !== 'followed-favorites') return
-      setPendingPulseTarget(null)
-      return
+  const handleSearch = (params: TSearchParams | null) => {
+    if (controlledOnSearch) {
+      controlledOnSearch(params)
+    } else {
+      setLocalSearchParams(params)
     }
 
-    if (tab !== 'global-communities') return
-
-    const elementId =
-      pendingPulseTarget === 'global-feeds' ? 'explore-global-feeds' : 'explore-communities'
-
-    const scrollToTarget = () => {
-      const element = document.getElementById(elementId)
-      if (!element) return false
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      return true
+    if (params?.input) {
+      setInput(params.input)
     }
-
-    if (scrollToTarget()) {
-      setPendingPulseTarget(null)
-      return
-    }
-
-    const timeout = window.setTimeout(() => {
-      if (scrollToTarget()) {
-        setPendingPulseTarget(null)
-      }
-    }, 80)
-
-    return () => window.clearTimeout(timeout)
-  }, [pendingPulseTarget, tab])
-
-  const handlePulseLaneClick = (target: TPulseTarget) => {
-    setPendingPulseTarget(target)
-    if (target === 'followed-favorites') {
-      setTab('followed-favorites')
-      return
-    }
-    setTab('global-communities')
   }
 
   return (
     <div className="pb-4">
-      {!isSmallScreen && !lowBandwidthMode && totalRelayCount > 0 && (
+      {showInlineSearch && (
+        <div className="px-4 pt-4 space-y-3">
+          <div className="flex gap-2 items-center">
+            <SearchBar
+              onSearch={handleSearch}
+              input={input}
+              setInput={setInput}
+              currentSearchParams={searchParams}
+              searchInputClassName={
+                isInDeckView
+                  ? '!h-10 !rounded-xl !border !border-border/70 !bg-background/95 !px-3 !shadow-none'
+                  : undefined
+              }
+            />
+            {searchParams && (
+              <PinButton
+                column={{
+                  type: 'search',
+                  props: { searchParams }
+                }}
+              />
+            )}
+          </div>
+          {searchParams && <SearchResult searchParams={searchParams} isInDeckView={isInDeckView} />}
+        </div>
+      )}
+
+      {!showInlineSearch && searchParams && (
         <div className="px-4 pt-4">
-          <RelayPulse
-            totalRelayCount={totalRelayCount}
-            globalRelayCount={globalRelayCount}
-            globalCollectionCount={globalCollections.length}
-            communityRelayCount={communityRelayCount}
-            communityCollectionCount={communityCollections.length}
-            favoriteRelayCount={favoriteRelayCount}
-            favoriteProfileCount={favoriteProfileCount}
-            onLaneClick={handlePulseLaneClick}
-          />
+          <SearchResult searchParams={searchParams} isInDeckView={isInDeckView} />
         </div>
       )}
 

@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
-import { useScrollVisibility } from '@/providers/ScrollVisibilityProvider'
+import { useOptionalScrollVisibility } from '@/providers/ScrollVisibilityProvider'
 import { ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ScrollArea, ScrollBar } from '../ui/scroll-area'
@@ -27,7 +27,8 @@ export default function Tabs({
 }) {
   const { t } = useTranslation()
   const { isSmallScreen } = useScreenSize()
-  const { isVisible } = useScrollVisibility()
+  const scrollVisibility = useOptionalScrollVisibility()
+  const isVisible = scrollVisibility?.isVisible ?? true
 
   const tabRefs = useRef<(HTMLDivElement | null)[]>([])
   const containerRef = useRef<HTMLDivElement | null>(null)

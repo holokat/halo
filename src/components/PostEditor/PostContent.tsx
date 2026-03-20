@@ -1,5 +1,7 @@
 import Note from '@/components/Note'
+import UserAvatar from '@/components/UserAvatar'
 import { Button } from '@/components/ui/button'
+import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from '@/components/ui/drawer'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   createCommentDraftEvent,
@@ -9,8 +11,12 @@ import {
 } from '@/lib/draft-event'
 import { minePow } from '@/lib/event'
 import { toScheduledPostsSettings } from '@/lib/link'
-import { createDefaultPollCreateData, normalizePollCreateData } from '@/lib/poll'
-import { isTouchDevice } from '@/lib/utils'
+import {
+  createDefaultPollCreateData,
+  getDefaultPollEndsAt,
+  normalizePollCreateData
+} from '@/lib/poll'
+import { cn, isTouchDevice } from '@/lib/utils'
 import { useSecondaryPage } from '@/PageManager'
 import { useNostr } from '@/providers/NostrProvider'
 import { useReply } from '@/providers/ReplyProvider'
@@ -19,21 +25,32 @@ import client from '@/services/client.service'
 import postEditorCache, { ImageAttachment } from '@/services/post-editor-cache.service'
 import scheduledPostsService from '@/services/scheduled-posts.service'
 import { TPollCreateData } from '@/types'
-import { Clock, HelpCircle, ImagePlay, ImageUp, ListTodo, LoaderCircle, Settings, Smile, X } from 'lucide-react'
+import {
+  CircleUserRound,
+  Clock,
+  HelpCircle,
+  ImageUp,
+  ListTodo,
+  LoaderCircle,
+  Settings,
+  Smile,
+  X
+} from 'lucide-react'
 import { Event, kinds, nip19 } from 'nostr-tools'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import EmojiPickerDialog from '../EmojiPickerDialog'
 import GifPicker from '../GifPicker'
-import PostSchedulePopover from './PostSchedulePopover'
-import ImagePreview from './ImagePreview'
 import Mentions from './Mentions'
+import PostRelaySelector from './PostRelaySelector'
+import PostSchedulePopover from './PostSchedulePopover'
 import PollEditor from './PollEditor'
 import PostOptions from './PostOptions'
 import PostTextarea, { TPostTextareaHandle } from './PostTextarea'
 import Uploader from './Uploader'
 import ComposerHelpDialog from './ComposerHelpDialog'
+import GifIcon from '@/components/icons/GifIcon'
 
 export default function PostContent({
   defaultContent = '',
@@ -41,16 +58,22 @@ export default function PostContent({
   parentEvent,
   close,
   openFrom,
+  isMobileComposer,
   isProtectedEvent,
-  additionalRelayUrls
+  additionalRelayUrls,
+  setIsProtectedEvent,
+  setAdditionalRelayUrls
 }: {
   defaultContent?: string
   initialMentionIds?: string[]
   parentEvent?: Event
   close: () => void
   openFrom?: string[]
+  isMobileComposer: boolean
   isProtectedEvent: boolean
   additionalRelayUrls: string[]
+  setIsProtectedEvent?: Dispatch<SetStateAction<boolean>>
+  setAdditionalRelayUrls?: Dispatch<SetStateAction<string[]>>
 }) {
   const { t } = useTranslation()
   const { push } = useSecondaryPage()
@@ -69,6 +92,7 @@ export default function PostContent({
   const [mentions, setMentions] = useState<string[]>([])
   const [isNsfw, setIsNsfw] = useState(false)
   const [isPoll, setIsPoll] = useState(false)
+  const [pollEditorOpen, setPollEditorOpen] = useState(false)
   const [pollCreateData, setPollCreateData] = useState<TPollCreateData>(createDefaultPollCreateData)
   const [scheduledFor, setScheduledFor] = useState<number | null>(null)
   const [minPow, setMinPow] = useState(0)
@@ -108,8 +132,7 @@ export default function PostContent({
       !!text &&
       !posting &&
       !uploadProgresses.length &&
-      (!isPoll ||
-        pollCreateData.options.filter((option) => !!option.label.trim()).length >= 2) &&
+      (!isPoll || pollCreateData.options.filter((option) => !!option.label.trim()).length >= 2) &&
       (!isProtectedEvent || additionalRelayUrls.length > 0)
     )
   }, [
@@ -151,7 +174,16 @@ export default function PostContent({
         scheduledFor
       }
     )
-  }, [defaultContent, parentEvent, isNsfw, isPoll, pollCreateData, addClientTag, images, scheduledFor])
+  }, [
+    defaultContent,
+    parentEvent,
+    isNsfw,
+    isPoll,
+    pollCreateData,
+    addClientTag,
+    images,
+    scheduledFor
+  ])
 
   useEffect(() => {
     if (hasAppliedInitialMentions.current || !initialMentionIds.length || !textareaRef.current) {
@@ -192,10 +224,16 @@ export default function PostContent({
                 isNsfw
               })
             : isPoll
-              ? await createPollDraftEvent(pubkey!, contentWithImages, allMentions, pollCreateData, {
-                  addClientTag,
-                  isNsfw
-                })
+              ? await createPollDraftEvent(
+                  pubkey!,
+                  contentWithImages,
+                  allMentions,
+                  pollCreateData,
+                  {
+                    addClientTag,
+                    isNsfw
+                  }
+                )
               : await createShortTextNoteDraftEvent(contentWithImages, allMentions, {
                   parentEvent,
                   addClientTag,
@@ -391,8 +429,54 @@ export default function PostContent({
   const handlePollToggle = () => {
     if (parentEvent) return
 
-    setIsPoll((prev) => !prev)
+    if (isMobileComposer) {
+      setIsPoll((prev) => {
+        if (prev) return prev
+
+        const isPristinePollDraft =
+          !pollCreateData.isMultipleChoice &&
+          pollCreateData.relays.length === 0 &&
+          pollCreateData.options.every((option) => !option.label.trim() && !option.image)
+
+        if (isPristinePollDraft && typeof pollCreateData.endsAt !== 'number') {
+          setPollCreateData((current) => ({
+            ...current,
+            endsAt: getDefaultPollEndsAt()
+          }))
+        }
+
+        return true
+      })
+      setPollEditorOpen(true)
+      return
+    }
+
+    setIsPoll((prev) => {
+      const next = !prev
+
+      if (next) {
+        const isPristinePollDraft =
+          !pollCreateData.isMultipleChoice &&
+          pollCreateData.relays.length === 0 &&
+          pollCreateData.options.every((option) => !option.label.trim() && !option.image)
+
+        if (isPristinePollDraft && typeof pollCreateData.endsAt !== 'number') {
+          setPollCreateData((current) => ({
+            ...current,
+            endsAt: getDefaultPollEndsAt()
+          }))
+        }
+      }
+
+      return next
+    })
   }
+
+  useEffect(() => {
+    if (!isPoll) {
+      setPollEditorOpen(false)
+    }
+  }, [isPoll])
 
   const handleUploadStart = (file: File, cancel: () => void) => {
     setUploadProgresses((prev) => [...prev, { file, progress: 0, cancel }])
@@ -448,46 +532,60 @@ export default function PostContent({
     }, 0)
   }, [close, push])
 
-  return (
-    <div className="space-y-2">
-      {parentEvent && (
-        <ScrollArea className="flex max-h-48 flex-col overflow-y-auto rounded-lg border bg-muted/40">
-          <div className="p-2 sm:p-3 pointer-events-none">
-            <Note size="small" event={parentEvent} hideParentNotePreview filterMutedNotes={false} />
-          </div>
-        </ScrollArea>
-      )}
-      <PostTextarea
-        ref={textareaRef}
-        text={text}
-        setText={setText}
-        defaultContent={defaultContent}
-        parentEvent={parentEvent}
-        onSubmit={() => handlePrimaryAction()}
-        className={isPoll ? 'min-h-20' : 'min-h-32'}
-        onUploadStart={handleUploadStart}
-        onUploadProgress={handleUploadProgress}
-        onUploadEnd={handleUploadEnd}
-        onImageUploadSuccess={handleImageUploadSuccess}
-        images={images}
-        onRemoveImage={handleRemoveImage}
-        onUpdateImageAlt={handleUpdateImageAlt}
-      />
-      {isPoll && (
-        <PollEditor
-          pollCreateData={pollCreateData}
-          setPollCreateData={setPollCreateData}
-          setIsPoll={setIsPoll}
-        />
-      )}
+  const hasRelaySelector = !!(setIsProtectedEvent && setAdditionalRelayUrls)
+  const mobilePlaceholder = parentEvent
+    ? t('Post your reply', { defaultValue: 'Post your reply' })
+    : t("What's happening?", { defaultValue: "What's happening?" })
+  const toolButtonClass = cn(
+    'bg-foreground/5 hover:bg-foreground/10',
+    isMobileComposer && 'h-10 w-10 [&_svg]:size-5'
+  )
+
+  const parentEventPreview = parentEvent ? (
+    <ScrollArea className="flex max-h-48 flex-col overflow-y-auto rounded-lg border bg-muted/40">
+      <div className="pointer-events-none p-2 sm:p-3">
+        <Note size="small" event={parentEvent} hideParentNotePreview filterMutedNotes={false} />
+      </div>
+    </ScrollArea>
+  ) : null
+
+  const composerTextarea = (
+    <PostTextarea
+      ref={textareaRef}
+      text={text}
+      setText={setText}
+      defaultContent={defaultContent}
+      parentEvent={parentEvent}
+      onSubmit={() => handlePrimaryAction()}
+      className={
+        isMobileComposer
+          ? 'min-h-[44dvh]'
+          : isPoll
+            ? 'min-h-20'
+            : 'min-h-32'
+      }
+      placeholder={isMobileComposer ? mobilePlaceholder : undefined}
+      isMobileComposer={isMobileComposer}
+      onUploadStart={handleUploadStart}
+      onUploadProgress={handleUploadProgress}
+      onUploadEnd={handleUploadEnd}
+      onImageUploadSuccess={handleImageUploadSuccess}
+      images={images}
+      onRemoveImage={handleRemoveImage}
+      onUpdateImageAlt={handleUpdateImageAlt}
+    />
+  )
+
+  const uploadProgressList = (
+    <>
       {uploadProgresses.length > 0 &&
         uploadProgresses.map(({ file, progress, cancel }, index) => (
           <div key={`${file.name}-${index}`} className="mt-2 flex items-end gap-2">
             <div className="min-w-0 flex-1">
-              <div className="truncate text-xs text-muted-foreground mb-1">
+              <div className="mb-1 truncate text-xs text-muted-foreground">
                 {file.name ?? t('Uploading...')}
               </div>
-              <div className="h-0.5 w-full rounded-full bg-muted overflow-hidden">
+              <div className="h-0.5 w-full overflow-hidden rounded-full bg-muted">
                 <div
                   className="h-full bg-primary transition-[width] duration-200 ease-out"
                   style={{ width: `${progress}%` }}
@@ -507,112 +605,278 @@ export default function PostContent({
             </button>
           </div>
         ))}
+    </>
+  )
 
-      {scheduledFor && (
-        <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs">
-          <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
-            <Clock className="h-3.5 w-3.5 shrink-0 text-primary" />
-            <span className="truncate">
-              {t('Scheduled for {{time}}', {
-                time: formatScheduledDateTime(scheduledFor)
-              })}
-            </span>
-          </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
-            onClick={() => setScheduledFor(null)}
-          >
-            {t('Clear')}
-          </Button>
+  const scheduledBanner = scheduledFor ? (
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs">
+      <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
+        <Clock className="h-3.5 w-3.5 shrink-0 text-primary" />
+        <span className="truncate">
+          {t('Scheduled for {{time}}', {
+            time: formatScheduledDateTime(scheduledFor)
+          })}
+        </span>
+      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+        onClick={() => setScheduledFor(null)}
+      >
+        {t('Clear')}
+      </Button>
+    </div>
+  ) : null
+
+  const pollOptionsCount = pollCreateData.options.filter((option) => option.label.trim()).length
+  const hasMinimumPollOptions = pollOptionsCount >= 2
+  const pollBanner =
+    isMobileComposer && isPoll && hasMinimumPollOptions ? (
+      <div className="flex items-center justify-between gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs">
+        <div className="min-w-0 truncate text-muted-foreground">
+          {t('Poll attached', { defaultValue: 'Poll attached' })} ·{' '}
+          {t('{{count}} options', { count: pollOptionsCount })}
         </div>
-      )}
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 text-[11px]"
+          onClick={() => setPollEditorOpen(true)}
+        >
+          {t('Edit')}
+        </Button>
+      </div>
+    ) : null
 
-      <div className="flex items-center justify-between">
-        <div className="flex gap-2 items-center">
-          <Uploader
-            onUploadSuccess={({ url }) => {
-              handleImageUploadSuccess(url)
-            }}
-            onUploadStart={handleUploadStart}
-            onUploadEnd={handleUploadEnd}
-            onProgress={handleUploadProgress}
-            accept="image/*,video/*,audio/*"
-          >
-            <Button variant="ghost" size="icon" className="bg-foreground/5 hover:bg-foreground/10">
-              <ImageUp />
-            </Button>
-          </Uploader>
-          <GifPicker
-            onGifSelect={(url) => {
-              setImages((prev) => [...prev, { url }])
-            }}
-          >
-            <Button variant="ghost" size="icon" className="bg-foreground/5 hover:bg-foreground/10">
-              <ImagePlay />
-            </Button>
-          </GifPicker>
-          {/* I'm not sure why, but after triggering the virtual keyboard,
-              opening the emoji picker drawer causes an issue,
-              the emoji I tap isn't the one that gets inserted. */}
-          {!isTouchDevice() && (
-            <EmojiPickerDialog
-              onEmojiClick={(emoji) => {
-                if (!emoji) return
-                textareaRef.current?.insertEmoji(emoji)
+  const composerTools = (
+    <>
+      <Uploader
+        onUploadSuccess={({ url }) => {
+          handleImageUploadSuccess(url)
+        }}
+        onUploadStart={handleUploadStart}
+        onUploadEnd={handleUploadEnd}
+        onProgress={handleUploadProgress}
+        accept="image/*,video/*,audio/*"
+      >
+        <Button variant="ghost" size="icon" className={toolButtonClass}>
+          <ImageUp />
+        </Button>
+      </Uploader>
+      <GifPicker
+        onGifSelect={(url) => {
+          setImages((prev) => [...prev, { url }])
+        }}
+      >
+        <Button variant="ghost" size="icon" className={toolButtonClass}>
+          <GifIcon />
+        </Button>
+      </GifPicker>
+      {/* I'm not sure why, but after triggering the virtual keyboard,
+          opening the emoji picker drawer causes an issue,
+          the emoji I tap isn't the one that gets inserted. */}
+      {!isTouchDevice() && (
+        <EmojiPickerDialog
+          onEmojiClick={(emoji) => {
+            if (!emoji) return
+            textareaRef.current?.insertEmoji(emoji)
+          }}
+        >
+          <Button variant="ghost" size="icon" className={toolButtonClass}>
+            <Smile />
+          </Button>
+        </EmojiPickerDialog>
+      )}
+      {!parentEvent && (
+        <Button
+          variant="ghost"
+          size="icon"
+          title={t('Create Poll')}
+          className={cn(toolButtonClass, isPoll && 'bg-accent')}
+          onClick={handlePollToggle}
+        >
+          <ListTodo />
+        </Button>
+      )}
+      <PostSchedulePopover
+        scheduledFor={scheduledFor}
+        onScheduledForChange={setScheduledFor}
+        signerType={account?.signerType}
+        onViewQueue={handleViewScheduledQueue}
+        buttonClassName={isMobileComposer ? 'h-10 w-10 [&_svg]:size-5' : undefined}
+      />
+      <Button
+        variant="ghost"
+        size="icon"
+        className={cn(toolButtonClass, showMoreOptions && 'bg-accent')}
+        onClick={() => setShowMoreOptions((pre) => !pre)}
+      >
+        <Settings />
+      </Button>
+      <ComposerHelpDialog>
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(
+            'text-muted-foreground/60 hover:bg-foreground/5 hover:text-muted-foreground',
+            isMobileComposer && 'h-10 w-10 [&_svg]:size-5'
+          )}
+          title={t('Composer Help')}
+        >
+          <HelpCircle className="h-4 w-4" />
+        </Button>
+      </ComposerHelpDialog>
+    </>
+  )
+
+  if (isMobileComposer) {
+    return (
+      <>
+        <div className="flex h-full flex-col bg-background">
+          <div className="flex items-center justify-between border-b border-border/60 px-4 pb-3 pt-[max(env(safe-area-inset-top),0.75rem)]">
+            <Button
+              variant="ghost"
+              className="h-9 px-0 text-[length:var(--font-size,15px)] font-medium"
+              onClick={(e) => {
+                e.stopPropagation()
+                close()
               }}
             >
-              <Button variant="ghost" size="icon" className="bg-foreground/5 hover:bg-foreground/10">
-                <Smile />
+              {t('Cancel')}
+            </Button>
+            <div className="flex items-center gap-1">
+              {hasRelaySelector && (
+                <PostRelaySelector
+                  parentEvent={parentEvent}
+                  openFrom={openFrom}
+                  mobileCompact
+                  setIsProtectedEvent={setIsProtectedEvent!}
+                  setAdditionalRelayUrls={setAdditionalRelayUrls!}
+                />
+              )}
+              <Button
+                type="submit"
+                disabled={!canSubmit}
+                onClick={handlePrimaryAction}
+                aria-busy={posting}
+                aria-label={posting ? primaryActionBusyLabel : primaryActionLabel}
+                className="h-9 rounded-full px-4 text-sm font-semibold"
+              >
+                {posting && <LoaderCircle className="animate-spin" aria-hidden="true" />}
+                {primaryActionLabel}
               </Button>
-            </EmojiPickerDialog>
-          )}
-          {!parentEvent && (
-            <Button
-              variant="ghost"
-              size="icon"
-              title={t('Create Poll')}
-              className={isPoll ? 'bg-accent' : 'bg-foreground/5 hover:bg-foreground/10'}
-              onClick={handlePollToggle}
-            >
-              <ListTodo />
-            </Button>
-          )}
-          <PostSchedulePopover
-            scheduledFor={scheduledFor}
-            onScheduledForChange={setScheduledFor}
-            signerType={account?.signerType}
-            onViewQueue={handleViewScheduledQueue}
-          />
-          <Button
-            variant="ghost"
-            size="icon"
-            className={showMoreOptions ? 'bg-accent' : 'bg-foreground/5 hover:bg-foreground/10'}
-            onClick={() => setShowMoreOptions((pre) => !pre)}
-          >
-            <Settings />
-          </Button>
-          <ComposerHelpDialog>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-muted-foreground/60 hover:text-muted-foreground hover:bg-foreground/5"
-              title={t('Composer Help')}
-            >
-              <HelpCircle className="h-4 w-4" />
-            </Button>
-          </ComposerHelpDialog>
+            </div>
+          </div>
+
+          <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+            {parentEventPreview}
+            <div className="flex items-start gap-3">
+              {pubkey ? (
+                <UserAvatar userId={pubkey} size="semiBig" noLink />
+              ) : (
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                  <CircleUserRound className="h-9 w-9" />
+                </div>
+              )}
+              <div className="min-w-0 flex-1">{composerTextarea}</div>
+            </div>
+            {pollBanner}
+            {uploadProgressList}
+            {scheduledBanner}
+          </div>
+
+          <div className="shrink-0 border-t border-border/60 bg-background/95 px-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-2 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+            <div className="flex items-center gap-2 px-1 pb-1">
+              <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+                {composerTools}
+              </div>
+              <div className="shrink-0">
+                <Mentions
+                  content={text}
+                  parentEvent={parentEvent}
+                  mentions={mentions}
+                  setMentions={setMentions}
+                />
+              </div>
+            </div>
+
+            <div className="px-1 pt-3">
+              <PostOptions
+                posting={posting}
+                show={showMoreOptions}
+                addClientTag={addClientTag}
+                setAddClientTag={setAddClientTag}
+                isNsfw={isNsfw}
+                setIsNsfw={setIsNsfw}
+                minPow={minPow}
+                setMinPow={setMinPow}
+              />
+            </div>
+          </div>
         </div>
-        <div className="flex gap-2 items-center">
+        <Drawer
+          open={pollEditorOpen}
+          onOpenChange={(nextOpen) => {
+            setPollEditorOpen(nextOpen)
+            if (!nextOpen) {
+              const validOptionCount = pollCreateData.options.filter((option) =>
+                option.label.trim()
+              ).length
+              if (validOptionCount < 2) {
+                setIsPoll(false)
+              }
+            }
+          }}
+          shouldScaleBackground={false}
+        >
+          <DrawerContent className="max-h-[85dvh] bg-background">
+            <DrawerTitle className="px-4 text-base">
+              {t('Create Poll')}
+            </DrawerTitle>
+            <DrawerDescription className="sr-only">
+              {t('Configure poll options and end date')}
+            </DrawerDescription>
+            <div className="space-y-3 overflow-y-auto px-4 pb-[max(env(safe-area-inset-bottom),1rem)] pt-1">
+              <PollEditor
+                pollCreateData={pollCreateData}
+                setPollCreateData={setPollCreateData}
+                setIsPoll={setIsPoll}
+                onRemovePoll={() => setPollEditorOpen(false)}
+              />
+            </div>
+          </DrawerContent>
+        </Drawer>
+      </>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      {parentEventPreview}
+      {composerTextarea}
+      {isPoll && (
+        <PollEditor
+          pollCreateData={pollCreateData}
+          setPollCreateData={setPollCreateData}
+          setIsPoll={setIsPoll}
+        />
+      )}
+      {uploadProgressList}
+      {scheduledBanner}
+
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">{composerTools}</div>
+        <div className="flex items-center gap-2">
           <Mentions
             content={text}
             parentEvent={parentEvent}
             mentions={mentions}
             setMentions={setMentions}
           />
-          <div className="flex gap-2 items-center max-sm:hidden">
+          <div className="flex items-center gap-2">
             <Button
               variant="secondary"
               onClick={(e) => {
@@ -645,22 +909,6 @@ export default function PostContent({
         minPow={minPow}
         setMinPow={setMinPow}
       />
-      <div className="flex gap-2 items-center justify-around sm:hidden">
-        <Button
-          className="w-full"
-          variant="secondary"
-          onClick={(e) => {
-            e.stopPropagation()
-            close()
-          }}
-        >
-          {t('Cancel')}
-        </Button>
-        <Button className="w-full" type="submit" disabled={!canSubmit} onClick={handlePrimaryAction}>
-          {posting && <LoaderCircle className="animate-spin" />}
-          {primaryActionLabel}
-        </Button>
-      </div>
     </div>
   )
 }

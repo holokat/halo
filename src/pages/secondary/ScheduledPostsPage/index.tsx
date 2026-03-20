@@ -2,7 +2,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import SecondaryPageLayout from '@/layouts/SecondaryPageLayout'
 import { cn } from '@/lib/utils'
-import { useNostr } from '@/providers/NostrProvider'
+import { useOptionalNostr } from '@/providers/NostrProvider'
 import scheduledPostsService, {
   getScheduledPostRetryDelaySeconds,
   scheduledPostsChangedEventName,
@@ -44,7 +44,8 @@ function truncateText(value: string, maxLength = 180) {
 
 const ScheduledPostsPage = forwardRef(({ index }: { index?: number }, ref) => {
   const { t } = useTranslation()
-  const { account } = useNostr()
+  const nostr = useOptionalNostr()
+  const account = nostr?.account ?? null
   const [items, setItems] = useState<TScheduledPost[]>([])
   const [now, setNow] = useState(() => dayjs().unix())
   const [refreshing, setRefreshing] = useState(false)

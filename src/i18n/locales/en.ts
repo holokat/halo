@@ -3,7 +3,7 @@ export default {
     'Welcome! 🥳': 'Welcome! 🥳',
     About: 'About',
     'New Note': 'New Note',
-    Post: 'Sign & Post',
+    Post: 'Post',
     Home: 'Home',
     'Relay settings': 'Relay settings',
     Settings: 'Settings',

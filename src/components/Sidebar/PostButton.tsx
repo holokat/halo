@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 import { useCompactSidebar } from '@/providers/CompactSidebarProvider'
 import { usePostButtonStyle } from '@/providers/PostButtonStyleProvider'
 import { useNostr } from '@/providers/NostrProvider'
-import { PencilLine } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import SidebarItem from './SidebarItem'
@@ -37,7 +37,7 @@ export default function PostButton() {
           compactSidebar ? "" : "xl:justify-center"
         )}
       >
-        <PencilLine strokeWidth={1.3} />
+        <Plus strokeWidth={1.8} />
       </SidebarItem>
       <PostEditor open={open} setOpen={setOpen} />
     </div>

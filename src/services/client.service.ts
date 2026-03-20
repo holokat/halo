@@ -56,6 +56,8 @@ const REPLACEABLE_EVENT_CACHE_MAX = 4000
 const EVENT_PROMISE_CACHE_MAX = 4000
 const LIVE_STREAM_CACHE_MAX = 256
 const RECENT_FEED_CACHE_MAX_EVENTS = 120
+const METADATA_QUERY_TIMEOUT_MS = 2500
+const METADATA_QUERY_EOSE_THRESHOLD = 0.5
 
 class ClientService extends EventTarget {
   static instance: ClientService
@@ -1653,6 +1655,13 @@ class ClientService extends EventTarget {
     await Promise.allSettled(
       Array.from(groups.entries()).map(async ([kind, pubkeys]) => {
         let remainingPubkeys = [...pubkeys]
+        const metadataQueryOptions =
+          kind === kinds.Metadata
+            ? {
+                timeoutMs: METADATA_QUERY_TIMEOUT_MS,
+                eoseThreshold: METADATA_QUERY_EOSE_THRESHOLD
+              }
+            : undefined
 
         // Helper to process events from a tier
         const processEvents = (events: NEvent[]) => {
@@ -1673,7 +1682,7 @@ class ClientService extends EventTarget {
           const tier1Events = await this.query(tier1, {
             authors: remainingPubkeys,
             kinds: [kind]
-          })
+          }, undefined, metadataQueryOptions)
           const foundInTier1 = processEvents(tier1Events)
           remainingPubkeys = remainingPubkeys.filter((p) => !foundInTier1.has(p))
         }
@@ -1683,7 +1692,7 @@ class ClientService extends EventTarget {
           const tier2Events = await this.query(tier2, {
             authors: remainingPubkeys,
             kinds: [kind]
-          })
+          }, undefined, metadataQueryOptions)
           const foundInTier2 = processEvents(tier2Events)
           remainingPubkeys = remainingPubkeys.filter((p) => !foundInTier2.has(p))
         }
@@ -1693,7 +1702,7 @@ class ClientService extends EventTarget {
           const tier3Events = await this.query(tier3, {
             authors: remainingPubkeys,
             kinds: [kind]
-          })
+          }, undefined, metadataQueryOptions)
           processEvents(tier3Events)
         }
       })

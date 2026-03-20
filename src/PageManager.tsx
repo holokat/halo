@@ -24,7 +24,6 @@ import {
 } from 'react'
 import BackgroundAudio from './components/BackgroundAudio'
 import BottomNavigationBar from './components/BottomNavigationBar'
-import CreateWalletGuideToast from './components/CreateWalletGuideToast'
 import DeckColumn from './components/DeckColumn'
 import TooManyRelaysAlertDialog from './components/TooManyRelaysAlertDialog'
 import { normalizeUrl } from './lib/url'
@@ -385,7 +384,6 @@ export function PageManager({ maxStackSize = 5 }: { maxStackSize?: number }) {
                 </div>
                 <BottomNavigationBar />
                 <TooManyRelaysAlertDialog />
-                <CreateWalletGuideToast />
             </MessagesProvider>
           </NotificationProvider>
         </CurrentRelaysProvider>
@@ -490,7 +488,6 @@ export function PageManager({ maxStackSize = 5 }: { maxStackSize?: number }) {
                 )}
               </div>
               <TooManyRelaysAlertDialog />
-              <CreateWalletGuideToast />
               <BackgroundAudio className="fixed bottom-20 right-0 z-50 w-80 rounded-l-full rounded-r-none overflow-hidden shadow-lg border" />
             </MessagesProvider>
           </NotificationProvider>

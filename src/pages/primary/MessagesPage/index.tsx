@@ -1,6 +1,7 @@
 import AlertCard from '@/components/AlertCard'
 import Content from '@/components/Content'
 import Emoji from '@/components/Emoji'
+import MobileTopNavMenuButton from '@/components/MobileTopNavMenuButton'
 import SearchInput from '@/components/SearchInput'
 import { FormattedTimestamp } from '@/components/FormattedTimestamp'
 import SuggestedEmojis from '@/components/SuggestedEmojis'
@@ -84,6 +85,7 @@ import {
 } from 'lucide-react'
 import {
   ChangeEvent,
+  KeyboardEvent as ReactKeyboardEvent,
   MouseEvent,
   TouchEvent,
   ClipboardEvent as ReactClipboardEvent,
@@ -344,7 +346,9 @@ function useRenderableMessageContent(message: TDirectMessage) {
     renderableContent,
     isDecrypting,
     hasDecryptError,
-    isEncryptedFileMessage: !!encryptionInfo
+    isEncryptedFileMessage: !!encryptionInfo,
+    isFileMessage: message.kind === 15,
+    encryptedFileType: encryptionInfo?.fileType
   }
 }
 
@@ -644,6 +648,7 @@ function MessagesPageTitlebar({
   onMarkAllAsRead: () => void
 }) {
   const { t } = useTranslation()
+  const { isSmallScreen } = useScreenSize()
 
   if (viewMode === 'thread') {
     const zapTargetPubkey = conversation?.isGroup
@@ -695,10 +700,18 @@ function MessagesPageTitlebar({
   }
 
   return (
-    <div className="flex items-center justify-between h-full pl-3 pr-2 gap-2">
-      <div className="flex items-center gap-2 min-w-0 [&_svg]:text-muted-foreground">
-        <MessageCircle strokeWidth={1.3} />
-        <div className="text-lg font-semibold truncate" style={{ fontSize: 'var(--title-font-size, 18px)' }}>
+    <div
+      className={cn(
+        'flex items-center justify-between h-full pr-2 gap-2',
+        isSmallScreen ? 'pl-1' : 'pl-3'
+      )}
+    >
+      <div className="flex items-center gap-2 min-w-0">
+        {isSmallScreen && <MobileTopNavMenuButton />}
+        <div
+          className="text-lg font-semibold truncate"
+          style={{ fontSize: `var(--title-font-size, ${isSmallScreen ? 19 : 18}px)` }}
+        >
           {t('Messages')}
         </div>
         {unreadMessageCount > 0 && (
@@ -717,7 +730,7 @@ function MessagesPageTitlebar({
         >
           {t('Mark all as read')}
         </Button>
-        <Button size="sm" className="shrink-0" onClick={onCompose}>
+        <Button size="sm" className={cn('shrink-0', isSmallScreen && 'text-sm')} onClick={onCompose}>
           <Plus />
           {t('New')}
         </Button>
@@ -1595,7 +1608,9 @@ function MessageBubble({
     renderableContent,
     isDecrypting,
     hasDecryptError,
-    isEncryptedFileMessage
+    isEncryptedFileMessage,
+    isFileMessage,
+    encryptedFileType
   } = useRenderableMessageContent(message)
   const renderableEvent = useMemo(
     () => toRenderableConversationEvent(message, renderableContent),
@@ -1635,7 +1650,7 @@ function MessageBubble({
               <SimpleUsername userId={message.senderPubkey} />
             </div>
           )}
-          {isEncryptedFileMessage && isDecrypting ? (
+          {isFileMessage && isEncryptedFileMessage && isDecrypting ? (
             <div className="flex items-center gap-2 text-xs opacity-80">
               <Loader className="size-3.5 animate-spin" />
               <span>
@@ -1644,12 +1659,37 @@ function MessageBubble({
                 })}
               </span>
             </div>
-          ) : isEncryptedFileMessage && hasDecryptError ? (
+          ) : isFileMessage && isEncryptedFileMessage && hasDecryptError ? (
             <div className="text-xs opacity-80">
               {t('Unable to decrypt attachment', {
                 defaultValue: 'Unable to decrypt attachment'
               })}
             </div>
+          ) : isFileMessage && encryptedFileType?.startsWith('image/') && renderableContent ? (
+            <img
+              src={renderableContent}
+              alt={t('Attachment', { defaultValue: 'Attachment' })}
+              className="mt-1 max-h-72 w-full rounded-lg object-cover"
+              loading="lazy"
+            />
+          ) : isFileMessage && encryptedFileType?.startsWith('video/') && renderableContent ? (
+            <video
+              src={renderableContent}
+              controls
+              className="mt-1 max-h-80 w-full rounded-lg bg-black/20"
+            />
+          ) : isFileMessage && encryptedFileType?.startsWith('audio/') && renderableContent ? (
+            <audio src={renderableContent} controls className="mt-1 w-full" />
+          ) : isFileMessage && renderableContent ? (
+            <a
+              href={renderableContent}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(event) => event.stopPropagation()}
+              className="text-sm underline underline-offset-2"
+            >
+              {t('Open attachment', { defaultValue: 'Open attachment' })}
+            </a>
           ) : (
             <Content
               event={renderableEvent}
@@ -1996,6 +2036,21 @@ function ConversationComposer({
     void uploadAttachmentFiles(imageFiles)
   }
 
+  const handleTextareaKeyDown = (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key !== 'Enter' || event.shiftKey) {
+      return
+    }
+
+    if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) {
+      return
+    }
+
+    event.preventDefault()
+    if (canSend) {
+      void handleSend()
+    }
+  }
+
   const handleAttachmentInputChange = (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? [])
     event.target.value = ''
@@ -2128,6 +2183,7 @@ function ConversationComposer({
         <Textarea
           value={content}
           onChange={(event) => setContent(event.target.value)}
+          onKeyDown={handleTextareaKeyDown}
           onPaste={handleTextareaPaste}
           placeholder={placeholder}
           className="min-h-[104px] max-h-[220px] resize-none border-0 bg-transparent px-4 pt-3 pb-14 text-sm shadow-none focus-visible:ring-0"

@@ -1,56 +1,88 @@
 import Explore from '@/components/Explore'
+import MobileTopNavMenuButton from '@/components/MobileTopNavMenuButton'
 import PinButton from '@/components/PinButton'
-import { Button } from '@/components/ui/button'
+import SearchBar from '@/components/SearchBar'
 import PrimaryPageLayout from '@/layouts/PrimaryPageLayout'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
+import { TSearchParams } from '@/types'
 
-import { Compass, Plus } from 'lucide-react'
-import { forwardRef } from 'react'
-import { useTranslation } from 'react-i18next'
+import { forwardRef, useState } from 'react'
 
 const ExplorePage = forwardRef((_, ref) => {
+  const [input, setInput] = useState('')
+  const [searchParams, setSearchParams] = useState<TSearchParams | null>(null)
+
+  const handleSearch = (params: TSearchParams | null) => {
+    setSearchParams(params)
+    if (params?.input) {
+      setInput(params.input)
+    }
+  }
+
   return (
     <PrimaryPageLayout
       ref={ref}
       pageName="explore"
-      titlebar={<ExplorePageTitlebar />}
+      titlebar={
+        <ExplorePageTitlebar
+          input={input}
+          setInput={setInput}
+          searchParams={searchParams}
+          onSearch={handleSearch}
+        />
+      }
       displayScrollToTopButton
     >
-      <Explore />
+      <Explore
+        input={input}
+        setInput={setInput}
+        searchParams={searchParams}
+        onSearch={handleSearch}
+        showInlineSearch={false}
+      />
     </PrimaryPageLayout>
   )
 })
 ExplorePage.displayName = 'ExplorePage'
 export default ExplorePage
 
-function ExplorePageTitlebar() {
-  const { t } = useTranslation()
+function ExplorePageTitlebar({
+  input,
+  setInput,
+  searchParams,
+  onSearch
+}: {
+  input: string
+  setInput: (input: string) => void
+  searchParams: TSearchParams | null
+  onSearch: (params: TSearchParams | null) => void
+}) {
   const { isSmallScreen } = useScreenSize()
 
   return (
-    <div className="flex gap-2 justify-between h-full">
-      <div className="flex gap-2 items-center h-full pl-3 [&_svg]:text-muted-foreground">
-        <Compass />
-        <div className="text-lg font-semibold" style={{ fontSize: `var(--title-font-size, 18px)` }}>{t('Explore')}</div>
+    <div className="flex items-center gap-2 justify-between h-full">
+      {isSmallScreen && <MobileTopNavMenuButton />}
+      <div className="flex-1 min-w-0">
+        <SearchBar
+          input={input}
+          setInput={setInput}
+          onSearch={onSearch}
+          currentSearchParams={searchParams}
+          className="h-full"
+          searchInputClassName="!bg-transparent !shadow-none !border-0 !px-0 md:!pl-2 rounded-none [&_input]:mx-2 [&_input]:font-semibold [&_input]:text-[length:var(--title-font-size,18px)] [&_input]:placeholder:font-semibold [&_input]:placeholder:text-foreground/60 [&_svg]:text-muted-foreground"
+        />
       </div>
       <div className="flex gap-1 items-center">
-        <PinButton column={{ type: 'explore' }} size="titlebar-icon" />
-        {!isSmallScreen && (
-          <Button
-            variant="ghost"
-            size="titlebar-icon"
-            className="relative w-fit px-3"
-            onClick={() => {
-              window.open(
-                'https://github.com/CodyTseng/awesome-nostr-relays/issues/new?template=add-relay.md',
-                '_blank'
-              )
+        {searchParams && (
+          <PinButton
+            column={{
+              type: 'search',
+              props: { searchParams }
             }}
-          >
-            <Plus size={16} />
-            {t('Submit Relay')}
-          </Button>
+            size="titlebar-icon"
+          />
         )}
+        <PinButton column={{ type: 'explore' }} size="titlebar-icon" />
       </div>
     </div>
   )

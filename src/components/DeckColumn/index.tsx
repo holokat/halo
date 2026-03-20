@@ -1,6 +1,17 @@
 import { cn } from '@/lib/utils'
 import { TPinnedColumn, TFeedSubRequest } from '@/types'
-import { X, Compass, Bell, UserRound, Search, Server, Bookmark, Highlighter, BookOpen, List, Users } from 'lucide-react'
+import {
+  X,
+  Bell,
+  UserRound,
+  Search,
+  Server,
+  Bookmark,
+  Highlighter,
+  BookOpen,
+  List,
+  Users
+} from 'lucide-react'
 import { useRef, useEffect, useState } from 'react'
 import Explore from '@/components/Explore'
 import NotificationList from '@/components/NotificationList'
@@ -50,13 +61,20 @@ export default function DeckColumn({ column }: { column: TPinnedColumn }) {
       break
     case 'profile':
       if (column.props?.pubkey) {
-        titlebar = <ProfileTitlebar pubkey={column.props.pubkey} onClose={() => unpinColumn(column.id)} />
+        titlebar = (
+          <ProfileTitlebar pubkey={column.props.pubkey} onClose={() => unpinColumn(column.id)} />
+        )
         content = <Profile id={column.props.pubkey} isInDeckView={true} />
       }
       break
     case 'search':
       if (column.props?.searchParams) {
-        titlebar = <SearchTitlebar searchParams={column.props.searchParams} onClose={() => unpinColumn(column.id)} />
+        titlebar = (
+          <SearchTitlebar
+            searchParams={column.props.searchParams}
+            onClose={() => unpinColumn(column.id)}
+          />
+        )
         content = <SearchResult searchParams={column.props.searchParams} isInDeckView={true} />
       }
       break
@@ -71,7 +89,9 @@ export default function DeckColumn({ column }: { column: TPinnedColumn }) {
       if (column.props?.activeRelaySetId) {
         const relaySet = relaySets.find((s) => s.id === column.props.activeRelaySetId)
         if (relaySet) {
-          titlebar = <RelaySetTitlebar name={relaySet.name} onClose={() => unpinColumn(column.id)} />
+          titlebar = (
+            <RelaySetTitlebar name={relaySet.name} onClose={() => unpinColumn(column.id)} />
+          )
           content = (
             <NormalFeed
               subRequests={[{ urls: relaySet.relayUrls, filter: {} }]}
@@ -86,7 +106,9 @@ export default function DeckColumn({ column }: { column: TPinnedColumn }) {
       if (column.props?.customFeedId) {
         const customFeed = customFeeds.find((f) => f.id === column.props.customFeedId)
         if (customFeed) {
-          titlebar = <CustomFeedTitlebar name={customFeed.name} onClose={() => unpinColumn(column.id)} />
+          titlebar = (
+            <CustomFeedTitlebar name={customFeed.name} onClose={() => unpinColumn(column.id)} />
+          )
           const { searchParams } = customFeed
           if (searchParams.type === 'notes') {
             content = (
@@ -136,7 +158,13 @@ export default function DeckColumn({ column }: { column: TPinnedColumn }) {
       break
     case 'list':
       if (column.props?.listId) {
-        titlebar = <ListTitlebar listId={column.props.listId} title={column.props.title} onClose={() => unpinColumn(column.id)} />
+        titlebar = (
+          <ListTitlebar
+            listId={column.props.listId}
+            title={column.props.title}
+            onClose={() => unpinColumn(column.id)}
+          />
+        )
         content = <ListContent listId={column.props.listId} />
       }
       break
@@ -156,11 +184,13 @@ export default function DeckColumn({ column }: { column: TPinnedColumn }) {
       style={{ borderRadius: 'var(--card-radius, 8px)' }}
     >
       {titlebar && (
-        <div className={cn(
-          "sticky top-0 z-10 border-b bg-background h-12 flex items-center",
-          pageTheme === 'pure-black' && 'border-neutral-900',
-          pageTheme === 'white' && 'border-border'
-        )}>
+        <div
+          className={cn(
+            'sticky top-0 z-10 border-b bg-background h-12 flex items-center',
+            pageTheme === 'pure-black' && 'border-neutral-900',
+            pageTheme === 'white' && 'border-border'
+          )}
+        >
           {titlebar}
         </div>
       )}
@@ -186,9 +216,12 @@ function ExploreTitlebar({ onClose }: { onClose: () => void }) {
   return (
     <div className="flex items-center justify-between gap-2 px-3 h-full w-full">
       <div className="flex items-center gap-2 min-w-0">
-        <Compass className="shrink-0" />
-        <div className="text-lg font-semibold truncate" style={{ fontSize: `var(--title-font-size, 18px)` }}>
-          {t('Explore')}
+        <Search className="shrink-0" />
+        <div
+          className="text-lg font-semibold truncate"
+          style={{ fontSize: `var(--title-font-size, 18px)` }}
+        >
+          {t('Search')}
         </div>
       </div>
       <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={onClose}>
@@ -204,7 +237,10 @@ function NotificationsTitlebar({ onClose }: { onClose: () => void }) {
     <div className="flex items-center justify-between gap-2 px-3 h-full w-full">
       <div className="flex items-center gap-2 min-w-0">
         <Bell className="shrink-0" />
-        <div className="text-lg font-semibold truncate" style={{ fontSize: `var(--title-font-size, 18px)` }}>
+        <div
+          className="text-lg font-semibold truncate"
+          style={{ fontSize: `var(--title-font-size, 18px)` }}
+        >
           {t('Notifications')}
         </div>
       </div>
@@ -221,7 +257,10 @@ function ProfileTitlebar({ pubkey, onClose }: { pubkey: string; onClose: () => v
     <div className="flex items-center justify-between gap-2 px-3 h-full w-full">
       <div className="flex items-center gap-2 min-w-0">
         <UserRound className="shrink-0" />
-        <div className="text-lg font-semibold truncate" style={{ fontSize: `var(--title-font-size, 18px)` }}>
+        <div
+          className="text-lg font-semibold truncate"
+          style={{ fontSize: `var(--title-font-size, 18px)` }}
+        >
           <Username userId={pubkey} />
         </div>
       </div>
@@ -238,7 +277,10 @@ function SearchTitlebar({ searchParams, onClose }: { searchParams: any; onClose:
     <div className="flex items-center justify-between gap-2 px-3 h-full w-full">
       <div className="flex items-center gap-2 min-w-0">
         <Search className="shrink-0" />
-        <div className="text-lg font-semibold truncate" style={{ fontSize: `var(--title-font-size, 18px)` }}>
+        <div
+          className="text-lg font-semibold truncate"
+          style={{ fontSize: `var(--title-font-size, 18px)` }}
+        >
           {displayText}
         </div>
       </div>
@@ -254,7 +296,10 @@ function RelayTitlebar({ url, onClose }: { url: string; onClose: () => void }) {
     <div className="flex items-center justify-between gap-2 px-3 h-full w-full">
       <div className="flex items-center gap-2 min-w-0">
         <Server className="shrink-0" />
-        <div className="text-lg font-semibold truncate" style={{ fontSize: `var(--title-font-size, 18px)` }}>
+        <div
+          className="text-lg font-semibold truncate"
+          style={{ fontSize: `var(--title-font-size, 18px)` }}
+        >
           {simplifyUrl(url)}
         </div>
       </div>
@@ -270,7 +315,10 @@ function RelaySetTitlebar({ name, onClose }: { name: string; onClose: () => void
     <div className="flex items-center justify-between gap-2 px-3 h-full w-full">
       <div className="flex items-center gap-2 min-w-0">
         <Server className="shrink-0" />
-        <div className="text-lg font-semibold truncate" style={{ fontSize: `var(--title-font-size, 18px)` }}>
+        <div
+          className="text-lg font-semibold truncate"
+          style={{ fontSize: `var(--title-font-size, 18px)` }}
+        >
           {name}
         </div>
       </div>
@@ -286,7 +334,10 @@ function CustomFeedTitlebar({ name, onClose }: { name: string; onClose: () => vo
     <div className="flex items-center justify-between gap-2 px-3 h-full w-full">
       <div className="flex items-center gap-2 min-w-0">
         <Search className="shrink-0" />
-        <div className="text-lg font-semibold truncate" style={{ fontSize: `var(--title-font-size, 18px)` }}>
+        <div
+          className="text-lg font-semibold truncate"
+          style={{ fontSize: `var(--title-font-size, 18px)` }}
+        >
           {name}
         </div>
       </div>
@@ -303,7 +354,10 @@ function BookmarksTitlebar({ onClose }: { onClose: () => void }) {
     <div className="flex items-center justify-between gap-2 px-3 h-full w-full">
       <div className="flex items-center gap-2 min-w-0">
         <Bookmark className="shrink-0" />
-        <div className="text-lg font-semibold truncate" style={{ fontSize: `var(--title-font-size, 18px)` }}>
+        <div
+          className="text-lg font-semibold truncate"
+          style={{ fontSize: `var(--title-font-size, 18px)` }}
+        >
           {t('Bookmarks')}
         </div>
       </div>
@@ -320,7 +374,10 @@ function HighlightsTitlebar({ onClose }: { onClose: () => void }) {
     <div className="flex items-center justify-between gap-2 px-3 h-full w-full">
       <div className="flex items-center gap-2 min-w-0">
         <Highlighter className="shrink-0" />
-        <div className="text-lg font-semibold truncate" style={{ fontSize: `var(--title-font-size, 18px)` }}>
+        <div
+          className="text-lg font-semibold truncate"
+          style={{ fontSize: `var(--title-font-size, 18px)` }}
+        >
           {t('Highlights')}
         </div>
       </div>
@@ -337,7 +394,10 @@ function ReadsTitlebar({ onClose }: { onClose: () => void }) {
     <div className="flex items-center justify-between gap-2 px-3 h-full w-full">
       <div className="flex items-center gap-2 min-w-0">
         <BookOpen className="shrink-0" />
-        <div className="text-lg font-semibold truncate" style={{ fontSize: `var(--title-font-size, 18px)` }}>
+        <div
+          className="text-lg font-semibold truncate"
+          style={{ fontSize: `var(--title-font-size, 18px)` }}
+        >
           {t('Reads')}
         </div>
       </div>
@@ -387,7 +447,10 @@ function ListsIndexTitlebar({ onClose }: { onClose: () => void }) {
     <div className="flex items-center justify-between gap-2 px-3 h-full w-full">
       <div className="flex items-center gap-2 min-w-0">
         <List className="shrink-0" />
-        <div className="text-lg font-semibold truncate" style={{ fontSize: `var(--title-font-size, 18px)` }}>
+        <div
+          className="text-lg font-semibold truncate"
+          style={{ fontSize: `var(--title-font-size, 18px)` }}
+        >
           {t('Lists')}
         </div>
       </div>
@@ -398,7 +461,15 @@ function ListsIndexTitlebar({ onClose }: { onClose: () => void }) {
   )
 }
 
-function ListTitlebar({ listId, title, onClose }: { listId: string; title?: string; onClose: () => void }) {
+function ListTitlebar({
+  listId,
+  title,
+  onClose
+}: {
+  listId: string
+  title?: string
+  onClose: () => void
+}) {
   const { lists } = useLists()
 
   // If no title is provided, try to get it from the list
@@ -415,7 +486,10 @@ function ListTitlebar({ listId, title, onClose }: { listId: string; title?: stri
     <div className="flex items-center justify-between gap-2 px-3 h-full w-full">
       <div className="flex items-center gap-2 min-w-0">
         <Users className="shrink-0" />
-        <div className="text-lg font-semibold truncate" style={{ fontSize: `var(--title-font-size, 18px)` }}>
+        <div
+          className="text-lg font-semibold truncate"
+          style={{ fontSize: `var(--title-font-size, 18px)` }}
+        >
           {displayTitle}
         </div>
       </div>
@@ -568,7 +642,9 @@ function ListContent({ listId }: { listId: string }) {
     )
   }
 
-  const validPubkeys = Array.isArray(list.pubkeys) ? list.pubkeys.filter((pk: string) => pk && typeof pk === 'string' && pk.length > 0) : []
+  const validPubkeys = Array.isArray(list.pubkeys)
+    ? list.pubkeys.filter((pk: string) => pk && typeof pk === 'string' && pk.length > 0)
+    : []
 
   if (validPubkeys.length === 0) {
     return (

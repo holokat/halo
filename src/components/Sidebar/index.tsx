@@ -19,28 +19,31 @@ import NotificationsButton from './NotificationButton'
 import PostButton from './PostButton'
 import ReadsButton from './ReadsButton'
 import ListsButton from './ListsButton'
-import SearchButton from './SearchButton'
 import LiveStreamsButton from './LiveStreamsButton'
 import MultiColumnToggle from './MultiColumnToggle'
 import { forwardRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
 // Wrapper component to add opacity effect to nav items
-const NavItemWrapper = forwardRef<HTMLDivElement, { children: React.ReactNode; dimmed?: boolean; active?: boolean }>(
-  ({ children, dimmed = false, active = false }, ref) => {
-    if (!dimmed) {
-      return <>{children}</>
-    }
-    return (
-      <div ref={ref} className={cn(
-        "transition-opacity duration-300",
-        active ? "opacity-100" : "opacity-40 hover:opacity-100"
-      )}>
-        {children}
-      </div>
-    )
+const NavItemWrapper = forwardRef<
+  HTMLDivElement,
+  { children: React.ReactNode; dimmed?: boolean; active?: boolean }
+>(({ children, dimmed = false, active = false }, ref) => {
+  if (!dimmed) {
+    return <>{children}</>
   }
-)
+  return (
+    <div
+      ref={ref}
+      className={cn(
+        'transition-opacity duration-300',
+        active ? 'opacity-100' : 'opacity-40 hover:opacity-100'
+      )}
+    >
+      {children}
+    </div>
+  )
+})
 NavItemWrapper.displayName = 'NavItemWrapper'
 
 export default function PrimaryPageSidebar() {
@@ -59,11 +62,11 @@ export default function PrimaryPageSidebar() {
 
   // Get visible menu items sorted by order
   const visibleMenuItems = menuItems
-    .filter(item => item.visible && item.canReorder)
+    .filter((item) => item.visible && item.canReorder)
     .sort((a, b) => a.order - b.order)
 
   // Get deck toggle visibility
-  const deckItem = menuItems.find(item => item.id === 'deck')
+  const deckItem = menuItems.find((item) => item.id === 'deck')
   const showDeck = deckItem?.visible ?? true
 
   // Map menu item IDs to components
@@ -74,7 +77,6 @@ export default function PrimaryPageSidebar() {
     explore: <RelaysButton />,
     notifications: <NotificationsButton />,
     messages: <MessagesButton />,
-    search: <SearchButton />,
     livestreams: <LiveStreamsButton />,
     post: <PostButton />
   }
@@ -83,10 +85,10 @@ export default function PrimaryPageSidebar() {
     <TooltipProvider>
       <nav
         className={cn(
-          "flex flex-col pb-2 pt-4 px-2 h-full shrink-0 transition-all duration-300",
-          compactSidebar ? "w-16" : "w-16 xl:w-52 xl:px-4",
-          isIslandMode && "bg-card/80 backdrop-blur-sm shadow-lg",
-          isIslandMode ? "justify-start" : "justify-between"
+          'flex flex-col pb-2 pt-4 px-2 h-full shrink-0 transition-all duration-300',
+          compactSidebar ? 'w-16' : 'w-16 xl:w-52 xl:px-4',
+          isIslandMode && 'bg-card/80 backdrop-blur-sm shadow-lg',
+          isIslandMode ? 'justify-start' : 'justify-between'
         )}
         aria-label="Primary navigation"
       >
@@ -116,7 +118,10 @@ export default function PrimaryPageSidebar() {
                 <Logo className={cn(compactSidebar ? 'hidden' : 'max-xl:hidden')} />
               ) : (
                 <div
-                  className={cn('font-bold max-xl:hidden cursor-pointer', compactSidebar && 'hidden')}
+                  className={cn(
+                    'font-bold max-xl:hidden cursor-pointer',
+                    compactSidebar && 'hidden'
+                  )}
                   style={{ fontSize: `${logoFontSize}px` }}
                   onClick={() => navigate('home')}
                 >
@@ -126,22 +131,13 @@ export default function PrimaryPageSidebar() {
             </>
           )}
         </div>
-        <div
-          className={cn(
-            'space-y-2',
-            isIslandMode && 'flex-1 flex flex-col justify-center'
-          )}
-        >
+        <div className={cn('space-y-2', isIslandMode && 'flex-1 flex flex-col justify-center')}>
           {visibleMenuItems.map((item) => {
             const component = menuItemComponents[item.id]
             if (!component) return null
 
             return (
-              <NavItemWrapper
-                key={item.id}
-                dimmed
-                active={current === item.id}
-              >
+              <NavItemWrapper key={item.id} dimmed active={current === item.id}>
                 {component}
               </NavItemWrapper>
             )

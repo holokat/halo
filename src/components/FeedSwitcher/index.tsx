@@ -1,11 +1,12 @@
 import { toRelaySettings } from '@/lib/link'
 import { isWebsocketUrl, normalizeUrl, simplifyUrl } from '@/lib/url'
-import { SecondaryPageLink } from '@/PageManager'
+import { SecondaryPageLink, usePrimaryPage } from '@/PageManager'
 import { useCustomFeeds } from '@/providers/CustomFeedsProvider'
 import { useFavoriteRelays } from '@/providers/FavoriteRelaysProvider'
 import { useFeed } from '@/providers/FeedProvider'
 import { useNostr } from '@/providers/NostrProvider'
 import {
+  BookOpen,
   BookmarkIcon,
   BarChart3,
   Hash,
@@ -30,9 +31,16 @@ function stripRelayProtocol(value: string) {
   return value.trim().replace(/^(?:wss?|https?):\/\//i, '')
 }
 
-export default function FeedSwitcher({ close }: { close?: () => void }) {
+export default function FeedSwitcher({
+  close,
+  showReadsOption = false
+}: {
+  close?: () => void
+  showReadsOption?: boolean
+}) {
   const { t } = useTranslation()
   const { pubkey } = useNostr()
+  const { navigate, current } = usePrimaryPage()
   const { relaySets, favoriteRelays, addFavoriteRelays, deleteFavoriteRelays } =
     useFavoriteRelays()
   const { feedInfo, switchFeed } = useFeed()
@@ -54,6 +62,23 @@ export default function FeedSwitcher({ close }: { close?: () => void }) {
               <UsersRound className="size-4" />
             </div>
             <div>{t('Following')}</div>
+          </div>
+        </FeedSwitcherItem>
+      )}
+
+      {showReadsOption && (
+        <FeedSwitcherItem
+          isActive={current === 'reads'}
+          onClick={() => {
+            navigate('reads')
+            close?.()
+          }}
+        >
+          <div className="flex gap-2 items-center">
+            <div className="flex justify-center items-center w-6 h-6 shrink-0">
+              <BookOpen className="size-4" />
+            </div>
+            <div>{t('Reads')}</div>
           </div>
         </FeedSwitcherItem>
       )}

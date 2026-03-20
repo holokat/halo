@@ -30,6 +30,11 @@ export type TLegacyZapPollResults = {
 }
 
 const MIN_POLL_OPTION_COUNT = 2
+const DEFAULT_POLL_DURATION_SECONDS = 24 * 60 * 60
+
+export function getDefaultPollEndsAt(nowSeconds = Math.floor(Date.now() / 1000)) {
+  return nowSeconds + DEFAULT_POLL_DURATION_SECONDS
+}
 
 export function createPollOption(option: Partial<TPollOption> = {}): TPollOption {
   const id = typeof option.id === 'string' && option.id.trim() ? option.id.trim() : randomString(9)
@@ -70,7 +75,7 @@ export function createDefaultPollCreateData(): TPollCreateData {
   return {
     isMultipleChoice: false,
     options: normalizePollOptions(),
-    endsAt: undefined,
+    endsAt: getDefaultPollEndsAt(),
     relays: []
   }
 }

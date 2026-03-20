@@ -14,6 +14,7 @@ import { nip19 } from 'nostr-tools'
 import {
   forwardRef,
   HTMLAttributes,
+  ReactNode,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -41,8 +42,23 @@ const SearchBar = forwardRef<
     setInput: (input: string) => void
     onSearch: (params: TSearchParams | null) => void
     currentSearchParams?: TSearchParams | null
+    className?: string
+    searchInputClassName?: string
+    trailingContent?: ReactNode
   }
->(({ input, setInput, onSearch, currentSearchParams }, ref) => {
+>(
+  (
+    {
+      input,
+      setInput,
+      onSearch,
+      currentSearchParams,
+      className,
+      searchInputClassName,
+      trailingContent
+    },
+    ref
+  ) => {
   const { t } = useTranslation()
   const { push } = useSecondaryPage()
   const { isSmallScreen } = useScreenSize()
@@ -319,7 +335,7 @@ const SearchBar = forwardRef<
 
   return (
     <>
-      <div className="relative flex gap-1 items-center h-full w-full">
+      <div className={cn('relative flex gap-1 items-center h-full w-full', className)}>
         {displayList && list && (
           <>
             <div
@@ -340,6 +356,7 @@ const SearchBar = forwardRef<
           ref={searchInputRef}
           className={cn(
             'bg-surface-background shadow-inner h-full border-none flex-1',
+            searchInputClassName,
             searching ? 'z-50' : ''
           )}
           placeholder={t('People, keywords, or relays')}
@@ -355,6 +372,7 @@ const SearchBar = forwardRef<
             <span className="hidden sm:inline">{t('Save feed')}</span>
           </Button>
         )}
+        {trailingContent}
       </div>
 
       <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>

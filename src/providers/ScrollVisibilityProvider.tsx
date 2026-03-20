@@ -6,8 +6,12 @@ type TScrollVisibilityContext = {
 
 const ScrollVisibilityContext = createContext<TScrollVisibilityContext | undefined>(undefined)
 
+export const useOptionalScrollVisibility = () => {
+  return useContext(ScrollVisibilityContext)
+}
+
 export const useScrollVisibility = () => {
-  const context = useContext(ScrollVisibilityContext)
+  const context = useOptionalScrollVisibility()
   if (!context) {
     throw new Error('useScrollVisibility must be used within a ScrollVisibilityProvider')
   }

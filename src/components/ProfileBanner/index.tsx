@@ -10,12 +10,14 @@ export default function ProfileBanner({
   banner,
   className,
   onClick,
+  borderRadius = '0px',
   isLCP = false
 }: {
   pubkey: string
   banner?: string
   className?: string
   onClick?: (event: React.MouseEvent) => void
+  borderRadius?: string
   /** Set to true if this banner is the Largest Contentful Paint element (e.g., on profile pages) */
   isLCP?: boolean
 }) {
@@ -42,7 +44,7 @@ export default function ProfileBanner({
       image={{ url: bannerUrl, pubkey }}
       alt={`${pubkey} banner`}
       className={cn('rounded-none', className)}
-      style={{ borderRadius: '0px' }}
+      style={{ borderRadius }}
       onError={() => setBannerUrl(defaultBanner)}
       onClick={onClick}
       loading={isLCP ? 'eager' : 'lazy'}

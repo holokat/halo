@@ -7,10 +7,9 @@ import {
   Home,
   BookOpen,
   List as ListIcon,
-  Compass,
+  Search,
   Bell,
   MessageCircle,
-  Search,
   PencilLine,
   Columns,
   Radio
@@ -23,10 +22,9 @@ const MENU_ITEM_ICONS: Record<TMenuItem, any> = {
   home: Home,
   reads: BookOpen,
   lists: ListIcon,
-  explore: Compass,
+  explore: Search,
   notifications: Bell,
   messages: MessageCircle,
-  search: Search,
   livestreams: Radio,
   post: PencilLine,
   deck: Columns
@@ -37,10 +35,9 @@ const getMenuItemLabel = (t: any, item: TMenuItem): string => {
     home: t('Home'),
     reads: t('Reads'),
     lists: t('Lists'),
-    explore: t('Explore'),
+    explore: t('Search'),
     notifications: t('Notifications'),
     messages: t('Messages'),
-    search: t('Search'),
     livestreams: t('Live Streams'),
     post: t('Post'),
     deck: t('Multi-Column')
@@ -56,11 +53,11 @@ export default function MenuItemsSettings() {
 
   // Get reorderable items sorted by order
   const reorderableItems = menuItems
-    .filter(item => item.canReorder)
+    .filter((item) => item.canReorder)
     .sort((a, b) => a.order - b.order)
 
   // Get non-reorderable items (like deck toggle)
-  const nonReorderableItems = menuItems.filter(item => !item.canReorder)
+  const nonReorderableItems = menuItems.filter((item) => !item.canReorder)
 
   const handleDragStart = (e: React.DragEvent, itemId: TMenuItem) => {
     setDraggedItem(itemId)
@@ -85,15 +82,15 @@ export default function MenuItemsSettings() {
       return
     }
 
-    const draggedIndex = reorderableItems.findIndex(item => item.id === draggedItem)
-    const targetIndex = reorderableItems.findIndex(item => item.id === targetItemId)
+    const draggedIndex = reorderableItems.findIndex((item) => item.id === draggedItem)
+    const targetIndex = reorderableItems.findIndex((item) => item.id === targetItemId)
 
     const newOrder = [...reorderableItems]
     const [removed] = newOrder.splice(draggedIndex, 1)
     newOrder.splice(targetIndex, 0, removed)
 
     // Update the order of all items
-    reorderMenuItems(newOrder.map(item => item.id))
+    reorderMenuItems(newOrder.map((item) => item.id))
 
     setDraggedItem(null)
     setDragOverItem(null)
@@ -112,18 +109,12 @@ export default function MenuItemsSettings() {
     <div className="space-y-4 px-4">
       <div className="flex items-center justify-between">
         <div>
-          <Label className="text-base font-normal">
-            {t('Navigation Menu Items')}
-          </Label>
+          <Label className="text-base font-normal">{t('Navigation Menu Items')}</Label>
           <p className="text-sm text-muted-foreground mt-1">
             {t('Drag to reorder, toggle to show/hide menu items')}
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={resetToDefaults}
-        >
+        <Button variant="outline" size="sm" onClick={resetToDefaults}>
           {t('Reset to Default')}
         </Button>
       </div>
@@ -166,9 +157,7 @@ export default function MenuItemsSettings() {
                   onClick={(e) => e.stopPropagation()}
                 />
               ) : (
-                <div className="text-xs text-muted-foreground">
-                  {t('Always visible')}
-                </div>
+                <div className="text-xs text-muted-foreground">{t('Always visible')}</div>
               )}
             </div>
           )
@@ -197,9 +186,7 @@ export default function MenuItemsSettings() {
                   onCheckedChange={(checked) => handleToggleVisibility(item.id, checked)}
                 />
               ) : (
-                <div className="text-xs text-muted-foreground">
-                  {t('Always visible')}
-                </div>
+                <div className="text-xs text-muted-foreground">{t('Always visible')}</div>
               )}
             </div>
           )

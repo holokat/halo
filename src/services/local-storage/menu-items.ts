@@ -33,12 +33,14 @@ function getInsertionIndex(menuItemIds: TMenuItemConfig['id'][], targetId: TMenu
   return menuItemIds.length
 }
 
-export function mergeMenuItemsWithDefaults(
-  storedMenuItems: TMenuItemConfig[]
-): TMenuItemConfig[] {
-  const mergedMenuItems = sortMenuItems(storedMenuItems)
+export function mergeMenuItemsWithDefaults(storedMenuItems: TMenuItemConfig[]): TMenuItemConfig[] {
+  const mergedMenuItems = sortMenuItems(
+    storedMenuItems.filter((item) => DEFAULT_MENU_ITEM_IDS.includes(item.id))
+  )
   const storedIds = mergedMenuItems.map((item) => item.id)
-  const missingItems = DEFAULT_MENU_ITEMS.filter((defaultItem) => !storedIds.includes(defaultItem.id))
+  const missingItems = DEFAULT_MENU_ITEMS.filter(
+    (defaultItem) => !storedIds.includes(defaultItem.id)
+  )
 
   if (missingItems.length === 0) {
     return mergedMenuItems

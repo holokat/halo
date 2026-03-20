@@ -5,12 +5,7 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
-import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerTitle
-} from '@/components/ui/drawer'
+import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from '@/components/ui/drawer'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import postEditor from '@/services/post-editor.service'
@@ -46,17 +41,28 @@ export default function PostEditor({
         parentEvent={parentEvent}
         close={() => setOpen(false)}
         openFrom={openFrom}
+        isMobileComposer={isSmallScreen}
         isProtectedEvent={isProtectedEvent}
         additionalRelayUrls={additionalRelayUrls}
+        setIsProtectedEvent={setIsProtectedEvent}
+        setAdditionalRelayUrls={setAdditionalRelayUrls}
       />
     )
-  }, [defaultContent, initialMentionIds, parentEvent, openFrom, isProtectedEvent, additionalRelayUrls])
+  }, [
+    defaultContent,
+    initialMentionIds,
+    parentEvent,
+    openFrom,
+    isSmallScreen,
+    isProtectedEvent,
+    additionalRelayUrls
+  ])
 
   if (isSmallScreen) {
     return (
       <Drawer open={open} onOpenChange={setOpen} shouldScaleBackground={false}>
         <DrawerContent
-          className="bg-card flex flex-col"
+          className="bg-background flex flex-col p-0"
           fullHeight
           onEscapeKeyDown={(e) => {
             if (postEditor.isSuggestionPopupOpen) {
@@ -65,22 +71,11 @@ export default function PostEditor({
             }
           }}
         >
-          <div className="flex-shrink-0 px-4 pt-4 pb-2 border-b">
-            <DrawerTitle id="post-editor-title" className="text-start">
-              <Title
-                parentEvent={parentEvent}
-                openFrom={openFrom}
-                setIsProtectedEvent={setIsProtectedEvent}
-                setAdditionalRelayUrls={setAdditionalRelayUrls}
-              />
-            </DrawerTitle>
-            <DrawerDescription className="hidden" />
-          </div>
-          <ScrollArea className="flex-1 w-full">
-            <div className="space-y-4 px-4 py-4 pb-8">
-              {content}
-            </div>
-          </ScrollArea>
+          <DrawerTitle id="post-editor-title" className="sr-only">
+            Post editor
+          </DrawerTitle>
+          <DrawerDescription className="hidden" />
+          {content}
         </DrawerContent>
       </Drawer>
     )

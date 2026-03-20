@@ -38,7 +38,7 @@ export default function InviteWelcomeFlow({
   inviterPubkey
 }: InviteWelcomeFlowProps) {
   const { t } = useTranslation()
-  const { pubkey: currentPubkey, publish, updateFollowListEvent } = useNostr()
+  const { publish, updateFollowListEvent } = useNostr()
   const { profile: inviterProfile, isFetching: fetchingProfile } = useFetchProfile(inviterPubkey)
   const { followings: inviterFollowings } = useFetchFollowings(inviterPubkey)
   const { switchFeed } = useFeed()
@@ -62,57 +62,49 @@ export default function InviteWelcomeFlow({
     setCurrentStep('profile')
   }
 
-  const handleProfileComplete = async (
+  const handleProfileComplete = (
     keys: { nsec: string; npub: string },
     profile: { displayName: string; username: string }
   ) => {
     setGeneratedKeys(keys)
     setProfileData(profile)
+    setCurrentStep('keys')
 
-    // The account is already logged in from SignupProfile
-    // Now follow the inviter and their follows
+    // The account is already logged in from SignupProfile.
+    // Follow/setup can happen in background so the key backup step appears immediately.
     setIsProcessing(true)
-    try {
-      const pubkeysToFollow: string[] = [inviterPubkey]
-      if (followInviterFollows && filteredInviterFollowings.length > 0) {
-        pubkeysToFollow.push(...filteredInviterFollowings)
+    void (async () => {
+      try {
+        const pubkeysToFollow: string[] = [inviterPubkey]
+        if (followInviterFollows && filteredInviterFollowings.length > 0) {
+          pubkeysToFollow.push(...filteredInviterFollowings)
+        }
+
+        const pTags = pubkeysToFollow.map((pk) => ['p', pk] as [string, string])
+        const followListDraftEvent = createFollowListDraftEvent(pTags)
+        const newFollowListEvent = await publish(followListDraftEvent)
+        await updateFollowListEvent(newFollowListEvent)
+
+        const decoded = decode(keys.nsec)
+        const hexPubkey = getPublicKey(decoded.data as Uint8Array)
+        await switchFeed('following', { pubkey: hexPubkey })
+
+        toast.success(
+          followInviterFollows && filteredInviterFollowings.length > 0
+            ? t('Welcome! You are now following {{count}} people', {
+                count: pubkeysToFollow.length
+              })
+            : t('Welcome! You are now following {{name}}', {
+                name: inviterProfile?.original_username || inviterProfile?.username || 'your inviter'
+              })
+        )
+      } catch (error) {
+        console.error('Failed to follow users:', error)
+        toast.error(t('Failed to follow users. Please try again.'))
+      } finally {
+        setIsProcessing(false)
       }
-
-      // Create p tags for all pubkeys to follow
-      const pTags = pubkeysToFollow.map(pk => ['p', pk] as [string, string])
-
-      // Publish the follow list event directly
-      const followListDraftEvent = createFollowListDraftEvent(pTags)
-      const newFollowListEvent = await publish(followListDraftEvent)
-      await updateFollowListEvent(newFollowListEvent)
-
-      // Get hex pubkey from nsec for feed switching
-      const decoded = decode(keys.nsec)
-      const hexPubkey = getPublicKey(decoded.data as Uint8Array)
-
-      // Switch to Following feed
-      await switchFeed('following', { pubkey: hexPubkey })
-
-      toast.success(
-        followInviterFollows && filteredInviterFollowings.length > 0
-          ? t('Welcome! You are now following {{count}} people', {
-              count: pubkeysToFollow.length
-            })
-          : t('Welcome! You are now following {{name}}', {
-              name: inviterProfile?.original_username || inviterProfile?.username || 'your inviter'
-            })
-      )
-
-      // Move to keys display step
-      setCurrentStep('keys')
-    } catch (error) {
-      console.error('Failed to follow users:', error)
-      toast.error(t('Failed to follow users. Please try again.'))
-      // Still move to keys step even if follow fails
-      setCurrentStep('keys')
-    } finally {
-      setIsProcessing(false)
-    }
+    })()
   }
 
   const handleKeysComplete = () => {

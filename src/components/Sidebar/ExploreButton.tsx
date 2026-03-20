@@ -1,5 +1,5 @@
 import { usePrimaryPage } from '@/PageManager'
-import { Compass } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import SidebarItem from './SidebarItem'
 
@@ -9,11 +9,11 @@ export default function RelaysButton() {
 
   return (
     <SidebarItem
-      title={t('Explore')}
+      title={t('Search')}
       onClick={() => navigate('explore')}
       active={current === 'explore'}
     >
-      <Compass strokeWidth={1.3} />
+      <Search strokeWidth={1.3} />
     </SidebarItem>
   )
 }

@@ -1,18 +1,19 @@
 import { cn } from '@/lib/utils'
 import { Button } from '../ui/button'
-import { MouseEventHandler } from 'react'
+import { ComponentProps, MouseEventHandler } from 'react'
 
 export default function BottomNavigationBarItem({
   children,
   active = false,
   onClick,
-  className
+  className,
+  ...props
 }: {
   children: React.ReactNode
   active?: boolean
   onClick: MouseEventHandler
   className?: string
-}) {
+} & Omit<ComponentProps<typeof Button>, 'children' | 'onClick' | 'className'>) {
   return (
     <Button
       className={cn(
@@ -22,6 +23,7 @@ export default function BottomNavigationBarItem({
       )}
       variant="ghost"
       onClick={onClick}
+      {...props}
     >
       {children}
     </Button>

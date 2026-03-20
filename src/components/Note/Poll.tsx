@@ -246,6 +246,14 @@ export default function Poll({ event, className }: { event: Event; className?: s
               {statusBadge.label}
             </Badge>
           )}
+          {isLegacyZapPoll && (
+            <Badge
+              variant="outline"
+              className="rounded-full px-2 py-0.5 text-[11px] border-orange-500/30 bg-orange-500/15 text-orange-700 dark:text-orange-300"
+            >
+              {t('Zap Poll', { defaultValue: 'Zap Poll' })}
+            </Badge>
+          )}
           {poll.pollType === POLL_TYPE.MULTIPLE_CHOICE && (
             <Badge variant="outline" className="rounded-full px-2 py-0.5 text-[11px] text-muted-foreground">
               {t('Multiple choice', { defaultValue: 'Multiple choice' })}

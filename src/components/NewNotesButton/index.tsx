@@ -2,12 +2,9 @@ import { Button } from '@/components/ui/button'
 import { SimpleUserAvatar } from '@/components/UserAvatar'
 import { cn } from '@/lib/utils'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
-import { hasBackgroundAudioAtom } from '@/services/media-manager.service'
-import { useAtomValue } from 'jotai'
 import { ArrowUp } from 'lucide-react'
 import { Event } from 'nostr-tools'
 import { useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
 
 export default function NewNotesButton({
   newEvents = [],
@@ -16,14 +13,8 @@ export default function NewNotesButton({
   newEvents?: Event[]
   onClick?: () => void
 }) {
-  const { t } = useTranslation()
   const { isSmallScreen } = useScreenSize()
-  const hasBackgroundAudio = useAtomValue(hasBackgroundAudioAtom)
-  const newNotesCount = newEvents.length > 99 ? '99+' : newEvents.length
-  const newNotesLabel = t(['Show {{n}} new notes', 'Show n new notes'], {
-    n: newNotesCount,
-    defaultValue: 'Show {{n}} new notes'
-  })
+  const newNotesLabel = 'posted'
   const pubkeys = useMemo(() => {
     const arr: string[] = []
     for (const event of newEvents) {
@@ -44,9 +35,9 @@ export default function NewNotesButton({
             isSmallScreen ? 'fixed' : 'absolute'
           )}
           style={{
-            bottom: isSmallScreen
-              ? `calc(${hasBackgroundAudio ? 7.35 : 4}rem + env(safe-area-inset-bottom))`
-              : '1rem'
+            top: isSmallScreen
+              ? 'calc(3.5rem + env(safe-area-inset-top))'
+              : '3.5rem'
           }}
           role="status"
           aria-live="polite"
