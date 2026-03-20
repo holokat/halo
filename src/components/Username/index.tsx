@@ -1,7 +1,7 @@
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card'
-import { Skeleton } from '@/components/ui/skeleton'
 import { useFetchProfile } from '@/hooks'
 import { toProfile } from '@/lib/link'
+import { formatPubkey, isValidPubkey, userIdToPubkey } from '@/lib/pubkey'
 import { cn } from '@/lib/utils'
 import { SecondaryPageLink } from '@/PageManager'
 import ProfileCard from '../ProfileCard'
@@ -26,23 +26,29 @@ export default function Username({
   headingLevel?: 1 | 2 | 3 | 4 | 5 | 6
 }) {
   const { profile } = useFetchProfile(userId)
-  if (!profile && !withoutSkeleton) {
+  if (!profile && withoutSkeleton) return null
+
+  const rawPubkey = profile?.pubkey ?? userIdToPubkey(userId)
+  const hasValidPubkey = isValidPubkey(rawPubkey)
+  const pubkey = hasValidPubkey ? rawPubkey : undefined
+  const username = profile?.username ?? formatPubkey(rawPubkey)
+  const fallbackClassName = !profile ? 'text-muted-foreground' : ''
+  const HeadingTag = asHeading ? (`h${headingLevel}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6') : 'div'
+
+  if (!pubkey) {
     return (
-      <div className="py-1">
-        <Skeleton className={cn('w-16', skeletonClassName)} />
-      </div>
+      <HeadingTag className={cn(className, fallbackClassName)}>
+        {showAt && '@'}
+        {username}
+      </HeadingTag>
     )
   }
-  if (!profile) return null
-
-  const { username, pubkey } = profile
-  const HeadingTag = asHeading ? (`h${headingLevel}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6') : 'div'
 
   if (noLink) {
     return (
       <HoverCard>
         <HoverCardTrigger asChild>
-          <HeadingTag className={className}>
+          <HeadingTag className={cn(className, fallbackClassName)}>
             <span className="truncate">
               {showAt && '@'}
               {username}
@@ -59,7 +65,7 @@ export default function Username({
   return (
     <HoverCard>
       <HoverCardTrigger asChild>
-        <HeadingTag className={className}>
+        <HeadingTag className={cn(className, fallbackClassName)}>
           <SecondaryPageLink
             to={toProfile(pubkey)}
             className="truncate hover:underline"
@@ -91,16 +97,10 @@ export function SimpleUsername({
   withoutSkeleton?: boolean
 }) {
   const { profile } = useFetchProfile(userId)
-  if (!profile && !withoutSkeleton) {
-    return (
-      <div className="py-1">
-        <Skeleton className={cn('w-16', skeletonClassName)} />
-      </div>
-    )
-  }
-  if (!profile) return null
+  if (!profile && withoutSkeleton) return null
 
-  const { username } = profile
+  const rawPubkey = profile?.pubkey ?? userIdToPubkey(userId)
+  const username = profile?.username ?? formatPubkey(rawPubkey)
 
   return (
     <div className={className}>

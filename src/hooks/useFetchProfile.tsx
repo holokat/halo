@@ -2,7 +2,7 @@ import { userIdToPubkey } from '@/lib/pubkey'
 import { useNostr } from '@/providers/NostrProvider'
 import client from '@/services/client.service'
 import { TProfile } from '@/types'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 const inFlightProfileFetchMap = new Map<string, Promise<TProfile | undefined>>()
 
@@ -24,41 +24,54 @@ function getOrCreateInFlightProfileFetch(pubkey: string, skipCache: boolean) {
 
 export function useFetchProfile(id?: string, skipCache = false) {
   const { profile: currentAccountProfile } = useNostr()
-  const [isFetching, setIsFetching] = useState(true)
+  const resolvedPubkey = useMemo(() => (id ? userIdToPubkey(id) : null), [id])
+  const getImmediateProfile = () => {
+    if (!resolvedPubkey) {
+      return null
+    }
+
+    if (currentAccountProfile && currentAccountProfile.pubkey === resolvedPubkey) {
+      return currentAccountProfile
+    }
+
+    if (!skipCache) {
+      return client.getCachedProfile(resolvedPubkey)
+    }
+
+    return null
+  }
+  const [profile, setProfile] = useState<TProfile | null>(() => getImmediateProfile())
+  const [isFetching, setIsFetching] = useState(() => Boolean(resolvedPubkey && !getImmediateProfile()))
   const [error, setError] = useState<Error | null>(null)
-  const [profile, setProfile] = useState<TProfile | null>(null)
   const [pubkey, setPubkey] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
-    setProfile(null)
-    setPubkey(null)
     setError(null)
+
     const fetchProfile = async () => {
-      setIsFetching(true)
       try {
-        if (!id) {
+        if (!resolvedPubkey) {
           if (cancelled) return
+          setProfile(null)
+          setPubkey(null)
           setIsFetching(false)
           return
         }
 
-        const pubkey = userIdToPubkey(id)
+        const immediateProfile = getImmediateProfile()
         if (cancelled) return
-        setPubkey(pubkey)
-
-        // Check in-memory cache first for instant access
-        if (!skipCache) {
-          const cachedProfile = client.getCachedProfile(pubkey)
-          if (cachedProfile) {
-            if (cancelled) return
-            setProfile(cachedProfile)
-            setIsFetching(false)
-            return
-          }
+        setPubkey(resolvedPubkey)
+        if (immediateProfile) {
+          setProfile(immediateProfile)
+          setIsFetching(false)
+          return
         }
 
-        const profile = await getOrCreateInFlightProfileFetch(pubkey, skipCache)
+        setProfile(null)
+        setIsFetching(true)
+
+        const profile = await getOrCreateInFlightProfileFetch(resolvedPubkey, skipCache)
         if (cancelled) return
         if (profile) {
           setProfile(profile)
@@ -78,7 +91,7 @@ export function useFetchProfile(id?: string, skipCache = false) {
     return () => {
       cancelled = true
     }
-  }, [id, skipCache])
+  }, [resolvedPubkey, skipCache, currentAccountProfile])
 
   useEffect(() => {
     if (currentAccountProfile && pubkey === currentAccountProfile.pubkey) {

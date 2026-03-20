@@ -1,9 +1,8 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card'
-import { Skeleton } from '@/components/ui/skeleton'
 import { useFetchProfile } from '@/hooks'
 import { toProfile } from '@/lib/link'
-import { generateImageByPubkey } from '@/lib/pubkey'
+import { generateImageByPubkey, isValidPubkey, userIdToPubkey } from '@/lib/pubkey'
 import { cn } from '@/lib/utils'
 import { SecondaryPageLink } from '@/PageManager'
 import { useMemo } from 'react'
@@ -60,24 +59,17 @@ export default function UserAvatar({
   const { textOnlyMode } = useTextOnlyMode()
   const { disableAvatarAnimations } = useDisableAvatarAnimations()
   const { profile } = useFetchProfile(userId)
-  const defaultAvatar = useMemo(
-    () => (profile?.pubkey ? generateImageByPubkey(profile.pubkey) : ''),
-    [profile]
-  )
+  const rawPubkey = useMemo(() => (profile?.pubkey ?? userIdToPubkey(userId)), [profile?.pubkey, userId])
+  const hasValidPubkey = isValidPubkey(rawPubkey)
+  const pubkey = hasValidPubkey ? rawPubkey : ''.padStart(64, '0')
+  const defaultAvatar = useMemo(() => generateImageByPubkey(pubkey), [pubkey])
 
   // In text-only mode, don't render avatar at all
   if (textOnlyMode) {
     return null
   }
 
-  if (!profile) {
-    return (
-      <Skeleton className={cn('shrink-0', UserAvatarSizeCnMap[size], 'rounded-full', className)} />
-    )
-  }
-  const { avatar, pubkey } = profile
-
-  const effectiveAvatar = getStaticAvatar(avatar, disableAvatarAnimations)
+  const effectiveAvatar = getStaticAvatar(profile?.avatar, disableAvatarAnimations) ?? defaultAvatar
 
   const avatarElement = (
     <Avatar className={cn('shrink-0', UserAvatarSizeCnMap[size], className)}>
@@ -89,6 +81,10 @@ export default function UserAvatar({
   )
 
   if (noLink) {
+    if (!hasValidPubkey) {
+      return avatarElement
+    }
+
     return (
       <HoverCard>
         <HoverCardTrigger>
@@ -99,6 +95,10 @@ export default function UserAvatar({
         </HoverCardContent>
       </HoverCard>
     )
+  }
+
+  if (!hasValidPubkey) {
+    return avatarElement
   }
 
   return (
@@ -129,24 +129,17 @@ export function SimpleUserAvatar({
   const { textOnlyMode } = useTextOnlyMode()
   const { disableAvatarAnimations } = useDisableAvatarAnimations()
   const { profile } = useFetchProfile(userId)
-  const defaultAvatar = useMemo(
-    () => (profile?.pubkey ? generateImageByPubkey(profile.pubkey) : ''),
-    [profile]
-  )
+  const rawPubkey = useMemo(() => (profile?.pubkey ?? userIdToPubkey(userId)), [profile?.pubkey, userId])
+  const hasValidPubkey = isValidPubkey(rawPubkey)
+  const pubkey = hasValidPubkey ? rawPubkey : ''.padStart(64, '0')
+  const defaultAvatar = useMemo(() => generateImageByPubkey(pubkey), [pubkey])
 
   // In text-only mode, don't render avatar at all
   if (textOnlyMode) {
     return null
   }
 
-  if (!profile) {
-    return (
-      <Skeleton className={cn('shrink-0', UserAvatarSizeCnMap[size], 'rounded-full', className)} />
-    )
-  }
-  const { avatar, pubkey } = profile
-
-  const effectiveAvatar = getStaticAvatar(avatar, disableAvatarAnimations)
+  const effectiveAvatar = getStaticAvatar(profile?.avatar, disableAvatarAnimations) ?? defaultAvatar
 
   return (
     <Avatar className={cn('shrink-0', UserAvatarSizeCnMap[size], className)} onClick={onClick}>

@@ -60,7 +60,13 @@ export default function PostEditor({
 
   if (isSmallScreen) {
     return (
-      <Drawer open={open} onOpenChange={setOpen} shouldScaleBackground={false}>
+      <Drawer
+        open={open}
+        onOpenChange={setOpen}
+        shouldScaleBackground={false}
+        // Keep the composer header stable when the virtual keyboard opens.
+        repositionInputs={false}
+      >
         <DrawerContent
           className="bg-background flex flex-col p-0"
           fullHeight

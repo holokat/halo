@@ -13,7 +13,15 @@ import Text from '@tiptap/extension-text'
 import { TextSelection } from '@tiptap/pm/state'
 import { EditorContent, useEditor } from '@tiptap/react'
 import { Event } from 'nostr-tools'
-import { Dispatch, forwardRef, SetStateAction, useImperativeHandle, useMemo, useState } from 'react'
+import {
+  Dispatch,
+  forwardRef,
+  SetStateAction,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useState
+} from 'react'
 import { useTranslation } from 'react-i18next'
 import { ClipboardAndDropHandler } from './ClipboardAndDropHandler'
 import Emoji from './Emoji'
@@ -223,6 +231,20 @@ const PostTextarea = forwardRef<
       }
       return content
     }, [text, images])
+
+    useEffect(() => {
+      if (!editor || !isMobileComposer) {
+        return
+      }
+
+      const timerId = window.setTimeout(() => {
+        if (!editor.isDestroyed) {
+          editor.chain().focus('end').run()
+        }
+      }, 80)
+
+      return () => window.clearTimeout(timerId)
+    }, [editor, isMobileComposer])
 
     if (!editor) {
       return null
