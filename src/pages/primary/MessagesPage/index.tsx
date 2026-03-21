@@ -1,4 +1,5 @@
 import AlertCard from '@/components/AlertCard'
+import AudioPlayer from '@/components/AudioPlayer'
 import Content from '@/components/Content'
 import Emoji from '@/components/Emoji'
 import MobileTopNavMenuButton from '@/components/MobileTopNavMenuButton'
@@ -1679,7 +1680,7 @@ function MessageBubble({
               className="mt-1 max-h-80 w-full rounded-lg bg-black/20"
             />
           ) : isFileMessage && encryptedFileType?.startsWith('audio/') && renderableContent ? (
-            <audio src={renderableContent} controls className="mt-1 w-full" />
+            <AudioPlayer src={renderableContent} className="mt-1" />
           ) : isFileMessage && renderableContent ? (
             <a
               href={renderableContent}

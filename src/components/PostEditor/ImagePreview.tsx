@@ -14,6 +14,7 @@ import { ImageAttachment } from '@/services/post-editor-cache.service'
 import { Info, Pencil, X } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import AudioPlayer from '../AudioPlayer'
 
 // Helper function to detect if a URL is a video
 function isVideoUrl(url: string): boolean {
@@ -227,7 +228,7 @@ export default function ImagePreview({
                   />
                 ) : isAudioUrl(images[editingIndex].url) ? (
                   <div className="w-full p-8 flex items-center justify-center bg-muted text-muted-foreground">
-                    <audio src={images[editingIndex].url} controls className="w-full" />
+                    <AudioPlayer src={images[editingIndex].url} className="w-full" />
                   </div>
                 ) : (
                   <img
