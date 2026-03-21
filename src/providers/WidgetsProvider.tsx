@@ -285,6 +285,15 @@ export function WidgetsProvider({ children }: { children: ReactNode }) {
 
   const setTrendingNotesHeight = (height: TTrendingNotesHeight) => {
     setTrendingNotesHeightState(height)
+    setWidgetHeightsState((prev) => {
+      if (!('trending-notes' in prev)) {
+        return prev
+      }
+
+      const next = { ...prev }
+      delete next['trending-notes']
+      return next
+    })
   }
 
   const setBitcoinTickerAlignment = (alignment: TBitcoinTickerAlignment) => {

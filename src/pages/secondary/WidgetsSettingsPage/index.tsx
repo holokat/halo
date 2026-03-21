@@ -247,9 +247,6 @@ function SortableWidgetCard({
               </Label>
             </div>
           </RadioGroup>
-          <p className="text-xs text-muted-foreground mt-3">
-            {t('Powered by nostr.band API. Issues may be due to API availability.')}
-          </p>
         </div>
       )}
 

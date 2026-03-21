@@ -35,14 +35,16 @@ export default function TrendingNotesWidget() {
   const otherWidgets = enabledWidgets.filter(id => id !== 'trending-notes')
   const isOnlyWidget = otherWidgets.length === 0
 
-  // Use configured height, with special handling for 'remaining' to force full height
-  const heightClass = isOnlyWidget ? 'h-full' : HEIGHT_CLASSES[trendingNotesHeight]
+  // Keep short mode truly compact even when this is the only widget.
+  // Preserve the old full-height behavior for other presets when it's alone.
+  const forceFullHeight = isOnlyWidget && trendingNotesHeight !== 'short'
+  const heightClass = forceFullHeight ? 'h-full' : HEIGHT_CLASSES[trendingNotesHeight]
 
   // Get the widget name from AVAILABLE_WIDGETS
   const widgetName = AVAILABLE_WIDGETS.find(w => w.id === 'trending-notes')?.name || 'Trending Notes'
 
-  // Use full height for container if 'remaining' is selected or it's the only widget
-  const useFullHeight = trendingNotesHeight === 'remaining' || isOnlyWidget
+  // Use full height for container if 'remaining' is selected or when forced above.
+  const useFullHeight = trendingNotesHeight === 'remaining' || forceFullHeight
   const isCollapsed = !hideWidgetTitles && isWidgetCollapsed('trending-notes')
 
   const handleTitleClick = () => {
@@ -50,7 +52,7 @@ export default function TrendingNotesWidget() {
   }
 
   return (
-    <WidgetContainer className={useFullHeight && !isCollapsed ? 'h-full flex flex-col' : 'flex flex-col'}>
+    <WidgetContainer className={useFullHeight && !isCollapsed ? 'h-full min-h-0 flex flex-col' : 'min-h-0 flex flex-col'}>
       <WidgetHeader
         widgetId="trending-notes"
         title={widgetName}
@@ -80,7 +82,7 @@ export default function TrendingNotesWidget() {
           minHeight={180}
           maxHeight={900}
           disabled={useFullHeight}
-          className={`${heightClass} overflow-y-auto overflow-x-hidden overscroll-y-contain touch-pan-y scrollbar-hide px-4 ${hideWidgetTitles ? 'pt-4' : ''} pb-4 ${useFullHeight ? 'flex-1 min-h-0' : ''}`}
+          className={`${heightClass} min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-contain touch-pan-y scrollbar-thin px-4 ${hideWidgetTitles ? 'pt-4' : ''} pb-4 ${useFullHeight ? 'flex-1' : ''}`}
         >
           <CompactTrendingNotes />
         </ResizableWidgetBody>
