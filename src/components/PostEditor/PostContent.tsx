@@ -53,6 +53,10 @@ import ComposerHelpDialog from './ComposerHelpDialog'
 import GifIcon from '@/components/icons/GifIcon'
 
 const NSEC_CANDIDATE_REGEX = /(?:nostr:)?nsec1[023456789acdefghjklmnpqrstuvwxyz]{20,}/gi
+const NSEC_PREFIX = 'nsec1'
+const MIN_PARTIAL_NSEC_REMOVAL = 10
+const FULL_NSEC_LENGTH = nip19.nsecEncode(new Uint8Array(32)).length
+const MAX_TRUNCATED_NSEC_LENGTH = FULL_NSEC_LENGTH - MIN_PARTIAL_NSEC_REMOVAL
 
 function extractPrivateKeyCandidates(content: string) {
   const matches = content.match(NSEC_CANDIDATE_REGEX) ?? []
@@ -60,6 +64,12 @@ function extractPrivateKeyCandidates(content: string) {
 
   matches.forEach((match) => {
     const normalized = match.toLowerCase().replace(/^nostr:/, '')
+
+    if (normalized.startsWith(NSEC_PREFIX) && normalized.length > MAX_TRUNCATED_NSEC_LENGTH) {
+      validNsecs.add(normalized)
+      return
+    }
+
     try {
       const decoded = nip19.decode(normalized)
       if (decoded.type === 'nsec') {
