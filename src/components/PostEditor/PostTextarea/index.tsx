@@ -92,7 +92,7 @@ const PostTextarea = forwardRef<
     const editorClassName = cn(
       isMobileComposer
         ? 'rounded-none border-0 bg-transparent p-0 text-[16px] leading-6 focus-visible:outline-none focus-visible:ring-0'
-        : 'rounded-lg border p-3 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+        : 'rounded-2xl border p-3 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
       className
     )
     const editor = useEditor({
@@ -233,7 +233,7 @@ const PostTextarea = forwardRef<
     }, [text, images])
 
     useEffect(() => {
-      if (!editor || !isMobileComposer) {
+      if (!editor) {
         return
       }
 
@@ -241,7 +241,7 @@ const PostTextarea = forwardRef<
         if (!editor.isDestroyed) {
           editor.chain().focus('end').run()
         }
-      }, 80)
+      }, isMobileComposer ? 80 : 40)
 
       return () => window.clearTimeout(timerId)
     }, [editor, isMobileComposer])

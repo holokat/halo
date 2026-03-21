@@ -37,7 +37,7 @@ const SearchInput = forwardRef<HTMLInputElement, ComponentProps<'input'>>(
           ref={setRefs}
           value={value}
           onChange={onChange}
-          className="size-full mx-2 border-none bg-transparent focus:outline-none placeholder:text-muted-foreground"
+          className="size-full mx-2 border-none bg-transparent text-base md:text-sm focus:outline-none placeholder:text-muted-foreground"
           aria-label="Search"
         />
         {displayClear && (

@@ -161,11 +161,11 @@ export default function ArticleCard({ event }: { event: NostrEvent }) {
   return (
     <SecondaryPageLink to={toArticle(naddr)} onClick={handleClick}>
       <div className="py-4 px-4 hover:bg-accent/50 transition-colors cursor-pointer border-b border-border">
-        <div className="flex gap-4">
+        <div className="flex gap-3 sm:gap-4">
           <div className="flex-1 min-w-0">
-            <h3 className={`font-bold text-lg mb-1 line-clamp-2 ${isRead ? 'text-muted-foreground' : ''}`}>{title}</h3>
+            <h3 className={`font-bold text-base sm:text-lg mb-1 line-clamp-2 ${isRead ? 'text-muted-foreground' : ''}`}>{title}</h3>
             {displaySummary && (
-              <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+              <p className="text-xs sm:text-sm text-muted-foreground mb-2 line-clamp-2">
                 {displaySummary}
               </p>
             )}
@@ -178,7 +178,7 @@ export default function ArticleCard({ event }: { event: NostrEvent }) {
             </div>
           </div>
           {!textOnlyMode && image && shouldShowImage && (
-            <div className="flex-shrink-0 w-32 h-24 rounded-lg overflow-hidden bg-muted">
+            <div className="flex-shrink-0 w-24 h-16 sm:w-32 sm:h-24 rounded-lg overflow-hidden bg-muted">
               <img
                 src={image}
                 alt={title}
