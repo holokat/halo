@@ -109,8 +109,6 @@ const MESSAGE_SUBSCRIPTION_REPLAY_LIMIT = 200
 const MESSAGE_LOOKUP_READ_RELAYS = 4
 const MESSAGE_LOOKUP_WRITE_RELAYS = 2
 const MESSAGE_DECRYPT_BATCH_SIZE = 24
-const MESSAGE_FAST_QUERY_TIMEOUT_MS = 3_500
-const MESSAGE_FAST_QUERY_EOSE_THRESHOLD = 0.6
 const RELAY_INFO_LOOKUP_TIMEOUT_MS = 1_500
 const TWO_DAYS_IN_SECONDS = 2 * 24 * 60 * 60
 
@@ -595,16 +593,14 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
         const seenWrapIds = new Set<string>()
 
         for (let pageIndex = 0; pageIndex < MESSAGE_BACKFILL_MAX_PAGES; pageIndex += 1) {
-          const isInitialPage = pageIndex === 0
+          // DM backfill pages must be exhaustive. If page 1 stops early on a subset of relays,
+          // paginating with `until` can permanently skip newer wraps from slower relays.
           const wrappedEvents = dedupeWrappedEvents(
             await client.fetchEvents(messageLookupRelayUrls, {
               kinds: [kinds.GiftWrap],
               '#p': [pubkey],
               limit: MESSAGE_BACKFILL_PAGE_LIMIT,
               ...(nextUntil ? { until: nextUntil } : {})
-            }, {
-              timeoutMs: isInitialPage ? MESSAGE_FAST_QUERY_TIMEOUT_MS : undefined,
-              eoseThreshold: isInitialPage ? MESSAGE_FAST_QUERY_EOSE_THRESHOLD : undefined
             })
           ).filter((wrappedEvent) => {
             if (seenWrapIds.has(wrappedEvent.id)) {
