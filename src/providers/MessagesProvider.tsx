@@ -109,6 +109,7 @@ const MESSAGE_SUBSCRIPTION_REPLAY_LIMIT = 200
 const MESSAGE_LOOKUP_READ_RELAYS = 4
 const MESSAGE_LOOKUP_WRITE_RELAYS = 2
 const MESSAGE_DECRYPT_BATCH_SIZE = 24
+const MESSAGE_INITIAL_QUERY_TIMEOUT_MS = 12_000
 const RELAY_INFO_LOOKUP_TIMEOUT_MS = 1_500
 const TWO_DAYS_IN_SECONDS = 2 * 24 * 60 * 60
 
@@ -593,14 +594,16 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
         const seenWrapIds = new Set<string>()
 
         for (let pageIndex = 0; pageIndex < MESSAGE_BACKFILL_MAX_PAGES; pageIndex += 1) {
-          // DM backfill pages must be exhaustive. If page 1 stops early on a subset of relays,
-          // paginating with `until` can permanently skip newer wraps from slower relays.
+          // Let the first page wait longer for slower inbox relays, but do not allow a single
+          // stalled/auth-gated relay to block the entire messages screen forever.
           const wrappedEvents = dedupeWrappedEvents(
             await client.fetchEvents(messageLookupRelayUrls, {
               kinds: [kinds.GiftWrap],
               '#p': [pubkey],
               limit: MESSAGE_BACKFILL_PAGE_LIMIT,
               ...(nextUntil ? { until: nextUntil } : {})
+            }, {
+              timeoutMs: pageIndex === 0 ? MESSAGE_INITIAL_QUERY_TIMEOUT_MS : undefined
             })
           ).filter((wrappedEvent) => {
             if (seenWrapIds.has(wrappedEvent.id)) {
