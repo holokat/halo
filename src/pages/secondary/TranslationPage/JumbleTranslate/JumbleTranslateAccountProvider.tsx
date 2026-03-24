@@ -55,7 +55,7 @@ export function JumbleTranslateAccountProvider({ children }: { children: React.R
       }
     } catch (error) {
       toast.error(
-        'Failed to regenerate Jumble translation API key: ' +
+        'Failed to regenerate X21 translation API key: ' +
           (error instanceof Error
             ? error.message
             : 'An error occurred while regenerating the API key')
@@ -72,7 +72,7 @@ export function JumbleTranslateAccountProvider({ children }: { children: React.R
       }
     } catch (error) {
       toast.error(
-        'Failed to fetch Jumble translation account: ' +
+        'Failed to fetch X21 translation account: ' +
           (error instanceof Error ? error.message : 'An error occurred while fetching the account')
       )
       setAccount(null)
