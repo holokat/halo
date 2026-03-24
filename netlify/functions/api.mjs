@@ -1,9 +1,11 @@
-import { connectLambda, getStore } from '@netlify/blobs'
 import { bech32 } from '@scure/base'
 import { randomBytes, createHash, timingSafeEqual } from 'node:crypto'
 import { Invoice } from '@getalby/lightning-tools'
 import { SimplePool, finalizeEvent, getPublicKey, kinds, nip19, verifyEvent } from 'nostr-tools'
 
+let connectLambda
+let getStore
+let blobsModulePromise
 let usersStore
 let apiKeyStore
 let transactionStore
@@ -347,7 +349,28 @@ const headers = {
   'Content-Type': 'application/json'
 }
 
-function refreshBlobStoresForRequest(request) {
+async function ensureBlobsModule() {
+  if (connectLambda && getStore) return
+  if (!blobsModulePromise) {
+    blobsModulePromise = import('@netlify/blobs').then((mod) => {
+      connectLambda = mod.connectLambda
+      getStore = mod.getStore
+    })
+  }
+  await blobsModulePromise
+}
+
+function isBlobsRuntimeImportError(error) {
+  if (!(error instanceof Error)) return false
+  return (
+    error.message.includes('@netlify/blobs') ||
+    error.message.includes('ERR_MODULE_NOT_FOUND')
+  )
+}
+
+async function refreshBlobStoresForRequest(request) {
+  await ensureBlobsModule()
+
   const blobsToken = request && typeof request.blobs === 'string' ? request.blobs : ''
   if (blobsToken) {
     const lambdaHeaders = {}
@@ -381,12 +404,22 @@ function refreshBlobStoresForRequest(request) {
 
 export default async (request) => {
   try {
-    refreshBlobStoresForRequest(request)
-
     const route = extractRoute(request.url)
     if (request.method === 'GET' && route.endsWith('/.well-known/nostr.json')) {
+      try {
+        await refreshBlobStoresForRequest(request)
+      } catch (error) {
+        if (isBlobsRuntimeImportError(error)) {
+          return json(503, {
+            error:
+              'Storage-backed X21 services are temporarily unavailable. Please redeploy the Netlify function with its dependencies.'
+          })
+        }
+        throw error
+      }
       return await handleNip5WellKnown(request)
     }
+
     if (!route.startsWith('/v1/')) {
       return json(404, { error: 'Not found' })
     }
@@ -413,6 +446,18 @@ export default async (request) => {
 
     if (request.method === 'GET' && route === '/v1/polymarket/markets') {
       return await getPolymarketMarkets()
+    }
+
+    try {
+      await refreshBlobStoresForRequest(request)
+    } catch (error) {
+      if (isBlobsRuntimeImportError(error)) {
+        return json(503, {
+          error:
+            'Storage-backed X21 services are temporarily unavailable. Please redeploy the Netlify function with its dependencies.'
+        })
+      }
+      throw error
     }
 
     if (request.method === 'GET' && route === '/v1/admin/translation/config') {
