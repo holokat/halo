@@ -117,6 +117,7 @@ export default function DeckColumn({ column }: { column: TPinnedColumn }) {
                 subRequests={subRequests}
                 showRelayCloseReason
                 isInDeckView={true}
+                initialEoseThreshold={1}
               />
             )
           }

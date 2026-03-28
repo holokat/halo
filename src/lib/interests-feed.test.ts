@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  buildHashtagFeedSubRequests,
   buildInterestsFeedHashtags,
   createInterestsCustomFeed,
   getCustomFeedHashtags,
@@ -17,6 +18,13 @@ test('buildInterestsFeedHashtags expands selected interests into deduped hashtag
     'sportstr',
     'music',
     'musicstr'
+  ])
+})
+
+test('buildHashtagFeedSubRequests creates one hashtag request per normalized hashtag', () => {
+  assert.deepEqual(buildHashtagFeedSubRequests(['#Tech', 'music', 'tech'], ['wss://relay.test']), [
+    { urls: ['wss://relay.test'], filter: { '#t': ['tech'] } },
+    { urls: ['wss://relay.test'], filter: { '#t': ['music'] } }
   ])
 })
 

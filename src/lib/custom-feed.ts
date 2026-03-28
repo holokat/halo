@@ -1,6 +1,6 @@
 import { BIG_RELAY_URLS, SEARCHABLE_RELAY_URLS } from '@/constants'
 import { TCustomFeed, TFeedSubRequest } from '@/types'
-import { getCustomFeedHashtags } from './interests-feed'
+import { buildHashtagFeedSubRequests, getCustomFeedHashtags } from './interests-feed'
 
 export {
   buildInterestsFeedHashtags,
@@ -20,7 +20,7 @@ export function getCustomFeedSubRequests(feed: TCustomFeed): TFeedSubRequest[] {
 
   const hashtags = getCustomFeedHashtags(feed)
   if (hashtags.length > 0) {
-    return [{ urls: BIG_RELAY_URLS, filter: { '#t': hashtags } }]
+    return buildHashtagFeedSubRequests(hashtags, BIG_RELAY_URLS)
   }
 
   return []

@@ -119,6 +119,7 @@ const NoteListPage = forwardRef((_, ref) => {
           <NormalFeed
             subRequests={subRequests}
             showRelayCloseReason
+            initialEoseThreshold={1}
           />
         )
       } else {

@@ -1,4 +1,4 @@
-import { TCustomFeed } from '@/types'
+import { TCustomFeed, TFeedSubRequest } from '@/types'
 
 export const INTERESTS_FEED_ID = 'interests'
 
@@ -105,6 +105,16 @@ export function getCustomFeedHashtags(feed: TCustomFeed) {
   }
 
   return []
+}
+
+export function buildHashtagFeedSubRequests(
+  hashtags: string[],
+  urls: string[]
+): TFeedSubRequest[] {
+  return dedupeCustomFeedHashtags(hashtags).map((hashtag) => ({
+    urls,
+    filter: { '#t': [hashtag] }
+  }))
 }
 
 export function createInterestsCustomFeed(hashtags: string[]): TCustomFeed {

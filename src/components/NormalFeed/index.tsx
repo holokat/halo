@@ -15,13 +15,15 @@ export default function NormalFeed({
   areAlgoRelays = false,
   isMainFeed = false,
   showRelayCloseReason = false,
-  isInDeckView = false
+  isInDeckView = false,
+  initialEoseThreshold
 }: {
   subRequests: TFeedSubRequest[]
   areAlgoRelays?: boolean
   isMainFeed?: boolean
   showRelayCloseReason?: boolean
   isInDeckView?: boolean
+  initialEoseThreshold?: number
 }) {
   const { hideUntrustedNotes } = useUserTrust()
   const { showKinds } = useKindFilter()
@@ -85,6 +87,7 @@ export default function NormalFeed({
         hideUntrustedNotes={hideUntrustedNotes}
         areAlgoRelays={areAlgoRelays}
         showRelayCloseReason={showRelayCloseReason}
+        initialEoseThreshold={initialEoseThreshold}
       />
     </>
   )
