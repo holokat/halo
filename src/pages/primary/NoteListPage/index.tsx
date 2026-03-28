@@ -5,7 +5,7 @@ import NormalFeed from '@/components/NormalFeed'
 import RelayInfo from '@/components/RelayInfo'
 import PinButton from '@/components/PinButton'
 import { Button } from '@/components/ui/button'
-import { BIG_RELAY_URLS, SEARCHABLE_RELAY_URLS } from '@/constants'
+import { getCustomFeedSubRequests } from '@/lib/custom-feed'
 import PrimaryPageLayout from '@/layouts/PrimaryPageLayout'
 import { useCurrentRelays } from '@/providers/CurrentRelaysProvider'
 import { useCustomFeeds } from '@/providers/CustomFeedsProvider'
@@ -113,20 +113,19 @@ const NoteListPage = forwardRef((_, ref) => {
       )
     } else {
       // Render the feed based on search params
-      const { searchParams } = customFeed
-      if (searchParams.type === 'notes') {
+      const subRequests = getCustomFeedSubRequests(customFeed)
+      if (subRequests.length > 0) {
         content = (
           <NormalFeed
-            subRequests={[{ urls: SEARCHABLE_RELAY_URLS, filter: { search: searchParams.search } }]}
+            subRequests={subRequests}
             showRelayCloseReason
           />
         )
-      } else if (searchParams.type === 'hashtag') {
+      } else {
         content = (
-          <NormalFeed
-            subRequests={[{ urls: BIG_RELAY_URLS, filter: { '#t': [searchParams.search] } }]}
-            showRelayCloseReason
-          />
+          <div className="text-center text-sm text-muted-foreground">
+            {t('Custom feed has no filters configured')}
+          </div>
         )
       }
     }

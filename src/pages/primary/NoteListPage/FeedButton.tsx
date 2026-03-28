@@ -1,5 +1,6 @@
 import FeedSwitcher from '@/components/FeedSwitcher'
 import { Drawer, DrawerContent } from '@/components/ui/drawer'
+import { getCustomFeedHashtags } from '@/lib/custom-feed'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { simplifyUrl } from '@/lib/url'
 import { cn } from '@/lib/utils'
@@ -111,7 +112,7 @@ const FeedSwitcherTrigger = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEle
         return <UserRound />
       }
       if (feedInfo.feedType === 'custom') {
-        if (activeCustomFeed?.searchParams.type === 'hashtag') {
+        if (activeCustomFeed && getCustomFeedHashtags(activeCustomFeed).length > 0) {
           return <Hash />
         }
         return <Search />

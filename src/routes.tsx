@@ -8,6 +8,7 @@ const AppearanceSettingsPage = lazy(() => import('./pages/secondary/AppearanceSe
 const ArticlePage = lazy(() => import('./pages/secondary/ArticlePage'))
 const BackupSettingsPage = lazy(() => import('./pages/secondary/BackupSettingsPage'))
 const ContentPrivacySettingsPage = lazy(() => import('./pages/secondary/ContentPrivacySettingsPage'))
+const FeedsSettingsPage = lazy(() => import('./pages/secondary/FeedsSettingsPage'))
 const FollowingListPage = lazy(() => import('./pages/secondary/FollowingListPage'))
 const GeneralSettingsPage = lazy(() => import('./pages/secondary/GeneralSettingsPage'))
 const KeysSettingsPage = lazy(() => import('./pages/secondary/KeysSettingsPage'))
@@ -67,6 +68,7 @@ const SuspendedAppearanceSettingsPage = withSuspense(AppearanceSettingsPage, 'Ap
 const SuspendedArticlePage = withSuspense(ArticlePage, 'ArticlePage')
 const SuspendedBackupSettingsPage = withSuspense(BackupSettingsPage, 'BackupSettingsPage')
 const SuspendedContentPrivacySettingsPage = withSuspense(ContentPrivacySettingsPage, 'ContentPrivacySettingsPage')
+const SuspendedFeedsSettingsPage = withSuspense(FeedsSettingsPage, 'FeedsSettingsPage')
 const SuspendedFollowingListPage = withSuspense(FollowingListPage, 'FollowingListPage')
 const SuspendedGeneralSettingsPage = withSuspense(GeneralSettingsPage, 'GeneralSettingsPage')
 const SuspendedKeysSettingsPage = withSuspense(KeysSettingsPage, 'KeysSettingsPage')
@@ -110,6 +112,7 @@ const ROUTES = [
   { path: '/settings/wallet', element: <SuspendedWalletPage /> },
   { path: '/settings/posts', element: <SuspendedPostSettingsPage /> },
   { path: '/settings/general', element: <SuspendedGeneralSettingsPage /> },
+  { path: '/settings/feeds', element: <SuspendedFeedsSettingsPage /> },
   { path: '/settings/keys', element: <SuspendedKeysSettingsPage /> },
   { path: '/settings/content-privacy', element: <SuspendedContentPrivacySettingsPage /> },
   { path: '/settings/appearance', element: <SuspendedAppearanceSettingsPage /> },

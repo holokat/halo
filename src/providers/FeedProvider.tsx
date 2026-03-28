@@ -1,4 +1,5 @@
 import { DEFAULT_FAVORITE_RELAYS } from '@/constants'
+import { getCustomFeedHashtags, INTERESTS_FEED_ID } from '@/lib/custom-feed'
 import { getRelaySetFromEvent } from '@/lib/event-metadata'
 import { isWebsocketUrl, normalizeUrl } from '@/lib/url'
 import { getPubkeysFromPTags } from '@/lib/tag'
@@ -58,6 +59,15 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         if (storedFeedInfo) {
           feedInfo = storedFeedInfo
         } else {
+          const interestsFeed = storage
+            .getCustomFeeds()
+            .find((feed) => feed.id === INTERESTS_FEED_ID && getCustomFeedHashtags(feed).length > 0)
+
+          if (interestsFeed) {
+            feedInfo = { feedType: 'custom', id: interestsFeed.id }
+            return await switchFeed('custom', { customFeedId: interestsFeed.id })
+          }
+
           // Check if user has any followings
           const followings = followListEvent ? getPubkeysFromPTags(followListEvent.tags) : []
 

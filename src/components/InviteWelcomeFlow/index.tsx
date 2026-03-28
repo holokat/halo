@@ -1,27 +1,24 @@
+import { useCustomFeeds } from '@/providers/CustomFeedsProvider'
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import UserAvatar from '@/components/UserAvatar'
 import { useFetchProfile, useFetchFollowings } from '@/hooks'
 import { toast } from 'sonner'
 import { Users, UserPlus, Eye, EyeOff, Download, Copy, Check } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
-import SignupProfile from '@/components/AccountManager/SignupProfile'
+import SignupProfile, { TSignupProfileResult } from '@/components/AccountManager/SignupProfile'
 import { useFeed } from '@/providers/FeedProvider'
 import { useNostr } from '@/providers/NostrProvider'
-import { useFollowList } from '@/providers/FollowListProvider'
-import { getPublicKey } from 'nostr-tools'
-import { decode } from 'nostr-tools/nip19'
 import { createFollowListDraftEvent } from '@/lib/draft-event'
 
 interface InviteWelcomeFlowProps {
@@ -42,6 +39,7 @@ export default function InviteWelcomeFlow({
   const { profile: inviterProfile, isFetching: fetchingProfile } = useFetchProfile(inviterPubkey)
   const { followings: inviterFollowings } = useFetchFollowings(inviterPubkey)
   const { switchFeed } = useFeed()
+  const { customFeeds, addCustomFeed, updateCustomFeed } = useCustomFeeds()
 
   const [currentStep, setCurrentStep] = useState<FlowStep>('welcome')
   const [followInviterFollows, setFollowInviterFollows] = useState(true)
@@ -62,49 +60,50 @@ export default function InviteWelcomeFlow({
     setCurrentStep('profile')
   }
 
-  const handleProfileComplete = (
-    keys: { nsec: string; npub: string },
-    profile: { displayName: string; username: string }
-  ) => {
-    setGeneratedKeys(keys)
-    setProfileData(profile)
-    setCurrentStep('keys')
-
-    // The account is already logged in from SignupProfile.
-    // Follow/setup can happen in background so the key backup step appears immediately.
+  const handleProfileComplete = async ({
+    keys,
+    profile,
+    interestsFeed
+  }: TSignupProfileResult) => {
     setIsProcessing(true)
-    void (async () => {
-      try {
-        const pubkeysToFollow: string[] = [inviterPubkey]
-        if (followInviterFollows && filteredInviterFollowings.length > 0) {
-          pubkeysToFollow.push(...filteredInviterFollowings)
-        }
-
-        const pTags = pubkeysToFollow.map((pk) => ['p', pk] as [string, string])
-        const followListDraftEvent = createFollowListDraftEvent(pTags)
-        const newFollowListEvent = await publish(followListDraftEvent)
-        await updateFollowListEvent(newFollowListEvent)
-
-        const decoded = decode(keys.nsec)
-        const hexPubkey = getPublicKey(decoded.data as Uint8Array)
-        await switchFeed('following', { pubkey: hexPubkey })
-
-        toast.success(
-          followInviterFollows && filteredInviterFollowings.length > 0
-            ? t('Welcome! You are now following {{count}} people', {
-                count: pubkeysToFollow.length
-              })
-            : t('Welcome! You are now following {{name}}', {
-                name: inviterProfile?.original_username || inviterProfile?.username || 'your inviter'
-              })
-        )
-      } catch (error) {
-        console.error('Failed to follow users:', error)
-        toast.error(t('Failed to follow users. Please try again.'))
-      } finally {
-        setIsProcessing(false)
+    try {
+      const pubkeysToFollow: string[] = [inviterPubkey]
+      if (followInviterFollows && filteredInviterFollowings.length > 0) {
+        pubkeysToFollow.push(...filteredInviterFollowings)
       }
-    })()
+
+      const pTags = pubkeysToFollow.map((pk) => ['p', pk] as [string, string])
+      const followListDraftEvent = createFollowListDraftEvent(pTags)
+      const newFollowListEvent = await publish(followListDraftEvent)
+      await updateFollowListEvent(newFollowListEvent)
+
+      const existingFeed = customFeeds.find((feed) => feed.id === interestsFeed.id)
+      if (existingFeed) {
+        updateCustomFeed(interestsFeed.id, interestsFeed)
+      } else {
+        addCustomFeed(interestsFeed)
+      }
+
+      await switchFeed('custom', { customFeedId: interestsFeed.id })
+
+      toast.success(
+        followInviterFollows && filteredInviterFollowings.length > 0
+          ? t('Welcome! You are now following {{count}} people', {
+              count: pubkeysToFollow.length
+            })
+          : t('Welcome! You are now following {{name}}', {
+              name: inviterProfile?.original_username || inviterProfile?.username || 'your inviter'
+            })
+      )
+    } catch (error) {
+      console.error('Failed to finish invite onboarding:', error)
+      toast.error(t('Failed to follow users. Please try again.'))
+    } finally {
+      setGeneratedKeys(keys)
+      setProfileData(profile)
+      setCurrentStep('keys')
+      setIsProcessing(false)
+    }
   }
 
   const handleKeysComplete = () => {
@@ -276,7 +275,7 @@ function KeysDisplay({
 ========================
 
 Display Name: ${profile.displayName || 'Not set'}
-Username: ${profile.username ? '@' + profile.username : 'Not set'}
+Handle: ${profile.username ? '@' + profile.username : 'Not set'}
 
 Public Key (npub):
 ${keys.npub}

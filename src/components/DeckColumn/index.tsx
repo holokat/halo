@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { getCustomFeedSubRequests } from '@/lib/custom-feed'
 import { TPinnedColumn, TFeedSubRequest } from '@/types'
 import {
   X,
@@ -109,21 +110,11 @@ export default function DeckColumn({ column }: { column: TPinnedColumn }) {
           titlebar = (
             <CustomFeedTitlebar name={customFeed.name} onClose={() => unpinColumn(column.id)} />
           )
-          const { searchParams } = customFeed
-          if (searchParams.type === 'notes') {
+          const subRequests = getCustomFeedSubRequests(customFeed)
+          if (subRequests.length > 0) {
             content = (
               <NormalFeed
-                subRequests={[
-                  { urls: SEARCHABLE_RELAY_URLS, filter: { search: searchParams.search } }
-                ]}
-                showRelayCloseReason
-                isInDeckView={true}
-              />
-            )
-          } else if (searchParams.type === 'hashtag') {
-            content = (
-              <NormalFeed
-                subRequests={[{ urls: BIG_RELAY_URLS, filter: { '#t': [searchParams.search] } }]}
+                subRequests={subRequests}
                 showRelayCloseReason
                 isInDeckView={true}
               />

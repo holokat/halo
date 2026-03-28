@@ -8,6 +8,7 @@ import {
   toAppearanceSettings,
   toBackupSettings,
   toContentPrivacySettings,
+  toFeedsSettings,
   toGeneralSettings,
   toKeysSettings,
   toPostSettings,
@@ -25,6 +26,7 @@ import {
   Bot,
   Bug,
   AtSign,
+  Hash,
   ChevronRight,
   Cloud,
   Clock3,
@@ -187,6 +189,14 @@ const SettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
         subtitle: t('General'),
         route: `${toGeneralSettings()}?tab=interface`,
         keywords: ['language', 'payments', 'text only', 'slow connection', 'avatar', 'rtl', 'distraction free']
+      },
+      {
+        id: 'feeds',
+        icon: <Hash />,
+        iconToneClassName: SETTINGS_ICON_TONE_CLASSNAME,
+        title: t('Feeds'),
+        route: toFeedsSettings(),
+        keywords: ['interests', 'hashtags', 'custom feed', 'home feed']
       },
       {
         id: 'keys',
@@ -449,6 +459,10 @@ const SettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
           <SettingItem className="clickable" iconToneClassName={SETTINGS_ICON_TONE_CLASSNAME} onClick={() => push(toGeneralSettings())}>
             <Settings2 />
             {t('General')}
+          </SettingItem>
+          <SettingItem className="clickable" iconToneClassName={SETTINGS_ICON_TONE_CLASSNAME} onClick={() => push(toFeedsSettings())}>
+            <Hash />
+            {t('Feeds')}
           </SettingItem>
           <SettingItem className="clickable" iconToneClassName={SETTINGS_ICON_TONE_CLASSNAME} onClick={() => push(toKeysSettings())}>
             <KeyRound />

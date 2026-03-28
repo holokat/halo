@@ -1,4 +1,5 @@
 import { toRelaySettings } from '@/lib/link'
+import { getCustomFeedHashtags } from '@/lib/custom-feed'
 import { isWebsocketUrl, normalizeUrl, simplifyUrl } from '@/lib/url'
 import { SecondaryPageLink, usePrimaryPage } from '@/PageManager'
 import { useCustomFeeds } from '@/providers/CustomFeedsProvider'
@@ -218,7 +219,7 @@ export default function FeedSwitcher({
             >
               <div className="flex gap-2 items-center">
                 <div className="flex justify-center items-center w-6 h-6 shrink-0">
-                  {feed.searchParams.type === 'hashtag' ? (
+                  {getCustomFeedHashtags(feed).length > 0 ? (
                     <Hash className="size-4" />
                   ) : (
                     <Search className="size-4" />

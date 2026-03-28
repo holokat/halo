@@ -205,6 +205,7 @@ export type TCustomFeed = {
   id: string
   name: string
   searchParams: TSearchParams
+  hashtags?: string[]
 }
 
 export type TLanguage = 'en' | 'zh' | 'pl'
