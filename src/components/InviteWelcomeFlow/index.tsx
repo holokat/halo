@@ -1,4 +1,4 @@
-import { useCustomFeeds } from '@/providers/CustomFeedsProvider'
+import { persistStoredFeedInfo, upsertStoredCustomFeed } from '@/lib/feed-sync'
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -17,7 +17,6 @@ import { toast } from 'sonner'
 import { Users, UserPlus, Eye, EyeOff, Download, Copy, Check } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import SignupProfile, { TSignupProfileResult } from '@/components/AccountManager/SignupProfile'
-import { useFeed } from '@/providers/FeedProvider'
 import { useNostr } from '@/providers/NostrProvider'
 import { createFollowListDraftEvent } from '@/lib/draft-event'
 
@@ -35,11 +34,9 @@ export default function InviteWelcomeFlow({
   inviterPubkey
 }: InviteWelcomeFlowProps) {
   const { t } = useTranslation()
-  const { publish, updateFollowListEvent } = useNostr()
+  const { publish, updateFollowListEvent, pubkey } = useNostr()
   const { profile: inviterProfile, isFetching: fetchingProfile } = useFetchProfile(inviterPubkey)
   const { followings: inviterFollowings } = useFetchFollowings(inviterPubkey)
-  const { switchFeed } = useFeed()
-  const { customFeeds, addCustomFeed, updateCustomFeed } = useCustomFeeds()
 
   const [currentStep, setCurrentStep] = useState<FlowStep>('welcome')
   const [followInviterFollows, setFollowInviterFollows] = useState(true)
@@ -77,14 +74,11 @@ export default function InviteWelcomeFlow({
       const newFollowListEvent = await publish(followListDraftEvent)
       await updateFollowListEvent(newFollowListEvent)
 
-      const existingFeed = customFeeds.find((feed) => feed.id === interestsFeed.id)
-      if (existingFeed) {
-        updateCustomFeed(interestsFeed.id, interestsFeed)
-      } else {
-        addCustomFeed(interestsFeed)
-      }
+      upsertStoredCustomFeed(interestsFeed)
 
-      await switchFeed('custom', { customFeedId: interestsFeed.id })
+      if (pubkey) {
+        persistStoredFeedInfo({ feedType: 'custom', id: interestsFeed.id }, pubkey)
+      }
 
       toast.success(
         followInviterFollows && filteredInviterFollowings.length > 0

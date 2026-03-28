@@ -1,5 +1,6 @@
 import { DEFAULT_FAVORITE_RELAYS } from '@/constants'
 import { getCustomFeedHashtags, INTERESTS_FEED_ID } from '@/lib/custom-feed'
+import { FEED_INFO_CHANGED_EVENT, TFeedInfoChangedDetail } from '@/lib/feed-sync'
 import { getRelaySetFromEvent } from '@/lib/event-metadata'
 import { isWebsocketUrl, normalizeUrl } from '@/lib/url'
 import { getPubkeysFromPTags } from '@/lib/tag'
@@ -128,6 +129,69 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
 
     init()
   }, [pubkey, isInitialized, followListEvent])
+
+  useEffect(() => {
+    const handleFeedInfoChanged = (event: Event) => {
+      const detail = (event as CustomEvent<TFeedInfoChangedDetail>).detail
+      if (!pubkey) {
+        return
+      }
+
+      if (detail?.pubkey && detail.pubkey !== pubkey) {
+        return
+      }
+
+      const nextFeedInfo = detail?.feedInfo ?? storage.getFeedInfo(pubkey)
+      if (!nextFeedInfo) {
+        return
+      }
+
+      if (nextFeedInfo.feedType === 'relays') {
+        void switchFeed('relays', { activeRelaySetId: nextFeedInfo.id })
+        return
+      }
+
+      if (nextFeedInfo.feedType === 'relay') {
+        void switchFeed('relay', { relay: nextFeedInfo.id })
+        return
+      }
+
+      if (nextFeedInfo.feedType === 'following') {
+        void switchFeed('following', { pubkey })
+        return
+      }
+
+      if (nextFeedInfo.feedType === 'bookmarks') {
+        void switchFeed('bookmarks', { pubkey })
+        return
+      }
+
+      if (nextFeedInfo.feedType === 'highlights') {
+        void switchFeed('highlights', { pubkey })
+        return
+      }
+
+      if (nextFeedInfo.feedType === 'custom') {
+        void switchFeed('custom', { customFeedId: nextFeedInfo.id })
+        return
+      }
+
+      if (nextFeedInfo.feedType === 'one-per-person') {
+        void switchFeed('one-per-person', { pubkey })
+        return
+      }
+
+      if (nextFeedInfo.feedType === 'polls') {
+        void switchFeed('polls', { pubkey })
+      }
+    }
+
+    window.addEventListener(FEED_INFO_CHANGED_EVENT, handleFeedInfoChanged)
+
+    return () => {
+      window.removeEventListener(FEED_INFO_CHANGED_EVENT, handleFeedInfoChanged)
+    }
+  }, [pubkey, relaySets, favoriteRelays])
 
   const switchFeed = async (
     feedType: TFeedType,

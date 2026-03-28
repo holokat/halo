@@ -1,3 +1,4 @@
+import { CUSTOM_FEEDS_CHANGED_EVENT } from '@/lib/feed-sync'
 import storage from '@/services/local-storage.service'
 import { TCustomFeed } from '@/types'
 import { createContext, useContext, useEffect, useState } from 'react'
@@ -19,11 +20,25 @@ export const useCustomFeeds = () => {
   return context
 }
 
+export const useOptionalCustomFeeds = () => {
+  return useContext(CustomFeedsContext)
+}
+
 export function CustomFeedsProvider({ children }: { children: React.ReactNode }) {
   const [customFeeds, setCustomFeeds] = useState<TCustomFeed[]>([])
 
   useEffect(() => {
     setCustomFeeds(storage.getCustomFeeds())
+
+    const handleCustomFeedsChanged = () => {
+      setCustomFeeds(storage.getCustomFeeds())
+    }
+
+    window.addEventListener(CUSTOM_FEEDS_CHANGED_EVENT, handleCustomFeedsChanged)
+
+    return () => {
+      window.removeEventListener(CUSTOM_FEEDS_CHANGED_EVENT, handleCustomFeedsChanged)
+    }
   }, [])
 
   const addCustomFeed = (feed: TCustomFeed) => {
