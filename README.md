@@ -66,9 +66,21 @@ This starts:
 npm run dev
 npm run build
 npm run lint
+npm run typecheck
+npm run test
+npm run guardrails:staged
+npm run guardrails:full
 npm run format
 npm run audit:maintainability
 ```
+
+## Change Guardrails
+
+We now keep a shared change-safety checklist in [docs/CHANGE_GUARDRAILS.md](docs/CHANGE_GUARDRAILS.md) and use it on every change.
+
+- `npm run guardrails:staged` is the fast gate for day-to-day commits. It lints staged files, runs related regression tests, typechecks the app, and builds when config-sensitive files change.
+- `npm run guardrails:full` is the deeper pass for cross-cutting or risky work. It runs repo-wide lint, typecheck, tests, and production build.
+- `npm install` automatically configures the repo's `pre-commit` hook through the `prepare` script, and each completed change should be committed immediately after the guardrails pass.
 
 ## Acknowledgment
 

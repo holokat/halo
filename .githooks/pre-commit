@@ -1,0 +1,31 @@
+#!/bin/sh
+set -eu
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+stashed=0
+stash_name="guardrails-pre-commit-$(date +%s)"
+
+restore_worktree() {
+  status=$?
+
+  if [ "$stashed" -eq 1 ]; then
+    if ! git stash pop --quiet >/dev/null 2>&1; then
+      echo "Guardrails could not restore your unstaged changes automatically."
+      echo "Recover them with: git stash list && git stash pop"
+      status=1
+    fi
+  fi
+
+  exit "$status"
+}
+
+trap restore_worktree EXIT HUP INT TERM
+
+if ! git diff --quiet --ignore-submodules -- || [ -n "$(git ls-files --others --exclude-standard)" ]; then
+  git stash push --keep-index --include-untracked --quiet -m "$stash_name"
+  stashed=1
+fi
+
+npm run guardrails:staged

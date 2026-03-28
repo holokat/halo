@@ -15,9 +15,15 @@
     "dev": "vite --host",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "typecheck": "tsc -b --pretty false",
+    "test": "node ./scripts/run-node-tests.mjs all",
+    "guardrails:staged": "node ./scripts/guardrails-staged.mjs",
+    "guardrails:full": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "guardrails:install-hooks": "node ./scripts/install-git-hooks.mjs",
     "audit:maintainability": "bash ./scripts/maintainability-audit.sh",
     "format": "prettier --write .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "prepare": "npm run guardrails:install-hooks"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -118,6 +124,7 @@
     "postcss": "^8.4.49",
     "prettier": "3.4.2",
     "tailwindcss": "^3.4.17",
+    "tsx": "^4.21.0",
     "typescript": "~5.6.2",
     "typescript-eslint": "^8.18.1",
     "vite": "^6.0.3",
