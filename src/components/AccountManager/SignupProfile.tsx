@@ -306,37 +306,53 @@ export default function SignupProfile({
           </p>
         </div>
 
-        <div className="flex flex-col items-center gap-3 py-2">
+        <div className="flex flex-col items-center gap-4 py-2">
           <Uploader
             onUploadSuccess={onAvatarUploadSuccess}
             onUploadStart={() => setUploadingAvatar(true)}
             onUploadEnd={() => setUploadingAvatar(false)}
-            className="w-28 h-28 relative cursor-pointer rounded-full border-4 border-muted hover:border-primary transition-colors group"
+            className="group relative cursor-pointer"
           >
-            <Avatar className="w-full h-full">
-              <AvatarImage src={avatar || generatedAvatar} className="object-cover object-center" />
-              <AvatarFallback>
-                <User className="w-8 h-8 text-muted-foreground" />
-              </AvatarFallback>
-            </Avatar>
-            {uploadingAvatar ? (
-              <div className="absolute inset-0 bg-black/60 w-full h-full rounded-full flex flex-col justify-center items-center">
-                <Loader className="animate-spin text-white" size={20} />
-              </div>
-            ) : (
-              <div className="absolute inset-0 bg-black/40 w-full h-full rounded-full flex-col justify-center items-center opacity-0 group-hover:opacity-100 transition-opacity hidden group-hover:flex">
-                <Upload className="text-white" size={20} />
-              </div>
-            )}
+            <div className="relative size-28 overflow-hidden rounded-full border-[3px] border-border/80 bg-muted/20 shadow-sm transition-colors group-hover:border-primary/70">
+              <Avatar className="size-full">
+                <AvatarImage
+                  src={avatar || generatedAvatar}
+                  className="object-cover object-center"
+                />
+                <AvatarFallback className="bg-muted/30">
+                  <User className="w-8 h-8 text-muted-foreground" />
+                </AvatarFallback>
+              </Avatar>
+              {uploadingAvatar ? (
+                <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/60">
+                  <Loader className="animate-spin text-white" size={20} />
+                </div>
+              ) : (
+                <div className="absolute inset-0 hidden items-center justify-center rounded-full bg-black/35 opacity-0 transition-opacity group-hover:flex group-hover:opacity-100">
+                  <Upload className="text-white" size={20} />
+                </div>
+              )}
+              {!avatar && !uploadingAvatar ? (
+                <div className="absolute inset-x-0 bottom-0 bg-background/92 px-3 py-2 text-center text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground backdrop-blur-sm">
+                  Add photo
+                </div>
+              ) : null}
+            </div>
           </Uploader>
-          <p className="text-xs text-muted-foreground">Tap or click the image to upload a photo.</p>
+          <p className="max-w-xs text-center text-xs text-muted-foreground">
+            Tap or click the image to upload a photo.
+          </p>
         </div>
 
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Button onClick={() => setStep('bio')} className="flex-1" size="lg">
+        <div className="flex flex-col items-center gap-2 pt-2">
+          <Button onClick={() => setStep('bio')} className="w-full max-w-xs" size="lg">
             {t('Continue')}
           </Button>
-          <Button variant="secondary" onClick={() => setStep('bio')} className="flex-1" size="lg">
+          <Button
+            variant="link"
+            onClick={() => setStep('bio')}
+            className="h-auto px-0 py-1 text-sm font-normal text-muted-foreground"
+          >
             {t('Skip for now', { defaultValue: 'Skip for now' })}
           </Button>
         </div>
