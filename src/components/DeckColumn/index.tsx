@@ -1,5 +1,8 @@
 import { cn } from '@/lib/utils'
-import { getCustomFeedSubRequests } from '@/lib/custom-feed'
+import {
+  getCustomFeedSubRequests,
+  shouldBypassTrustFilterForCustomFeed
+} from '@/lib/custom-feed'
 import { TPinnedColumn, TFeedSubRequest } from '@/types'
 import {
   X,
@@ -118,6 +121,9 @@ export default function DeckColumn({ column }: { column: TPinnedColumn }) {
                 showRelayCloseReason
                 isInDeckView={true}
                 initialEoseThreshold={1}
+                hideUntrustedNotes={
+                  shouldBypassTrustFilterForCustomFeed(customFeed.id) ? false : undefined
+                }
               />
             )
           }

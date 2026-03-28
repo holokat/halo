@@ -16,7 +16,8 @@ export default function NormalFeed({
   isMainFeed = false,
   showRelayCloseReason = false,
   isInDeckView = false,
-  initialEoseThreshold
+  initialEoseThreshold,
+  hideUntrustedNotes: hideUntrustedNotesProp
 }: {
   subRequests: TFeedSubRequest[]
   areAlgoRelays?: boolean
@@ -24,8 +25,9 @@ export default function NormalFeed({
   showRelayCloseReason?: boolean
   isInDeckView?: boolean
   initialEoseThreshold?: number
+  hideUntrustedNotes?: boolean
 }) {
-  const { hideUntrustedNotes } = useUserTrust()
+  const { hideUntrustedNotes: defaultHideUntrustedNotes } = useUserTrust()
   const { showKinds } = useKindFilter()
   const { mediaOnly } = useMediaOnly()
   const [temporaryShowKinds, setTemporaryShowKinds] = useState(showKinds)
@@ -33,6 +35,7 @@ export default function NormalFeed({
   const [listMode, setListMode] = useState<TNoteListMode>(() => storage.getNoteListMode())
   const supportTouch = useMemo(() => isTouchDevice(), [])
   const noteListRef = useRef<TNoteListRef>(null)
+  const hideUntrustedNotes = hideUntrustedNotesProp ?? defaultHideUntrustedNotes
 
   const handleListModeChange = (mode: TNoteListMode) => {
     setListMode(mode)

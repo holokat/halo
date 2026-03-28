@@ -9,7 +9,8 @@ export {
   getCustomFeedHashtags,
   INTEREST_CATEGORIES,
   INTERESTS_FEED_ID,
-  normalizeCustomFeedHashtag
+  normalizeCustomFeedHashtag,
+  shouldBypassTrustFilterForCustomFeed
 } from './interests-feed'
 export type { TInterestCategory, TInterestCategoryId } from './interests-feed'
 
