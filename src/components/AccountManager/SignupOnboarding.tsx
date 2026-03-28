@@ -2,7 +2,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { persistStoredFeedInfo, upsertStoredCustomFeed } from '@/lib/feed-sync'
-import { useNostr } from '@/providers/NostrProvider'
 import { Check, Copy, Download, Eye, EyeOff } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -17,7 +16,6 @@ export default function SignupOnboarding({
   back: () => void
   onComplete: () => void
 }) {
-  const { pubkey } = useNostr()
   const [generatedKeys, setGeneratedKeys] = useState<{ nsec: string; npub: string } | null>(null)
   const [profileData, setProfileData] = useState<ProfileData>({ displayName: '', username: '' })
 
@@ -25,13 +23,11 @@ export default function SignupOnboarding({
     return (
       <SignupProfile
         back={back}
-        onProfileComplete={async ({ keys, profile, interestsFeed }: TSignupProfileResult) => {
+        onProfileComplete={async ({ pubkey, keys, profile, interestsFeed }: TSignupProfileResult) => {
           try {
             upsertStoredCustomFeed(interestsFeed)
 
-            if (pubkey) {
-              persistStoredFeedInfo({ feedType: 'custom', id: interestsFeed.id }, pubkey)
-            }
+            persistStoredFeedInfo({ feedType: 'custom', id: interestsFeed.id }, pubkey)
           } catch (error) {
             console.error('Failed to finish onboarding feed setup:', error)
           } finally {

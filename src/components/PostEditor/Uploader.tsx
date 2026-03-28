@@ -8,6 +8,7 @@ export default function Uploader({
   onUploadStart,
   onUploadEnd,
   onProgress,
+  beforeUpload,
   className,
   accept = 'image/*'
 }: {
@@ -16,6 +17,7 @@ export default function Uploader({
   onUploadStart?: (file: File, cancel: () => void) => void
   onUploadEnd?: (file: File) => void
   onProgress?: (file: File, progress: number) => void
+  beforeUpload?: () => Promise<boolean | void> | boolean | void
   className?: string
   accept?: string
 }) {
@@ -23,6 +25,23 @@ export default function Uploader({
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files) return
+
+    try {
+      const shouldContinue = await beforeUpload?.()
+      if (shouldContinue === false) {
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ''
+        }
+        return
+      }
+    } catch (error) {
+      console.error('Error preparing file upload', error)
+      toast.error(`Failed to prepare upload: ${(error as Error).message}`)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+      return
+    }
 
     const abortControllerMap = new Map<File, AbortController>()
 

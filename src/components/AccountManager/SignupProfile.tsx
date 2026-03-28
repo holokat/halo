@@ -19,8 +19,9 @@ import vanityAddress from '@/services/vanity-address.service'
 import { TCustomFeed } from '@/types'
 import { getPublicKey, generateSecretKey } from 'nostr-tools'
 import { nsecEncode, npubEncode } from 'nostr-tools/nip19'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import {
   BriefcaseBusiness,
   ChartCandlestick,
@@ -66,9 +67,19 @@ const INTEREST_ICON_MAP = {
 type SignupProfileStep = 'identity' | 'photo' | 'bio' | 'interests' | 'loading'
 
 export type TSignupProfileResult = {
+  pubkey: string
   keys: { nsec: string; npub: string }
   profile: { displayName: string; username: string }
   interestsFeed: TCustomFeed
+}
+
+function createSignupKeys() {
+  const sk = generateSecretKey()
+  const nsec = nsecEncode(sk)
+  const pubkey = getPublicKey(sk)
+  const npub = npubEncode(pubkey)
+
+  return { pubkey, nsec, npub }
 }
 
 export default function SignupProfile({
@@ -90,46 +101,46 @@ export default function SignupProfile({
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [selectedInterests, setSelectedInterests] = useState<TInterestCategoryId[]>([])
   const [hasCustomizedHandle, setHasCustomizedHandle] = useState(false)
-  const [generatedKeys, setGeneratedKeys] = useState<{
-    sk: Uint8Array
-    pubkey: string
-    nsec: string
-    npub: string
-  } | null>(null)
+  const [isPreparingAccount, setIsPreparingAccount] = useState(false)
+  const [generatedKeys] = useState(createSignupKeys)
+  const signupAccountReadyRef = useRef(false)
+  const signupAccountPromiseRef = useRef<Promise<void> | null>(null)
 
-  useEffect(() => {
-    const initAccount = async () => {
-      const sk = generateSecretKey()
-      const nsec = nsecEncode(sk)
-      const pubkey = getPublicKey(sk)
-      const npub = npubEncode(pubkey)
-
-      setGeneratedKeys({ sk, pubkey, nsec, npub })
-
-      try {
-        await nsecLogin(nsec, '', true)
-        await vanityAddress.registerSignupEligibility().catch((error) => {
-          console.warn('Failed to register vanity eligibility during signup:', error)
-        })
-      } catch (error) {
-        console.error('Failed to login during signup:', error)
-      }
+  const ensureSignupAccountReady = useCallback(async () => {
+    if (signupAccountReadyRef.current) {
+      return
     }
 
-    void initAccount()
-  }, [nsecLogin])
+    if (!signupAccountPromiseRef.current) {
+      signupAccountPromiseRef.current = (async () => {
+        setIsPreparingAccount(true)
+        try {
+          await nsecLogin(generatedKeys.nsec, '', true)
+          await vanityAddress.registerSignupEligibility().catch((error) => {
+            console.warn('Failed to register vanity eligibility during signup:', error)
+          })
+
+          signupAccountReadyRef.current = true
+
+          // Let context consumers observe the new signer/account before follow-up onboarding work.
+          await new Promise<void>((resolve) => {
+            requestAnimationFrame(() => resolve())
+          })
+        } finally {
+          setIsPreparingAccount(false)
+          if (!signupAccountReadyRef.current) {
+            signupAccountPromiseRef.current = null
+          }
+        }
+      })()
+    }
+
+    await signupAccountPromiseRef.current
+  }, [generatedKeys.nsec, nsecLogin])
 
   const generatedAvatar = useMemo(() => {
-    if (!generatedKeys) {
-      return ''
-    }
-
     return generateImageByPubkey(generatedKeys.pubkey)
   }, [generatedKeys])
-
-  if (!generatedKeys) {
-    return null
-  }
 
   const continueFromIdentity = () => {
     if (!displayName.trim()) {
@@ -192,7 +203,7 @@ export default function SignupProfile({
   }
 
   const finishOnboarding = async () => {
-    if (selectedInterests.length < 3) {
+    if (selectedInterests.length < 3 || isPreparingAccount) {
       return
     }
 
@@ -203,16 +214,28 @@ export default function SignupProfile({
     )
 
     setStep('loading')
-    publishProfileInBackground()
+    try {
+      await ensureSignupAccountReady()
+      publishProfileInBackground()
 
-    await onProfileComplete({
-      keys: { nsec: generatedKeys.nsec, npub: generatedKeys.npub },
-      profile: {
-        displayName: normalizedDisplayName,
-        username: normalizedHandle
-      },
-      interestsFeed
-    })
+      await onProfileComplete({
+        pubkey: generatedKeys.pubkey,
+        keys: { nsec: generatedKeys.nsec, npub: generatedKeys.npub },
+        profile: {
+          displayName: normalizedDisplayName,
+          username: normalizedHandle
+        },
+        interestsFeed
+      })
+    } catch (error) {
+      console.error('Failed to finish signup onboarding:', error)
+      toast.error(
+        t('Failed to create your account. Please try again.', {
+          defaultValue: 'Failed to create your account. Please try again.'
+        })
+      )
+      setStep('interests')
+    }
   }
 
   const onAvatarUploadSuccess = ({ url }: { url: string }) => {
@@ -308,6 +331,7 @@ export default function SignupProfile({
 
         <div className="flex flex-col items-center gap-4 py-2">
           <Uploader
+            beforeUpload={ensureSignupAccountReady}
             onUploadSuccess={onAvatarUploadSuccess}
             onUploadStart={() => setUploadingAvatar(true)}
             onUploadEnd={() => setUploadingAvatar(false)}
@@ -323,7 +347,7 @@ export default function SignupProfile({
                   <User className="w-8 h-8 text-muted-foreground" />
                 </AvatarFallback>
               </Avatar>
-              {uploadingAvatar ? (
+              {uploadingAvatar || isPreparingAccount ? (
                 <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/60">
                   <Loader className="animate-spin text-white" size={20} />
                 </div>
@@ -332,7 +356,7 @@ export default function SignupProfile({
                   <Upload className="text-white" size={20} />
                 </div>
               )}
-              {!avatar && !uploadingAvatar ? (
+              {!avatar && !uploadingAvatar && !isPreparingAccount ? (
                 <div className="absolute inset-x-0 bottom-0 bg-background/92 px-3 py-2 text-center text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground backdrop-blur-sm">
                   Add photo
                 </div>

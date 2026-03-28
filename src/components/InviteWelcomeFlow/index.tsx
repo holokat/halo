@@ -34,7 +34,7 @@ export default function InviteWelcomeFlow({
   inviterPubkey
 }: InviteWelcomeFlowProps) {
   const { t } = useTranslation()
-  const { publish, updateFollowListEvent, pubkey } = useNostr()
+  const { publish, updateFollowListEvent } = useNostr()
   const { profile: inviterProfile, isFetching: fetchingProfile } = useFetchProfile(inviterPubkey)
   const { followings: inviterFollowings } = useFetchFollowings(inviterPubkey)
 
@@ -58,6 +58,7 @@ export default function InviteWelcomeFlow({
   }
 
   const handleProfileComplete = async ({
+    pubkey,
     keys,
     profile,
     interestsFeed
@@ -76,9 +77,7 @@ export default function InviteWelcomeFlow({
 
       upsertStoredCustomFeed(interestsFeed)
 
-      if (pubkey) {
-        persistStoredFeedInfo({ feedType: 'custom', id: interestsFeed.id }, pubkey)
-      }
+      persistStoredFeedInfo({ feedType: 'custom', id: interestsFeed.id }, pubkey)
 
       toast.success(
         followInviterFollows && filteredInviterFollowings.length > 0
