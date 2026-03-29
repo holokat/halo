@@ -17,7 +17,8 @@ export default function NormalFeed({
   showRelayCloseReason = false,
   isInDeckView = false,
   initialEoseThreshold,
-  hideUntrustedNotes: hideUntrustedNotesProp
+  hideUntrustedNotes: hideUntrustedNotesProp,
+  ignoreHashtagLimit = false
 }: {
   subRequests: TFeedSubRequest[]
   areAlgoRelays?: boolean
@@ -26,6 +27,7 @@ export default function NormalFeed({
   isInDeckView?: boolean
   initialEoseThreshold?: number
   hideUntrustedNotes?: boolean
+  ignoreHashtagLimit?: boolean
 }) {
   const { hideUntrustedNotes: defaultHideUntrustedNotes } = useUserTrust()
   const { showKinds } = useKindFilter()
@@ -88,6 +90,7 @@ export default function NormalFeed({
         isMainFeed={isMainFeed}
         hideReplies={listMode === 'posts'}
         hideUntrustedNotes={hideUntrustedNotes}
+        ignoreHashtagLimit={ignoreHashtagLimit}
         areAlgoRelays={areAlgoRelays}
         showRelayCloseReason={showRelayCloseReason}
         initialEoseThreshold={initialEoseThreshold}

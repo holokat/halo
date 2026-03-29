@@ -5,7 +5,11 @@ import NormalFeed from '@/components/NormalFeed'
 import RelayInfo from '@/components/RelayInfo'
 import PinButton from '@/components/PinButton'
 import { Button } from '@/components/ui/button'
-import { getCustomFeedSubRequests, shouldBypassTrustFilterForCustomFeed } from '@/lib/custom-feed'
+import {
+  getCustomFeedSubRequests,
+  shouldBypassHashtagLimitForCustomFeed,
+  shouldBypassTrustFilterForCustomFeed
+} from '@/lib/custom-feed'
 import PrimaryPageLayout from '@/layouts/PrimaryPageLayout'
 import { useCurrentRelays } from '@/providers/CurrentRelaysProvider'
 import { useCustomFeeds } from '@/providers/CustomFeedsProvider'
@@ -123,6 +127,7 @@ const NoteListPage = forwardRef((_, ref) => {
             hideUntrustedNotes={
               shouldBypassTrustFilterForCustomFeed(customFeed.id) ? false : undefined
             }
+            ignoreHashtagLimit={shouldBypassHashtagLimitForCustomFeed(customFeed.id)}
           />
         )
       } else {

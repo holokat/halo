@@ -121,6 +121,10 @@ export function shouldBypassTrustFilterForCustomFeed(feedId: string) {
   return feedId === INTERESTS_FEED_ID
 }
 
+export function shouldBypassHashtagLimitForCustomFeed(feedId: string) {
+  return feedId === INTERESTS_FEED_ID
+}
+
 export function createInterestsCustomFeed(hashtags: string[]): TCustomFeed {
   const normalizedHashtags = dedupeCustomFeedHashtags(hashtags)
 

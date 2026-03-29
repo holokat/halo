@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils'
 import {
   getCustomFeedSubRequests,
+  shouldBypassHashtagLimitForCustomFeed,
   shouldBypassTrustFilterForCustomFeed
 } from '@/lib/custom-feed'
 import { TPinnedColumn, TFeedSubRequest } from '@/types'
@@ -124,6 +125,7 @@ export default function DeckColumn({ column }: { column: TPinnedColumn }) {
                 hideUntrustedNotes={
                   shouldBypassTrustFilterForCustomFeed(customFeed.id) ? false : undefined
                 }
+                ignoreHashtagLimit={shouldBypassHashtagLimitForCustomFeed(customFeed.id)}
               />
             )
           }

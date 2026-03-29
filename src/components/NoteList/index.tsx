@@ -56,6 +56,7 @@ const NoteList = forwardRef(
       filterMutedNotes = true,
       hideReplies = false,
       hideUntrustedNotes = false,
+      ignoreHashtagLimit = false,
       areAlgoRelays = false,
       showRelayCloseReason = false,
       pinnedEventIds = [],
@@ -75,6 +76,7 @@ const NoteList = forwardRef(
       filterMutedNotes?: boolean
       hideReplies?: boolean
       hideUntrustedNotes?: boolean
+      ignoreHashtagLimit?: boolean
       areAlgoRelays?: boolean
       showRelayCloseReason?: boolean
       pinnedEventIds?: string[]
@@ -131,7 +133,13 @@ const NoteList = forwardRef(
     }, [pinnedEventIds.join(',')])
 
     const shouldHideEvent = useCallback(
-      (evt: Event, { ignoreMediaOnly = false }: { ignoreMediaOnly?: boolean } = {}) => {
+      (
+        evt: Event,
+        {
+          ignoreMediaOnly = false,
+          ignoreHashtagLimit = false
+        }: { ignoreMediaOnly?: boolean; ignoreHashtagLimit?: boolean } = {}
+      ) => {
         if (pinnedEventHexIdSet.has(evt.id)) return true
         if (isEventDeleted(evt)) return true
         if (hideReplies && isReplyNoteEvent(evt)) return true
@@ -161,7 +169,7 @@ const NoteList = forwardRef(
         }
 
         // Check hashtag spam filter
-        if (hasExcessiveHashtags(evt, maxHashtags)) {
+        if (!ignoreHashtagLimit && hasExcessiveHashtags(evt, maxHashtags)) {
           return true
         }
 
@@ -195,7 +203,10 @@ const NoteList = forwardRef(
     )
 
     const filterVisibleEvents = useCallback(
-      (sourceEvents: Event[], options?: { ignoreMediaOnly?: boolean }) => {
+      (
+        sourceEvents: Event[],
+        options?: { ignoreMediaOnly?: boolean; ignoreHashtagLimit?: boolean }
+      ) => {
         const idSet = new Set<string>()
 
         return sourceEvents.filter((evt) => {
@@ -220,12 +231,23 @@ const NoteList = forwardRef(
 
       return filterVisibleEvents(events, { ignoreMediaOnly: true })
     }, [events, mediaOnly, visibleEvents, filterVisibleEvents])
+    const visibleEventsIgnoringHashtagLimit = useMemo(() => {
+      if (ignoreHashtagLimit) return visibleEvents
+
+      return filterVisibleEvents(events, { ignoreHashtagLimit: true })
+    }, [events, ignoreHashtagLimit, visibleEvents, filterVisibleEvents])
     const mediaOnlyFilteredOutAll =
       mediaOnly && visibleEvents.length === 0 && visibleEventsIgnoringMediaOnly.length > 0
+    const hashtagLimitFilteredOutAll =
+      !ignoreHashtagLimit &&
+      visibleEvents.length === 0 &&
+      visibleEventsIgnoringHashtagLimit.length > 0
     const showFilteredOutState = !loading && events.length > 0 && visibleEvents.length === 0
     const filteredOutMessage = mediaOnlyFilteredOutAll
       ? t('This relay is returning posts, but the media-only filter is hiding them.')
-      : additionalFilteredOutMessage || t('No notes match the current filters.')
+      : hashtagLimitFilteredOutAll
+        ? t('This feed is returning posts, but the hashtag filter is hiding them.')
+        : additionalFilteredOutMessage || t('No notes match the current filters.')
 
     const filteredEvents = useMemo(
       () => visibleEvents.slice(0, showCount),

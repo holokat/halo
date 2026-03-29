@@ -6,6 +6,7 @@ import {
   createInterestsCustomFeed,
   getCustomFeedHashtags,
   normalizeCustomFeedHashtag,
+  shouldBypassHashtagLimitForCustomFeed,
   shouldBypassTrustFilterForCustomFeed
 } from './interests-feed'
 
@@ -42,4 +43,9 @@ test('createInterestsCustomFeed stores normalized hashtags for the Interests fee
 test('Interests feed bypasses the trust filter while other custom feeds do not', () => {
   assert.equal(shouldBypassTrustFilterForCustomFeed('interests'), true)
   assert.equal(shouldBypassTrustFilterForCustomFeed('tech-feed'), false)
+})
+
+test('Interests feed bypasses the hashtag limit while other custom feeds do not', () => {
+  assert.equal(shouldBypassHashtagLimitForCustomFeed('interests'), true)
+  assert.equal(shouldBypassHashtagLimitForCustomFeed('tech-feed'), false)
 })
