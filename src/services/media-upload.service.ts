@@ -9,6 +9,7 @@ import imageCompression from 'browser-image-compression'
 type UploadOptions = {
   onProgress?: (progressPercent: number) => void
   signal?: AbortSignal
+  skipImageConversion?: boolean
 }
 
 export const UPLOAD_ABORTED_ERROR_MSG = 'Upload aborted'
@@ -93,7 +94,9 @@ class MediaUploadService {
     const namedFile = this.ensureFileHasName(file)
 
     // Convert PNG/JPEG to WebP before uploading
-    const fileToUpload = await this.convertToWebP(namedFile)
+    const fileToUpload = options?.skipImageConversion
+      ? namedFile
+      : await this.convertToWebP(namedFile)
 
     let result: { url: string; tags: string[][] }
     if (this.serviceConfig.type === 'nip96') {

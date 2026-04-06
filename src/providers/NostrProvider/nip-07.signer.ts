@@ -42,6 +42,26 @@ export class Nip07Signer implements ISigner {
     return !!this.signer?.nip44?.encrypt && !!this.signer?.nip44?.decrypt
   }
 
+  async nip04Encrypt(pubkey: string, plainText: string) {
+    if (!this.signer) {
+      throw new Error('Should call init() first')
+    }
+    if (!this.signer.nip04?.encrypt) {
+      throw new Error('The extension you are using does not support NIP-04 encryption')
+    }
+    return await this.signer.nip04.encrypt(pubkey, plainText)
+  }
+
+  async nip04Decrypt(pubkey: string, cipherText: string) {
+    if (!this.signer) {
+      throw new Error('Should call init() first')
+    }
+    if (!this.signer.nip04?.decrypt) {
+      throw new Error('The extension you are using does not support NIP-04 decryption')
+    }
+    return await this.signer.nip04.decrypt(pubkey, cipherText)
+  }
+
   async nip44Encrypt(pubkey: string, plainText: string) {
     if (!this.signer) {
       throw new Error('Should call init() first')

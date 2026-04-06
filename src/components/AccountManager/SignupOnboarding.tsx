@@ -5,7 +5,7 @@ import { persistStoredFeedInfo, upsertStoredCustomFeed } from '@/lib/feed-sync'
 import { Check, Copy, Download, Eye, EyeOff } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import SignupProfile, { TSignupProfileResult } from './SignupProfile'
+import SignupProfile, { createSignupKeys, TSignupProfileResult, TSignupKeys } from './SignupProfile'
 
 type ProfileData = { displayName: string; username: string }
 
@@ -16,6 +16,7 @@ export default function SignupOnboarding({
   back: () => void
   onComplete: () => void
 }) {
+  const [signupKeys] = useState<TSignupKeys>(createSignupKeys)
   const [generatedKeys, setGeneratedKeys] = useState<{ nsec: string; npub: string } | null>(null)
   const [profileData, setProfileData] = useState<ProfileData>({ displayName: '', username: '' })
 
@@ -23,7 +24,13 @@ export default function SignupOnboarding({
     return (
       <SignupProfile
         back={back}
-        onProfileComplete={async ({ pubkey, keys, profile, interestsFeed }: TSignupProfileResult) => {
+        signupKeys={signupKeys}
+        onProfileComplete={async ({
+          pubkey,
+          keys,
+          profile,
+          interestsFeed
+        }: TSignupProfileResult) => {
           try {
             upsertStoredCustomFeed(interestsFeed)
 
@@ -112,12 +119,7 @@ Your private key is the only way to access your account. If you lose it, you los
             stroke="currentColor"
             viewBox="0 0 24 24"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M5 13l4 4L19 7"
-            />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
         </div>
 

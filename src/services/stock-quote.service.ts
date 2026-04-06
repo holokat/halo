@@ -80,6 +80,15 @@ class StockQuoteService {
     return this.refreshQuote(symbol).catch(() => this.peekQuote(symbol))
   }
 
+  forceRefreshQuote(rawSymbol: string): Promise<TStockQuote> {
+    const symbol = normalizeStockSymbol(rawSymbol)
+    if (!isValidStockSymbol(symbol)) {
+      return Promise.reject(new Error('Invalid stock symbol'))
+    }
+
+    return this.refreshQuote(symbol)
+  }
+
   private refreshQuote(symbol: string) {
     const inflight = this.inflight.get(symbol)
     if (inflight) {

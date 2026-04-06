@@ -1,64 +1,14 @@
 import LoginDialog from '@/components/LoginDialog'
-import {
-  ApplicationDataKey,
-  BIG_RELAY_URLS,
-  DEFAULT_READ_RELAY_URLS,
-  DEFAULT_WRITE_RELAY_URLS,
-  ExtendedKind
-} from '@/constants'
-import {
-  createInboxRelayListDraftEvent,
-  createDeletionRequestDraftEvent,
-  createFollowListDraftEvent,
-  createMuteListDraftEvent,
-  createRelayListDraftEvent,
-  createSeenNotificationsAtDraftEvent,
-  deleteDraftEventCache
-} from '@/lib/draft-event'
-import {
-  getLatestEvent,
-  getReplaceableEventIdentifier,
-  isProtectedEvent,
-  minePow
-} from '@/lib/event'
-import {
-  getInboxRelayUrlsFromEvent,
-  getProfileFromEvent,
-  getRelayListFromEvent
-} from '@/lib/event-metadata'
-import { formatPubkey, pubkeyToNpub } from '@/lib/pubkey'
 import client from '@/services/client.service'
 import customEmojiService from '@/services/custom-emoji.service'
-import inboxRelayRecommendationsService from '@/services/inbox-relay-recommendations.service'
-import indexedDb from '@/services/indexed-db.service'
 import storage from '@/services/local-storage.service'
-import noteStatsService from '@/services/note-stats.service'
-import scheduledPostsService, {
-  scheduledPostsChangedEventName
-} from '@/services/scheduled-posts.service'
-import {
-  ISigner,
-  TAccount,
-  TAccountPointer,
-  TDraftEvent,
-  TProfile,
-  TPublishOptions,
-  TRelayList
-} from '@/types'
-import { hexToBytes } from '@noble/hashes/utils'
-import dayjs from 'dayjs'
-import { Event, kinds, VerifiedEvent } from 'nostr-tools'
-import * as nip19 from 'nostr-tools/nip19'
-import * as nip49 from 'nostr-tools/nip49'
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { TAccountPointer, TDraftEvent, TProfile, TPublishOptions, TRelayList, ISigner } from '@/types'
+import { Event, VerifiedEvent } from 'nostr-tools'
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
 import { useDeletedEvent } from '../DeletedEventProvider'
-import { BunkerSigner } from './bunker.signer'
-import { Nip07Signer } from './nip-07.signer'
-import { NostrConnectionSigner } from './nostrConnection.signer'
-import { NpubSigner } from './npub.signer'
-import { NsecSigner } from './nsec.signer'
+import { createNostrActions } from './actions'
+import { useScheduledPostsProcessor } from './scheduled-posts'
 
 type TNostrContext = {
   isInitialized: boolean
@@ -94,6 +44,8 @@ type TNostrContext = {
   attemptDelete: (targetEvent: Event) => Promise<void>
   signHttpAuth: (url: string, method: string) => Promise<string>
   signEvent: (draftEvent: TDraftEvent) => Promise<VerifiedEvent>
+  nip04Encrypt: (pubkey: string, plainText: string) => Promise<string>
+  nip04Decrypt: (pubkey: string, cipherText: string) => Promise<string>
   nip44Encrypt: (pubkey: string, plainText: string) => Promise<string>
   nip44Decrypt: (pubkey: string, cipherText: string) => Promise<string>
   startLogin: () => void
@@ -110,15 +62,7 @@ type TNostrContext = {
 }
 
 const NostrContext = createContext<TNostrContext | undefined>(undefined)
-
 const lastPublishedSeenNotificationsAtEventAtMap = new Map<string, number>()
-const SCHEDULED_POSTS_HEARTBEAT_MS = 30_000
-
-type TScheduledPostsTickerTick = {
-  type: 'tick'
-  atMs: number
-  reason: 'schedule' | 'heartbeat'
-}
 
 export const useNostr = () => {
   const context = useContext(NostrContext)
@@ -132,12 +76,15 @@ export const useOptionalNostr = () => {
   return useContext(NostrContext)
 }
 
-export function NostrProvider({ children }: { children: React.ReactNode }) {
+export function NostrProvider({ children }: { children: ReactNode }) {
   const { t } = useTranslation()
   const { addDeletedEvent } = useDeletedEvent()
-  const [accounts, setAccounts] = useState<TAccountPointer[]>(
-    storage.getAccounts().map((act) => ({ pubkey: act.pubkey, signerType: act.signerType }))
-  )
+  const initialAccounts = storage.getAccounts().map((act) => ({
+    pubkey: act.pubkey,
+    signerType: act.signerType
+  }))
+
+  const [accounts, setAccounts] = useState<TAccountPointer[]>(initialAccounts)
   const [account, setAccount] = useState<TAccountPointer | null>(null)
   const [nsec, setNsec] = useState<string | null>(null)
   const [ncryptsec, setNcryptsec] = useState<string | null>(null)
@@ -156,340 +103,103 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
   const [notificationsSeenAt, setNotificationsSeenAt] = useState(-1)
   const [isInitialized, setIsInitialized] = useState(false)
   const [nip44Supported, setNip44Supported] = useState(false)
+
   const activeAccountRef = useRef<TAccountPointer | null>(null)
+  const signerRef = useRef<ISigner | null>(null)
+  const profileRef = useRef<TProfile | null>(null)
+  const accountsRef = useRef<TAccountPointer[]>(initialAccounts)
+  const tRef = useRef(t)
   const scheduledPostProcessingIdsRef = useRef<Set<string>>(new Set())
   const scheduledPostFailureToastAtRef = useRef<Map<string, number>>(new Map())
+  const actionsRef = useRef<ReturnType<typeof createNostrActions> | null>(null)
 
-  const getDefaultInboxRelayUrls = async (nextRelayList: TRelayList | null) => {
-    const fallbackRelayUrls = Array.from(
-      new Set((nextRelayList?.read.length ? nextRelayList.read : DEFAULT_READ_RELAY_URLS).slice(0, 3))
-    )
-
-    if (!account?.pubkey) {
-      return fallbackRelayUrls
-    }
-
-    try {
-      return await inboxRelayRecommendationsService.getAutoPickInboxRelayUrls(
-        account.pubkey,
-        fallbackRelayUrls
-      )
-    } catch (error) {
-      console.error('Failed to auto-pick inbox relays:', error)
-      return fallbackRelayUrls
-    }
+  if (!actionsRef.current) {
+    actionsRef.current = createNostrActions({
+      tRef,
+      profileRef,
+      accountsRef,
+      signerRef,
+      activeAccountRef,
+      lastPublishedSeenNotificationsAtEventAtMap,
+      scheduledPostProcessingIdsRef,
+      scheduledPostFailureToastAtRef,
+      setAccounts,
+      setAccount,
+      setNsec,
+      setNcryptsec,
+      setSigner,
+      setProfile,
+      setProfileEvent,
+      setRelayList,
+      setInboxRelayUrls,
+      setFollowListEvent,
+      setMuteListEvent,
+      setBookmarkListEvent,
+      setFavoriteRelaysEvent,
+      setUserEmojiListEvent,
+      setPinListEvent,
+      setNotificationsSeenAt,
+      setIsInitialized,
+      setNip44Supported,
+      setOpenLoginDialog,
+      addDeletedEvent
+    })
   }
+  const actions = actionsRef.current!
 
   useEffect(() => {
     activeAccountRef.current = account
   }, [account])
 
   useEffect(() => {
-    const init = async () => {
-      if (hasNostrLoginHash()) {
-        return await loginByNostrLoginHash()
-      }
+    accountsRef.current = accounts
+  }, [accounts])
 
-      const accounts = storage.getAccounts()
-      const act = storage.getCurrentAccount() ?? accounts[0] // auto login the first account
-      if (!act) return
+  useEffect(() => {
+    profileRef.current = profile
+  }, [profile])
 
-      await loginWithAccountPointer(act)
-    }
-    init().then(() => {
+  useEffect(() => {
+    tRef.current = t
+  }, [t])
+
+  useEffect(() => {
+    signerRef.current = signer
+  }, [signer])
+
+  useEffect(() => {
+    void actions.bootstrapSession().then(() => {
       setIsInitialized(true)
     })
 
     const handleHashChange = () => {
-      if (hasNostrLoginHash()) {
-        loginByNostrLoginHash()
+      if (actions.hasNostrLoginHash()) {
+        void actions.loginByNostrLoginHash()
       }
     }
 
     window.addEventListener('hashchange', handleHashChange)
-
     return () => {
       window.removeEventListener('hashchange', handleHashChange)
     }
-  }, [])
-
-  // Preload all account profiles to in-memory cache for instant account switching
-  useEffect(() => {
-    const preloadAccountProfiles = async () => {
-      const accountPubkeys = accounts.map(acc => acc.pubkey)
-      if (accountPubkeys.length === 0) return
-
-      // Load all account profiles from IndexedDB and add to in-memory cache
-      const profileEvents = await Promise.all(
-        accountPubkeys.map(pubkey => indexedDb.getReplaceableEvent(pubkey, kinds.Metadata))
-      )
-
-      profileEvents.forEach(event => {
-        if (event) {
-          client.addEventToCache(event)
-        }
-      })
-    }
-
-    preloadAccountProfiles()
-  }, [accounts])
+  }, [actions])
 
   useEffect(() => {
-    const init = async () => {
-      setRelayList(null)
-      setInboxRelayUrls([])
-      setProfile(null)
-      setProfileEvent(null)
-      setNsec(null)
-      setFavoriteRelaysEvent(null)
-      setFollowListEvent(null)
-      setMuteListEvent(null)
-      setBookmarkListEvent(null)
-      setPinListEvent(null)
-      setNotificationsSeenAt(-1)
-      if (!account) {
-        return
-      }
+    void actions.preloadAccountProfiles()
+  }, [actions, accounts])
 
-      const controller = new AbortController()
-      const storedNsec = storage.getAccountNsec(account.pubkey)
-      if (storedNsec) {
-        setNsec(storedNsec)
-      } else {
-        setNsec(null)
-      }
-      const storedNcryptsec = storage.getAccountNcryptsec(account.pubkey)
-      if (storedNcryptsec) {
-        setNcryptsec(storedNcryptsec)
-      } else {
-        setNcryptsec(null)
-      }
-
-      const storedNotificationsSeenAt = storage.getLastReadNotificationTime(account.pubkey)
-
-      const [
-        storedRelayListEvent,
-        storedInboxRelayEvent,
-        storedProfileEvent,
-        storedFollowListEvent,
-        storedMuteListEvent,
-        storedBookmarkListEvent,
-        storedFavoriteRelaysEvent,
-        storedUserEmojiListEvent,
-        storedPinListEvent
-      ] = await Promise.all([
-        indexedDb.getReplaceableEvent(account.pubkey, kinds.RelayList),
-        indexedDb.getReplaceableEvent(account.pubkey, ExtendedKind.INBOX_RELAYS),
-        indexedDb.getReplaceableEvent(account.pubkey, kinds.Metadata),
-        indexedDb.getReplaceableEvent(account.pubkey, kinds.Contacts),
-        indexedDb.getReplaceableEvent(account.pubkey, kinds.Mutelist),
-        indexedDb.getReplaceableEvent(account.pubkey, kinds.BookmarkList),
-        indexedDb.getReplaceableEvent(account.pubkey, ExtendedKind.FAVORITE_RELAYS),
-        indexedDb.getReplaceableEvent(account.pubkey, kinds.UserEmojiList),
-        indexedDb.getReplaceableEvent(account.pubkey, kinds.Pinlist)
-      ])
-      if (storedRelayListEvent) {
-        setRelayList(getRelayListFromEvent(storedRelayListEvent))
-      }
-      if (storedInboxRelayEvent) {
-        setInboxRelayUrls(getInboxRelayUrlsFromEvent(storedInboxRelayEvent))
-      }
-      if (storedProfileEvent) {
-        setProfileEvent(storedProfileEvent)
-        setProfile(getProfileFromEvent(storedProfileEvent))
-        // Add to in-memory cache for instant access
-        client.addEventToCache(storedProfileEvent)
-      }
-      if (storedFollowListEvent) {
-        setFollowListEvent(storedFollowListEvent)
-      }
-      if (storedMuteListEvent) {
-        setMuteListEvent(storedMuteListEvent)
-      }
-      if (storedBookmarkListEvent) {
-        setBookmarkListEvent(storedBookmarkListEvent)
-      }
-      if (storedFavoriteRelaysEvent) {
-        setFavoriteRelaysEvent(storedFavoriteRelaysEvent)
-      }
-      if (storedUserEmojiListEvent) {
-        setUserEmojiListEvent(storedUserEmojiListEvent)
-      }
-      if (storedPinListEvent) {
-        setPinListEvent(storedPinListEvent)
-      }
-
-      const relayListEvents = await client.fetchEvents(BIG_RELAY_URLS, {
-        kinds: [kinds.RelayList],
-        authors: [account.pubkey]
-      })
-      const relayListEvent = getLatestEvent(relayListEvents) ?? storedRelayListEvent
-      const relayList = getRelayListFromEvent(relayListEvent)
-      if (relayListEvent) {
-        client.updateRelayListCache(relayListEvent)
-        await indexedDb.putReplaceableEvent(relayListEvent)
-      }
-      setRelayList(relayList)
-      // Update client service with user's preferred read relays for tiered fetching
-      client.setPreferredReadRelays(relayList.read)
-
-      const inboxRelayEvents = await client.fetchEvents(BIG_RELAY_URLS, {
-        kinds: [ExtendedKind.INBOX_RELAYS],
-        authors: [account.pubkey]
-      })
-      let inboxRelayEvent = getLatestEvent(inboxRelayEvents) ?? storedInboxRelayEvent ?? null
-      const hasPublishedInboxRelays =
-        inboxRelayEvent?.tags.some(([tagName]) => tagName === 'relay') ?? false
-
-      if ((!inboxRelayEvent || !hasPublishedInboxRelays) && signer?.supportsNip44() && account.signerType !== 'npub') {
-        const defaultInboxRelayUrls = await getDefaultInboxRelayUrls(relayList)
-        if (defaultInboxRelayUrls.length > 0) {
-          try {
-            inboxRelayEvent = await signer.signEvent(
-              createInboxRelayListDraftEvent(defaultInboxRelayUrls)
-            )
-            await client.publishEvent(BIG_RELAY_URLS, inboxRelayEvent)
-          } catch (error) {
-            console.warn('Failed to publish default inbox relay list:', error)
-          }
-        }
-      }
-
-      if (inboxRelayEvent) {
-        await client.updateInboxRelayListCache(inboxRelayEvent)
-        await indexedDb.putReplaceableEvent(inboxRelayEvent)
-      }
-      setInboxRelayUrls(getInboxRelayUrlsFromEvent(inboxRelayEvent))
-
-      const events = await client.fetchEvents(relayList.write.concat(BIG_RELAY_URLS).slice(0, 4), [
-        {
-          kinds: [
-            kinds.Metadata,
-            kinds.Contacts,
-            kinds.Mutelist,
-            kinds.BookmarkList,
-            ExtendedKind.FAVORITE_RELAYS,
-            ExtendedKind.BLOSSOM_SERVER_LIST,
-            kinds.UserEmojiList,
-            kinds.Pinlist
-          ],
-          authors: [account.pubkey]
-        },
-        {
-          kinds: [kinds.Application],
-          authors: [account.pubkey],
-          '#d': [ApplicationDataKey.NOTIFICATIONS_SEEN_AT]
-        }
-      ])
-      const sortedEvents = events.sort((a, b) => b.created_at - a.created_at)
-      const profileEvent = sortedEvents.find((e) => e.kind === kinds.Metadata)
-      const followListEvent = sortedEvents.find((e) => e.kind === kinds.Contacts)
-      const muteListEvent = sortedEvents.find((e) => e.kind === kinds.Mutelist)
-      const bookmarkListEvent = sortedEvents.find((e) => e.kind === kinds.BookmarkList)
-      const favoriteRelaysEvent = sortedEvents.find((e) => e.kind === ExtendedKind.FAVORITE_RELAYS)
-      const blossomServerListEvent = sortedEvents.find(
-        (e) => e.kind === ExtendedKind.BLOSSOM_SERVER_LIST
-      )
-      const userEmojiListEvent = sortedEvents.find((e) => e.kind === kinds.UserEmojiList)
-      const notificationsSeenAtEvent = sortedEvents.find(
-        (e) =>
-          e.kind === kinds.Application &&
-          getReplaceableEventIdentifier(e) === ApplicationDataKey.NOTIFICATIONS_SEEN_AT
-      )
-      const pinnedNotesEvent = sortedEvents.find((e) => e.kind === kinds.Pinlist)
-      if (profileEvent) {
-        const updatedProfileEvent = await indexedDb.putReplaceableEvent(profileEvent)
-        if (updatedProfileEvent.id === profileEvent.id) {
-          setProfileEvent(updatedProfileEvent)
-          setProfile(getProfileFromEvent(updatedProfileEvent))
-        }
-      } else if (!storedProfileEvent) {
-        setProfile({
-          pubkey: account.pubkey,
-          npub: pubkeyToNpub(account.pubkey) ?? '',
-          username: formatPubkey(account.pubkey)
-        })
-      }
-      if (followListEvent) {
-        const updatedFollowListEvent = await indexedDb.putReplaceableEvent(followListEvent)
-        if (updatedFollowListEvent.id === followListEvent.id) {
-          setFollowListEvent(followListEvent)
-        }
-      }
-      if (muteListEvent) {
-        const updatedMuteListEvent = await indexedDb.putReplaceableEvent(muteListEvent)
-        if (updatedMuteListEvent.id === muteListEvent.id) {
-          setMuteListEvent(muteListEvent)
-        }
-      }
-      if (bookmarkListEvent) {
-        const updateBookmarkListEvent = await indexedDb.putReplaceableEvent(bookmarkListEvent)
-        if (updateBookmarkListEvent.id === bookmarkListEvent.id) {
-          setBookmarkListEvent(bookmarkListEvent)
-        }
-      }
-      if (favoriteRelaysEvent) {
-        const updatedFavoriteRelaysEvent = await indexedDb.putReplaceableEvent(favoriteRelaysEvent)
-        if (updatedFavoriteRelaysEvent.id === favoriteRelaysEvent.id) {
-          setFavoriteRelaysEvent(updatedFavoriteRelaysEvent)
-        }
-      }
-      if (blossomServerListEvent) {
-        await client.updateBlossomServerListEventCache(blossomServerListEvent)
-      }
-      if (userEmojiListEvent) {
-        const updatedUserEmojiListEvent = await indexedDb.putReplaceableEvent(userEmojiListEvent)
-        if (updatedUserEmojiListEvent.id === userEmojiListEvent.id) {
-          setUserEmojiListEvent(updatedUserEmojiListEvent)
-        }
-      }
-      if (pinnedNotesEvent) {
-        const updatedPinnedNotesEvent = await indexedDb.putReplaceableEvent(pinnedNotesEvent)
-        if (updatedPinnedNotesEvent.id === pinnedNotesEvent.id) {
-          setPinListEvent(updatedPinnedNotesEvent)
-        }
-      }
-
-      const notificationsSeenAt = Math.max(
-        notificationsSeenAtEvent?.created_at ?? 0,
-        storedNotificationsSeenAt
-      )
-      setNotificationsSeenAt(notificationsSeenAt)
-      storage.setLastReadNotificationTime(account.pubkey, notificationsSeenAt)
-
-      client.initUserIndexFromFollowings(account.pubkey, controller.signal)
-      return controller
-    }
-    const promise = init()
+  useEffect(() => {
+    const promise = actions.loadAccountState()
     return () => {
       promise.then((controller) => {
         controller?.abort()
       })
     }
-  }, [account, signer])
+  }, [actions, account, signer])
 
   useEffect(() => {
-    if (!account) return
-
-    const initInteractions = async () => {
-      const pubkey = account.pubkey
-      const relayList = await client.fetchRelayList(pubkey)
-      const events = await client.fetchEvents(relayList.write.slice(0, 4), [
-        {
-          authors: [pubkey],
-          kinds: [kinds.Reaction, kinds.Repost],
-          limit: 100
-        },
-        {
-          '#P': [pubkey],
-          kinds: [kinds.Zap],
-          limit: 100
-        }
-      ])
-      noteStatsService.updateNoteStatsByEvents(events)
-    }
-    initInteractions()
-  }, [account])
+    void actions.loadInteractions()
+  }, [actions, account])
 
   useEffect(() => {
     if (signer) {
@@ -500,637 +210,26 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
   }, [signer])
 
   useEffect(() => {
-    setNip44Supported(signer?.supportsNip44() ?? false)
-  }, [signer])
+    client.pubkey = account?.pubkey
+  }, [account])
 
   useEffect(() => {
-    if (account) {
-      client.pubkey = account.pubkey
-    } else {
-      client.pubkey = undefined
-    }
-  }, [account])
+    setNip44Supported(signer?.supportsNip44() ?? false)
+  }, [signer])
 
   useEffect(() => {
     customEmojiService.init(userEmojiListEvent)
   }, [userEmojiListEvent])
 
-  const hasNostrLoginHash = () => {
-    return window.location.hash && window.location.hash.startsWith('#nostr-login')
-  }
-
-  const loginByNostrLoginHash = async () => {
-    const credential = window.location.hash.replace('#nostr-login=', '')
-    const urlWithoutHash = window.location.href.split('#')[0]
-    history.replaceState(null, '', urlWithoutHash)
-
-    if (credential.startsWith('bunker://')) {
-      return await bunkerLogin(credential)
-    } else if (credential.startsWith('ncryptsec')) {
-      return await ncryptsecLogin(credential)
-    } else if (credential.startsWith('nsec')) {
-      return await nsecLogin(credential)
-    }
-  }
-
-  const login = (signer: ISigner, act: TAccount) => {
-    const newAccounts = storage.addAccount(act)
-    setAccounts(newAccounts)
-    storage.switchAccount(act)
-    setAccount({ pubkey: act.pubkey, signerType: act.signerType })
-    setSigner(signer)
-    return act.pubkey
-  }
-
-  const removeAccount = (act: TAccountPointer) => {
-    scheduledPostsService.removeScheduledPostsForAccount(act.pubkey)
-    const newAccounts = storage.removeAccount(act)
-    setAccounts(newAccounts)
-    if (account?.pubkey === act.pubkey) {
-      setAccount(null)
-      setSigner(null)
-    }
-  }
-
-  const switchAccount = async (act: TAccountPointer | null) => {
-    if (!act) {
-      storage.switchAccount(null)
-      setAccount(null)
-      setSigner(null)
-      return
-    }
-    await loginWithAccountPointer(act)
-  }
-
-  const nsecLogin = async (nsecOrHex: string, password?: string, needSetup?: boolean) => {
-    const nsecSigner = new NsecSigner()
-    let privkey: Uint8Array
-    if (nsecOrHex.startsWith('nsec')) {
-      const { type, data } = nip19.decode(nsecOrHex)
-      if (type !== 'nsec') {
-        throw new Error('invalid nsec or hex')
-      }
-      privkey = data
-    } else if (/^[0-9a-fA-F]{64}$/.test(nsecOrHex)) {
-      privkey = hexToBytes(nsecOrHex)
-    } else {
-      throw new Error('invalid nsec or hex')
-    }
-    const pubkey = nsecSigner.login(privkey)
-    if (password) {
-      const ncryptsec = nip49.encrypt(privkey, password)
-      login(nsecSigner, { pubkey, signerType: 'ncryptsec', ncryptsec })
-    } else {
-      login(nsecSigner, { pubkey, signerType: 'nsec', nsec: nip19.nsecEncode(privkey) })
-    }
-    if (needSetup) {
-      setupNewUser(nsecSigner)
-    }
-    return pubkey
-  }
-
-  const ncryptsecLogin = async (ncryptsec: string) => {
-    const password = prompt(t('Enter the password to decrypt your ncryptsec'))
-    if (!password) {
-      throw new Error('Password is required')
-    }
-    const privkey = nip49.decrypt(ncryptsec, password)
-    const browserNsecSigner = new NsecSigner()
-    const pubkey = browserNsecSigner.login(privkey)
-    return login(browserNsecSigner, { pubkey, signerType: 'ncryptsec', ncryptsec })
-  }
-
-  const npubLogin = async (npub: string) => {
-    const npubSigner = new NpubSigner()
-    const pubkey = npubSigner.login(npub)
-    return login(npubSigner, { pubkey, signerType: 'npub', npub })
-  }
-
-  const nip07Login = async () => {
-    try {
-      const nip07Signer = new Nip07Signer()
-      await nip07Signer.init()
-      const pubkey = await nip07Signer.getPublicKey()
-      if (!pubkey) {
-        throw new Error('You did not allow to access your pubkey')
-      }
-      return login(nip07Signer, { pubkey, signerType: 'nip-07' })
-    } catch (err) {
-      toast.error(t('Login failed') + ': ' + (err as Error).message)
-      throw err
-    }
-  }
-
-  const bunkerLogin = async (bunker: string) => {
-    const bunkerSigner = new BunkerSigner()
-    const pubkey = await bunkerSigner.login(bunker)
-    if (!pubkey) {
-      throw new Error('Invalid bunker')
-    }
-    const bunkerUrl = new URL(bunker)
-    bunkerUrl.searchParams.delete('secret')
-    return login(bunkerSigner, {
-      pubkey,
-      signerType: 'bunker',
-      bunker: bunkerUrl.toString(),
-      bunkerClientSecretKey: bunkerSigner.getClientSecretKey()
-    })
-  }
-
-  const nostrConnectionLogin = async (clientSecretKey: Uint8Array, connectionString: string) => {
-    const bunkerSigner = new NostrConnectionSigner(clientSecretKey, connectionString)
-    const loginResult = await bunkerSigner.login()
-    if (!loginResult.pubkey) {
-      throw new Error('Invalid bunker')
-    }
-    const bunkerUrl = new URL(loginResult.bunkerString!)
-    bunkerUrl.searchParams.delete('secret')
-    return login(bunkerSigner, {
-      pubkey: loginResult.pubkey,
-      signerType: 'bunker',
-      bunker: bunkerUrl.toString(),
-      bunkerClientSecretKey: bunkerSigner.getClientSecretKey()
-    })
-  }
-
-  const loginWithAccountPointer = async (act: TAccountPointer): Promise<string | null> => {
-    let account = storage.findAccount(act)
-    if (!account) {
-      return null
-    }
-    if (account.signerType === 'nsec' || account.signerType === 'browser-nsec') {
-      if (account.nsec) {
-        const browserNsecSigner = new NsecSigner()
-        browserNsecSigner.login(account.nsec)
-        // Migrate to nsec
-        if (account.signerType === 'browser-nsec') {
-          storage.removeAccount(account)
-          account = { ...account, signerType: 'nsec' }
-          storage.addAccount(account)
-        }
-        return login(browserNsecSigner, account)
-      }
-    } else if (account.signerType === 'ncryptsec') {
-      if (account.ncryptsec) {
-        const password = prompt(t('Enter the password to decrypt your ncryptsec'))
-        if (!password) {
-          return null
-        }
-        const privkey = nip49.decrypt(account.ncryptsec, password)
-        const browserNsecSigner = new NsecSigner()
-        browserNsecSigner.login(privkey)
-        return login(browserNsecSigner, account)
-      }
-    } else if (account.signerType === 'nip-07') {
-      const nip07Signer = new Nip07Signer()
-      await nip07Signer.init()
-      return login(nip07Signer, account)
-    } else if (account.signerType === 'bunker') {
-      if (account.bunker && account.bunkerClientSecretKey) {
-        const bunkerSigner = new BunkerSigner(account.bunkerClientSecretKey)
-        const pubkey = await bunkerSigner.login(account.bunker, false)
-        if (!pubkey) {
-          storage.removeAccount(account)
-          return null
-        }
-        if (pubkey !== account.pubkey) {
-          storage.removeAccount(account)
-          account = { ...account, pubkey }
-          storage.addAccount(account)
-        }
-        return login(bunkerSigner, account)
-      }
-    } else if (account.signerType === 'npub' && account.npub) {
-      const npubSigner = new NpubSigner()
-      const pubkey = npubSigner.login(account.npub)
-      if (!pubkey) {
-        storage.removeAccount(account)
-        return null
-      }
-      if (pubkey !== account.pubkey) {
-        storage.removeAccount(account)
-        account = { ...account, pubkey }
-        storage.addAccount(account)
-      }
-      return login(npubSigner, account)
-    }
-    storage.removeAccount(account)
-    return null
-  }
-
-  const setupNewUser = async (signer: ISigner) => {
-    const defaultMailboxRelays = Array.from(
-      new Set([...DEFAULT_READ_RELAY_URLS, ...DEFAULT_WRITE_RELAY_URLS])
-    ).map((url) => {
-      const isRead = DEFAULT_READ_RELAY_URLS.includes(url)
-      const isWrite = DEFAULT_WRITE_RELAY_URLS.includes(url)
-
-      return {
-        url,
-        scope: isRead && isWrite ? 'both' : isRead ? 'read' : 'write'
-      } as const
-    })
-    const defaultInboxRelayUrls = Array.from(new Set(DEFAULT_READ_RELAY_URLS)).slice(0, 3)
-
-    await Promise.allSettled([
-      client.publishEvent(BIG_RELAY_URLS, await signer.signEvent(createFollowListDraftEvent([]))),
-      client.publishEvent(BIG_RELAY_URLS, await signer.signEvent(createMuteListDraftEvent([]))),
-      client.publishEvent(
-        BIG_RELAY_URLS,
-        await signer.signEvent(createRelayListDraftEvent(defaultMailboxRelays))
-      ),
-      client.publishEvent(
-        BIG_RELAY_URLS,
-        await signer.signEvent(createInboxRelayListDraftEvent(defaultInboxRelayUrls))
-      )
-    ])
-  }
-
-  const signEvent = async (draftEvent: TDraftEvent) => {
-    const event = await signer?.signEvent(draftEvent)
-    if (!event) {
-      throw new Error('sign event failed')
-    }
-    return event as VerifiedEvent
-  }
-
-  const publish = async (
-    draftEvent: TDraftEvent,
-    { minPow = 0, ...options }: TPublishOptions = {}
-  ) => {
-    if (!account || !signer || account.signerType === 'npub') {
-      throw new Error('You need to login first')
-    }
-
-    const draft = JSON.parse(JSON.stringify(draftEvent)) as TDraftEvent
-    let event: VerifiedEvent
-    if (minPow > 0) {
-      const unsignedEvent = await minePow({ ...draft, pubkey: account.pubkey }, minPow)
-      event = await signEvent(unsignedEvent)
-    } else {
-      event = await signEvent(draft)
-    }
-
-    if (event.kind !== kinds.Application && event.pubkey !== account.pubkey) {
-      const eventAuthor = await client.fetchProfile(event.pubkey)
-      const result = confirm(
-        t(
-          'You are about to publish an event signed by [{{eventAuthorName}}]. You are currently logged in as [{{currentUsername}}]. Are you sure?',
-          { eventAuthorName: eventAuthor?.username, currentUsername: profile?.username }
-        )
-      )
-      if (!result) {
-        throw new Error(t('Cancelled'))
-      }
-    }
-
-    const relays = await client.determineTargetRelays(event, options)
-
-    await client.publishEvent(relays, event)
-    return event
-  }
-
-  const processScheduledPosts = useCallback(async () => {
-    if (!isInitialized || !account || account.signerType === 'npub') {
-      return
-    }
-
-    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
-      return
-    }
-
-    const duePosts = scheduledPostsService.getReadyScheduledPosts(account.pubkey)
-    for (const scheduledPost of duePosts) {
-      if (scheduledPostProcessingIdsRef.current.has(scheduledPost.id)) {
-        continue
-      }
-
-      scheduledPostProcessingIdsRef.current.add(scheduledPost.id)
-      let draftEvent: TDraftEvent | null = null
-
-      try {
-        const activeAccount = activeAccountRef.current
-        if (!activeAccount || activeAccount.pubkey !== scheduledPost.accountPubkey) {
-          continue
-        }
-
-        const scheduledDraft = await scheduledPostsService.createDraftEventFromScheduledPost(
-          scheduledPost
-        )
-        draftEvent = scheduledDraft.draftEvent
-
-        const event = await publish(draftEvent, scheduledDraft.publishOptions)
-        client.addEventToCache(event)
-        scheduledPostsService.removeScheduledPost(scheduledPost.id)
-        scheduledPostFailureToastAtRef.current.delete(scheduledPost.id)
-        toast.success(t('Scheduled post published'), { duration: 3000 })
-      } catch (error) {
-        console.error('Failed to publish scheduled post:', error)
-        scheduledPostsService.markAttemptFailed(scheduledPost.id, error)
-
-        const now = Date.now()
-        const lastToastAt = scheduledPostFailureToastAtRef.current.get(scheduledPost.id) ?? 0
-        if (now - lastToastAt > 5 * 60 * 1000) {
-          toast.error(
-            t('A scheduled post could not be sent. We will retry when this account is active.'),
-            { duration: 5000 }
-          )
-          scheduledPostFailureToastAtRef.current.set(scheduledPost.id, now)
-        }
-      } finally {
-        if (draftEvent) {
-          deleteDraftEventCache(draftEvent)
-        }
-        scheduledPostProcessingIdsRef.current.delete(scheduledPost.id)
-      }
-    }
-  }, [account, isInitialized, publish, t])
-
-  useEffect(() => {
-    if (!isInitialized) return
-
-    let isDisposed = false
-    let isRunning = false
-    let runQueued = false
-    let worker: Worker | null = null
-    let heartbeatIntervalId: number | null = null
-    let nextRunTimeoutId: number | null = null
-
-    const clearMainThreadTimers = () => {
-      if (heartbeatIntervalId !== null) {
-        window.clearInterval(heartbeatIntervalId)
-        heartbeatIntervalId = null
-      }
-      if (nextRunTimeoutId !== null) {
-        window.clearTimeout(nextRunTimeoutId)
-        nextRunTimeoutId = null
-      }
-    }
-
-    const getNextRunAtMs = () => {
-      if (!account || account.signerType === 'npub') return null
-
-      const nextRunAt = scheduledPostsService.getNextScheduledRunAt(account.pubkey)
-      return typeof nextRunAt === 'number' ? nextRunAt * 1000 : null
-    }
-
-    const queueRun = () => {
-      if (isDisposed) return
-      if (isRunning) {
-        runQueued = true
-        return
-      }
-      void run()
-    }
-
-    const scheduleMainThreadNextRun = () => {
-      if (nextRunTimeoutId !== null) {
-        window.clearTimeout(nextRunTimeoutId)
-        nextRunTimeoutId = null
-      }
-
-      const nextRunAtMs = getNextRunAtMs()
-      if (!nextRunAtMs) return
-
-      const delay = Math.max(250, nextRunAtMs - Date.now())
-      nextRunTimeoutId = window.setTimeout(() => {
-        nextRunTimeoutId = null
-        queueRun()
-      }, delay)
-    }
-
-    const configureTicker = () => {
-      const nextRunAtMs = getNextRunAtMs()
-      if (worker) {
-        worker.postMessage({
-          type: 'configure',
-          nextRunAtMs,
-          heartbeatMs: SCHEDULED_POSTS_HEARTBEAT_MS
-        })
-        return
-      }
-
-      scheduleMainThreadNextRun()
-    }
-
-    const run = async () => {
-      if (isDisposed || isRunning) return
-      isRunning = true
-
-      try {
-        await processScheduledPosts()
-      } finally {
-        isRunning = false
-        configureTicker()
-
-        if (runQueued) {
-          runQueued = false
-          queueRun()
-        }
-      }
-    }
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        queueRun()
-      }
-    }
-
-    const handleScheduledPostsChanged = () => {
-      configureTicker()
-      queueRun()
-    }
-
-    const handleFocus = () => {
-      queueRun()
-    }
-
-    if (typeof Worker !== 'undefined') {
-      try {
-        worker = new Worker(new URL('../../workers/scheduled-posts-ticker.worker.ts', import.meta.url), {
-          type: 'module'
-        })
-        worker.onmessage = (event: MessageEvent<TScheduledPostsTickerTick>) => {
-          if (event.data?.type !== 'tick') return
-          if (document.visibilityState !== 'visible') return
-          queueRun()
-        }
-        worker.onerror = (event) => {
-          console.error('Scheduled posts ticker worker failed:', event)
-          worker?.terminate()
-          worker = null
-          clearMainThreadTimers()
-          heartbeatIntervalId = window.setInterval(() => {
-            if (document.visibilityState === 'visible') {
-              queueRun()
-            }
-          }, SCHEDULED_POSTS_HEARTBEAT_MS)
-          scheduleMainThreadNextRun()
-        }
-        configureTicker()
-      } catch (error) {
-        console.error('Failed to initialize scheduled posts ticker worker:', error)
-        worker = null
-      }
-    }
-
-    if (!worker) {
-      heartbeatIntervalId = window.setInterval(() => {
-        if (document.visibilityState === 'visible') {
-          queueRun()
-        }
-      }, SCHEDULED_POSTS_HEARTBEAT_MS)
-      scheduleMainThreadNextRun()
-    }
-
-    window.addEventListener('focus', handleFocus)
-    window.addEventListener(scheduledPostsChangedEventName, handleScheduledPostsChanged)
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    queueRun()
-
-    return () => {
-      isDisposed = true
-      clearMainThreadTimers()
-      window.removeEventListener('focus', handleFocus)
-      window.removeEventListener(scheduledPostsChangedEventName, handleScheduledPostsChanged)
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-      if (worker) {
-        worker.postMessage({ type: 'stop' })
-        worker.terminate()
-        worker = null
-      }
-    }
-  }, [account, isInitialized, processScheduledPosts])
-
-  const attemptDelete = async (targetEvent: Event) => {
-    if (!signer) {
-      throw new Error(t('You need to login first'))
-    }
-    if (account?.pubkey !== targetEvent.pubkey) {
-      throw new Error(t('You can only delete your own notes'))
-    }
-
-    const deletionRequest = await signEvent(createDeletionRequestDraftEvent(targetEvent))
-
-    const seenOn = client.getSeenEventRelayUrls(targetEvent.id)
-    const relays = await client.determineTargetRelays(targetEvent, {
-      specifiedRelayUrls: isProtectedEvent(targetEvent) ? seenOn : undefined,
-      additionalRelayUrls: seenOn
-    })
-
-    await client.publishEvent(relays, deletionRequest)
-
-    addDeletedEvent(targetEvent)
-    toast.success(t('Deletion request sent to {{count}} relays', { count: relays.length }))
-  }
-
-  const signHttpAuth = async (url: string, method: string, content = '') => {
-    const event = await signEvent({
-      content,
-      kind: kinds.HTTPAuth,
-      created_at: dayjs().unix(),
-      tags: [
-        ['u', url],
-        ['method', method]
-      ]
-    })
-    return 'Nostr ' + btoa(JSON.stringify(event))
-  }
-
-  const nip44Encrypt = async (pubkey: string, plainText: string) => {
-    return signer?.nip44Encrypt(pubkey, plainText) ?? ''
-  }
-
-  const nip44Decrypt = async (pubkey: string, cipherText: string) => {
-    return signer?.nip44Decrypt(pubkey, cipherText) ?? ''
-  }
-
-  const checkLogin = async <T,>(cb?: () => T): Promise<T | void> => {
-    if (signer) {
-      return cb && cb()
-    }
-    return setOpenLoginDialog(true)
-  }
-
-  const updateRelayListEvent = async (relayListEvent: Event) => {
-    const newRelayList = await indexedDb.putReplaceableEvent(relayListEvent)
-    const relayList = getRelayListFromEvent(newRelayList)
-    setRelayList(relayList)
-    // Update client service with user's preferred read relays for tiered fetching
-    client.setPreferredReadRelays(relayList.read)
-  }
-
-  const updateInboxRelayEvent = async (inboxRelayEvent: Event) => {
-    const newInboxRelayEvent = await indexedDb.putReplaceableEvent(inboxRelayEvent)
-    const nextInboxRelayUrls = getInboxRelayUrlsFromEvent(newInboxRelayEvent)
-    setInboxRelayUrls(nextInboxRelayUrls)
-    await client.updateInboxRelayListCache(newInboxRelayEvent)
-  }
-
-  const updateProfileEvent = async (profileEvent: Event) => {
-    const newProfileEvent = await indexedDb.putReplaceableEvent(profileEvent)
-    setProfileEvent(newProfileEvent)
-    setProfile(getProfileFromEvent(newProfileEvent))
-  }
-
-  const updateFollowListEvent = async (followListEvent: Event) => {
-    const newFollowListEvent = await indexedDb.putReplaceableEvent(followListEvent)
-    if (newFollowListEvent.id !== followListEvent.id) return
-
-    setFollowListEvent(newFollowListEvent)
-    await client.updateFollowListCache(newFollowListEvent)
-  }
-
-  const updateMuteListEvent = async (muteListEvent: Event, privateTags: string[][]) => {
-    const newMuteListEvent = await indexedDb.putReplaceableEvent(muteListEvent)
-    if (newMuteListEvent.id !== muteListEvent.id) return
-
-    await indexedDb.putMuteDecryptedTags(muteListEvent.id, privateTags)
-    setMuteListEvent(muteListEvent)
-  }
-
-  const updateBookmarkListEvent = async (bookmarkListEvent: Event) => {
-    const newBookmarkListEvent = await indexedDb.putReplaceableEvent(bookmarkListEvent)
-    if (newBookmarkListEvent.id !== bookmarkListEvent.id) return
-
-    setBookmarkListEvent(newBookmarkListEvent)
-  }
-
-  const updateFavoriteRelaysEvent = async (favoriteRelaysEvent: Event) => {
-    const newFavoriteRelaysEvent = await indexedDb.putReplaceableEvent(favoriteRelaysEvent)
-    if (newFavoriteRelaysEvent.id !== favoriteRelaysEvent.id) return
-
-    setFavoriteRelaysEvent(newFavoriteRelaysEvent)
-  }
-
-  const updatePinListEvent = async (pinListEvent: Event) => {
-    const newPinListEvent = await indexedDb.putReplaceableEvent(pinListEvent)
-    if (newPinListEvent.id !== pinListEvent.id) return
-
-    setPinListEvent(newPinListEvent)
-  }
-
-  const updateNotificationsSeenAt = async (skipPublish = false) => {
-    if (!account) return
-
-    const now = dayjs().unix()
-    storage.setLastReadNotificationTime(account.pubkey, now)
-    setTimeout(() => {
-      setNotificationsSeenAt(now)
-    }, 5_000)
-
-    // Prevent too frequent requests for signing seen notifications events
-    const lastPublishedSeenNotificationsAtEventAt =
-      lastPublishedSeenNotificationsAtEventAtMap.get(account.pubkey) ?? -1
-    if (
-      !skipPublish &&
-      (lastPublishedSeenNotificationsAtEventAt < 0 ||
-        now - lastPublishedSeenNotificationsAtEventAt > 10 * 60) // 10 minutes
-    ) {
-      await publish(createSeenNotificationsAtDraftEvent())
-      lastPublishedSeenNotificationsAtEventAtMap.set(account.pubkey, now)
-    }
-  }
+  useScheduledPostsProcessor({
+    account,
+    isInitialized,
+    publish: actions.publish,
+    t,
+    activeAccountRef,
+    scheduledPostProcessingIdsRef,
+    scheduledPostFailureToastAtRef
+  })
 
   return (
     <NostrContext.Provider
@@ -1153,31 +252,33 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
         accounts,
         nsec,
         ncryptsec,
-        switchAccount,
-        nsecLogin,
-        ncryptsecLogin,
-        nip07Login,
-        bunkerLogin,
-        nostrConnectionLogin,
-        npubLogin,
-        removeAccount,
-        publish,
-        attemptDelete,
-        signHttpAuth,
-        nip44Encrypt,
-        nip44Decrypt,
-        startLogin: () => setOpenLoginDialog(true),
-        checkLogin,
-        signEvent,
-        updateRelayListEvent,
-        updateInboxRelayEvent,
-        updateProfileEvent,
-        updateFollowListEvent,
-        updateMuteListEvent,
-        updateBookmarkListEvent,
-        updateFavoriteRelaysEvent,
-        updatePinListEvent,
-        updateNotificationsSeenAt
+        switchAccount: actions.switchAccount,
+        nsecLogin: actions.nsecLogin,
+        ncryptsecLogin: actions.ncryptsecLogin,
+        nip07Login: actions.nip07Login,
+        bunkerLogin: actions.bunkerLogin,
+        nostrConnectionLogin: actions.nostrConnectionLogin,
+        npubLogin: actions.npubLogin,
+        removeAccount: actions.removeAccount,
+        publish: actions.publish,
+        attemptDelete: actions.attemptDelete,
+        signHttpAuth: actions.signHttpAuth,
+        nip04Encrypt: actions.nip04Encrypt,
+        nip04Decrypt: actions.nip04Decrypt,
+        nip44Encrypt: actions.nip44Encrypt,
+        nip44Decrypt: actions.nip44Decrypt,
+        startLogin: actions.startLogin,
+        checkLogin: actions.checkLogin,
+        signEvent: actions.signEvent,
+        updateRelayListEvent: actions.updateRelayListEvent,
+        updateInboxRelayEvent: actions.updateInboxRelayEvent,
+        updateProfileEvent: actions.updateProfileEvent,
+        updateFollowListEvent: actions.updateFollowListEvent,
+        updateMuteListEvent: actions.updateMuteListEvent,
+        updateBookmarkListEvent: actions.updateBookmarkListEvent,
+        updateFavoriteRelaysEvent: actions.updateFavoriteRelaysEvent,
+        updatePinListEvent: actions.updatePinListEvent,
+        updateNotificationsSeenAt: actions.updateNotificationsSeenAt
       }}
     >
       {children}

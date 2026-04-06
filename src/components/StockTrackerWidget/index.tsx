@@ -15,7 +15,7 @@ import {
 } from '@/services/stock-quote.service'
 import stockQuoteService from '@/services/stock-quote.service'
 import { TStockQuote } from '@/types'
-import { EyeOff, Plus, X } from 'lucide-react'
+import { EyeOff, Plus, RefreshCcw, X } from 'lucide-react'
 import { FormEvent, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -38,11 +38,29 @@ export default function StockTrackerWidget() {
   const [inputValue, setInputValue] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isHovered, setIsHovered] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [refreshVersion, setRefreshVersion] = useState(0)
 
   const widgetName =
     AVAILABLE_WIDGETS.find((widget) => widget.id === 'stock-tracker')?.name || 'Stock Tracker'
   const isInputMuted = !isSmallScreen && !inputValue.trim() && !error
   const isCollapsed = !hideWidgetTitles && isWidgetCollapsed('stock-tracker')
+
+  const handleRefresh = async () => {
+    if (isRefreshing || stockTrackerSymbols.length === 0) {
+      return
+    }
+
+    setIsRefreshing(true)
+    try {
+      await Promise.allSettled(
+        stockTrackerSymbols.map((symbol) => stockQuoteService.forceRefreshQuote(symbol))
+      )
+      setRefreshVersion((prev) => prev + 1)
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -79,6 +97,18 @@ export default function StockTrackerWidget() {
         title={widgetName}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
+        titleActions={
+          <button
+            type="button"
+            className="shrink-0 cursor-pointer text-muted-foreground transition-colors hover:text-foreground disabled:cursor-default disabled:opacity-60"
+            onClick={() => void handleRefresh()}
+            title={t('Refresh quotes', { defaultValue: 'Refresh quotes' })}
+            aria-label={t('Refresh quotes', { defaultValue: 'Refresh quotes' })}
+            disabled={isRefreshing || stockTrackerSymbols.length === 0}
+          >
+            <RefreshCcw className={cn('h-3.5 w-3.5', isRefreshing && 'animate-spin')} />
+          </button>
+        }
         actions={
           isHovered ? (
             <button
@@ -108,6 +138,7 @@ export default function StockTrackerWidget() {
                 <StockTrackerRow
                   key={symbol}
                   symbol={symbol}
+                  refreshVersion={refreshVersion}
                   onRemove={() => removeStockTrackerSymbol(symbol)}
                 />
               ))}
@@ -154,9 +185,11 @@ export default function StockTrackerWidget() {
 
 function StockTrackerRow({
   symbol,
+  refreshVersion,
   onRemove
 }: {
   symbol: string
+  refreshVersion: number
   onRemove: () => void
 }) {
   const { t } = useTranslation()
@@ -189,7 +222,7 @@ function StockTrackerRow({
           })
         }
       })
-  }, [symbol])
+  }, [symbol, refreshVersion])
 
   const quote = state.status === 'success' ? state.quote : null
   const isPositive = (quote?.change ?? 0) > 0

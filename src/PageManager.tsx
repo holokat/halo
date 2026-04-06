@@ -1,119 +1,32 @@
-import Sidebar from '@/components/Sidebar'
 import { DECK_VIEW_MODE, LAYOUT_MODE } from '@/constants'
 import { cn } from '@/lib/utils'
-import NoteListPage from '@/pages/primary/NoteListPage'
-import HomePage from '@/pages/secondary/HomePage'
 import { CurrentRelaysProvider } from '@/providers/CurrentRelaysProvider'
 import { useDeckView } from '@/providers/DeckViewProvider'
 import { useLayoutMode } from '@/providers/LayoutModeProvider'
 import { usePageTheme } from '@/providers/PageThemeProvider'
 import { useCompactSidebar } from '@/providers/CompactSidebarProvider'
-import { TPageRef } from '@/types'
 import {
-  cloneElement,
-  createContext,
-  createRef,
   forwardRef,
   HTMLAttributes,
+  MouseEvent,
   ReactNode,
-  RefObject,
-  useContext,
   useEffect,
   useRef,
   useState
 } from 'react'
-import BackgroundAudio from './components/BackgroundAudio'
-import BottomNavigationBar from './components/BottomNavigationBar'
-import DeckColumn from './components/DeckColumn'
-import TooManyRelaysAlertDialog from './components/TooManyRelaysAlertDialog'
 import { normalizeUrl } from './lib/url'
-import ExplorePage from './pages/primary/ExplorePage'
-import ListsPage from './pages/primary/ListsPage'
-import LiveStreamsPage from './pages/primary/LiveStreamsPage'
-import MePage from './pages/primary/MePage'
-import MessagesPage from './pages/primary/MessagesPage'
-import NotificationListPage from './pages/primary/NotificationListPage'
-import ProfilePage from './pages/primary/ProfilePage'
-import ReadsPage from './pages/primary/ReadsPage'
-import RelayPage from './pages/primary/RelayPage'
-import SearchPage from './pages/primary/SearchPage'
 import { NotificationProvider } from './providers/NotificationProvider'
 import { MessagesProvider } from './providers/MessagesProvider'
 import { useScreenSize } from './providers/ScreenSizeProvider'
 import { useWidgetSidebarDismissed } from './providers/WidgetSidebarDismissedProvider'
-import { routes } from './routes'
 import modalManager from './services/modal-manager.service'
-import { Sheet, SheetContent } from './components/ui/sheet'
-
-export type TPrimaryPageName = keyof typeof PRIMARY_PAGE_MAP
-
-type TPrimaryPageContext = {
-  navigate: (page: TPrimaryPageName, props?: object) => void
-  current: TPrimaryPageName | null
-  display: boolean
-}
-
-type TSecondaryPageContext = {
-  push: (url: string) => void
-  pop: () => void
-  clear: () => void
-  currentIndex: number
-}
-
-type TStackItem = {
-  index: number
-  url: string
-  component: React.ReactElement | null
-  ref: RefObject<TPageRef> | null
-}
-
-const PRIMARY_PAGE_REF_MAP = {
-  home: createRef<TPageRef>(),
-  reads: createRef<TPageRef>(),
-  lists: createRef<TPageRef>(),
-  explore: createRef<TPageRef>(),
-  messages: createRef<TPageRef>(),
-  notifications: createRef<TPageRef>(),
-  livestreams: createRef<TPageRef>(),
-  me: createRef<TPageRef>(),
-  profile: createRef<TPageRef>(),
-  relay: createRef<TPageRef>(),
-  search: createRef<TPageRef>()
-}
-
-const PRIMARY_PAGE_MAP = {
-  home: <NoteListPage ref={PRIMARY_PAGE_REF_MAP.home} />,
-  reads: <ReadsPage ref={PRIMARY_PAGE_REF_MAP.reads} />,
-  lists: <ListsPage ref={PRIMARY_PAGE_REF_MAP.lists} />,
-  explore: <ExplorePage ref={PRIMARY_PAGE_REF_MAP.explore} />,
-  messages: <MessagesPage ref={PRIMARY_PAGE_REF_MAP.messages} />,
-  notifications: <NotificationListPage ref={PRIMARY_PAGE_REF_MAP.notifications} />,
-  livestreams: <LiveStreamsPage ref={PRIMARY_PAGE_REF_MAP.livestreams} />,
-  me: <MePage ref={PRIMARY_PAGE_REF_MAP.me} />,
-  profile: <ProfilePage ref={PRIMARY_PAGE_REF_MAP.profile} />,
-  relay: <RelayPage ref={PRIMARY_PAGE_REF_MAP.relay} />,
-  search: <SearchPage ref={PRIMARY_PAGE_REF_MAP.search} />
-}
-
-const PrimaryPageContext = createContext<TPrimaryPageContext | undefined>(undefined)
-
-const SecondaryPageContext = createContext<TSecondaryPageContext | undefined>(undefined)
-
-export function usePrimaryPage() {
-  const context = useContext(PrimaryPageContext)
-  if (!context) {
-    throw new Error('usePrimaryPage must be used within a PrimaryPageContext.Provider')
-  }
-  return context
-}
-
-export function useSecondaryPage() {
-  const context = useContext(SecondaryPageContext)
-  if (!context) {
-    throw new Error('usePrimaryPage must be used within a SecondaryPageContext.Provider')
-  }
-  return context
-}
+import { PRIMARY_PAGE_MAP, PRIMARY_PAGE_REF_MAP } from './page-manager/page-registry'
+import { PrimaryPageContext, SecondaryPageContext, useSecondaryPage } from './page-manager/contexts'
+import { type TPrimaryPageName, type TStackItem } from './page-manager/types'
+import { isCurrentPage, findAndCreateComponent, pushNewPageToStack } from './page-manager/routing'
+import { PageManagerShell } from './page-manager/layout'
+export { usePrimaryPage, useSecondaryPage } from './page-manager/contexts'
+export type { TPrimaryPageName } from './page-manager/page-registry'
 
 export function PageManager({ maxStackSize = 5 }: { maxStackSize?: number }) {
   const { pageTheme } = usePageTheme()
@@ -355,38 +268,23 @@ export function PageManager({ maxStackSize = 5 }: { maxStackSize?: number }) {
               : 0
           }}
         >
-        <CurrentRelaysProvider>
-          <NotificationProvider>
-            <MessagesProvider>
-              <div className={cn(layoutMode === LAYOUT_MODE.BOXED && "max-w-screen-xl mx-auto")}>
-                  {!!secondaryStack.length &&
-                    secondaryStack.map((item, index) => (
-                      <div
-                        key={item.index}
-                        style={{
-                          display: index === secondaryStack.length - 1 ? 'block' : 'none'
-                        }}
-                      >
-                        {item.component}
-                      </div>
-                    ))}
-                  {primaryPages.map(({ name, element, props }) => (
-                    <div
-                      key={name}
-                      style={{
-                        display:
-                          secondaryStack.length === 0 && currentPrimaryPage === name ? 'block' : 'none'
-                      }}
-                    >
-                      {props ? cloneElement(element as React.ReactElement, props) : element}
-                    </div>
-                  ))}
-                </div>
-                <BottomNavigationBar />
-                <TooManyRelaysAlertDialog />
-            </MessagesProvider>
-          </NotificationProvider>
-        </CurrentRelaysProvider>
+          <CurrentRelaysProvider>
+            <NotificationProvider>
+              <MessagesProvider>
+                <PageManagerShell
+                  isSmallScreen={isSmallScreen}
+                  layoutMode={layoutMode}
+                  deckViewMode={deckViewMode}
+                  pageTheme={pageTheme}
+                  primaryPages={primaryPages}
+                  currentPrimaryPage={currentPrimaryPage}
+                  secondaryStack={secondaryStack}
+                  pinnedColumns={pinnedColumns}
+                  widgetSidebarDismissed={widgetSidebarDismissed}
+                />
+              </MessagesProvider>
+            </NotificationProvider>
+          </CurrentRelaysProvider>
         </SecondaryPageContext.Provider>
       </PrimaryPageContext.Provider>
     )
@@ -411,84 +309,17 @@ export function PageManager({ maxStackSize = 5 }: { maxStackSize?: number }) {
         <CurrentRelaysProvider>
           <NotificationProvider>
             <MessagesProvider>
-              <div className="flex h-[var(--vh)] overflow-hidden bg-surface-background justify-center">
-                {/* Sidebar positioning based on layout mode */}
-                {layoutMode === LAYOUT_MODE.ISLAND ? (
-                  <div className={cn(
-                    "fixed left-0 top-0 h-full z-10 shrink-0",
-                    pageTheme === 'pure-black' && "border-r border-neutral-900"
-                  )}>
-                    <Sidebar />
-                  </div>
-                ) : (
-                  <div className={cn(
-                    "shrink-0",
-                    pageTheme === 'pure-black' && "border-r border-neutral-900"
-                  )}>
-                    <Sidebar />
-                  </div>
-                )}
-                {(layoutMode === LAYOUT_MODE.FULL_WIDTH || layoutMode === LAYOUT_MODE.ISLAND) && deckViewMode === DECK_VIEW_MODE.MULTI_COLUMN ? (
-                  <DeckLayout
-                    primaryPages={primaryPages}
-                    currentPrimaryPage={currentPrimaryPage}
-                    secondaryStack={secondaryStack}
-                    pinnedColumns={pinnedColumns}
-                  />
-                ) : (
-                  <div className={cn(
-                    "grid h-full min-h-0 grid-cols-2 gap-2 w-full px-2 py-2",
-                    layoutMode === LAYOUT_MODE.BOXED && "max-w-screen-xl",
-                    layoutMode === LAYOUT_MODE.ISLAND && "max-w-screen-xl ml-16"
-                  )}>
-                    <div
-                      className={cn(
-                        "bg-card min-w-0 min-h-0 overflow-hidden",
-                        pageTheme === 'pure-black' && "border border-neutral-900",
-                        pageTheme === 'white' ? "border border-border" : "shadow-lg"
-                      )}
-                      style={{ borderRadius: 'var(--card-radius, 8px)' }}
-                    >
-                      {primaryPages.map(({ name, element, props }) => (
-                        <div
-                          key={name}
-                          className="flex flex-col h-full w-full"
-                          style={{
-                            display: currentPrimaryPage === name ? 'block' : 'none'
-                          }}
-                        >
-                          {props ? cloneElement(element as React.ReactElement, props) : element}
-                        </div>
-                      ))}
-                    </div>
-                    <HomePageWrapper
-                      secondaryStackLength={secondaryStack.length}
-                      widgetSidebarDismissed={widgetSidebarDismissed}
-                    >
-                      {secondaryStack.map((item, index) => (
-                        <div
-                          key={item.index}
-                          className="flex flex-col h-full w-full"
-                          style={{ display: index === secondaryStack.length - 1 ? 'block' : 'none' }}
-                        >
-                          {item.component}
-                        </div>
-                      ))}
-                      {!widgetSidebarDismissed && (
-                        <div
-                          key="home"
-                          className="h-full min-h-0 w-full"
-                          style={{ display: secondaryStack.length === 0 ? 'block' : 'none' }}
-                        >
-                          <HomePage />
-                        </div>
-                      )}
-                    </HomePageWrapper>
-                  </div>
-                )}
-              </div>
-              <TooManyRelaysAlertDialog />
-              <BackgroundAudio className="fixed bottom-20 right-0 z-50 w-80 rounded-l-full rounded-r-none overflow-hidden shadow-lg border" />
+              <PageManagerShell
+                isSmallScreen={isSmallScreen}
+                layoutMode={layoutMode}
+                deckViewMode={deckViewMode}
+                pageTheme={pageTheme}
+                primaryPages={primaryPages}
+                currentPrimaryPage={currentPrimaryPage}
+                secondaryStack={secondaryStack}
+                pinnedColumns={pinnedColumns}
+                widgetSidebarDismissed={widgetSidebarDismissed}
+              />
             </MessagesProvider>
           </NotificationProvider>
         </CurrentRelaysProvider>
@@ -499,14 +330,14 @@ export function PageManager({ maxStackSize = 5 }: { maxStackSize?: number }) {
 
 type SecondaryPageLinkProps = HTMLAttributes<HTMLSpanElement | HTMLDivElement> & {
   to: string
-  children: React.ReactNode
+  children: ReactNode
   as?: 'span' | 'div'
 }
 
 export const SecondaryPageLink = forwardRef<HTMLSpanElement | HTMLDivElement, SecondaryPageLinkProps>(
   ({ to, children, className, onClick, as = 'span', ...props }, ref) => {
     const { push } = useSecondaryPage()
-    const handleClick = (e: React.MouseEvent<HTMLSpanElement | HTMLDivElement>) => {
+    const handleClick = (e: MouseEvent<HTMLSpanElement | HTMLDivElement>) => {
       onClick?.(e)
       if (!e.defaultPrevented) {
         push(to)
@@ -540,190 +371,3 @@ export const SecondaryPageLink = forwardRef<HTMLSpanElement | HTMLDivElement, Se
 )
 
 SecondaryPageLink.displayName = 'SecondaryPageLink'
-
-function isCurrentPage(stack: TStackItem[], url: string) {
-  const currentPage = stack[stack.length - 1]
-  if (!currentPage) return false
-
-  return currentPage.url === url
-}
-
-function findAndCreateComponent(url: string | undefined, index: number) {
-  if (!url) return {}
-  const path = url.split('?')[0].split('#')[0]
-  for (const { matcher, element } of routes) {
-    const match = matcher(path)
-    if (!match) continue
-
-    if (!element) return {}
-    const ref = createRef<TPageRef>()
-    return { component: cloneElement(element, { ...match.params, index, ref } as any), ref }
-  }
-  return {}
-}
-
-function pushNewPageToStack(
-  stack: TStackItem[],
-  url: string | undefined,
-  maxStackSize = 5,
-  specificIndex?: number
-) {
-  if (!url) return { newStack: stack, newItem: null }
-
-  const currentItem = stack[stack.length - 1]
-  const currentIndex = specificIndex ?? (currentItem ? currentItem.index + 1 : 0)
-
-  const { component, ref } = findAndCreateComponent(url, currentIndex)
-  if (!component) return { newStack: stack, newItem: null }
-
-  const newItem = { component, ref, url, index: currentIndex }
-  const newStack = [...stack, newItem]
-  const lastCachedIndex = newStack.findIndex((stack) => stack.component)
-  // Clear the oldest cached component if there are too many cached components
-  if (newStack.length - lastCachedIndex > maxStackSize) {
-    newStack[lastCachedIndex].component = null
-  }
-  return { newStack, newItem }
-}
-
-function HomePageWrapper({
-  children,
-  secondaryStackLength,
-  widgetSidebarDismissed
-}: {
-  children: ReactNode
-  secondaryStackLength: number
-  widgetSidebarDismissed: boolean
-}) {
-  const { pageTheme } = usePageTheme()
-
-  // We're on the home page (widgets sidebar) when secondaryStackLength === 0 and not dismissed
-  const isHomePage = secondaryStackLength === 0 && !widgetSidebarDismissed
-  // We're in empty/dismissed state when secondaryStackLength === 0 and dismissed
-  const isDismissed = secondaryStackLength === 0 && widgetSidebarDismissed
-
-  return (
-    <div
-      className={cn(
-        'h-full min-h-0 overflow-hidden',
-        // Make the wrapper transparent when on home page or when dismissed
-        isHomePage || isDismissed ? 'bg-transparent shadow-none' : cn(
-          'bg-card',
-          pageTheme === 'white' ? '' : 'shadow-lg'
-        ),
-        pageTheme === 'pure-black' && !isHomePage && !isDismissed && 'border border-neutral-900',
-        pageTheme === 'white' && !isHomePage && !isDismissed && 'border border-border'
-      )}
-      style={{ borderRadius: 'var(--card-radius, 8px)' }}
-    >
-      {children}
-    </div>
-  )
-}
-
-function DeckLayout({
-  primaryPages,
-  currentPrimaryPage,
-  secondaryStack,
-  pinnedColumns
-}: {
-  primaryPages: { name: TPrimaryPageName; element: ReactNode; props?: any }[]
-  currentPrimaryPage: TPrimaryPageName
-  secondaryStack: TStackItem[]
-  pinnedColumns: any[]
-}) {
-  const { pageTheme } = usePageTheme()
-  const { pop } = useSecondaryPage()
-
-  // Filter out pinned columns that fail to render (no content)
-  const validPinnedColumns = pinnedColumns.filter((column) => {
-    // Check if the column would have content
-    switch (column.type) {
-      case 'custom':
-        return !!column.props?.customFeedId
-      case 'relay':
-        return !!column.props?.url
-      case 'relays':
-        return !!column.props?.activeRelaySetId
-      case 'profile':
-        return !!column.props?.pubkey
-      case 'search':
-        return !!column.props?.searchParams
-      default:
-        // explore, notifications, bookmarks always have content
-        return true
-    }
-  })
-
-  // Calculate the number of columns (no right sidebar in multi-column mode)
-  const columnCount = 1 + validPinnedColumns.length // main + valid pinned only
-
-  // Check if drawer should be open
-  const isDrawerOpen = secondaryStack.length > 0
-
-  return (
-    <>
-      <div
-        className="gap-2 w-full px-2 py-2 overflow-x-auto"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: `repeat(${columnCount}, 1fr)`
-        }}
-      >
-        {/* Main column */}
-        <div
-          className={cn(
-            "bg-background min-w-0 overflow-hidden w-full",
-            pageTheme === 'pure-black' && "border border-neutral-900",
-            pageTheme === 'white' ? "border border-border" : "shadow-lg"
-          )}
-          style={{ borderRadius: 'var(--card-radius, 8px)' }}
-        >
-          {primaryPages.map(({ name, element, props }) => (
-            <div
-              key={name}
-              className="flex flex-col h-full w-full"
-              style={{
-                display: currentPrimaryPage === name ? 'block' : 'none'
-              }}
-            >
-              {props ? cloneElement(element as React.ReactElement, props) : element}
-            </div>
-          ))}
-        </div>
-
-        {/* Pinned columns */}
-        {validPinnedColumns.map((column) => (
-          <DeckColumn key={column.id} column={column} />
-        ))}
-      </div>
-
-      {/* Right drawer for secondary pages in multi-column mode */}
-      <Sheet open={isDrawerOpen} onOpenChange={(open) => {
-        if (!open) {
-          // Close the drawer by popping the page
-          pop()
-        }
-      }}>
-        <SheetContent
-          side="right"
-          className={cn(
-            "min-w-[520px] sm:min-w-[520px] p-0 gap-0",
-            pageTheme === 'pure-black' && "border-l border-neutral-900"
-          )}
-          hideClose
-        >
-          {secondaryStack.map((item, index) => (
-            <div
-              key={item.index}
-              className="flex flex-col h-full w-full"
-              style={{ display: index === secondaryStack.length - 1 ? 'block' : 'none' }}
-            >
-              {item.component}
-            </div>
-          ))}
-        </SheetContent>
-      </Sheet>
-    </>
-  )
-}

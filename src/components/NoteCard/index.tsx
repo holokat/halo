@@ -1,5 +1,6 @@
 import { Skeleton } from '@/components/ui/skeleton'
 import { hasMutedHashtag, isMentioningMutedUsers, isFromMutedDomain } from '@/lib/event'
+import { isEventExpired } from '@/lib/event-expiration'
 import { useContentPolicy } from '@/providers/ContentPolicyProvider'
 import { useMuteList } from '@/providers/MuteListProvider'
 import { useFetchProfile } from '@/hooks'
@@ -35,6 +36,10 @@ export default function NoteCard({
   const shouldHide = useMemo(() => {
     // If we have muted domains configured and profile is still loading, wait for profile to load
     if (filterMutedNotes && mutedDomains.length > 0 && isFetching) {
+      return true
+    }
+
+    if (isEventExpired(event)) {
       return true
     }
 

@@ -8,8 +8,17 @@ import { Event, kinds } from 'nostr-tools'
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { z } from 'zod'
-import { useNostr } from './NostrProvider'
+import { useNostr } from '@/providers/NostrProvider'
+import {
+  getEncryptionVersion,
+  hasTag,
+  hasTagIgnoreCase,
+  normalizeMutedTag,
+  normalizeMutedWord,
+  parseTagMatrix,
+  removeTag,
+  removeTagIgnoreCase
+} from './mute-list.utils'
 
 type TMuteListContext = {
   mutePubkeySet: Set<string>
@@ -54,6 +63,8 @@ export function MuteListProvider({ children }: { children: React.ReactNode }) {
     muteListEvent,
     publish,
     updateMuteListEvent,
+    nip04Decrypt,
+    nip04Encrypt,
     nip44Decrypt,
     nip44Encrypt
   } = useNostr()
@@ -75,39 +86,6 @@ export function MuteListProvider({ children }: { children: React.ReactNode }) {
   }, [publicTags, privateTags])
   const mutePubkeySet = useMemo(() => new Set(getPubkeysFromPTags(allMuteTags)), [allMuteTags])
   const [changing, setChanging] = useState(false)
-
-  const parseTagMatrix = (text: string): string[][] | null => {
-    try {
-      return z.array(z.array(z.string())).parse(JSON.parse(text))
-    } catch {
-      return null
-    }
-  }
-
-  const hasTag = (tags: string[][], tagName: string, tagValue: string) =>
-    tags.some(([name, value]) => name === tagName && value === tagValue)
-
-  const removeTag = (tags: string[][], tagName: string, tagValue: string) =>
-    tags.filter(([name, value]) => !(name === tagName && value === tagValue))
-
-  const normalizeMutedWord = (word: string) => word.trim().replace(/\s+/g, ' ').toLowerCase()
-  const normalizeMutedTag = (tag: string) => tag.trim().replace(/^#/, '').toLowerCase()
-  const hasTagIgnoreCase = (tags: string[][], tagName: string, tagValue: string) => {
-    const normalized = tagName === 't' ? normalizeMutedTag(tagValue) : normalizeMutedWord(tagValue)
-    return tags.some(([name, value = '']) => {
-      if (name !== tagName) return false
-      const normalizedValue = tagName === 't' ? normalizeMutedTag(value) : normalizeMutedWord(value)
-      return normalizedValue === normalized
-    })
-  }
-  const removeTagIgnoreCase = (tags: string[][], tagName: string, tagValue: string) => {
-    const normalized = tagName === 't' ? normalizeMutedTag(tagValue) : normalizeMutedWord(tagValue)
-    return tags.filter(([name, value = '']) => {
-      if (name !== tagName) return true
-      const normalizedValue = tagName === 't' ? normalizeMutedTag(value) : normalizeMutedWord(value)
-      return normalizedValue !== normalized
-    })
-  }
 
   // Load notes from localStorage
   useEffect(() => {
@@ -139,15 +117,27 @@ export function MuteListProvider({ children }: { children: React.ReactNode }) {
       return { tags: plainTags, readable: true }
     }
 
-    try {
-      const decrypted = await nip44Decrypt(muteListEvent.pubkey, muteListEvent.content)
-      const tags = parseTagMatrix(decrypted)
-      if (tags) {
+    const decryptors =
+      getEncryptionVersion(muteListEvent.content) === 'nip04'
+        ? [
+            () => nip04Decrypt(muteListEvent.pubkey, muteListEvent.content),
+            () => nip44Decrypt(muteListEvent.pubkey, muteListEvent.content)
+          ]
+        : [
+            () => nip44Decrypt(muteListEvent.pubkey, muteListEvent.content),
+            () => nip04Decrypt(muteListEvent.pubkey, muteListEvent.content)
+          ]
+
+    for (const decrypt of decryptors) {
+      try {
+        const decrypted = await decrypt()
+        const tags = parseTagMatrix(decrypted)
+        if (!tags) continue
         await indexedDb.putMuteDecryptedTags(muteListEvent.id, tags)
         return { tags, readable: true }
+      } catch {
+        // Try the next supported decryptor.
       }
-    } catch {
-      // handled below
     }
 
     console.error('Failed to read mute list content in any supported format')
@@ -175,17 +165,29 @@ export function MuteListProvider({ children }: { children: React.ReactNode }) {
     return Array.from(mutePubkeySet)
   }
 
-  const publishNewMuteListEvent = async (nextPublicTags: string[][], nextPrivateTags: string[][]) => {
+  const publishNewMuteListEvent = async (
+    nextPublicTags: string[][],
+    nextPrivateTags: string[][]
+  ) => {
     if (!accountPubkey) {
       throw new Error('Missing account pubkey')
     }
     if (dayjs().unix() === muteListEvent?.created_at) {
       await new Promise((resolve) => setTimeout(resolve, 1000))
     }
-    const content =
-      nextPrivateTags.length > 0
-        ? await nip44Encrypt(accountPubkey, JSON.stringify(nextPrivateTags))
-        : ''
+    let content = ''
+    if (nextPrivateTags.length > 0) {
+      const serializedTags = JSON.stringify(nextPrivateTags)
+      try {
+        content = await nip44Encrypt(accountPubkey, serializedTags)
+      } catch (nip44Error) {
+        try {
+          content = await nip04Encrypt(accountPubkey, serializedTags)
+        } catch {
+          throw nip44Error
+        }
+      }
+    }
     const newMuteListDraftEvent = createMuteListDraftEvent(nextPublicTags, content)
     const event = await publish(newMuteListDraftEvent)
     toast.success(t('Successfully updated mute list'))

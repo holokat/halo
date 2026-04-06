@@ -4,7 +4,7 @@ import { SecondaryPageLink } from '@/PageManager'
 export function EmbeddedHashtag({ hashtag }: { hashtag: string }) {
   return (
     <SecondaryPageLink
-      className="text-primary hover:underline"
+      className="text-primary hover:underline break-words [overflow-wrap:anywhere] [word-break:break-word]"
       to={toNoteList({ hashtag: hashtag.replace('#', '') })}
       onClick={(e) => e.stopPropagation()}
     >

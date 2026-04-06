@@ -62,8 +62,16 @@ import {
   migrateLegacyMessagesMenuPosition
 } from '@/services/local-storage/menu-items'
 import {
+  readStoredBoolean,
+  readStoredBooleanValue,
+  readStoredEnum,
+  readStoredJson,
+  readStoredString,
+  readStoredStringArray,
+  readStoredStringValue
+} from '@/services/local-storage/readers'
+import {
   getStorageItem,
-  getStorageJson,
   removeStorageItem,
   setStorageBoolean,
   setStorageItem,
@@ -194,36 +202,98 @@ class LocalStorageService {
   }
 
   init() {
-    this.themeSetting = (getStorageItem(StorageKey.THEME_SETTING) as TThemeSetting) ?? 'dark'
-    this.colorPalette = (getStorageItem(StorageKey.COLOR_PALETTE) as TColorPalette) ?? 'default'
-    this.accounts = getStorageJson<TAccount[]>(StorageKey.ACCOUNTS, [])
-    this.currentAccount = getStorageJson<TAccount | null>(StorageKey.CURRENT_ACCOUNT, null)
-    const noteListModeStr = getStorageItem(StorageKey.NOTE_LIST_MODE)
+    this.initCoreState()
+    this.initDisplayState()
+    this.initWidgetState()
+    this.initCollectionState()
+    this.cleanupDeprecatedStorage()
+  }
+
+  private initCoreState() {
+    this.themeSetting = readStoredString(StorageKey.THEME_SETTING, 'dark') as TThemeSetting
+    this.colorPalette = readStoredString(StorageKey.COLOR_PALETTE, 'default') as TColorPalette
+    this.accounts = readStoredJson<TAccount[]>(StorageKey.ACCOUNTS, [])
+    this.currentAccount = readStoredJson<TAccount | null>(StorageKey.CURRENT_ACCOUNT, null)
+    const noteListMode = readStoredStringValue(StorageKey.NOTE_LIST_MODE)
     this.noteListMode =
-      noteListModeStr && ['posts', 'postsAndReplies', 'pictures'].includes(noteListModeStr)
-        ? (noteListModeStr as TNoteListMode)
+      noteListMode && ['posts', 'postsAndReplies', 'pictures'].includes(noteListMode)
+        ? (noteListMode as TNoteListMode)
         : 'posts'
-    this.lastReadNotificationTimeMap = getStorageJson<Record<string, number>>(
+    this.lastReadNotificationTimeMap = readStoredJson<Record<string, number>>(
       StorageKey.LAST_READ_NOTIFICATION_TIME_MAP,
       {}
     )
-    this.lastReadMessageTimeMap = getStorageJson<Record<string, number>>(
+    this.lastReadMessageTimeMap = readStoredJson<Record<string, number>>(
       StorageKey.LAST_READ_MESSAGE_TIME_MAP,
       {}
     )
-    this.messageConversationReadTimeMap = getStorageJson<Record<string, Record<string, number>>>(
+    this.messageConversationReadTimeMap = readStoredJson<Record<string, Record<string, number>>>(
       StorageKey.MESSAGE_CONVERSATION_READ_TIME_MAP,
       {}
     )
-    this.dismissedMessageConversationMap = getStorageJson<Record<string, Record<string, number>>>(
+    this.dismissedMessageConversationMap = readStoredJson<Record<string, Record<string, number>>>(
       StorageKey.DISMISSED_MESSAGE_CONVERSATION_MAP,
       {}
     )
+    this.relaySets = this.loadRelaySets()
 
-    const relaySetsStr = getStorageItem(StorageKey.RELAY_SETS)
+    const defaultZapSatsStr = readStoredStringValue(StorageKey.DEFAULT_ZAP_SATS)
+    if (defaultZapSatsStr) {
+      const num = parseInt(defaultZapSatsStr, 10)
+      if (!isNaN(num)) {
+        this.defaultZapSats = num
+      }
+    }
+    this.defaultZapComment = readStoredString(StorageKey.DEFAULT_ZAP_COMMENT, 'Zap!')
+    this.quickZap = readStoredBoolean(StorageKey.QUICK_ZAP)
+    this.accountFeedInfoMap = readStoredJson<Record<string, TFeedInfo | undefined>>(
+      StorageKey.ACCOUNT_FEED_INFO_MAP,
+      {}
+    )
+    this.mediaUploadService = readStoredString(
+      StorageKey.MEDIA_UPLOAD_SERVICE,
+      DEFAULT_NIP_96_SERVICE
+    )
+    this.autoplay = readStoredBooleanValue(StorageKey.AUTOPLAY) ?? true
+
+    const hideUntrustedEvents = readStoredBooleanValue(StorageKey.HIDE_UNTRUSTED_EVENTS) ?? false
+    const storedHideUntrustedInteractions = readStoredBooleanValue(
+      StorageKey.HIDE_UNTRUSTED_INTERACTIONS
+    )
+    const storedHideUntrustedNotifications = readStoredBooleanValue(
+      StorageKey.HIDE_UNTRUSTED_NOTIFICATIONS
+    )
+    const storedHideUntrustedNotes = readStoredBooleanValue(StorageKey.HIDE_UNTRUSTED_NOTES)
+    this.hideUntrustedInteractions = storedHideUntrustedInteractions ?? hideUntrustedEvents
+    this.hideUntrustedNotifications = storedHideUntrustedNotifications ?? hideUntrustedEvents
+    this.hideUntrustedNotes = storedHideUntrustedNotes ?? hideUntrustedEvents
+
+    const storedTrustLevel = readStoredStringValue(StorageKey.TRUST_LEVEL)
+    this.trustLevel = storedTrustLevel ? parseInt(storedTrustLevel, 10) : 0
+
+    this.translationServiceConfigMap = readStoredJson<Record<string, TTranslationServiceConfig>>(
+      StorageKey.TRANSLATION_SERVICE_CONFIG_MAP,
+      {}
+    )
+    this.mediaUploadServiceConfigMap = readStoredJson<Record<string, TMediaUploadServiceConfig>>(
+      StorageKey.MEDIA_UPLOAD_SERVICE_CONFIG_MAP,
+      {}
+    )
+    this.aiServiceConfigMap = readStoredJson<Record<string, TAIServiceConfig>>(
+      StorageKey.AI_SERVICE_CONFIG_MAP,
+      {}
+    )
+    this.aiToolsConfigMap = readStoredJson<Record<string, TAIToolsConfig>>(
+      StorageKey.AI_TOOLS_CONFIG_MAP,
+      {}
+    )
+  }
+
+  private loadRelaySets() {
+    const relaySetsStr = readStoredStringValue(StorageKey.RELAY_SETS)
     if (!relaySetsStr) {
       let relaySets: TRelaySet[] = []
-      const legacyRelayGroupsStr = getStorageItem('relayGroups')
+      const legacyRelayGroupsStr = readStoredStringValue('relayGroups')
       if (legacyRelayGroupsStr) {
         const legacyRelayGroups = JSON.parse(legacyRelayGroupsStr)
         relaySets = legacyRelayGroups.map((group: any) => {
@@ -238,84 +308,21 @@ class LocalStorageService {
         relaySets = []
       }
       this.setJson(StorageKey.RELAY_SETS, relaySets)
-      this.relaySets = relaySets
-    } else {
-      this.relaySets = JSON.parse(relaySetsStr)
+      return relaySets
     }
+    return JSON.parse(relaySetsStr)
+  }
 
-    const defaultZapSatsStr = getStorageItem(StorageKey.DEFAULT_ZAP_SATS)
-    if (defaultZapSatsStr) {
-      const num = parseInt(defaultZapSatsStr)
-      if (!isNaN(num)) {
-        this.defaultZapSats = num
-      }
-    }
-    this.defaultZapComment = getStorageItem(StorageKey.DEFAULT_ZAP_COMMENT) ?? 'Zap!'
-    this.quickZap = getStorageItem(StorageKey.QUICK_ZAP) === 'true'
+  private initDisplayState() {
+    this.defaultShowNsfw = readStoredBoolean(StorageKey.DEFAULT_SHOW_NSFW)
+    this.dismissedTooManyRelaysAlert = readStoredBoolean(StorageKey.DISMISSED_TOO_MANY_RELAYS_ALERT)
 
-    this.accountFeedInfoMap = getStorageJson<Record<string, TFeedInfo | undefined>>(
-      StorageKey.ACCOUNT_FEED_INFO_MAP,
-      {}
-    )
-
-    // deprecated
-    this.mediaUploadService =
-      getStorageItem(StorageKey.MEDIA_UPLOAD_SERVICE) ?? DEFAULT_NIP_96_SERVICE
-
-    this.autoplay = getStorageItem(StorageKey.AUTOPLAY) !== 'false'
-
-    const hideUntrustedEvents = getStorageItem(StorageKey.HIDE_UNTRUSTED_EVENTS) === 'true'
-    const storedHideUntrustedInteractions = getStorageItem(StorageKey.HIDE_UNTRUSTED_INTERACTIONS)
-    const storedHideUntrustedNotifications = getStorageItem(StorageKey.HIDE_UNTRUSTED_NOTIFICATIONS)
-    const storedHideUntrustedNotes = getStorageItem(StorageKey.HIDE_UNTRUSTED_NOTES)
-    this.hideUntrustedInteractions = storedHideUntrustedInteractions
-      ? storedHideUntrustedInteractions === 'true'
-      : hideUntrustedEvents
-    this.hideUntrustedNotifications = storedHideUntrustedNotifications
-      ? storedHideUntrustedNotifications === 'true'
-      : hideUntrustedEvents
-    this.hideUntrustedNotes = storedHideUntrustedNotes
-      ? storedHideUntrustedNotes === 'true'
-      : hideUntrustedEvents
-
-    const storedTrustLevel = getStorageItem(StorageKey.TRUST_LEVEL)
-    this.trustLevel = storedTrustLevel ? parseInt(storedTrustLevel, 10) : 0
-
-    const translationServiceConfigMapStr = window.localStorage.getItem(
-      StorageKey.TRANSLATION_SERVICE_CONFIG_MAP
-    )
-    if (translationServiceConfigMapStr) {
-      this.translationServiceConfigMap = JSON.parse(translationServiceConfigMapStr)
-    }
-
-    const mediaUploadServiceConfigMapStr = window.localStorage.getItem(
-      StorageKey.MEDIA_UPLOAD_SERVICE_CONFIG_MAP
-    )
-    if (mediaUploadServiceConfigMapStr) {
-      this.mediaUploadServiceConfigMap = JSON.parse(mediaUploadServiceConfigMapStr)
-    }
-
-    const aiServiceConfigMapStr = window.localStorage.getItem(StorageKey.AI_SERVICE_CONFIG_MAP)
-    if (aiServiceConfigMapStr) {
-      this.aiServiceConfigMap = JSON.parse(aiServiceConfigMapStr)
-    }
-
-    const aiToolsConfigMapStr = window.localStorage.getItem(StorageKey.AI_TOOLS_CONFIG_MAP)
-    if (aiToolsConfigMapStr) {
-      this.aiToolsConfigMap = JSON.parse(aiToolsConfigMapStr)
-    }
-
-    this.defaultShowNsfw = window.localStorage.getItem(StorageKey.DEFAULT_SHOW_NSFW) === 'true'
-
-    this.dismissedTooManyRelaysAlert =
-      window.localStorage.getItem(StorageKey.DISMISSED_TOO_MANY_RELAYS_ALERT) === 'true'
-
-    const showKindsStr = window.localStorage.getItem(StorageKey.SHOW_KINDS)
+    const showKindsStr = readStoredStringValue(StorageKey.SHOW_KINDS)
     if (!showKindsStr) {
       this.showKinds = SUPPORTED_KINDS
     } else {
-      const showKindsVersionStr = window.localStorage.getItem(StorageKey.SHOW_KINDS_VERSION)
-      const showKindsVersion = showKindsVersionStr ? parseInt(showKindsVersionStr) : 0
+      const showKindsVersionStr = readStoredStringValue(StorageKey.SHOW_KINDS_VERSION)
+      const showKindsVersion = showKindsVersionStr ? parseInt(showKindsVersionStr, 10) : 0
       const showKinds = JSON.parse(showKindsStr) as number[]
       if (showKindsVersion < 1) {
         showKinds.push(ExtendedKind.VIDEO, ExtendedKind.SHORT_VIDEO)
@@ -328,21 +335,18 @@ class LocalStorageService {
     window.localStorage.setItem(StorageKey.SHOW_KINDS, JSON.stringify(this.showKinds))
     window.localStorage.setItem(StorageKey.SHOW_KINDS_VERSION, '2')
 
-    const mediaOnlyStr = window.localStorage.getItem(StorageKey.MEDIA_ONLY)
     // Default to false so text-heavy relays do not appear empty on first load.
-    this.mediaOnly = mediaOnlyStr === null ? false : mediaOnlyStr === 'true'
+    this.mediaOnly = readStoredBoolean(StorageKey.MEDIA_ONLY)
+    this.hideContentMentioningMutedUsers = readStoredBoolean(
+      StorageKey.HIDE_CONTENT_MENTIONING_MUTED_USERS
+    )
+    this.alwaysHideMutedNotes = readStoredBoolean(StorageKey.ALWAYS_HIDE_MUTED_NOTES)
+    this.hideNotificationsFromMutedUsers = readStoredBoolean(
+      StorageKey.HIDE_NOTIFICATIONS_FROM_MUTED_USERS
+    )
 
-    this.hideContentMentioningMutedUsers =
-      window.localStorage.getItem(StorageKey.HIDE_CONTENT_MENTIONING_MUTED_USERS) === 'true'
-
-    this.alwaysHideMutedNotes =
-      window.localStorage.getItem(StorageKey.ALWAYS_HIDE_MUTED_NOTES) === 'true'
-
-    this.hideNotificationsFromMutedUsers =
-      window.localStorage.getItem(StorageKey.HIDE_NOTIFICATIONS_FROM_MUTED_USERS) === 'true'
-
-    const notificationListStyleStr = window.localStorage.getItem(StorageKey.NOTIFICATION_LIST_STYLE)
-    // Default to compact for new users, otherwise use stored preference
+    const notificationListStyleStr = readStoredStringValue(StorageKey.NOTIFICATION_LIST_STYLE)
+    // Default to compact for new users, otherwise use stored preference.
     this.notificationListStyle =
       notificationListStyleStr === null
         ? NOTIFICATION_LIST_STYLE.COMPACT
@@ -350,56 +354,51 @@ class LocalStorageService {
           ? NOTIFICATION_LIST_STYLE.COMPACT
           : NOTIFICATION_LIST_STYLE.DETAILED
 
-    const mediaAutoLoadPolicy = window.localStorage.getItem(StorageKey.MEDIA_AUTO_LOAD_POLICY)
-    if (
-      mediaAutoLoadPolicy &&
-      Object.values(MEDIA_AUTO_LOAD_POLICY).includes(mediaAutoLoadPolicy as TMediaAutoLoadPolicy)
-    ) {
-      this.mediaAutoLoadPolicy = mediaAutoLoadPolicy as TMediaAutoLoadPolicy
-    }
-
-    const shownCreateWalletGuideToastPubkeysStr = window.localStorage.getItem(
-      StorageKey.SHOWN_CREATE_WALLET_GUIDE_TOAST_PUBKEYS
+    this.mediaAutoLoadPolicy = readStoredEnum(
+      StorageKey.MEDIA_AUTO_LOAD_POLICY,
+      Object.values(MEDIA_AUTO_LOAD_POLICY) as TMediaAutoLoadPolicy[],
+      MEDIA_AUTO_LOAD_POLICY.ALWAYS
     )
-    this.shownCreateWalletGuideToastPubkeys = shownCreateWalletGuideToastPubkeysStr
-      ? new Set(JSON.parse(shownCreateWalletGuideToastPubkeysStr))
-      : new Set()
+    this.shownCreateWalletGuideToastPubkeys = new Set(
+      readStoredJson<string[]>(StorageKey.SHOWN_CREATE_WALLET_GUIDE_TOAST_PUBKEYS, [])
+    )
 
-    const fontSizeStr = window.localStorage.getItem(StorageKey.FONT_SIZE)
+    const fontSizeStr = readStoredStringValue(StorageKey.FONT_SIZE)
     if (fontSizeStr) {
-      const fontSize = parseInt(fontSizeStr)
+      const fontSize = parseInt(fontSizeStr, 10)
       if (FONT_SIZES.includes(fontSize as any)) {
         this.fontSize = fontSize
       }
     }
 
-    const titleFontSizeStr = window.localStorage.getItem(StorageKey.TITLE_FONT_SIZE)
+    const titleFontSizeStr = readStoredStringValue(StorageKey.TITLE_FONT_SIZE)
     if (titleFontSizeStr) {
-      const titleFontSize = parseInt(titleFontSizeStr)
+      const titleFontSize = parseInt(titleFontSizeStr, 10)
       if (TITLE_FONT_SIZES.includes(titleFontSize as any)) {
         this.titleFontSize = titleFontSize
       }
     }
 
-    const fontFamily = window.localStorage.getItem(StorageKey.FONT_FAMILY)
-    if (fontFamily && Object.keys(FONT_FAMILIES).includes(fontFamily)) {
-      this.fontFamily = fontFamily as TFontFamily
-    }
+    this.fontFamily = readStoredEnum(
+      StorageKey.FONT_FAMILY,
+      Object.keys(FONT_FAMILIES) as TFontFamily[],
+      DEFAULT_FONT_FAMILY
+    )
+    this.primaryColor = readStoredEnum(
+      StorageKey.PRIMARY_COLOR,
+      Object.keys(PRIMARY_COLORS) as TPrimaryColor[],
+      DEFAULT_PRIMARY_COLOR
+    )
 
-    const primaryColor = window.localStorage.getItem(StorageKey.PRIMARY_COLOR)
-    if (primaryColor && Object.keys(PRIMARY_COLORS).includes(primaryColor)) {
-      this.primaryColor = primaryColor as TPrimaryColor
-    }
-
-    const buttonRadiusStr = window.localStorage.getItem(StorageKey.BUTTON_RADIUS)
+    const buttonRadiusStr = readStoredStringValue(StorageKey.BUTTON_RADIUS)
     if (buttonRadiusStr) {
-      const buttonRadius = parseInt(buttonRadiusStr)
+      const buttonRadius = parseInt(buttonRadiusStr, 10)
       if (BUTTON_RADIUS_VALUES.includes(buttonRadius as any)) {
         this.buttonRadius = buttonRadius
       }
     }
 
-    const postButtonStyle = window.localStorage.getItem(StorageKey.POST_BUTTON_STYLE)
+    const postButtonStyle = readStoredStringValue(StorageKey.POST_BUTTON_STYLE)
     if (
       postButtonStyle &&
       (postButtonStyle === POST_BUTTON_STYLE.FILLED ||
@@ -408,43 +407,44 @@ class LocalStorageService {
       this.postButtonStyle = postButtonStyle as TPostButtonStyle
     }
 
-    const cardRadiusStr = window.localStorage.getItem(StorageKey.CARD_RADIUS)
+    const cardRadiusStr = readStoredStringValue(StorageKey.CARD_RADIUS)
     if (cardRadiusStr) {
-      const cardRadius = parseInt(cardRadiusStr)
+      const cardRadius = parseInt(cardRadiusStr, 10)
       if (CARD_RADIUS_VALUES.includes(cardRadius as any)) {
         this.cardRadius = cardRadius
       }
     }
 
-    const mediaRadiusStr = window.localStorage.getItem(StorageKey.MEDIA_RADIUS)
+    const mediaRadiusStr = readStoredStringValue(StorageKey.MEDIA_RADIUS)
     if (mediaRadiusStr) {
-      const mediaRadius = parseInt(mediaRadiusStr)
+      const mediaRadius = parseInt(mediaRadiusStr, 10)
       if (MEDIA_RADIUS_VALUES.includes(mediaRadius as any)) {
         this.mediaRadius = mediaRadius
       }
     }
 
-    const pageTheme = window.localStorage.getItem(StorageKey.PAGE_THEME)
-    if (pageTheme && ['default', 'pure-black'].includes(pageTheme)) {
-      this.pageTheme = pageTheme as TPageTheme
-    }
+    this.pageTheme = readStoredEnum(
+      StorageKey.PAGE_THEME,
+      ['default', 'pure-black'] as const,
+      DEFAULT_PAGE_THEME
+    )
+    this.trendingNotesDismissed = readStoredBoolean(StorageKey.TRENDING_NOTES_DISMISSED)
+    this.compactSidebar = readStoredBoolean(StorageKey.COMPACT_SIDEBAR)
+    this.logoStyle = readStoredEnum(
+      StorageKey.LOGO_STYLE,
+      ['image', 'text', 'emoji'] as const,
+      'image'
+    )
 
-    this.trendingNotesDismissed =
-      window.localStorage.getItem(StorageKey.TRENDING_NOTES_DISMISSED) === 'true'
-
-    this.compactSidebar = window.localStorage.getItem(StorageKey.COMPACT_SIDEBAR) === 'true'
-
-    const logoStyle = window.localStorage.getItem(StorageKey.LOGO_STYLE)
-    if (logoStyle && ['image', 'text', 'emoji'].includes(logoStyle)) {
-      this.logoStyle = logoStyle as TLogoStyle
-    }
-
-    const customLogoText = window.localStorage.getItem(StorageKey.CUSTOM_LOGO_TEXT)
+    const customLogoText = readStoredStringValue(StorageKey.CUSTOM_LOGO_TEXT)
     if (customLogoText) {
       this.customLogoText = customLogoText
     }
 
-    const customLogoEmoji = getStorageJson<string | TEmoji | null>(StorageKey.CUSTOM_LOGO_EMOJI, null)
+    const customLogoEmoji = readStoredJson<string | TEmoji | null>(
+      StorageKey.CUSTOM_LOGO_EMOJI,
+      null
+    )
     if (typeof customLogoEmoji === 'string' && customLogoEmoji.trim()) {
       this.customLogoEmoji = customLogoEmoji
     } else if (
@@ -456,7 +456,7 @@ class LocalStorageService {
       this.customLogoEmoji = customLogoEmoji
     }
 
-    const logoFontSize = window.localStorage.getItem(StorageKey.LOGO_FONT_SIZE)
+    const logoFontSize = readStoredStringValue(StorageKey.LOGO_FONT_SIZE)
     if (logoFontSize) {
       const size = Number(logoFontSize)
       if (LOGO_FONT_SIZES.includes(size as any)) {
@@ -464,182 +464,155 @@ class LocalStorageService {
       }
     }
 
-    const widgetSidebarTitle = window.localStorage.getItem(StorageKey.WIDGET_SIDEBAR_TITLE)
+    const widgetSidebarTitle = readStoredStringValue(StorageKey.WIDGET_SIDEBAR_TITLE)
     if (widgetSidebarTitle) {
       this.widgetSidebarTitle = widgetSidebarTitle
     }
 
-    const widgetSidebarIcon = window.localStorage.getItem(StorageKey.WIDGET_SIDEBAR_ICON)
+    const widgetSidebarIcon = readStoredStringValue(StorageKey.WIDGET_SIDEBAR_ICON)
     if (widgetSidebarIcon) {
       this.widgetSidebarIcon = widgetSidebarIcon
     }
 
-    const hideWidgetTitles = window.localStorage.getItem(StorageKey.HIDE_WIDGET_TITLES)
+    const hideWidgetTitles = readStoredStringValue(StorageKey.HIDE_WIDGET_TITLES)
     if (hideWidgetTitles) {
       this.hideWidgetTitles = hideWidgetTitles === 'true'
     }
+  }
 
-    const enabledWidgetsStr = window.localStorage.getItem(StorageKey.ENABLED_WIDGETS)
+  private initWidgetState() {
+    const enabledWidgetsStr = readStoredStringValue(StorageKey.ENABLED_WIDGETS)
     if (enabledWidgetsStr) {
       this.enabledWidgets = JSON.parse(enabledWidgetsStr)
     } else {
-      // Default to trending notes and invite widget enabled for new users
+      // Default to trending notes and invite widget enabled for new users.
       this.enabledWidgets = ['trending-notes', 'invite']
       window.localStorage.setItem(StorageKey.ENABLED_WIDGETS, JSON.stringify(this.enabledWidgets))
     }
 
-    const collapsedWidgets = getStorageJson<string[]>(StorageKey.COLLAPSED_WIDGETS, [])
+    const collapsedWidgets = readStoredJson<string[]>(StorageKey.COLLAPSED_WIDGETS, [])
     if (Array.isArray(collapsedWidgets)) {
       this.collapsedWidgets = Array.from(
         new Set(
           collapsedWidgets.filter(
-            (widgetId): widgetId is string => typeof widgetId === 'string' && widgetId.trim().length > 0
+            (widgetId): widgetId is string =>
+              typeof widgetId === 'string' && widgetId.trim().length > 0
           )
         )
       )
     }
 
     this.widgetHeights = sanitizeWidgetHeights(
-      getStorageJson<Record<string, number>>(StorageKey.WIDGET_HEIGHTS, {})
+      readStoredJson<Record<string, number>>(StorageKey.WIDGET_HEIGHTS, {})
     )
 
-    const pinnedNoteWidgetsStr = window.localStorage.getItem(StorageKey.PINNED_NOTE_WIDGETS)
+    const pinnedNoteWidgetsStr = readStoredStringValue(StorageKey.PINNED_NOTE_WIDGETS)
     if (pinnedNoteWidgetsStr) {
       this.pinnedNoteWidgets = JSON.parse(pinnedNoteWidgetsStr)
     }
 
-    const liveStreamWidgetsStr = window.localStorage.getItem(StorageKey.LIVE_STREAM_WIDGETS)
+    const liveStreamWidgetsStr = readStoredStringValue(StorageKey.LIVE_STREAM_WIDGETS)
     if (liveStreamWidgetsStr) {
       this.liveStreamWidgets = JSON.parse(liveStreamWidgetsStr)
     }
 
-    // AI Prompt widgets are session-only and should not persist across page reloads
-    // Clear any stored AI prompt widgets
+    // AI Prompt widgets are session-only and should not persist across page reloads.
     this.aiPromptWidgets = []
     window.localStorage.removeItem(StorageKey.AI_PROMPT_WIDGETS)
 
-    const trendingNotesHeight = window.localStorage.getItem(StorageKey.TRENDING_NOTES_HEIGHT)
-    if (
-      trendingNotesHeight &&
-      ['short', 'medium', 'tall', 'remaining'].includes(trendingNotesHeight)
-    ) {
-      this.trendingNotesHeight = trendingNotesHeight as 'short' | 'medium' | 'tall' | 'remaining'
-    }
+    this.trendingNotesHeight = readStoredEnum(
+      StorageKey.TRENDING_NOTES_HEIGHT,
+      ['short', 'medium', 'tall', 'remaining'] as const,
+      'medium'
+    )
+    this.bitcoinTickerAlignment = readStoredEnum(
+      StorageKey.BITCOIN_TICKER_ALIGNMENT,
+      ['left', 'center'] as const,
+      'left'
+    )
+    this.bitcoinTickerTextSize = readStoredEnum(
+      StorageKey.BITCOIN_TICKER_TEXT_SIZE,
+      ['large', 'small'] as const,
+      'large'
+    )
 
-    const bitcoinTickerAlignment = window.localStorage.getItem(StorageKey.BITCOIN_TICKER_ALIGNMENT)
-    if (bitcoinTickerAlignment && ['left', 'center'].includes(bitcoinTickerAlignment)) {
-      this.bitcoinTickerAlignment = bitcoinTickerAlignment as 'left' | 'center'
-    }
-
-    const bitcoinTickerTextSize = window.localStorage.getItem(StorageKey.BITCOIN_TICKER_TEXT_SIZE)
-    if (bitcoinTickerTextSize && ['large', 'small'].includes(bitcoinTickerTextSize)) {
-      this.bitcoinTickerTextSize = bitcoinTickerTextSize as 'large' | 'small'
-    }
-
-    const bitcoinTickerShowBlockHeight = window.localStorage.getItem(
+    const bitcoinTickerShowBlockHeight = readStoredBooleanValue(
       StorageKey.BITCOIN_TICKER_SHOW_BLOCK_HEIGHT
     )
     if (bitcoinTickerShowBlockHeight !== null) {
-      this.bitcoinTickerShowBlockHeight = bitcoinTickerShowBlockHeight === 'true'
+      this.bitcoinTickerShowBlockHeight = bitcoinTickerShowBlockHeight
     }
 
-    const bitcoinTickerShowSatsMode = window.localStorage.getItem(
+    const bitcoinTickerShowSatsMode = readStoredBooleanValue(
       StorageKey.BITCOIN_TICKER_SHOW_SATS_MODE
     )
     if (bitcoinTickerShowSatsMode !== null) {
-      this.bitcoinTickerShowSatsMode = bitcoinTickerShowSatsMode === 'true'
+      this.bitcoinTickerShowSatsMode = bitcoinTickerShowSatsMode
     }
 
-    const stockTrackerSymbols = getStorageJson<string[]>(StorageKey.STOCK_TRACKER_SYMBOLS, [])
+    const stockTrackerSymbols = readStoredJson<string[]>(StorageKey.STOCK_TRACKER_SYMBOLS, [])
     if (Array.isArray(stockTrackerSymbols)) {
       this.stockTrackerSymbols = stockTrackerSymbols.filter((symbol) => typeof symbol === 'string')
     }
 
-    const storedNewsWidgetRelays = getStorageJson<string[] | null>(StorageKey.NEWS_WIDGET_RELAYS, null)
-    if (Array.isArray(storedNewsWidgetRelays)) {
-      const normalizedNewsRelays = Array.from(
-        new Set(
-          storedNewsWidgetRelays
-            .filter((relay) => typeof relay === 'string')
-            .map((relay) => normalizeUrl(relay))
-            .filter((relay) => relay && isWebsocketUrl(relay))
-        )
-      )
-      this.newsWidgetRelays = normalizedNewsRelays
-    } else {
-      this.newsWidgetRelays = DEFAULT_NEWS_WIDGET_RELAYS
-    }
+    this.newsWidgetRelays = readStoredStringArray(
+      StorageKey.NEWS_WIDGET_RELAYS,
+      DEFAULT_NEWS_WIDGET_RELAYS,
+      (relay) => {
+        const normalizedRelay = normalizeUrl(relay)
+        return normalizedRelay && isWebsocketUrl(normalizedRelay) ? normalizedRelay : null
+      }
+    )
+    this.newsWidgetHashtags = readStoredStringArray(
+      StorageKey.NEWS_WIDGET_HASHTAGS,
+      [],
+      normalizeWidgetHashtag
+    )
 
-    const storedNewsWidgetHashtags = getStorageJson<string[]>(StorageKey.NEWS_WIDGET_HASHTAGS, [])
-    if (Array.isArray(storedNewsWidgetHashtags)) {
-      this.newsWidgetHashtags = Array.from(
-        new Set(
-          storedNewsWidgetHashtags
-            .filter((tag) => typeof tag === 'string')
-            .map((tag) => normalizeWidgetHashtag(tag))
-            .filter(Boolean)
-        )
-      )
-    }
-
-    const zapSound = window.localStorage.getItem(StorageKey.ZAP_SOUND)
+    const zapSound = readStoredStringValue(StorageKey.ZAP_SOUND)
     if (zapSound && Object.values(ZAP_SOUNDS).includes(zapSound as TZapSound)) {
       this.zapSound = zapSound as TZapSound
     }
 
-    const customFeedsStr = window.localStorage.getItem(StorageKey.CUSTOM_FEEDS)
+    const customFeedsStr = readStoredStringValue(StorageKey.CUSTOM_FEEDS)
     if (customFeedsStr) {
       this.customFeeds = JSON.parse(customFeedsStr)
     }
 
-    this.chargeZapEnabled = window.localStorage.getItem(StorageKey.CHARGE_ZAP_ENABLED) === 'true'
+    this.chargeZapEnabled = readStoredBoolean(StorageKey.CHARGE_ZAP_ENABLED)
 
-    const chargeZapLimitStr = window.localStorage.getItem(StorageKey.CHARGE_ZAP_LIMIT)
+    const chargeZapLimitStr = readStoredStringValue(StorageKey.CHARGE_ZAP_LIMIT)
     if (chargeZapLimitStr) {
-      const num = parseInt(chargeZapLimitStr)
+      const num = parseInt(chargeZapLimitStr, 10)
       if (!isNaN(num) && num > 0) {
         this.chargeZapLimit = num
       }
     }
 
-    this.zapOnReactions = window.localStorage.getItem(StorageKey.ZAP_ON_REACTIONS) === 'true'
-
-    this.onlyZapsMode = window.localStorage.getItem(StorageKey.ONLY_ZAPS_MODE) === 'true'
-
-    this.paymentsEnabled = window.localStorage.getItem(StorageKey.PAYMENTS_ENABLED) === 'true'
-
-    this.textOnlyMode = window.localStorage.getItem(StorageKey.TEXT_ONLY_MODE) === 'true'
-
-    this.lowBandwidthMode = window.localStorage.getItem(StorageKey.LOW_BANDWIDTH_MODE) === 'true'
-
-    this.disableAvatarAnimations =
-      window.localStorage.getItem(StorageKey.DISABLE_AVATAR_ANIMATIONS) === 'true'
-
-    const messageNotificationsEnabled = window.localStorage.getItem(
-      StorageKey.MESSAGE_NOTIFICATIONS_ENABLED
-    )
+    this.zapOnReactions = readStoredBoolean(StorageKey.ZAP_ON_REACTIONS)
+    this.onlyZapsMode = readStoredBoolean(StorageKey.ONLY_ZAPS_MODE)
+    this.paymentsEnabled = readStoredBoolean(StorageKey.PAYMENTS_ENABLED)
+    this.textOnlyMode = readStoredBoolean(StorageKey.TEXT_ONLY_MODE)
+    this.lowBandwidthMode = readStoredBoolean(StorageKey.LOW_BANDWIDTH_MODE)
+    this.disableAvatarAnimations = readStoredBoolean(StorageKey.DISABLE_AVATAR_ANIMATIONS)
     this.messageNotificationsEnabled =
-      messageNotificationsEnabled === null ? true : messageNotificationsEnabled === 'true'
+      readStoredBooleanValue(StorageKey.MESSAGE_NOTIFICATIONS_ENABLED) ?? true
+    this.distractionFreeMode = readStoredEnum(
+      StorageKey.DISTRACTION_FREE_MODE,
+      Object.values(DISTRACTION_FREE_MODE) as TDistractionFreeMode[],
+      DISTRACTION_FREE_MODE.DRAIN_MY_TIME
+    )
+  }
 
-    const distractionFreeMode = window.localStorage.getItem(StorageKey.DISTRACTION_FREE_MODE)
-    if (
-      distractionFreeMode &&
-      Object.values(DISTRACTION_FREE_MODE).includes(distractionFreeMode as TDistractionFreeMode)
-    ) {
-      this.distractionFreeMode = distractionFreeMode as TDistractionFreeMode
-    }
+  private initCollectionState() {
+    this.hideReadsInNavigation = readStoredBoolean(StorageKey.HIDE_READS_IN_NAVIGATION)
+    this.hideReadsInProfiles = readStoredBoolean(StorageKey.HIDE_READS_IN_PROFILES)
 
-    this.hideReadsInNavigation =
-      window.localStorage.getItem(StorageKey.HIDE_READS_IN_NAVIGATION) === 'true'
-
-    this.hideReadsInProfiles =
-      window.localStorage.getItem(StorageKey.HIDE_READS_IN_PROFILES) === 'true'
-
-    const favoriteListsMapStr = window.localStorage.getItem(StorageKey.FAVORITE_LISTS)
+    const favoriteListsMapStr = readStoredStringValue(StorageKey.FAVORITE_LISTS)
     if (favoriteListsMapStr) {
       try {
         const parsed = JSON.parse(favoriteListsMapStr)
-        // Handle migration from old array format to new map format
+        // Handle migration from old array format to new map format.
         if (Array.isArray(parsed)) {
           this.favoriteListsMap = { _global: parsed }
         } else {
@@ -650,7 +623,7 @@ class LocalStorageService {
       }
     }
 
-    const readArticlesStr = window.localStorage.getItem(StorageKey.READ_ARTICLES)
+    const readArticlesStr = readStoredStringValue(StorageKey.READ_ARTICLES)
     if (readArticlesStr) {
       try {
         this.readArticles = new Set(JSON.parse(readArticlesStr))
@@ -659,7 +632,7 @@ class LocalStorageService {
       }
     }
 
-    const bookmarkTagsStr = window.localStorage.getItem(StorageKey.BOOKMARK_TAGS)
+    const bookmarkTagsStr = readStoredStringValue(StorageKey.BOOKMARK_TAGS)
     if (bookmarkTagsStr) {
       try {
         this.bookmarkTags = JSON.parse(bookmarkTagsStr)
@@ -668,7 +641,7 @@ class LocalStorageService {
       }
     }
 
-    const pinnedRepliesStr = window.localStorage.getItem(StorageKey.PINNED_REPLIES)
+    const pinnedRepliesStr = readStoredStringValue(StorageKey.PINNED_REPLIES)
     if (pinnedRepliesStr) {
       try {
         this.pinnedReplies = JSON.parse(pinnedRepliesStr)
@@ -677,23 +650,23 @@ class LocalStorageService {
       }
     }
 
-    const maxHashtagsStr = window.localStorage.getItem(StorageKey.MAX_HASHTAGS)
+    const maxHashtagsStr = readStoredStringValue(StorageKey.MAX_HASHTAGS)
     if (maxHashtagsStr) {
-      const num = parseInt(maxHashtagsStr)
+      const num = parseInt(maxHashtagsStr, 10)
       if (!isNaN(num) && num >= 0 && num <= 10) {
         this.maxHashtags = num
       }
     }
 
-    const maxMentionsStr = window.localStorage.getItem(StorageKey.MAX_MENTIONS)
+    const maxMentionsStr = readStoredStringValue(StorageKey.MAX_MENTIONS)
     if (maxMentionsStr) {
-      const num = parseInt(maxMentionsStr)
+      const num = parseInt(maxMentionsStr, 10)
       if (!isNaN(num) && num >= 0 && num <= 10) {
         this.maxMentions = num
       }
     }
 
-    const defaultReactionEmojisStr = window.localStorage.getItem(StorageKey.DEFAULT_REACTION_EMOJIS)
+    const defaultReactionEmojisStr = readStoredStringValue(StorageKey.DEFAULT_REACTION_EMOJIS)
     if (defaultReactionEmojisStr) {
       try {
         const emojis = JSON.parse(defaultReactionEmojisStr)
@@ -701,21 +674,21 @@ class LocalStorageService {
           this.defaultReactionEmojis = emojis
         }
       } catch {
-        // Keep default
+        // Keep default.
       }
     }
 
-    this.reactionOptionsEnabled =
-      window.localStorage.getItem(StorageKey.REACTION_OPTIONS_ENABLED) === 'true'
+    this.reactionOptionsEnabled = readStoredBoolean(StorageKey.REACTION_OPTIONS_ENABLED)
+  }
 
-    // Clean up deprecated data
-    window.localStorage.removeItem(StorageKey.ACCOUNT_PROFILE_EVENT_MAP)
-    window.localStorage.removeItem(StorageKey.ACCOUNT_FOLLOW_LIST_EVENT_MAP)
-    window.localStorage.removeItem(StorageKey.ACCOUNT_RELAY_LIST_EVENT_MAP)
-    window.localStorage.removeItem(StorageKey.ACCOUNT_MUTE_LIST_EVENT_MAP)
-    window.localStorage.removeItem(StorageKey.ACCOUNT_MUTE_DECRYPTED_TAGS_MAP)
-    window.localStorage.removeItem(StorageKey.ACTIVE_RELAY_SET_ID)
-    window.localStorage.removeItem(StorageKey.FEED_TYPE)
+  private cleanupDeprecatedStorage() {
+    removeStorageItem(StorageKey.ACCOUNT_PROFILE_EVENT_MAP)
+    removeStorageItem(StorageKey.ACCOUNT_FOLLOW_LIST_EVENT_MAP)
+    removeStorageItem(StorageKey.ACCOUNT_RELAY_LIST_EVENT_MAP)
+    removeStorageItem(StorageKey.ACCOUNT_MUTE_LIST_EVENT_MAP)
+    removeStorageItem(StorageKey.ACCOUNT_MUTE_DECRYPTED_TAGS_MAP)
+    removeStorageItem(StorageKey.ACTIVE_RELAY_SET_ID)
+    removeStorageItem(StorageKey.FEED_TYPE)
   }
 
   getRelaySets() {
@@ -1351,7 +1324,8 @@ class LocalStorageService {
     this.collapsedWidgets = Array.from(
       new Set(
         widgets.filter(
-          (widgetId): widgetId is string => typeof widgetId === 'string' && widgetId.trim().length > 0
+          (widgetId): widgetId is string =>
+            typeof widgetId === 'string' && widgetId.trim().length > 0
         )
       )
     )

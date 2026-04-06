@@ -8,6 +8,7 @@ import {
   EmbeddedStockSymbolParser,
   EmbeddedUrlParser,
   EmbeddedWebsocketUrlParser,
+  normalizeParsedContentNodes,
   parseContent
 } from '@/lib/content-parser'
 import { getImetaInfosFromEvent } from '@/lib/event'
@@ -100,7 +101,9 @@ export default function Content({
     const _content = translatedEvent?.content ?? event?.content ?? content
     if (!_content) return {}
 
-    const nodes = parseContent(_content, [
+    const imetaInfos = event ? getImetaInfosFromEvent(event) : []
+    const imetaInfoMap = new Map(imetaInfos.map((info) => [info.url, info]))
+    const parsedNodes = parseContent(_content, [
       EmbeddedUrlParser,
       EmbeddedLNInvoiceParser,
       EmbeddedWebsocketUrlParser,
@@ -110,8 +113,25 @@ export default function Content({
       EmbeddedHashtagParser,
       EmbeddedEmojiParser
     ])
+    const nodes = normalizeParsedContentNodes(
+      parsedNodes.map((node) => {
+        if (node.type !== 'url') return node
 
-    const imetaInfos = event ? getImetaInfosFromEvent(event) : []
+        const imetaInfo = imetaInfoMap.get(node.data)
+        if (!imetaInfo?.mimeType) return node
+
+        if (imetaInfo.mimeType.startsWith('image/')) {
+          return { type: 'image', data: node.data }
+        }
+
+        if (imetaInfo.mimeType.startsWith('video/') || imetaInfo.mimeType.startsWith('audio/')) {
+          return { type: 'media', data: node.data }
+        }
+
+        return node
+      })
+    )
+
     const allImages = nodes
       .map((node) => {
         if (node.type === 'image') {
@@ -168,7 +188,12 @@ export default function Content({
 
   let imageIndex = 0
   return (
-    <div className={cn('text-wrap break-words whitespace-pre-wrap', className)}>
+    <div
+      className={cn(
+        'min-w-0 max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word]',
+        className
+      )}
+    >
       {event && translatedEvent && <TranslationIndicator event={event} className="mb-2" />}
       {event && !translatedEvent && <ShowTranslatedButton event={event} className="mb-2" />}
       {nodes.map((node, index) => {

@@ -1,12 +1,7 @@
 import { persistStoredFeedInfo, upsertStoredCustomFeed } from '@/lib/feed-sync'
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
@@ -16,7 +11,11 @@ import { useFetchProfile, useFetchFollowings } from '@/hooks'
 import { toast } from 'sonner'
 import { Users, UserPlus, Eye, EyeOff, Download, Copy, Check } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
-import SignupProfile, { TSignupProfileResult } from '@/components/AccountManager/SignupProfile'
+import SignupProfile, {
+  createSignupKeys,
+  TSignupProfileResult,
+  TSignupKeys
+} from '@/components/AccountManager/SignupProfile'
 import { useNostr } from '@/providers/NostrProvider'
 import { createFollowListDraftEvent } from '@/lib/draft-event'
 
@@ -41,6 +40,7 @@ export default function InviteWelcomeFlow({
   const [currentStep, setCurrentStep] = useState<FlowStep>('welcome')
   const [followInviterFollows, setFollowInviterFollows] = useState(true)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [signupKeys] = useState<TSignupKeys>(createSignupKeys)
 
   // Store keys and profile data to pass through steps
   const [generatedKeys, setGeneratedKeys] = useState<{ nsec: string; npub: string } | null>(null)
@@ -182,6 +182,7 @@ export default function InviteWelcomeFlow({
         >
           <SignupProfile
             back={() => setCurrentStep('welcome')}
+            signupKeys={signupKeys}
             onProfileComplete={handleProfileComplete}
             inviterPubkey={inviterPubkey}
           />
@@ -199,11 +200,7 @@ export default function InviteWelcomeFlow({
           onPointerDownOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
         >
-          <KeysDisplay
-            keys={generatedKeys}
-            profile={profileData}
-            onComplete={handleKeysComplete}
-          />
+          <KeysDisplay keys={generatedKeys} profile={profileData} onComplete={handleKeysComplete} />
         </DialogContent>
       </Dialog>
     )
@@ -307,12 +304,7 @@ Your private key is the only way to access your account. If you lose it, you los
             stroke="currentColor"
             viewBox="0 0 24 24"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M5 13l4 4L19 7"
-            />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
         </div>
 
@@ -342,11 +334,7 @@ Your private key is the only way to access your account. If you lose it, you los
                 onClick={() => setNsecRevealed(!nsecRevealed)}
                 className="h-7 px-2"
               >
-                {nsecRevealed ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
+                {nsecRevealed ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </Button>
             </div>
             <Input
@@ -356,16 +344,14 @@ Your private key is the only way to access your account. If you lose it, you los
               readOnly
               className="font-mono text-xs"
             />
-            <p className="text-xs text-muted-foreground">
-              NEVER share this - it's your secret key
-            </p>
+            <p className="text-xs text-muted-foreground">NEVER share this - it's your secret key</p>
           </div>
         </div>
 
         <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-4 text-left">
           <p className="text-sm text-orange-600 dark:text-orange-400 font-medium">
-            ⚠️ Important: Download and save your private key (nsec) now. If you lose it, you'll
-            lose access to your account forever.
+            ⚠️ Important: Download and save your private key (nsec) now. If you lose it, you'll lose
+            access to your account forever.
           </p>
         </div>
 
@@ -383,7 +369,12 @@ Your private key is the only way to access your account. If you lose it, you los
               </>
             )}
           </Button>
-          <Button variant="secondary" onClick={handleDownload} className="flex-1 rounded-xl" size="lg">
+          <Button
+            variant="secondary"
+            onClick={handleDownload}
+            className="flex-1 rounded-xl"
+            size="lg"
+          >
             <Download className="h-4 w-4 mr-2" />
             {t('Download')}
           </Button>

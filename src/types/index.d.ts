@@ -172,6 +172,8 @@ export interface ISigner {
   getPublicKey: () => Promise<string>
   signEvent: (draftEvent: TDraftEvent) => Promise<VerifiedEvent>
   supportsNip44: () => boolean
+  nip04Encrypt: (pubkey: string, plainText: string) => Promise<string>
+  nip04Decrypt: (pubkey: string, cipherText: string) => Promise<string>
   nip44Encrypt: (pubkey: string, plainText: string) => Promise<string>
   nip44Decrypt: (pubkey: string, cipherText: string) => Promise<string>
 }
@@ -215,6 +217,7 @@ export type TImetaInfo = {
   alt?: string
   blurHash?: string
   dim?: { width: number; height: number }
+  mimeType?: string
   pubkey?: string
 }
 

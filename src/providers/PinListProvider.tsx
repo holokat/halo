@@ -6,7 +6,7 @@ import { Event, kinds } from 'nostr-tools'
 import { createContext, useContext, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { useNostr } from './NostrProvider'
+import { useNostr } from '@/providers/NostrProvider'
 
 type TPinListContext = {
   pinnedEventHexIdSet: Set<string>

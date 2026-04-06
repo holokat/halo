@@ -2,7 +2,7 @@ import { ExtendedKind } from '@/constants'
 import client from '@/services/client.service'
 import { Event } from 'nostr-tools'
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { useNostr } from './NostrProvider'
+import { useNostr } from '@/providers/NostrProvider'
 import { TDraftEvent } from '@/types'
 
 export type TStarterPack = {
@@ -179,13 +179,7 @@ export function ListsProvider({ children }: { children: ReactNode }) {
       return list.event
     }
 
-    return updateList(
-      id,
-      list.title,
-      [...list.pubkeys, pubkey],
-      list.description,
-      list.image
-    )
+    return updateList(id, list.title, [...list.pubkeys, pubkey], list.description, list.image)
   }
 
   const removeFromList = async (id: string, pubkey: string): Promise<Event> => {

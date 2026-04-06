@@ -1,13 +1,17 @@
 import { kinds } from 'nostr-tools'
 
+const env = (import.meta as ImportMeta & {
+  env?: Record<string, string | boolean | undefined>
+}).env
+
 const DEFAULT_APP_API_BASE_URL =
   typeof window !== 'undefined' ? window.location.origin : 'https://x21.social'
 
-export const APP_API_BASE_URL = import.meta.env.VITE_APP_API_BASE_URL || DEFAULT_APP_API_BASE_URL
+export const APP_API_BASE_URL = env?.VITE_APP_API_BASE_URL || DEFAULT_APP_API_BASE_URL
 
 export const TRANSLATION_API_BASE_URL =
-  import.meta.env.VITE_TRANSLATION_API_BASE_URL ||
-  (import.meta.env.DEV ? 'https://api.jumble.social' : APP_API_BASE_URL)
+  env?.VITE_TRANSLATION_API_BASE_URL ||
+  (env?.DEV ? 'https://api.jumble.social' : APP_API_BASE_URL)
 
 export const DEFAULT_FAVORITE_RELAYS = [
   'wss://nostr.wine/',

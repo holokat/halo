@@ -28,6 +28,14 @@ export class NpubSigner implements ISigner {
     return false
   }
 
+  async nip04Encrypt(): Promise<any> {
+    throw new Error('Not logged in')
+  }
+
+  async nip04Decrypt(): Promise<any> {
+    throw new Error('Not logged in')
+  }
+
   async nip44Encrypt(): Promise<any> {
     throw new Error('Not logged in')
   }

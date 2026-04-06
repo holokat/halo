@@ -1,4 +1,3 @@
-import { BIG_RELAY_URLS } from '@/constants'
 import { getReplaceableCoordinateFromEvent, isReplaceableEvent } from '@/lib/event'
 import { getZapInfoFromEvent } from '@/lib/event-metadata'
 import { getEmojiInfosFromEmojiTags, tagNameEquals } from '@/lib/tag'
@@ -7,6 +6,16 @@ import indexedDb from '@/services/indexed-db.service'
 import { TEmoji } from '@/types'
 import dayjs from 'dayjs'
 import { Event, Filter, kinds } from 'nostr-tools'
+import {
+  deserializeNoteStats,
+  serializeNoteStats,
+  type TSerializedNoteStats
+} from './note-stats/cache'
+import {
+  buildNoteStatsBatchFilters,
+  getLiveNoteStatsRelayUrls,
+  pickNoteStatsRelayUrls
+} from './note-stats/query-plan'
 
 export type TNoteStats = {
   likeIdSet: Set<string>
@@ -36,30 +45,11 @@ type TInteractionMeta =
   | { type: 'repost'; targetEventId: string; pubkey: string }
   | { type: 'zap'; targetEventId: string; pr: string }
 
-type TSerializedNoteStats = {
-  likeIdSet?: string[]
-  likes?: { id: string; pubkey: string; created_at: number; emoji: TEmoji | string }[]
-  repostPubkeySet?: string[]
-  reposts?: { id: string; pubkey: string; created_at: number }[]
-  zapPrSet?: string[]
-  zaps?: {
-    pr: string
-    pubkey: string
-    amount: number
-    created_at: number
-    comment?: string
-    pollOptionId?: string
-  }[]
-  updatedAt?: number
-}
-
 const NOTE_STATS_FRESH_SECONDS = 15
 const NOTE_STATS_BATCH_DEBOUNCE_MS = 40
 const NOTE_STATS_PERSIST_DEBOUNCE_MS = 80
 const NOTE_STATS_TRACK_TTL_SECONDS = 10 * 60
 const NOTE_STATS_BATCH_MAX_NOTES = 60
-const NOTE_STATS_LIVE_RELAYS_LIMIT = 10
-const NOTE_STATS_FETCH_RELAYS_LIMIT = 8
 const NOTE_STATS_RELAY_LIST_TIMEOUT_MS = 350
 
 class NoteStatsService {
@@ -366,12 +356,12 @@ class NoteStatsService {
         relayLists = []
       }
 
-      const relayUrls = this.pickRelayUrls(
+      const relayUrls = pickNoteStatsRelayUrls(
         relayLists,
         Array.from(seenRelayUrls),
         Array.from(hintedRelayUrls)
       )
-      const filters = this.buildBatchFilters(eventIds, replaceableCoordinates, idSinceMap)
+      const filters = buildNoteStatsBatchFilters(eventIds, replaceableCoordinates, idSinceMap)
 
       if (filters.length && relayUrls.length) {
         await client.fetchEvents(relayUrls, filters, {
@@ -400,77 +390,6 @@ class NoteStatsService {
     if (this.pendingFetchMap.size) {
       this.scheduleBatchFetch()
     }
-  }
-
-  private buildBatchFilters(
-    eventIds: Set<string>,
-    replaceableCoordinates: Set<string>,
-    idSinceMap: Map<string, number>
-  ) {
-    const ids = Array.from(eventIds)
-    const coordinates = Array.from(replaceableCoordinates)
-    const since = idSinceMap.size ? Math.min(...idSinceMap.values()) : undefined
-
-    const reactionLimit = Math.min(3000, Math.max(600, ids.length * 80))
-    const repostLimit = Math.min(1200, Math.max(200, ids.length * 20))
-    const zapLimit = Math.min(3000, Math.max(600, ids.length * 60))
-
-    const filters: Filter[] = []
-
-    if (ids.length) {
-      filters.push(
-        { '#e': ids, kinds: [kinds.Reaction], limit: reactionLimit },
-        { '#e': ids, kinds: [kinds.Repost], limit: repostLimit },
-        { '#e': ids, kinds: [kinds.Zap], limit: zapLimit },
-        { '#e': ids, kinds: [kinds.EventDeletion], limit: reactionLimit }
-      )
-    }
-
-    if (coordinates.length) {
-      filters.push(
-        { '#a': coordinates, kinds: [kinds.Reaction], limit: reactionLimit },
-        { '#a': coordinates, kinds: [kinds.Repost], limit: repostLimit },
-        { '#a': coordinates, kinds: [kinds.Zap], limit: zapLimit }
-      )
-    }
-
-    if (since) {
-      filters.forEach((filter) => {
-        filter.since = since
-      })
-    }
-
-    return filters
-  }
-
-  private pickRelayUrls(
-    relayLists: { read: string[] }[],
-    seenRelayUrls: string[] = [],
-    hintedRelayUrls: string[] = []
-  ) {
-    const relayScoreMap = new Map<string, number>()
-
-    seenRelayUrls.forEach((relayUrl, index) => {
-      relayScoreMap.set(relayUrl, (relayScoreMap.get(relayUrl) ?? 0) + (200 - index))
-    })
-    hintedRelayUrls.forEach((relayUrl, index) => {
-      relayScoreMap.set(relayUrl, (relayScoreMap.get(relayUrl) ?? 0) + (140 - index))
-    })
-
-    BIG_RELAY_URLS.forEach((relayUrl, index) => {
-      relayScoreMap.set(relayUrl, 100 - index)
-    })
-
-    relayLists.forEach((relayList) => {
-      relayList.read.slice(0, 4).forEach((relayUrl, index) => {
-        relayScoreMap.set(relayUrl, (relayScoreMap.get(relayUrl) ?? 0) + (10 - index))
-      })
-    })
-
-    return Array.from(relayScoreMap.entries())
-      .sort((a, b) => b[1] - a[1])
-      .map(([relayUrl]) => relayUrl)
-      .slice(0, NOTE_STATS_FETCH_RELAYS_LIMIT)
   }
 
   private trackNote(event: Event) {
@@ -510,16 +429,15 @@ class NoteStatsService {
     const coordinates = tracked
       .map((item) => item.replaceableCoordinate)
       .filter((item): item is string => !!item)
-    const relayUrls = this.getLiveRelayUrls(ids)
+    const relayUrls = getLiveNoteStatsRelayUrls(ids, (eventId) => client.getSeenEventRelayUrls(eventId))
     if (!relayUrls.length) return
 
-    const filters: Filter[] = [
-      {
-        '#e': ids,
-        kinds: [kinds.Reaction, kinds.Repost, kinds.Zap, kinds.EventDeletion],
-        since: now
-      }
-    ]
+    const filters: Filter[] = []
+    filters.push({
+      '#e': ids,
+      kinds: [kinds.Reaction, kinds.Repost, kinds.Zap, kinds.EventDeletion],
+      since: now
+    })
 
     if (coordinates.length) {
       filters.push({
@@ -536,17 +454,6 @@ class NoteStatsService {
     })
 
     this.liveCloser = () => sub.close()
-  }
-
-  private getLiveRelayUrls(eventIds: string[]) {
-    const relaySet = new Set<string>()
-    BIG_RELAY_URLS.forEach((relayUrl) => relaySet.add(relayUrl))
-
-    eventIds.forEach((eventId) => {
-      client.getSeenEventRelayUrls(eventId).forEach((relayUrl) => relaySet.add(relayUrl))
-    })
-
-    return Array.from(relaySet).slice(0, NOTE_STATS_LIVE_RELAYS_LIMIT)
   }
 
   private removeInteractionsByDeletionEvent(evt: Event): Set<string> {
@@ -611,7 +518,7 @@ class NoteStatsService {
     try {
       const cachedMap = await indexedDb.getManyNoteStats(idsToHydrate)
       cachedMap.forEach((cached, id) => {
-        const deserialized = this.deserializeNoteStats(cached)
+        const deserialized = deserializeNoteStats(cached)
         const existing = this.noteStatsMap.get(id)
         if ((existing?.updatedAt ?? 0) >= (deserialized.updatedAt ?? 0)) return
 
@@ -644,7 +551,7 @@ class NoteStatsService {
       .map((eventId) => {
         const stats = this.noteStatsMap.get(eventId)
         if (!stats) return null
-        return { eventId, noteStats: this.serializeNoteStats(stats) }
+        return { eventId, noteStats: serializeNoteStats(stats) }
       })
       .filter(
         (
@@ -665,30 +572,6 @@ class NoteStatsService {
 
     if (this.pendingPersistIds.size) {
       this.schedulePersist(Array.from(this.pendingPersistIds)[0])
-    }
-  }
-
-  private serializeNoteStats(stats: Partial<TNoteStats>): TSerializedNoteStats {
-    return {
-      likeIdSet: stats.likeIdSet ? Array.from(stats.likeIdSet) : [],
-      likes: stats.likes ? [...stats.likes] : [],
-      repostPubkeySet: stats.repostPubkeySet ? Array.from(stats.repostPubkeySet) : [],
-      reposts: stats.reposts ? [...stats.reposts] : [],
-      zapPrSet: stats.zapPrSet ? Array.from(stats.zapPrSet) : [],
-      zaps: stats.zaps ? [...stats.zaps] : [],
-      updatedAt: stats.updatedAt
-    }
-  }
-
-  private deserializeNoteStats(stats: TSerializedNoteStats): Partial<TNoteStats> {
-    return {
-      likeIdSet: new Set(stats.likeIdSet ?? []),
-      likes: stats.likes ?? [],
-      repostPubkeySet: new Set(stats.repostPubkeySet ?? []),
-      reposts: stats.reposts ?? [],
-      zapPrSet: new Set(stats.zapPrSet ?? []),
-      zaps: stats.zaps ?? [],
-      updatedAt: stats.updatedAt
     }
   }
 }

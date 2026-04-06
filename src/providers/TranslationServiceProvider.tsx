@@ -10,7 +10,7 @@ import { TTranslationAccount, TTranslationServiceConfig } from '@/types'
 import { Event, kinds } from 'nostr-tools'
 import { createContext, useContext, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNostr } from './NostrProvider'
+import { useNostr } from '@/providers/NostrProvider'
 
 const translatedEventCache: Map<string, Event> = new Map()
 const translatedTextCache: Map<string, string> = new Map()
@@ -103,14 +103,17 @@ export function TranslationServiceProvider({ children }: { children: React.React
   useEffect(() => {
     if (!cacheInitialized) {
       cacheInitialized = true
-      indexedDb.getAllTranslatedEvents().then((events) => {
-        events.forEach((event, key) => {
-          translatedEventCache.set(key, event)
+      indexedDb
+        .getAllTranslatedEvents()
+        .then((events) => {
+          events.forEach((event, key) => {
+            translatedEventCache.set(key, event)
+          })
+          syncTranslatedEventIdSet(i18n.language)
         })
-        syncTranslatedEventIdSet(i18n.language)
-      }).catch((error) => {
-        console.error('Failed to load translated events from IndexedDB:', error)
-      })
+        .catch((error) => {
+          console.error('Failed to load translated events from IndexedDB:', error)
+        })
 
       // Clean up old translations (older than 30 days)
       indexedDb.clearOldTranslatedEvents().catch((error) => {

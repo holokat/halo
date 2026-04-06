@@ -3,7 +3,7 @@ import { getPubkeysFromPTags } from '@/lib/tag'
 import client from '@/services/client.service'
 import { createContext, useContext, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNostr } from './NostrProvider'
+import { useNostr } from '@/providers/NostrProvider'
 
 type TFollowListContext = {
   followings: string[]
@@ -62,19 +62,18 @@ export function FollowListProvider({ children }: { children: React.ReactNode }) 
     }
 
     // Get existing p tags
-    const existingPubkeys = followListEvent?.tags
-      .filter(([tagName]) => tagName === 'p')
-      .map(([, pubkey]) => pubkey) || []
+    const existingPubkeys =
+      followListEvent?.tags.filter(([tagName]) => tagName === 'p').map(([, pubkey]) => pubkey) || []
 
     // Filter out already followed pubkeys
-    const newPubkeys = pubkeys.filter(pk => !existingPubkeys.includes(pk))
+    const newPubkeys = pubkeys.filter((pk) => !existingPubkeys.includes(pk))
 
     if (newPubkeys.length === 0) {
       return // All already followed
     }
 
     // Create new p tags for new pubkeys
-    const newPTags = newPubkeys.map(pk => ['p', pk] as [string, string])
+    const newPTags = newPubkeys.map((pk) => ['p', pk] as [string, string])
 
     // Combine existing tags with new p tags
     const newFollowListDraftEvent = createFollowListDraftEvent(

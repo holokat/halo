@@ -46,6 +46,30 @@
     background: hsl(var(--muted-foreground) / 0.5);
   }
 
+  .scrollbar-dm-input {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+
+  .scrollbar-dm-input::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .scrollbar-dm-input::-webkit-scrollbar-track {
+    margin-block: 8px;
+    background: transparent;
+  }
+
+  .scrollbar-dm-input::-webkit-scrollbar-thumb {
+    min-height: 18px;
+    border-radius: 9999px;
+    background: hsl(var(--border));
+  }
+
+  .scrollbar-dm-input::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+
   /*
    * Freeze GIF animations
    * Note: CSS cannot directly stop GIF animations, but this class can be used

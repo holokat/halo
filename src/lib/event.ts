@@ -248,14 +248,23 @@ export function getUsingClient(event: Event) {
 }
 
 export function getImetaInfosFromEvent(event: Event) {
-  const imeta: TImetaInfo[] = []
+  const imeta = new Map<string, TImetaInfo>()
   event.tags.forEach((tag) => {
     const imageInfo = getImetaInfoFromImetaTag(tag, event.pubkey)
     if (imageInfo) {
-      imeta.push(imageInfo)
+      const existingInfo = imeta.get(imageInfo.url)
+      imeta.set(imageInfo.url, {
+        ...existingInfo,
+        ...imageInfo,
+        alt: imageInfo.alt ?? existingInfo?.alt,
+        blurHash: imageInfo.blurHash ?? existingInfo?.blurHash,
+        dim: imageInfo.dim ?? existingInfo?.dim,
+        mimeType: imageInfo.mimeType ?? existingInfo?.mimeType,
+        pubkey: imageInfo.pubkey ?? existingInfo?.pubkey
+      })
     }
   })
-  return imeta
+  return Array.from(imeta.values())
 }
 
 export function getEmbeddedNoteBech32Ids(event: Event) {

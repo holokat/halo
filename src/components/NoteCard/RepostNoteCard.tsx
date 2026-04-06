@@ -1,5 +1,6 @@
 import { Separator } from '@/components/ui/separator'
 import { isMentioningMutedUsers, isFromMutedDomain } from '@/lib/event'
+import { isEventExpired } from '@/lib/event-expiration'
 import { tagNameEquals } from '@/lib/tag'
 import { useFetchProfile } from '@/hooks'
 import { useContentPolicy } from '@/providers/ContentPolicyProvider'
@@ -42,6 +43,7 @@ export default function RepostNoteCard({
   }, [targetEvent, filterMutedNotes, profile, mutedDomains])
   const shouldHide = useMemo(() => {
     if (!targetEvent) return true
+    if (isEventExpired(targetEvent)) return true
     // If we have muted domains and profile is loading, hide while we check
     if (filterMutedNotes && mutedDomains.length > 0 && isFetching) {
       return true
@@ -65,6 +67,9 @@ export default function RepostNoteCard({
         const eventFromContent = event.content ? (JSON.parse(event.content) as Event) : null
         if (eventFromContent && verifyEvent(eventFromContent)) {
           if (eventFromContent.kind === kinds.Repost) {
+            return
+          }
+          if (isEventExpired(eventFromContent)) {
             return
           }
           client.addEventToCache(eventFromContent)

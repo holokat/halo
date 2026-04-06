@@ -2,7 +2,7 @@ import storage from '@/services/local-storage.service'
 import mediaUpload from '@/services/media-upload.service'
 import { TMediaUploadServiceConfig } from '@/types'
 import { createContext, useContext, useEffect, useState } from 'react'
-import { useOptionalNostr } from './NostrProvider'
+import { useOptionalNostr } from '@/providers/NostrProvider'
 
 type TMediaUploadServiceContext = {
   serviceConfig: TMediaUploadServiceConfig

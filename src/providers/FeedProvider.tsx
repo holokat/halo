@@ -10,7 +10,7 @@ import { TFeedInfo, TFeedType } from '@/types'
 import { kinds } from 'nostr-tools'
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { useFavoriteRelays } from './FavoriteRelaysProvider'
-import { useNostr } from './NostrProvider'
+import { useNostr } from '@/providers/NostrProvider'
 
 type TFeedContext = {
   feedInfo: TFeedInfo
@@ -18,7 +18,12 @@ type TFeedContext = {
   isReady: boolean
   switchFeed: (
     feedType: TFeedType,
-    options?: { activeRelaySetId?: string; pubkey?: string; relay?: string | null; customFeedId?: string }
+    options?: {
+      activeRelaySetId?: string
+      pubkey?: string
+      relay?: string | null
+      customFeedId?: string
+    }
   ) => Promise<void>
 }
 

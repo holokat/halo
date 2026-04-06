@@ -14,7 +14,7 @@ export function EmbeddedStockSymbol({ symbol }: { symbol: string }) {
       <HoverCardTrigger asChild>
         <SecondaryPageLink
           to={toNoteList({ stockSymbol: normalizedSymbol })}
-          className="inline rounded-sm px-0.5 font-medium text-left underline decoration-dotted underline-offset-4 hover:bg-muted/60"
+          className="inline rounded-sm px-0.5 font-medium text-left underline decoration-dotted underline-offset-4 hover:bg-muted/60 break-words [overflow-wrap:anywhere]"
           onMouseEnter={() => {
             void stockQuoteService.prefetchQuote(normalizedSymbol)
           }}

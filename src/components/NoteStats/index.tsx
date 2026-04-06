@@ -15,6 +15,7 @@ import Likes from './Likes'
 import ReplyButton from './ReplyButton'
 import RepostButton from './RepostButton'
 import SeenOnButton from './SeenOnButton'
+import ShareButton from './ShareButton'
 import TopZaps from './TopZaps'
 import ZapButton from './ZapButton'
 
@@ -74,6 +75,7 @@ export default function NoteStats({
           >
             <ReplyButton event={event} />
             <RepostButton event={event} />
+            <ShareButton event={event} />
             {!lowBandwidthMode && !onlyZapsMode && <LikeButton event={event} />}
             {!lowBandwidthMode && paymentsEnabled && <ZapButton event={event} />}
             {!lowBandwidthMode && showChargeZap && <ChargeZapButton event={event} />}
@@ -103,6 +105,7 @@ export default function NoteStats({
         >
           <ReplyButton event={event} />
           <RepostButton event={event} />
+          <ShareButton event={event} />
           {!lowBandwidthMode && !onlyZapsMode && <LikeButton event={event} />}
           {!lowBandwidthMode && paymentsEnabled && <ZapButton event={event} />}
           {!lowBandwidthMode && showChargeZap && <ChargeZapButton event={event} />}

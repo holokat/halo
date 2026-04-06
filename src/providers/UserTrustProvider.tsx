@@ -1,7 +1,7 @@
 import client from '@/services/client.service'
 import storage from '@/services/local-storage.service'
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
-import { useNostr } from './NostrProvider'
+import { useNostr } from '@/providers/NostrProvider'
 
 type TUserTrustContext = {
   hideUntrustedInteractions: boolean

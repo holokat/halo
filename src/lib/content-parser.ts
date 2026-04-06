@@ -207,11 +207,14 @@ export function parseContent(content: string, parsers: TContentParser[]) {
       .filter((n) => n.data !== '')
   })
 
-  nodes = mergeConsecutiveTextNodes(nodes)
-  nodes = mergeConsecutiveImageNodes(nodes)
-  nodes = removeExtraNewlines(nodes)
+  return normalizeParsedContentNodes(nodes)
+}
 
-  return nodes
+export function normalizeParsedContentNodes(nodes: TEmbeddedNode[]) {
+  let normalizedNodes = mergeConsecutiveTextNodes(nodes)
+  normalizedNodes = mergeConsecutiveImageNodes(normalizedNodes)
+  normalizedNodes = removeExtraNewlines(normalizedNodes)
+  return normalizedNodes
 }
 
 function mergeConsecutiveTextNodes(nodes: TEmbeddedNode[]) {
@@ -266,7 +269,7 @@ function mergeConsecutiveImageNodes(nodes: TEmbeddedNode[]) {
 
 function removeExtraNewlines(nodes: TEmbeddedNode[]) {
   const isBlockNode = (node: TEmbeddedNode) => {
-    return ['image', 'images', 'video', 'event'].includes(node.type)
+    return ['image', 'images', 'media', 'event'].includes(node.type)
   }
 
   const newNodes: TEmbeddedNode[] = []

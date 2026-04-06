@@ -1,71 +1,38 @@
-import { encrypt as encryptNip44 } from '@/lib/nip44'
-import { checkAuthProtectedRelay } from '@/lib/relay'
 import client from '@/services/client.service'
 import storage from '@/services/local-storage.service'
-import relayInfoService from '@/services/relay-info.service'
-import {
-  Event,
-  finalizeEvent,
-  generateSecretKey,
-  getEventHash,
-  kinds,
-  validateEvent,
-  verifyEvent
-} from 'nostr-tools'
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState
-} from 'react'
+import { Event, getEventHash, kinds } from 'nostr-tools'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useFollowList } from './FollowListProvider'
-import { useNostr } from './NostrProvider'
-
-type TConversationEventBase = {
-  id: string
-  wrapId: string
-  createdAt: number
-  senderPubkey: string
-  recipientPubkeys: string[]
-  participantPubkeys: string[]
-  conversationId: string
-  isOutgoing: boolean
-}
-
-export type TDirectMessage = TConversationEventBase & {
-  kind: number
-  tags: string[][]
-  content: string
-  subject?: string
-  replyToId?: string
-}
-
-export type TDirectMessageReaction = TConversationEventBase & {
-  targetMessageId: string
-  emoji: string
-}
-
-type TConversationEvent = TDirectMessage | TDirectMessageReaction
-
-export type TMessageConversation = {
-  id: string
-  participantPubkeys: string[]
-  primaryPubkey?: string
-  isGroup: boolean
-  isRequest: boolean
-  unreadCount: number
-  lastMessageAt: number
-  lastMessagePreview: string
-  subject?: string
-  messages: TDirectMessage[]
-  reactionsByMessageId: Record<string, TDirectMessageReaction[]>
-  hasOutgoingActivity: boolean
-}
+import { useNostr } from '@/providers/NostrProvider'
+import {
+  buildConversations,
+  dedupeWrappedEvents,
+  mergeMessages,
+  mergeReactions
+} from './messages/conversations'
+import {
+  isDirectMessageEvent,
+  isDirectMessageReactionEvent,
+  unwrapDirectMessage,
+  type TConversationEvent
+} from './messages/decrypt'
+import {
+  buildWrappedRumorEvents as createWrappedRumorEvents,
+  publishWrappedRumorEvents
+} from './messages/publish'
+import {
+  type TDirectMessage,
+  type TDirectMessageReaction,
+  type TMessageConversation
+} from './messages/types'
+import { toConversationId } from './messages/shared'
+export type {
+  TDirectMessage,
+  TDirectMessageReaction,
+  TMessageConversation
+} from './messages/types'
 
 type TMessagesContext = {
   conversations: TMessageConversation[]
@@ -110,193 +77,6 @@ const MESSAGE_LOOKUP_READ_RELAYS = 4
 const MESSAGE_LOOKUP_WRITE_RELAYS = 2
 const MESSAGE_DECRYPT_BATCH_SIZE = 24
 const MESSAGE_INITIAL_QUERY_TIMEOUT_MS = 12_000
-const RELAY_INFO_LOOKUP_TIMEOUT_MS = 1_500
-const TWO_DAYS_IN_SECONDS = 2 * 24 * 60 * 60
-
-function toConversationId(participantPubkeys: string[]) {
-  return participantPubkeys.slice().sort().join(':')
-}
-
-function getMessagePreview(content: string) {
-  const normalized = content.replace(/\s+/g, ' ').trim()
-  if (!normalized) {
-    return 'Empty message'
-  }
-  return normalized.length > 120 ? normalized.slice(0, 117) + '...' : normalized
-}
-
-function getFileMessagePreview(tags: string[][], content: string) {
-  const fileType = tags.find(([tagName]) => tagName === 'file-type')?.[1]?.toLowerCase()
-
-  if (fileType?.startsWith('image/')) {
-    return 'Photo'
-  }
-  if (fileType?.startsWith('video/')) {
-    return 'Video'
-  }
-  if (fileType?.startsWith('audio/')) {
-    return 'Audio'
-  }
-
-  if (/\.(png|jpe?g|gif|webp|bmp|svg)(\?.*)?$/i.test(content)) {
-    return 'Photo'
-  }
-  if (/\.(mp4|mov|webm|mkv|avi|m4v)(\?.*)?$/i.test(content)) {
-    return 'Video'
-  }
-  if (/\.(mp3|wav|flac|aac|m4a|opus|wma)(\?.*)?$/i.test(content)) {
-    return 'Audio'
-  }
-
-  return 'Attachment'
-}
-
-function getConversationMessagePreview(message: TDirectMessage) {
-  if (message.kind === 15) {
-    return getFileMessagePreview(message.tags, message.content)
-  }
-
-  const hasImetaTag = message.tags.some(([tagName]) => tagName === 'imeta')
-  const contentWithoutUrls = message.content.replace(/https?:\/\/\S+/g, '').trim()
-
-  if (hasImetaTag && !contentWithoutUrls) {
-    return 'Media attachment'
-  }
-
-  return getMessagePreview(message.content)
-}
-
-function isEventWithId(value: unknown): value is Event {
-  if (!value || typeof value !== 'object') return false
-  const event = value as Partial<Event>
-  return (
-    typeof event.id === 'string' &&
-    typeof event.pubkey === 'string' &&
-    typeof event.created_at === 'number' &&
-    typeof event.kind === 'number' &&
-    typeof event.content === 'string' &&
-    Array.isArray(event.tags)
-  )
-}
-
-function hasEventSignature(value: unknown): value is Event {
-  return !!value && typeof value === 'object' && typeof (value as Partial<Event>).sig === 'string'
-}
-
-function hasNoEventSignature(value: unknown) {
-  return !value || typeof value !== 'object' || !Object.prototype.hasOwnProperty.call(value, 'sig')
-}
-
-function isVerifiedSealEvent(value: unknown): value is Event {
-  if (!isEventWithId(value) || !hasEventSignature(value) || !validateEvent(value)) {
-    return false
-  }
-
-  return verifyEvent(value)
-}
-
-function isUnsignedRumorEvent(value: unknown): value is Event {
-  if (!isEventWithId(value) || !hasNoEventSignature(value) || !validateEvent(value)) {
-    return false
-  }
-
-  return value.id === getEventHash(value)
-}
-
-async function preferAuthProtectedRelayUrls(relayUrls: string[]) {
-  const uniqueRelayUrls = Array.from(new Set(relayUrls))
-
-  if (uniqueRelayUrls.length <= 1) {
-    return uniqueRelayUrls
-  }
-
-  try {
-    const relayInfos = await Promise.race([
-      relayInfoService.getRelayInfos(uniqueRelayUrls),
-      new Promise<(ReturnType<typeof relayInfoService.getRelayInfos> extends Promise<infer T> ? T : never)>(
-        (resolve) => {
-          window.setTimeout(() => resolve([]), RELAY_INFO_LOOKUP_TIMEOUT_MS)
-        }
-      )
-    ])
-
-    const authProtectedRelayUrls = uniqueRelayUrls.filter((url, index) =>
-      checkAuthProtectedRelay(relayInfos[index])
-    )
-
-    return authProtectedRelayUrls.length > 0 ? authProtectedRelayUrls : uniqueRelayUrls
-  } catch {
-    return uniqueRelayUrls
-  }
-}
-
-function mergeMessages(current: TDirectMessage[], incoming: TDirectMessage[]) {
-  const messageMap = new Map<string, TDirectMessage>()
-
-  current.forEach((message) => {
-    messageMap.set(message.id, message)
-  })
-
-  incoming.forEach((message) => {
-    messageMap.set(message.id, message)
-  })
-
-  return Array.from(messageMap.values()).sort((a, b) => {
-    if (b.createdAt !== a.createdAt) {
-      return b.createdAt - a.createdAt
-    }
-    return b.wrapId.localeCompare(a.wrapId)
-  })
-}
-
-function mergeReactions(current: TDirectMessageReaction[], incoming: TDirectMessageReaction[]) {
-  const reactionMap = new Map<string, TDirectMessageReaction>()
-
-  current.forEach((reaction) => {
-    reactionMap.set(reaction.id, reaction)
-  })
-
-  incoming.forEach((reaction) => {
-    reactionMap.set(reaction.id, reaction)
-  })
-
-  return Array.from(reactionMap.values()).sort((a, b) => {
-    if (b.createdAt !== a.createdAt) {
-      return b.createdAt - a.createdAt
-    }
-    return b.wrapId.localeCompare(a.wrapId)
-  })
-}
-
-function dedupeWrappedEvents(events: Event[]) {
-  const wrappedEventMap = new Map<string, Event>()
-
-  events.forEach((event) => {
-    wrappedEventMap.set(event.id, event)
-  })
-
-  return Array.from(wrappedEventMap.values()).sort((a, b) => {
-    if (b.created_at !== a.created_at) {
-      return b.created_at - a.created_at
-    }
-
-    return b.id.localeCompare(a.id)
-  })
-}
-
-function isDirectMessageEvent(event: TConversationEvent): event is TDirectMessage {
-  return !('targetMessageId' in event)
-}
-
-function isDirectMessageReactionEvent(
-  event: TConversationEvent
-): event is TDirectMessageReaction {
-  return 'targetMessageId' in event
-}
-
-function randomWrappedTimestamp() {
-  return Math.round(Date.now() / 1000 - Math.random() * TWO_DAYS_IN_SECONDS)
-}
 
 export const useMessages = () => {
   const context = useContext(MessagesContext)
@@ -308,8 +88,16 @@ export const useMessages = () => {
 
 export function MessagesProvider({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation()
-  const { pubkey, account, relayList, inboxRelayUrls, nip44Supported, nip44Decrypt, nip44Encrypt, signEvent } =
-    useNostr()
+  const {
+    pubkey,
+    account,
+    relayList,
+    inboxRelayUrls,
+    nip44Supported,
+    nip44Decrypt,
+    nip44Encrypt,
+    signEvent
+  } = useNostr()
   const { followings } = useFollowList()
   const [messages, setMessages] = useState<TDirectMessage[]>([])
   const [reactions, setReactions] = useState<TDirectMessageReaction[]>([])
@@ -318,17 +106,31 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
   const [hasLoadedMessages, setHasLoadedMessages] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [conversationReadAtMap, setConversationReadAtMap] = useState<Record<string, number>>({})
-  const [dismissedConversationMap, setDismissedConversationMap] = useState<Record<string, number>>({})
+  const [dismissedConversationMap, setDismissedConversationMap] = useState<Record<string, number>>(
+    {}
+  )
   const decryptRef = useRef(nip44Decrypt)
   const decryptedMessageCacheRef = useRef(new Map<string, TConversationEvent | null>())
 
   useEffect(() => {
     decryptRef.current = nip44Decrypt
+    decryptedMessageCacheRef.current.clear()
   }, [nip44Decrypt])
 
   useEffect(() => {
     decryptedMessageCacheRef.current.clear()
   }, [pubkey])
+
+  const unwrapDirectMessageWithCache = useCallback(
+    (wrap: Event) => {
+      if (!pubkey) {
+        return Promise.resolve(null)
+      }
+
+      return unwrapDirectMessage(wrap, pubkey, decryptRef.current, decryptedMessageCacheRef.current)
+    },
+    [pubkey]
+  )
 
   const publishedInboxRelayUrls = useMemo(() => {
     return Array.from(new Set(inboxRelayUrls))
@@ -345,119 +147,6 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
   }, [publishedInboxRelayUrls, relayList])
 
   const isSupported = !!pubkey && account?.signerType !== 'npub' && nip44Supported
-
-  const unwrapDirectMessage = useCallback(
-    async (wrap: Event, accountPubkey: string): Promise<TConversationEvent | null> => {
-      const cached = decryptedMessageCacheRef.current.get(wrap.id)
-      if (cached !== undefined) {
-        return cached
-      }
-
-      try {
-        const sealContent = await decryptRef.current(wrap.pubkey, wrap.content)
-        const parsedSeal = JSON.parse(sealContent)
-        if (
-          !isVerifiedSealEvent(parsedSeal) ||
-          parsedSeal.kind !== kinds.Seal ||
-          parsedSeal.tags.length !== 0
-        ) {
-          decryptedMessageCacheRef.current.set(wrap.id, null)
-          return null
-        }
-
-        const rumorContent = await decryptRef.current(parsedSeal.pubkey, parsedSeal.content)
-        const parsedRumor = JSON.parse(rumorContent)
-        if (!isUnsignedRumorEvent(parsedRumor)) {
-          decryptedMessageCacheRef.current.set(wrap.id, null)
-          return null
-        }
-        if (parsedSeal.pubkey !== parsedRumor.pubkey) {
-          decryptedMessageCacheRef.current.set(wrap.id, null)
-          return null
-        }
-
-        const recipientPubkeys = Array.from(
-          new Set(
-            parsedRumor.tags
-              .filter(([tagName, tagValue]) => tagName === 'p' && !!tagValue)
-              .map(([, tagValue]) => tagValue)
-          )
-        )
-        const isOutgoing = parsedRumor.pubkey === accountPubkey
-        if (!isOutgoing && !recipientPubkeys.includes(accountPubkey)) {
-          decryptedMessageCacheRef.current.set(wrap.id, null)
-          return null
-        }
-        const participantPubkeys = Array.from(
-          new Set(
-            (
-              isOutgoing
-                ? recipientPubkeys
-                : [parsedRumor.pubkey].concat(recipientPubkeys)
-            ).filter((participantPubkey) => participantPubkey !== accountPubkey)
-          )
-        ).sort()
-
-        if (participantPubkeys.length === 0) {
-          decryptedMessageCacheRef.current.set(wrap.id, null)
-          return null
-        }
-
-        const baseEvent: TConversationEventBase = {
-          id: parsedRumor.id,
-          wrapId: wrap.id,
-          createdAt: parsedRumor.created_at,
-          senderPubkey: parsedRumor.pubkey,
-          recipientPubkeys,
-          participantPubkeys,
-          conversationId: toConversationId(participantPubkeys),
-          isOutgoing
-        }
-
-        if (parsedRumor.kind === kinds.PrivateDirectMessage || parsedRumor.kind === 15) {
-          const message: TDirectMessage = {
-            ...baseEvent,
-            kind: parsedRumor.kind,
-            tags: parsedRumor.tags,
-            content: parsedRumor.content,
-            subject: parsedRumor.tags.find(([tagName]) => tagName === 'subject')?.[1],
-            replyToId:
-              parsedRumor.tags.find(
-                ([tagName, , , marker]) => tagName === 'e' && marker === 'reply'
-              )?.[1] ?? parsedRumor.tags.find(([tagName]) => tagName === 'e')?.[1]
-          }
-
-          decryptedMessageCacheRef.current.set(wrap.id, message)
-          return message
-        }
-
-        if (parsedRumor.kind === kinds.Reaction) {
-          const targetMessageId = parsedRumor.tags.find(([tagName]) => tagName === 'e')?.[1]
-
-          if (!targetMessageId) {
-            decryptedMessageCacheRef.current.set(wrap.id, null)
-            return null
-          }
-
-          const reaction: TDirectMessageReaction = {
-            ...baseEvent,
-            targetMessageId,
-            emoji: parsedRumor.content || '+'
-          }
-
-          decryptedMessageCacheRef.current.set(wrap.id, reaction)
-          return reaction
-        }
-
-        decryptedMessageCacheRef.current.set(wrap.id, null)
-        return null
-      } catch {
-        decryptedMessageCacheRef.current.set(wrap.id, null)
-        return null
-      }
-    },
-    []
-  )
 
   useEffect(() => {
     if (!pubkey) {
@@ -514,9 +203,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
       for (let index = 0; index < wrappedEvents.length; index += MESSAGE_DECRYPT_BATCH_SIZE) {
         const wrappedChunk = wrappedEvents.slice(index, index + MESSAGE_DECRYPT_BATCH_SIZE)
         const unwrappedChunk = (
-          await Promise.all(
-            wrappedChunk.map((wrappedEvent) => unwrapDirectMessage(wrappedEvent, pubkey))
-          )
+          await Promise.all(wrappedChunk.map((wrappedEvent) => unwrapDirectMessageWithCache(wrappedEvent)))
         ).filter((event): event is TConversationEvent => !!event)
 
         if (unwrappedChunk.length === 0) {
@@ -527,7 +214,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
 
         unwrappedChunk.forEach((event) => {
           participantPubkeySet.add(event.senderPubkey)
-          event.participantPubkeys.forEach((participantPubkey) => {
+          event.participantPubkeys.forEach((participantPubkey: string) => {
             participantPubkeySet.add(participantPubkey)
           })
         })
@@ -597,14 +284,18 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
           // Let the first page wait longer for slower inbox relays, but do not allow a single
           // stalled/auth-gated relay to block the entire messages screen forever.
           const wrappedEvents = dedupeWrappedEvents(
-            await client.fetchEvents(messageLookupRelayUrls, {
-              kinds: [kinds.GiftWrap],
-              '#p': [pubkey],
-              limit: MESSAGE_BACKFILL_PAGE_LIMIT,
-              ...(nextUntil ? { until: nextUntil } : {})
-            }, {
-              timeoutMs: pageIndex === 0 ? MESSAGE_INITIAL_QUERY_TIMEOUT_MS : undefined
-            })
+            await client.fetchEvents(
+              messageLookupRelayUrls,
+              {
+                kinds: [kinds.GiftWrap],
+                '#p': [pubkey],
+                limit: MESSAGE_BACKFILL_PAGE_LIMIT,
+                ...(nextUntil ? { until: nextUntil } : {})
+              },
+              {
+                timeoutMs: pageIndex === 0 ? MESSAGE_INITIAL_QUERY_TIMEOUT_MS : undefined
+              }
+            )
           ).filter((wrappedEvent) => {
             if (seenWrapIds.has(wrappedEvent.id)) {
               return false
@@ -660,104 +351,25 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
       }
       subscription?.close()
     }
-  }, [account?.signerType, messageLookupRelayUrls, nip44Supported, pubkey, unwrapDirectMessage])
+  }, [account?.signerType, messageLookupRelayUrls, nip44Supported, pubkey, unwrapDirectMessageWithCache])
 
-  const conversations = useMemo(() => {
-    const followingSet = new Set(followings)
-    const conversationMap = new Map<string, TMessageConversation>()
-
-    const sortedMessages = messages
-      .slice()
-      .sort((a, b) => a.createdAt - b.createdAt || a.wrapId.localeCompare(b.wrapId))
-
-    sortedMessages.forEach((message) => {
-      const existingConversation = conversationMap.get(message.conversationId)
-
-      if (!existingConversation) {
-        conversationMap.set(message.conversationId, {
-          id: message.conversationId,
-          participantPubkeys: message.participantPubkeys,
-          primaryPubkey: message.participantPubkeys[0],
-          isGroup: message.participantPubkeys.length > 1,
-          isRequest: false,
-          unreadCount: 0,
-          lastMessageAt: message.createdAt,
-          lastMessagePreview: getConversationMessagePreview(message),
-          subject: message.subject,
-          messages: [message],
-          reactionsByMessageId: {},
-          hasOutgoingActivity: message.isOutgoing
-        })
-        return
-      }
-
-      existingConversation.messages.push(message)
-      existingConversation.lastMessageAt = message.createdAt
-      existingConversation.lastMessagePreview = getConversationMessagePreview(message)
-      existingConversation.subject = message.subject ?? existingConversation.subject
-      existingConversation.hasOutgoingActivity =
-        existingConversation.hasOutgoingActivity || message.isOutgoing
-    })
-
-    const messageIdsByConversation = new Map<string, Set<string>>(
-      Array.from(conversationMap.entries()).map(([conversationId, conversation]) => [
-        conversationId,
-        new Set(conversation.messages.map((message) => message.id))
-      ])
-    )
-
-    reactions
-      .slice()
-      .sort((a, b) => a.createdAt - b.createdAt || a.wrapId.localeCompare(b.wrapId))
-      .forEach((reaction) => {
-        const conversation = conversationMap.get(reaction.conversationId)
-        const messageIds = messageIdsByConversation.get(reaction.conversationId)
-
-        if (!conversation || !messageIds?.has(reaction.targetMessageId)) {
-          return
-        }
-
-        const existingReactions = conversation.reactionsByMessageId[reaction.targetMessageId] ?? []
-        conversation.reactionsByMessageId[reaction.targetMessageId] = [
-          ...existingReactions,
-          reaction
-        ]
-        conversation.hasOutgoingActivity =
-          conversation.hasOutgoingActivity || reaction.isOutgoing
-      })
-
-    return Array.from(conversationMap.values())
-      .map((conversation) => {
-        const conversationReadAt = Math.max(
-          messagesReadAt,
-          conversationReadAtMap[conversation.id] ?? 0
-        )
-        const unreadCount = conversation.messages.filter(
-          (message) => !message.isOutgoing && message.createdAt > conversationReadAt
-        ).length
-        const isSingleParticipantConversation = conversation.participantPubkeys.length === 1
-        const isGroupConversation = conversation.participantPubkeys.length > 1
-        const primaryParticipantPubkey = conversation.primaryPubkey
-
-        return {
-          ...conversation,
-          unreadCount,
-          isRequest:
-            isGroupConversation
-              ? !conversation.hasOutgoingActivity
-              : isSingleParticipantConversation &&
-                !!primaryParticipantPubkey &&
-                !followingSet.has(primaryParticipantPubkey) &&
-                !conversation.hasOutgoingActivity
-        }
-      })
-      .sort((a, b) => b.lastMessageAt - a.lastMessageAt)
-  }, [conversationReadAtMap, followings, messages, messagesReadAt, reactions])
+  const conversations = useMemo(
+    () =>
+      buildConversations({
+        conversationReadAtMap,
+        followings,
+        messages,
+        messagesReadAt,
+        reactions
+      }),
+    [conversationReadAtMap, followings, messages, messagesReadAt, reactions]
+  )
 
   const visibleConversations = useMemo(
     () =>
       conversations.filter(
-        (conversation) => (dismissedConversationMap[conversation.id] ?? 0) < conversation.lastMessageAt
+        (conversation) =>
+          (dismissedConversationMap[conversation.id] ?? 0) < conversation.lastMessageAt
       ),
     [conversations, dismissedConversationMap]
   )
@@ -788,64 +400,17 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
         throw new Error('You need to be logged in to send direct messages.')
       }
 
-      const wrapRecipients = Array.from(new Set([pubkey, ...rumorRecipients]))
-      const recipientRelayEntries = await Promise.all(
-        wrapRecipients.map(async (recipientPubkey) => {
-          const recipientRelayUrls =
-            recipientPubkey === pubkey
-              ? publishedInboxRelayUrls
-              : await client.fetchInboxRelayList(recipientPubkey)
-
-          return [recipientPubkey, Array.from(new Set(recipientRelayUrls))] as const
-        })
-      )
-      const recipientRelayMap = new Map(recipientRelayEntries)
-
-      if (recipientRelayEntries.some(([, recipientRelayUrls]) => recipientRelayUrls.length === 0)) {
-        throw new Error('One or more recipients have not published NIP-17 inbox relays yet.')
-      }
-
-      return Promise.all(
-        wrapRecipients.map(async (recipientPubkey) => {
-          const recipientRelayUrls = recipientRelayMap.get(recipientPubkey) ?? []
-          const sealEvent = await signEvent({
-            kind: kinds.Seal,
-            content: await nip44Encrypt(recipientPubkey, JSON.stringify(rumorEvent)),
-            created_at: randomWrappedTimestamp(),
-            tags: []
-          })
-
-          const randomKey = generateSecretKey()
-          const wrapEvent = finalizeEvent(
-            {
-              kind: kinds.GiftWrap,
-              content: encryptNip44(randomKey, recipientPubkey, JSON.stringify(sealEvent)),
-              created_at: randomWrappedTimestamp(),
-              tags: [
-                recipientRelayUrls[0]
-                  ? ['p', recipientPubkey, recipientRelayUrls[0]]
-                  : ['p', recipientPubkey]
-              ]
-            },
-            randomKey
-          )
-
-          return { recipientPubkey, wrapEvent, relayUrls: recipientRelayUrls }
-        })
-      )
+      return createWrappedRumorEvents({
+        fetchInboxRelayList: (recipientPubkey) => client.fetchInboxRelayList(recipientPubkey),
+        nip44Encrypt,
+        pubkey,
+        publishedInboxRelayUrls,
+        rumorEvent,
+        rumorRecipients,
+        signEvent
+      })
     },
     [nip44Encrypt, pubkey, publishedInboxRelayUrls, signEvent]
-  )
-
-  const publishWrappedRumorEvents = useCallback(
-    async (wrappedEvents: { recipientPubkey: string; wrapEvent: Event; relayUrls: string[] }[]) => {
-      return Promise.allSettled(
-        wrappedEvents.map(async ({ relayUrls, wrapEvent }) => {
-          await client.publishEvent(await preferAuthProtectedRelayUrls(relayUrls), wrapEvent)
-        })
-      )
-    },
-    []
   )
 
   const sendMessage = useCallback(
@@ -935,7 +500,9 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
         try {
           const wrappedEvents = await buildWrappedRumorEvents(rumorEvent, uniqueRecipients)
 
-          const selfWrapEvent = wrappedEvents.find(({ recipientPubkey }) => recipientPubkey === pubkey)?.wrapEvent
+          const selfWrapEvent = wrappedEvents.find(
+            ({ recipientPubkey }) => recipientPubkey === pubkey
+          )?.wrapEvent
           const confirmedMessage: TDirectMessage = {
             ...optimisticMessage,
             wrapId: selfWrapEvent?.id ?? wrappedEvents[0].wrapEvent.id
@@ -951,20 +518,14 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
 
           toast.error(t('Failed to deliver this message to relays.'))
         } catch (error) {
-          setMessages((currentMessages) => currentMessages.filter((message) => message.id !== rumorEvent.id))
+          setMessages((currentMessages) =>
+            currentMessages.filter((message) => message.id !== rumorEvent.id)
+          )
           toast.error(error instanceof Error ? error.message : t('Failed to send message'))
         }
       })()
     },
-    [
-      account?.signerType,
-      buildWrappedRumorEvents,
-      nip44Supported,
-      pubkey,
-      publishWrappedRumorEvents,
-      publishedInboxRelayUrls,
-      t
-    ]
+    [account?.signerType, buildWrappedRumorEvents, nip44Supported, pubkey, publishedInboxRelayUrls, t]
   )
 
   const sendReaction = useCallback(
@@ -1031,7 +592,9 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
         try {
           const wrappedEvents = await buildWrappedRumorEvents(rumorEvent, uniqueRecipients)
 
-          const selfWrapEvent = wrappedEvents.find(({ recipientPubkey }) => recipientPubkey === pubkey)?.wrapEvent
+          const selfWrapEvent = wrappedEvents.find(
+            ({ recipientPubkey }) => recipientPubkey === pubkey
+          )?.wrapEvent
           const confirmedReaction: TDirectMessageReaction = {
             ...optimisticReaction,
             wrapId: selfWrapEvent?.id ?? wrappedEvents[0].wrapEvent.id
@@ -1054,15 +617,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
         }
       })()
     },
-    [
-      account?.signerType,
-      buildWrappedRumorEvents,
-      nip44Supported,
-      pubkey,
-      publishWrappedRumorEvents,
-      publishedInboxRelayUrls,
-      t
-    ]
+    [account?.signerType, buildWrappedRumorEvents, nip44Supported, pubkey, publishedInboxRelayUrls, t]
   )
 
   const markAllAsRead = useCallback(() => {
@@ -1124,7 +679,11 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
         return Math.max(latest, message.createdAt)
       }, 0)
 
-      storage.setDismissedMessageConversationTime(pubkey, conversationId, conversation.lastMessageAt)
+      storage.setDismissedMessageConversationTime(
+        pubkey,
+        conversationId,
+        conversation.lastMessageAt
+      )
       setDismissedConversationMap((currentMap) => ({
         ...currentMap,
         [conversationId]: conversation.lastMessageAt

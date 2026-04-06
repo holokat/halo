@@ -1,14 +1,6 @@
-import Note from '@/components/Note'
 import UserAvatar from '@/components/UserAvatar'
 import { Button } from '@/components/ui/button'
-import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from '@/components/ui/drawer'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import {
-  createCommentDraftEvent,
-  createPollDraftEvent,
-  createShortTextNoteDraftEvent,
-  deleteDraftEventCache
-} from '@/lib/draft-event'
+import { deleteDraftEventCache } from '@/lib/draft-event'
 import { minePow } from '@/lib/event'
 import { toScheduledPostsSettings } from '@/lib/link'
 import {
@@ -51,42 +43,21 @@ import PostTextarea, { TPostTextareaHandle } from './PostTextarea'
 import Uploader from './Uploader'
 import ComposerHelpDialog from './ComposerHelpDialog'
 import GifIcon from '@/components/icons/GifIcon'
-
-const NSEC_CANDIDATE_REGEX = /(?:nostr:)?nsec1[023456789acdefghjklmnpqrstuvwxyz]{20,}/gi
-const NSEC_PREFIX = 'nsec1'
-const MIN_PARTIAL_NSEC_REMOVAL = 10
-const FULL_NSEC_LENGTH = nip19.nsecEncode(new Uint8Array(32)).length
-const MAX_TRUNCATED_NSEC_LENGTH = FULL_NSEC_LENGTH - MIN_PARTIAL_NSEC_REMOVAL
-
-function extractPrivateKeyCandidates(content: string) {
-  const matches = content.match(NSEC_CANDIDATE_REGEX) ?? []
-  const validNsecs = new Set<string>()
-
-  matches.forEach((match) => {
-    const normalized = match.toLowerCase().replace(/^nostr:/, '')
-
-    if (normalized.startsWith(NSEC_PREFIX) && normalized.length > MAX_TRUNCATED_NSEC_LENGTH) {
-      validNsecs.add(normalized)
-      return
-    }
-
-    try {
-      const decoded = nip19.decode(normalized)
-      if (decoded.type === 'nsec') {
-        validNsecs.add(normalized)
-      }
-    } catch {
-      // Ignore invalid bech32 strings that only look like nsec tokens.
-    }
-  })
-
-  return Array.from(validNsecs)
-}
-
-function hasPrivateKeyInDraft(content: string, tags: string[][]) {
-  const serializedTags = tags.flat().join('\n')
-  return extractPrivateKeyCandidates(`${content}\n${serializedTags}`).length > 0
-}
+import { hasPrivateKeyInDraft, extractPrivateKeyCandidates } from './post-content/private-key'
+import {
+  appendExpirationTag,
+  appendImageMetadataTags,
+  buildScheduledPostDraft,
+  clearComposerDraftCache,
+  createComposerDraftEvent
+} from './post-content/submission'
+import {
+  ParentEventPreview,
+  PollEditorDrawer,
+  PrivateKeyWarningBanner,
+  ScheduledBanner,
+  UploadProgressList
+} from './post-content/shared'
 
 export default function PostContent({
   defaultContent = '',
@@ -134,33 +105,35 @@ export default function PostContent({
   const [minPow, setMinPow] = useState(0)
   const isFirstRender = useRef(true)
   const hasAppliedInitialMentions = useRef(false)
-  const requiredMentionPubkeys = useMemo(() => {
-    return Array.from(
-      new Set(
-        initialMentionIds
-          .map((id) => {
-            if (/^[0-9a-f]{64}$/i.test(id)) {
-              return id.toLowerCase()
-            }
-
-            try {
-              const decoded = nip19.decode(id)
-              if (decoded.type === 'npub') {
-                return decoded.data
+  const requiredMentionPubkeys = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          initialMentionIds
+            .map((id) => {
+              if (/^[0-9a-f]{64}$/i.test(id)) {
+                return id.toLowerCase()
               }
-              if (decoded.type === 'nprofile') {
-                return decoded.data.pubkey
-              }
-            } catch (error) {
-              console.warn('Failed to decode initial mention target:', id, error)
-            }
 
-            return null
-          })
-          .filter((pubkey): pubkey is string => Boolean(pubkey))
-      )
-    )
-  }, [initialMentionIds])
+              try {
+                const decoded = nip19.decode(id)
+                if (decoded.type === 'npub') {
+                  return decoded.data
+                }
+                if (decoded.type === 'nprofile') {
+                  return decoded.data.pubkey
+                }
+              } catch (error) {
+                console.warn('Failed to decode initial mention target:', id, error)
+              }
+
+              return null
+            })
+            .filter((pubkey): pubkey is string => Boolean(pubkey))
+        )
+      ),
+    [initialMentionIds]
+  )
   const privateKeyScanText = useMemo(() => {
     const imageAltText = images.map((image) => image.alt?.trim() ?? '').filter(Boolean)
     const pollOptionLabels = isPoll
@@ -266,56 +239,22 @@ export default function PostContent({
 
       setPosting(true)
       try {
-        // Combine text with image URLs at the end
-        let contentWithImages = text.trim()
-        if (images.length > 0) {
-          const imageUrls = images.map((img) => img.url).join('\n')
-          contentWithImages = contentWithImages ? `${contentWithImages}\n${imageUrls}` : imageUrls
-        }
-        const allMentions = Array.from(new Set([...mentions, ...requiredMentionPubkeys]))
+        const draftEvent = await createComposerDraftEvent({
+          addClientTag,
+          images,
+          isNsfw,
+          isPoll,
+          isProtectedEvent,
+          mentions,
+          parentEvent,
+          pollCreateData,
+          pubkey: pubkey!,
+          requiredMentionPubkeys,
+          text
+        })
 
-        const draftEvent =
-          parentEvent && parentEvent.kind !== kinds.ShortTextNote
-            ? await createCommentDraftEvent(contentWithImages, parentEvent, allMentions, {
-                addClientTag,
-                protectedEvent: isProtectedEvent,
-                isNsfw
-              })
-            : isPoll
-              ? await createPollDraftEvent(
-                  pubkey!,
-                  contentWithImages,
-                  allMentions,
-                  pollCreateData,
-                  {
-                    addClientTag,
-                    isNsfw
-                  }
-                )
-              : await createShortTextNoteDraftEvent(contentWithImages, allMentions, {
-                  parentEvent,
-                  addClientTag,
-                  protectedEvent: isProtectedEvent,
-                  isNsfw
-                })
-
-        // Add imeta tags for images with alt text
-        if (images.length > 0) {
-          images.forEach((img) => {
-            const imetaTags: string[] = ['imeta', `url ${img.url}`]
-            if (img.alt) {
-              imetaTags.push(`alt ${img.alt}`)
-            }
-            // Add the tag as a single string with space-separated key-value pairs
-            draftEvent.tags.push(imetaTags)
-          })
-        }
-
-        // Add expiration tag if not "never"
-        const expirationTimestamp = getExpirationTimestamp(defaultExpiration)
-        if (expirationTimestamp !== null) {
-          draftEvent.tags.push(['expiration', String(expirationTimestamp)])
-        }
+        appendImageMetadataTags(draftEvent, images)
+        appendExpirationTag(draftEvent, getExpirationTimestamp(defaultExpiration))
 
         if (hasPrivateKeyInDraft(draftEvent.content, draftEvent.tags)) {
           toast.error(
@@ -345,7 +284,7 @@ export default function PostContent({
             try {
               const relays = await client.determineTargetRelays(optimisticReply, publishOptions)
               await client.publishEvent(relays, optimisticReply)
-              postEditorCache.clearPostCache({ defaultContent, parentEvent })
+              clearComposerDraftCache(defaultContent, parentEvent)
               deleteDraftEventCache(draftEvent)
               toast.success(t('Post successful'), { duration: 2000 })
             } catch (error) {
@@ -365,7 +304,7 @@ export default function PostContent({
         }
 
         const newEvent = await publish(draftEvent, publishOptions)
-        postEditorCache.clearPostCache({ defaultContent, parentEvent })
+        clearComposerDraftCache(defaultContent, parentEvent)
         deleteDraftEventCache(draftEvent)
         addReplies([newEvent])
         close()
@@ -418,29 +357,28 @@ export default function PostContent({
           return
         }
 
-        const allMentions = Array.from(new Set([...mentions, ...requiredMentionPubkeys]))
-
         scheduledPostsService.addScheduledPost(
           account.pubkey,
           account.signerType,
-          {
-            text,
-            images,
-            mentions: allMentions,
-            parentEvent,
-            isProtectedEvent,
-            additionalRelayUrls,
-            isPoll,
-            pollCreateData,
+          buildScheduledPostDraft({
             addClientTag,
-            isNsfw,
+            additionalRelayUrls,
             defaultExpiration,
-            minPow
-          },
+            images,
+            isNsfw,
+            isPoll,
+            isProtectedEvent,
+            mentions,
+            minPow,
+            parentEvent,
+            pollCreateData,
+            requiredMentionPubkeys,
+            text
+          }),
           scheduledFor
         )
 
-        postEditorCache.clearPostCache({ defaultContent, parentEvent })
+        clearComposerDraftCache(defaultContent, parentEvent)
         close()
         toast.success(
           t('Scheduled for {{time}}', {
@@ -573,9 +511,9 @@ export default function PostContent({
     )
   }
 
-  const handleUploadEnd = (file: File) => {
+  const handleUploadEnd = useCallback((file: File) => {
     setUploadProgresses((prev) => prev.filter((item) => item.file !== file))
-  }
+  }, [])
 
   const handleImageUploadSuccess = useCallback((url: string) => {
     // Check if it's an image URL (not video/audio)
@@ -626,13 +564,15 @@ export default function PostContent({
     isMobileComposer && 'h-10 w-10 [&_svg]:size-5'
   )
 
-  const parentEventPreview = parentEvent ? (
-    <ScrollArea className="flex max-h-48 flex-col overflow-y-auto rounded-lg border bg-muted/40">
-      <div className="pointer-events-none p-2 sm:p-3">
-        <Note size="small" event={parentEvent} hideParentNotePreview filterMutedNotes={false} />
-      </div>
-    </ScrollArea>
-  ) : null
+  const handleCancelUpload = useCallback(
+    (file: File, cancel?: () => void) => {
+      cancel?.()
+      handleUploadEnd(file)
+    },
+    [handleUploadEnd]
+  )
+
+  const parentEventPreview = <ParentEventPreview parentEvent={parentEvent} />
 
   const composerTextarea = (
     <PostTextarea
@@ -662,72 +602,24 @@ export default function PostContent({
   )
 
   const uploadProgressList = (
-    <>
-      {uploadProgresses.length > 0 &&
-        uploadProgresses.map(({ file, progress, cancel }, index) => (
-          <div key={`${file.name}-${index}`} className="mt-2 flex items-end gap-2">
-            <div className="min-w-0 flex-1">
-              <div className="mb-1 truncate text-xs text-muted-foreground">
-                {file.name ?? t('Uploading...')}
-              </div>
-              <div className="h-0.5 w-full overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full bg-primary transition-[width] duration-200 ease-out"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                cancel?.()
-                handleUploadEnd(file)
-              }}
-              className="text-muted-foreground hover:text-foreground"
-              title={t('Cancel')}
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        ))}
-    </>
+    <UploadProgressList
+      onCancelUpload={handleCancelUpload}
+      t={t}
+      uploadProgresses={uploadProgresses}
+    />
   )
 
-  const scheduledBanner = scheduledFor ? (
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs">
-      <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
-        <Clock className="h-3.5 w-3.5 shrink-0 text-primary" />
-        <span className="truncate">
-          {t('Scheduled for {{time}}', {
-            time: formatScheduledDateTime(scheduledFor)
-          })}
-        </span>
-      </div>
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
-        onClick={() => setScheduledFor(null)}
-      >
-        {t('Clear')}
-      </Button>
-    </div>
-  ) : null
-  const privateKeyWarningBanner = hasDetectedPrivateKey ? (
-    <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-      <p className="font-medium">
-        {t('Private key detected. Posting is blocked for your safety.', {
-          defaultValue: 'Private key detected. Posting is blocked for your safety.'
-        })}
-      </p>
-      <p className="mt-1 text-destructive/90">
-        {t('Remove any nsec value from this note, then post again.', {
-          defaultValue: 'Remove any nsec value from this note, then post again.'
-        })}
-      </p>
-    </div>
-  ) : null
+  const scheduledBanner = (
+    <ScheduledBanner
+      formatScheduledDateTime={formatScheduledDateTime}
+      onClear={() => setScheduledFor(null)}
+      scheduledFor={scheduledFor}
+      t={t}
+    />
+  )
+  const privateKeyWarningBanner = (
+    <PrivateKeyWarningBanner hasDetectedPrivateKey={hasDetectedPrivateKey} t={t} />
+  )
 
   const pollOptionsCount = pollCreateData.options.filter((option) => option.label.trim()).length
   const hasMinimumPollOptions = pollOptionsCount >= 2
@@ -834,7 +726,7 @@ export default function PostContent({
   if (isMobileComposer) {
     return (
       <>
-        <div className="flex h-full flex-col bg-background">
+        <div className="flex h-full flex-col overflow-x-hidden bg-background">
           <div className="flex items-center justify-between border-b border-border/60 px-4 pb-3 pt-[max(env(safe-area-inset-top),0.75rem)]">
             <Button
               variant="ghost"
@@ -870,7 +762,7 @@ export default function PostContent({
             </div>
           </div>
 
-          <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+          <div className="flex-1 space-y-3 overflow-x-hidden overflow-y-auto px-4 py-4">
             {parentEventPreview}
             <div className="flex items-start gap-3">
               {pubkey ? (
@@ -917,8 +809,7 @@ export default function PostContent({
             </div>
           </div>
         </div>
-        <Drawer
-          open={pollEditorOpen}
+        <PollEditorDrawer
           onOpenChange={(nextOpen) => {
             setPollEditorOpen(nextOpen)
             if (!nextOpen) {
@@ -930,25 +821,12 @@ export default function PostContent({
               }
             }
           }}
-          shouldScaleBackground={false}
-        >
-          <DrawerContent className="max-h-[85dvh] bg-background">
-            <DrawerTitle className="px-4 text-base">
-              {t('Create Poll')}
-            </DrawerTitle>
-            <DrawerDescription className="sr-only">
-              {t('Configure poll options and end date')}
-            </DrawerDescription>
-            <div className="space-y-3 overflow-y-auto px-4 pb-[max(env(safe-area-inset-bottom),1rem)] pt-1">
-              <PollEditor
-                pollCreateData={pollCreateData}
-                setPollCreateData={setPollCreateData}
-                setIsPoll={setIsPoll}
-                onRemovePoll={() => setPollEditorOpen(false)}
-              />
-            </div>
-          </DrawerContent>
-        </Drawer>
+          pollCreateData={pollCreateData}
+          pollEditorOpen={pollEditorOpen}
+          setIsPoll={setIsPoll}
+          setPollCreateData={setPollCreateData}
+          t={t}
+        />
       </>
     )
   }

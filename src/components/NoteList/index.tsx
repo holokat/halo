@@ -1,15 +1,5 @@
 import NewNotesButton from '@/components/NewNotesButton'
 import { Button } from '@/components/ui/button'
-import {
-  getReplaceableCoordinateFromEvent,
-  hasMutedHashtag,
-  hasMedia,
-  hasExcessiveHashtags,
-  hasExcessiveMentions,
-  isMentioningMutedUsers,
-  isReplaceableEvent,
-  isReplyNoteEvent
-} from '@/lib/event'
 import { isTouchDevice } from '@/lib/utils'
 import { useContentPolicy } from '@/providers/ContentPolicyProvider'
 import { useDeletedEvent } from '@/providers/DeletedEventProvider'
@@ -24,21 +14,13 @@ import noteStatsService from '@/services/note-stats.service'
 import { TFeedSubRequest } from '@/types'
 import dayjs from 'dayjs'
 import { Event } from 'nostr-tools'
-import { decode } from 'nostr-tools/nip19'
-import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState
-} from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import PullToRefresh from 'react-simple-pull-to-refresh'
 import { toast } from 'sonner'
 import NoteCard, { NoteCardLoadingSkeleton } from '../NoteCard'
 import PinnedNoteCard from '../PinnedNoteCard'
+import { useVisibleNoteEvents } from './useVisibleNoteEvents'
 
 const LIMIT = 200
 const ALGO_LIMIT = 500
@@ -117,131 +99,26 @@ const NoteList = forwardRef(
     const filteredOutAutoLoadCountRef = useRef(0)
     const subRequestsKey = JSON.stringify(subRequests)
     const showKindsKey = JSON.stringify(showKinds)
-    const pinnedEventHexIdSet = useMemo(() => {
-      const set = new Set<string>()
-      pinnedEventIds.forEach((id) => {
-        try {
-          const { type, data } = decode(id)
-          if (type === 'nevent') {
-            set.add(data.id)
-          }
-        } catch {
-          // ignore invalid ids
-        }
-      })
-      return set
-    }, [pinnedEventIds.join(',')])
-
-    const shouldHideEvent = useCallback(
-      (
-        evt: Event,
-        {
-          ignoreMediaOnly = false,
-          ignoreHashtagLimit = false
-        }: { ignoreMediaOnly?: boolean; ignoreHashtagLimit?: boolean } = {}
-      ) => {
-        if (pinnedEventHexIdSet.has(evt.id)) return true
-        if (isEventDeleted(evt)) return true
-        if (hideReplies && isReplyNoteEvent(evt)) return true
-        if (hideUntrustedNotes && !isUserTrusted(evt.pubkey)) return true
-        if (filterMutedNotes && mutePubkeySet.has(evt.pubkey)) return true
-        if (
-          filterMutedNotes &&
-          hideContentMentioningMutedUsers &&
-          isMentioningMutedUsers(evt, mutePubkeySet)
-        ) {
-          return true
-        }
-
-        if (filterMutedNotes && mutedTags.length > 0 && hasMutedHashtag(evt, mutedTags)) return true
-
-        // Check for muted words in content
-        if (filterMutedNotes && mutedWordsLower.length > 0) {
-          const content = evt.content.toLowerCase()
-          if (mutedWordsLower.some((word) => content.includes(word))) {
-            return true
-          }
-        }
-
-        // Check media only filter
-        if (!ignoreMediaOnly && mediaOnly && !hasMedia(evt)) {
-          return true
-        }
-
-        // Check hashtag spam filter
-        if (!ignoreHashtagLimit && hasExcessiveHashtags(evt, maxHashtags)) {
-          return true
-        }
-
-        // Check mention spam filter
-        if (hasExcessiveMentions(evt, maxMentions)) {
-          return true
-        }
-
-        if (additionalFilter && !additionalFilter(evt)) {
-          return true
-        }
-
-        return false
-      },
-      [
+    const { filteredNewEvents, hashtagLimitFilteredOutAll, mediaOnlyFilteredOutAll, visibleEvents } =
+      useVisibleNoteEvents({
         additionalFilter,
+        events,
+        filterMutedNotes,
+        hideContentMentioningMutedUsers: !!hideContentMentioningMutedUsers,
         hideReplies,
         hideUntrustedNotes,
-        mutePubkeySet,
-        pinnedEventHexIdSet,
+        ignoreHashtagLimit,
         isEventDeleted,
-        filterMutedNotes,
-        mutedWordsLower,
-        mutedTags,
-        hideContentMentioningMutedUsers,
         isUserTrusted,
         mediaOnly,
         maxHashtags,
-        maxMentions
-      ]
-    )
-
-    const filterVisibleEvents = useCallback(
-      (
-        sourceEvents: Event[],
-        options?: { ignoreMediaOnly?: boolean; ignoreHashtagLimit?: boolean }
-      ) => {
-        const idSet = new Set<string>()
-
-        return sourceEvents.filter((evt) => {
-          if (shouldHideEvent(evt, options)) return false
-
-          const id = isReplaceableEvent(evt.kind) ? getReplaceableCoordinateFromEvent(evt) : evt.id
-          if (idSet.has(id)) {
-            return false
-          }
-          idSet.add(id)
-          return true
-        })
-      },
-      [shouldHideEvent]
-    )
-
-    const visibleEvents = useMemo(() => {
-      return filterVisibleEvents(events)
-    }, [events, filterVisibleEvents])
-    const visibleEventsIgnoringMediaOnly = useMemo(() => {
-      if (!mediaOnly) return visibleEvents
-
-      return filterVisibleEvents(events, { ignoreMediaOnly: true })
-    }, [events, mediaOnly, visibleEvents, filterVisibleEvents])
-    const visibleEventsIgnoringHashtagLimit = useMemo(() => {
-      if (ignoreHashtagLimit) return visibleEvents
-
-      return filterVisibleEvents(events, { ignoreHashtagLimit: true })
-    }, [events, ignoreHashtagLimit, visibleEvents, filterVisibleEvents])
-    const mediaOnlyFilteredOutAll =
-      mediaOnly && visibleEvents.length === 0 && visibleEventsIgnoringMediaOnly.length > 0
-    const hashtagLimitFilteredOutAll =
-      !ignoreHashtagLimit &&
-      visibleEvents.length === 0 &&
-      visibleEventsIgnoringHashtagLimit.length > 0
+        maxMentions,
+        mutePubkeySet,
+        mutedTags,
+        mutedWordsLower,
+        newEvents,
+        pinnedEventIds
+      })
     const showFilteredOutState = !loading && events.length > 0 && visibleEvents.length === 0
     const filteredOutMessage = mediaOnlyFilteredOutAll
       ? t('This relay is returning posts, but the media-only filter is hiding them.')
@@ -249,27 +126,7 @@ const NoteList = forwardRef(
         ? t('This feed is returning posts, but the hashtag filter is hiding them.')
         : additionalFilteredOutMessage || t('No notes match the current filters.')
 
-    const filteredEvents = useMemo(
-      () => visibleEvents.slice(0, showCount),
-      [visibleEvents, showCount]
-    )
-
-    const filteredNewEvents = useMemo(() => {
-      const idSet = new Set<string>()
-
-      return newEvents.filter((event: Event) => {
-        if (shouldHideEvent(event)) return false
-
-        const id = isReplaceableEvent(event.kind)
-          ? getReplaceableCoordinateFromEvent(event)
-          : event.id
-        if (idSet.has(id)) {
-          return false
-        }
-        idSet.add(id)
-        return true
-      })
-    }, [newEvents, shouldHideEvent])
+    const filteredEvents = useMemo(() => visibleEvents.slice(0, showCount), [visibleEvents, showCount])
 
     const scrollToTop = (behavior: ScrollBehavior = 'instant') => {
       setTimeout(() => {

@@ -10,7 +10,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { useContentPolicy } from './ContentPolicyProvider'
 import { useDistractionFreeMode } from './DistractionFreeModeProvider'
 import { useMuteList } from './MuteListProvider'
-import { useNostr } from './NostrProvider'
+import { useNostr } from '@/providers/NostrProvider'
 import { useUserTrust } from './UserTrustProvider'
 
 type TNotificationContext = {

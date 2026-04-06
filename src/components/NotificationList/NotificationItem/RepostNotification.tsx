@@ -1,3 +1,4 @@
+import { isEventExpired } from '@/lib/event-expiration'
 import client from '@/services/client.service'
 import { Repeat } from 'lucide-react'
 import { Event, validateEvent } from 'nostr-tools'
@@ -17,7 +18,7 @@ export function RepostNotification({
     try {
       const event = JSON.parse(notification.content) as Event
       const isValid = validateEvent(event)
-      if (!isValid) return null
+      if (!isValid || isEventExpired(event)) return null
       client.addEventToCache(event)
       return event
     } catch {

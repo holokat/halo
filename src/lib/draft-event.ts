@@ -1,36 +1,64 @@
 import {
   ApplicationDataKey,
-  EMBEDDED_EVENT_REGEX,
   ExtendedKind,
-  POLL_TYPE,
-  STOCK_SYMBOL_REGEX
+  POLL_TYPE
 } from '@/constants'
 import client from '@/services/client.service'
-import customEmojiService from '@/services/custom-emoji.service'
 import mediaUpload from '@/services/media-upload.service'
-import {
-  TDraftEvent,
-  TEmoji,
-  TMailboxRelay,
-  TMailboxRelayScope,
-  TPollCreateData,
-  TRelaySet
-} from '@/types'
+import { TDraftEvent, TEmoji, TMailboxRelay, TPollCreateData, TRelaySet } from '@/types'
 import { sha256 } from '@noble/hashes/sha2'
 import dayjs from 'dayjs'
-import { Event, kinds, nip19 } from 'nostr-tools'
+import { Event, kinds } from 'nostr-tools'
 import {
-  getReplaceableCoordinate,
   getReplaceableCoordinateFromEvent,
-  getRootETag,
   isProtectedEvent,
   isReplaceableEvent
 } from './event'
+import {
+  transformCustomEmojisInContent
+} from './draft-event.content'
+import { extractImagesFromContent, extractTTagValues } from './draft-event.extractors'
+import { extractCommentMentions, extractRelatedEventIds } from './draft-event.references'
+import {
+  buildATag,
+  buildClientTag,
+  buildDTag,
+  buildEmojiTag,
+  buildETag,
+  buildITag,
+  buildKTag,
+  buildNsfwTag,
+  buildPTag,
+  buildProtectedTag,
+  buildQTag,
+  buildRTag,
+  buildRelayTag,
+  buildReplaceableQTag,
+  buildResponseTag,
+  buildServerTag,
+  buildTTag,
+  buildTitleTag
+} from './draft-event.tags'
 import { normalizePollOptions } from './poll'
 import { randomString } from './random'
-import { generateBech32IdFromETag, tagNameEquals } from './tag'
+import { tagNameEquals } from './tag'
+
+export { buildATag, buildETag } from './draft-event.tags'
+export { transformCustomEmojisInContent } from './draft-event.content'
 
 const draftEventCache: Map<string, string> = new Map()
+
+export const NIP56_REPORT_TYPES = [
+  'nudity',
+  'malware',
+  'profanity',
+  'illegal',
+  'spam',
+  'impersonation',
+  'other'
+] as const
+
+export type TNip56ReportType = (typeof NIP56_REPORT_TYPES)[number]
 
 export function deleteDraftEventCache(draftEvent: TDraftEvent) {
   const key = generateDraftEventCacheKey(draftEvent)
@@ -476,12 +504,17 @@ export function createDeletionRequestDraftEvent(event: Event): TDraftEvent {
   }
 }
 
-export function createReportDraftEvent(event: Event, reason: string): TDraftEvent {
+// https://github.com/nostr-protocol/nips/blob/master/56.md
+export function createReportDraftEvent(
+  event: Event,
+  reason: TNip56ReportType,
+  details: string = ''
+): TDraftEvent {
   const tags: string[][] = []
   if (event.kind === kinds.Metadata) {
     tags.push(['p', event.pubkey, reason])
   } else {
-    tags.push(['p', event.pubkey])
+    tags.push(['p', event.pubkey, reason])
     tags.push(['e', event.id, reason])
     if (isReplaceableEvent(event.kind)) {
       tags.push(['a', getReplaceableCoordinateFromEvent(event), reason])
@@ -490,7 +523,7 @@ export function createReportDraftEvent(event: Event, reason: string): TDraftEven
 
   return {
     kind: kinds.Report,
-    content: '',
+    content: details.trim(),
     tags,
     created_at: dayjs().unix()
   }
@@ -519,289 +552,6 @@ function generateImetaTags(imageUrls: string[]) {
       return tag ?? null
     })
     .filter(Boolean) as string[][]
-}
-
-async function extractRelatedEventIds(content: string, parentEvent?: Event) {
-  const quoteEventHexIds: string[] = []
-  const quoteReplaceableCoordinates: string[] = []
-  let rootETag: string[] = []
-  let parentETag: string[] = []
-  const matches = content.match(EMBEDDED_EVENT_REGEX)
-
-  const addToSet = (arr: string[], item: string) => {
-    if (!arr.includes(item)) arr.push(item)
-  }
-
-  for (const m of matches || []) {
-    try {
-      const id = m.split(':')[1]
-      const { type, data } = nip19.decode(id)
-      if (type === 'nevent') {
-        addToSet(quoteEventHexIds, data.id)
-      } else if (type === 'note') {
-        addToSet(quoteEventHexIds, data)
-      } else if (type === 'naddr') {
-        addToSet(
-          quoteReplaceableCoordinates,
-          getReplaceableCoordinate(data.kind, data.pubkey, data.identifier)
-        )
-      }
-    } catch (e) {
-      console.error(e)
-    }
-  }
-
-  if (parentEvent) {
-    const _rootETag = getRootETag(parentEvent)
-    if (_rootETag) {
-      parentETag = buildETagWithMarker(parentEvent.id, parentEvent.pubkey, '', 'reply')
-
-      const [, rootEventHexId, hint, , rootEventPubkey] = _rootETag
-      if (rootEventPubkey) {
-        rootETag = buildETagWithMarker(rootEventHexId, rootEventPubkey, hint, 'root')
-      } else {
-        const rootEventId = generateBech32IdFromETag(_rootETag)
-        const rootEvent = rootEventId ? await client.fetchEvent(rootEventId) : undefined
-        rootETag = rootEvent
-          ? buildETagWithMarker(rootEvent.id, rootEvent.pubkey, hint, 'root')
-          : buildETagWithMarker(rootEventHexId, rootEventPubkey, hint, 'root')
-      }
-    } else {
-      // reply to root event
-      rootETag = buildETagWithMarker(parentEvent.id, parentEvent.pubkey, '', 'root')
-    }
-  }
-
-  return {
-    quoteEventHexIds,
-    quoteReplaceableCoordinates,
-    rootETag,
-    parentETag
-  }
-}
-
-async function extractCommentMentions(content: string, parentEvent: Event) {
-  const quoteEventHexIds: string[] = []
-  const quoteReplaceableCoordinates: string[] = []
-  const isComment = [ExtendedKind.COMMENT, ExtendedKind.VOICE_COMMENT].includes(parentEvent.kind)
-  const rootCoordinateTag = isComment
-    ? parentEvent.tags.find(tagNameEquals('A'))
-    : isReplaceableEvent(parentEvent.kind)
-      ? buildATag(parentEvent, true)
-      : undefined
-  const rootEventId = isComment ? parentEvent.tags.find(tagNameEquals('E'))?.[1] : parentEvent.id
-  const rootKind = isComment ? parentEvent.tags.find(tagNameEquals('K'))?.[1] : parentEvent.kind
-  const rootPubkey = isComment ? parentEvent.tags.find(tagNameEquals('P'))?.[1] : parentEvent.pubkey
-  const rootUrl = isComment ? parentEvent.tags.find(tagNameEquals('I'))?.[1] : undefined
-
-  const addToSet = (arr: string[], item: string) => {
-    if (!arr.includes(item)) arr.push(item)
-  }
-
-  const matches = content.match(EMBEDDED_EVENT_REGEX)
-  for (const m of matches || []) {
-    try {
-      const id = m.split(':')[1]
-      const { type, data } = nip19.decode(id)
-      if (type === 'nevent') {
-        addToSet(quoteEventHexIds, data.id)
-      } else if (type === 'note') {
-        addToSet(quoteEventHexIds, data)
-      } else if (type === 'naddr') {
-        addToSet(
-          quoteReplaceableCoordinates,
-          getReplaceableCoordinate(data.kind, data.pubkey, data.identifier)
-        )
-      }
-    } catch (e) {
-      console.error(e)
-    }
-  }
-
-  return {
-    quoteEventHexIds,
-    quoteReplaceableCoordinates,
-    rootEventId,
-    rootCoordinateTag,
-    rootKind,
-    rootPubkey,
-    rootUrl,
-    parentEvent
-  }
-}
-
-function extractHashtags(content: string) {
-  const hashtags: string[] = []
-  const matches = content.match(/#[\p{L}\p{N}\p{M}]+/gu)
-  matches?.forEach((m) => {
-    const hashtag = m.slice(1).toLowerCase()
-    if (hashtag) {
-      hashtags.push(hashtag)
-    }
-  })
-  return hashtags
-}
-
-function extractStockSymbols(content: string) {
-  const stockSymbols: string[] = []
-  const matches = content.matchAll(new RegExp(STOCK_SYMBOL_REGEX.source, STOCK_SYMBOL_REGEX.flags))
-
-  for (const match of matches) {
-    const symbol = match[0]
-    const matchStart = match.index ?? 0
-    const matchEnd = matchStart + symbol.length
-    const prevChar = matchStart > 0 ? content[matchStart - 1] : ''
-    const nextChar = matchEnd < content.length ? content[matchEnd] : ''
-
-    // Only match standalone cashtags, not parts of longer words or currency values.
-    if (
-      (prevChar && /[\p{L}\p{N}_$]/u.test(prevChar)) ||
-      (nextChar && /[A-Z0-9.-]/.test(nextChar))
-    ) {
-      continue
-    }
-
-    const normalizedSymbol = symbol.slice(1).toLowerCase()
-    if (normalizedSymbol) {
-      stockSymbols.push(normalizedSymbol)
-    }
-  }
-
-  return stockSymbols
-}
-
-function extractTTagValues(content: string) {
-  return Array.from(new Set([...extractHashtags(content), ...extractStockSymbols(content)]))
-}
-
-function extractImagesFromContent(content: string) {
-  return content.match(/https?:\/\/[^\s"']+\.(jpg|jpeg|png|gif|webp|heic)/gi)
-}
-
-export function transformCustomEmojisInContent(content: string) {
-  const emojiTags: string[][] = []
-  let processedContent = content
-  const matches = content.match(/:[a-zA-Z0-9]+:/g)
-
-  const emojiIdSet = new Set<string>()
-  matches?.forEach((m) => {
-    if (emojiIdSet.has(m)) return
-    emojiIdSet.add(m)
-
-    const emoji = customEmojiService.getEmojiById(m.slice(1, -1))
-    if (emoji) {
-      emojiTags.push(buildEmojiTag(emoji))
-      processedContent = processedContent.replace(new RegExp(m, 'g'), `:${emoji.shortcode}:`)
-    }
-  })
-
-  return {
-    emojiTags,
-    content: processedContent
-  }
-}
-
-export function buildATag(event: Event, upperCase: boolean = false) {
-  const coordinate = getReplaceableCoordinateFromEvent(event)
-  const hint = client.getEventHint(event.id)
-  return trimTagEnd([upperCase ? 'A' : 'a', coordinate, hint])
-}
-
-function buildDTag(identifier: string) {
-  return ['d', identifier]
-}
-
-export function buildETag(
-  eventHexId: string,
-  pubkey: string = '',
-  hint: string = '',
-  upperCase: boolean = false
-) {
-  if (!hint) {
-    hint = client.getEventHint(eventHexId)
-  }
-  return trimTagEnd([upperCase ? 'E' : 'e', eventHexId, hint, pubkey])
-}
-
-function buildETagWithMarker(
-  eventHexId: string,
-  pubkey: string = '',
-  hint: string = '',
-  marker: 'root' | 'reply' | '' = ''
-) {
-  if (!hint) {
-    hint = client.getEventHint(eventHexId)
-  }
-  return trimTagEnd(['e', eventHexId, hint, marker, pubkey])
-}
-
-function buildITag(url: string, upperCase: boolean = false) {
-  return [upperCase ? 'I' : 'i', url]
-}
-
-function buildKTag(kind: number | string, upperCase: boolean = false) {
-  return [upperCase ? 'K' : 'k', kind.toString()]
-}
-
-function buildPTag(pubkey: string, upperCase: boolean = false) {
-  return [upperCase ? 'P' : 'p', pubkey]
-}
-
-function buildQTag(eventHexId: string) {
-  return trimTagEnd(['q', eventHexId, client.getEventHint(eventHexId)]) // TODO: pubkey
-}
-
-function buildReplaceableQTag(coordinate: string) {
-  return trimTagEnd(['q', coordinate])
-}
-
-function buildRTag(url: string, scope: TMailboxRelayScope) {
-  return scope !== 'both' ? ['r', url, scope] : ['r', url]
-}
-
-function buildTTag(hashtag: string) {
-  return ['t', hashtag]
-}
-
-function buildEmojiTag(emoji: TEmoji) {
-  return ['emoji', emoji.shortcode, emoji.url]
-}
-
-function buildTitleTag(title: string) {
-  return ['title', title]
-}
-
-function buildRelayTag(url: string) {
-  return ['relay', url]
-}
-
-function buildServerTag(url: string) {
-  return ['server', url]
-}
-
-function buildResponseTag(value: string) {
-  return ['response', value]
-}
-
-function buildClientTag() {
-  return ['client', 'x21']
-}
-
-function buildNsfwTag() {
-  return ['content-warning', 'NSFW']
-}
-
-function buildProtectedTag() {
-  return ['-']
-}
-
-function trimTagEnd(tag: string[]) {
-  let endIndex = tag.length - 1
-  while (endIndex >= 0 && tag[endIndex] === '') {
-    endIndex--
-  }
-
-  return tag.slice(0, endIndex + 1)
 }
 
 /**

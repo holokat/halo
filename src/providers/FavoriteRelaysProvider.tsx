@@ -10,7 +10,7 @@ import storage from '@/services/local-storage.service'
 import { TRelaySet } from '@/types'
 import { Event, kinds } from 'nostr-tools'
 import { createContext, useContext, useEffect, useState } from 'react'
-import { useNostr } from './NostrProvider'
+import { useNostr } from '@/providers/NostrProvider'
 import { useLowBandwidthMode } from './LowBandwidthModeProvider'
 
 type TFavoriteRelaysContext = {

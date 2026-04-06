@@ -50,6 +50,27 @@ function getTagValue(tags: string[][], tagName: string) {
   return tags.find(([name]) => name === tagName)?.[1]
 }
 
+function getExtensionFromName(name: string) {
+  const trimmedName = name.trim()
+  if (!trimmedName.includes('.')) {
+    return ''
+  }
+
+  const extension = trimmedName.split('.').pop() ?? ''
+  return extension.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()
+}
+
+function getExtensionFromMimeType(type: string) {
+  const subtype = type.split('/')[1]?.split(';')[0]?.trim().toLowerCase() ?? ''
+  const normalizedSubtype = subtype.replace(/[^a-z0-9.+-]/g, '')
+
+  if (!normalizedSubtype) {
+    return ''
+  }
+
+  return normalizedSubtype === 'jpeg' ? 'jpg' : normalizedSubtype
+}
+
 export function getDmFileEncryptionInfo(tags: string[][]): TDmFileEncryptionInfo | null {
   const encryptionAlgorithm = getTagValue(tags, 'encryption-algorithm')?.toLowerCase()
   const decryptionKey = getTagValue(tags, 'decryption-key')
@@ -104,8 +125,10 @@ export async function createEncryptedDmFilePayload(file: File): Promise<TEncrypt
     typeof crypto.randomUUID === 'function'
       ? crypto.randomUUID()
       : `${Date.now()}-${Math.random().toString(16).slice(2)}`
-  const encryptedFile = new File([encryptedBytes], `dm-${randomId}.bin`, {
-    type: 'application/octet-stream'
+  const extension = getExtensionFromName(file.name) || getExtensionFromMimeType(fileType) || 'bin'
+  const encryptedFile = new File([encryptedBytes], `dm-${randomId}.${extension}`, {
+    // Keep original MIME type for better compatibility with stricter media hosts.
+    type: fileType
   })
 
   return {

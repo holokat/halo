@@ -54,6 +54,12 @@ export function getImetaInfoFromImetaTag(tag: string[], pubkey?: string): TImeta
 
   const imeta: TImetaInfo = { url, pubkey }
 
+  const mimeTypeItem = tag.find((item) => item.startsWith('m '))
+  const mimeType = mimeTypeItem?.slice(2)
+  if (mimeType) {
+    imeta.mimeType = mimeType
+  }
+
   const altItem = tag.find((item) => item.startsWith('alt '))
   const alt = altItem?.slice(4)
   if (alt) {

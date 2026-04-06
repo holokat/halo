@@ -46,7 +46,8 @@ export default function Note({
   showFull = false,
   compactMedia = false,
   metadataClassName,
-  filterMutedNotes = true
+  filterMutedNotes = true,
+  hideClientTag = false
 }: {
   event: Event
   originalNoteId?: string
@@ -57,6 +58,7 @@ export default function Note({
   compactMedia?: boolean
   metadataClassName?: string
   filterMutedNotes?: boolean
+  hideClientTag?: boolean
 }) {
   const { push } = useSecondaryPage()
   const { isSmallScreen } = useScreenSize()
@@ -152,14 +154,14 @@ export default function Note({
   // For music tracks when embedded (quoted), render only the player without header/metadata
   if (event.kind === ExtendedKind.MUSIC_TRACK && size === 'small') {
     return (
-      <div className={className}>
+      <div className={cn('min-w-0 max-w-full overflow-x-hidden', className)}>
         {content}
       </div>
     )
   }
 
   return (
-    <div className={className}>
+    <div className={cn('min-w-0 max-w-full overflow-x-hidden', className)}>
       <header className="flex justify-between items-start gap-2">
         <div className="flex items-center space-x-2 flex-1">
           <div className="flex items-center gap-2 shrink-0">
@@ -181,7 +183,7 @@ export default function Note({
                 asHeading={true}
                 headingLevel={size === 'small' ? 4 : 3}
               />
-              <ClientTag event={event} />
+              {!hideClientTag && <ClientTag event={event} />}
             </div>
             <div className={cn("flex items-center gap-1 text-sm", metadataClassName || "text-muted-foreground")}>
               <Nip05 pubkey={event.pubkey} append="·" />
@@ -193,7 +195,7 @@ export default function Note({
             </div>
           </div>
         </div>
-        <div className="flex items-center">
+        <div className="flex items-center shrink-0">
           <TranslateButton event={event} className={size === 'normal' ? '' : 'pr-0'} />
           {size === 'normal' && (
             <NoteOptions event={event} className="py-1 shrink-0 [&_svg]:size-5" />

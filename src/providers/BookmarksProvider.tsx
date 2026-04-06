@@ -3,7 +3,7 @@ import { getReplaceableCoordinateFromEvent, isReplaceableEvent } from '@/lib/eve
 import client from '@/services/client.service'
 import { Event } from 'nostr-tools'
 import { createContext, useContext } from 'react'
-import { useNostr } from './NostrProvider'
+import { useNostr } from '@/providers/NostrProvider'
 
 type TBookmarksContext = {
   addBookmark: (event: Event) => Promise<void>

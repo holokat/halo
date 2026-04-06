@@ -6,7 +6,10 @@ export function EmbeddedMention({ userId, className }: { userId: string; classNa
     <Username
       userId={userId}
       showAt
-      className={cn('text-primary font-normal inline', className)}
+      className={cn(
+        'text-primary font-normal inline break-words [overflow-wrap:anywhere] [word-break:break-word]',
+        className
+      )}
       withoutSkeleton
     />
   )
@@ -14,6 +17,11 @@ export function EmbeddedMention({ userId, className }: { userId: string; classNa
 
 export function EmbeddedMentionText({ userId, className }: { userId: string; className?: string }) {
   return (
-    <SimpleUsername userId={userId} showAt className={cn('inline', className)} withoutSkeleton />
+    <SimpleUsername
+      userId={userId}
+      showAt
+      className={cn('inline break-words [overflow-wrap:anywhere] [word-break:break-word]', className)}
+      withoutSkeleton
+    />
   )
 }

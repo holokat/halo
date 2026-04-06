@@ -68,7 +68,7 @@ export function useMenuActions({
   isSmallScreen
 }: UseMenuActionsProps) {
   const { t } = useTranslation()
-  const { pubkey, attemptDelete } = useNostr()
+  const { pubkey, attemptDelete, checkLogin } = useNostr()
   const { relayUrls: currentBrowsingRelayUrls } = useCurrentRelays()
   const { relaySets, favoriteRelays } = useFavoriteRelays()
   const relayUrls = useMemo(() => {
@@ -336,18 +336,18 @@ export function useMenuActions({
       })
     }
 
-    if (pubkey && event.pubkey !== pubkey) {
-      actions.push({
-        icon: TriangleAlert,
-        label: t('Report'),
-        className: 'text-destructive focus:text-destructive',
-        onClick: () => {
-          closeDrawer()
+    actions.push({
+      icon: TriangleAlert,
+      label: t('Report'),
+      className: 'text-destructive focus:text-destructive',
+      onClick: () => {
+        closeDrawer()
+        void checkLogin(() => {
           setIsReportDialogOpen(true)
-        },
-        separator: !setIsPrivateNoteDialogOpen
-      })
-    }
+        })
+      },
+      separator: !setIsPrivateNoteDialogOpen
+    })
 
     if (pubkey && event.pubkey !== pubkey) {
       if (isMuted) {
@@ -402,6 +402,7 @@ export function useMenuActions({
     closeDrawer,
     showSubMenuActions,
     setIsRawEventDialogOpen,
+    checkLogin,
     mutePubkey,
     unmutePubkey
   ])

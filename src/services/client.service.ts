@@ -1,4 +1,5 @@
 import { BIG_RELAY_URLS, ExtendedKind } from '@/constants'
+import { filterExpiredEvents, isEventExpired } from '@/lib/event-expiration'
 import {
   compareEvents,
   getReplaceableCoordinate,
@@ -16,9 +17,19 @@ import { SmartPool } from '@/lib/smart-pool'
 import { getMetadataRelayTiers } from '@/services/client/metadata-relay-tiers'
 import { prefetchProfilesForEvents, prefetchProfilesForPubkeys } from '@/services/client/profile-prefetch'
 import {
-  generateMultipleTimelinesKey,
-  generateTimelineKey
-} from '@/services/client/timeline-key'
+  type ClientQueryHost,
+  defaultRelayUrls,
+  query as queryEvents,
+  querySync as querySyncEvents,
+  subscribe as subscribeEvents
+} from '@/services/client/query'
+import {
+  type ClientTimelineHost,
+  loadMoreTimeline as loadMoreTimelineHelper,
+  subscribeTimeline as subscribeTimelineHelper,
+  TIMELINE_CACHE_MAX,
+  TTimeline
+} from '@/services/client/timeline'
 import { ISigner, TProfile, TPublishOptions, TRelayList, TSubRequestFilter } from '@/types'
 import DataLoader from 'dataloader'
 import dayjs from 'dayjs'
@@ -34,28 +45,9 @@ import {
 } from 'nostr-tools'
 import { AbstractRelay } from 'nostr-tools/abstract-relay'
 import indexedDb from './indexed-db.service'
-
-type TTimelineRef = [string, number]
-type TSingleTimeline = {
-  type: 'single'
-  refs: TTimelineRef[]
-  filter: TSubRequestFilter
-  urls: string[]
-  cursor: number
-}
-type TMergedTimeline = {
-  type: 'merged'
-  refs: TTimelineRef[]
-  childKeys: string[]
-  cursor: number
-}
-type TTimeline = TSingleTimeline | TMergedTimeline
-
-const TIMELINE_CACHE_MAX = 64
 const REPLACEABLE_EVENT_CACHE_MAX = 4000
 const EVENT_PROMISE_CACHE_MAX = 4000
 const LIVE_STREAM_CACHE_MAX = 256
-const RECENT_FEED_CACHE_MAX_EVENTS = 120
 const METADATA_QUERY_TIMEOUT_MS = 2500
 const METADATA_QUERY_EOSE_THRESHOLD = 0.5
 
@@ -110,6 +102,8 @@ class ClientService extends EventTarget {
   async init() {
     // Pre-warm memory cache and search index from IndexedDB stored profiles
     await indexedDb.iterateProfileEvents(async (profileEvent) => {
+      if (isEventExpired(profileEvent)) return
+
       // Add to search index
       this.addUsernameToIndex(profileEvent)
 
@@ -299,76 +293,27 @@ class ClientService extends EventTarget {
     return 'Nostr ' + btoa(JSON.stringify(event))
   }
 
+  private getQueryHost(): ClientQueryHost {
+    return {
+      pool: this.pool,
+      signer: this.signer,
+      trackEventSeenOn: this.trackEventSeenOn.bind(this)
+    }
+  }
+
+  private getTimelineHost(): ClientTimelineHost {
+    return {
+      ...this.getQueryHost(),
+      timelines: this.timelines,
+      eventDataLoader: this.eventDataLoader,
+      addEventToCache: this.addEventToCache.bind(this),
+      prefetchProfilesForEvents: this.prefetchProfilesForEvents.bind(this),
+      query: this.query.bind(this),
+      subscribe: this.subscribe.bind(this)
+    }
+  }
+
   /** =========== Timeline =========== */
-
-  private generateTimelineKey(urls: string[], filter: Filter) {
-    return generateTimelineKey(urls, filter)
-  }
-
-  private generateMultipleTimelinesKey(subRequests: { urls: string[]; filter: Filter }[]) {
-    return generateMultipleTimelinesKey(subRequests)
-  }
-
-  private compareTimelineRefs(a: TTimelineRef, b: TTimelineRef) {
-    if (a[1] !== b[1]) {
-      return b[1] - a[1]
-    }
-    if (a[0] !== b[0]) {
-      return a[0] < b[0] ? -1 : 1
-    }
-    return 0
-  }
-
-  private sortEventsDesc(events: NEvent[]) {
-    return events.sort((a, b) => compareEvents(b, a))
-  }
-
-  private buildTimelineRefs(events: NEvent[]) {
-    return this.sortEventsDesc([...events]).map((evt) => [evt.id, evt.created_at] as TTimelineRef)
-  }
-
-  private mergeTimelineRefs(
-    refs: TTimelineRef[],
-    eventsOrRefs: NEvent[] | TTimelineRef[]
-  ): TTimelineRef[] {
-    const refMap = new Map<string, number>()
-
-    refs.forEach(([id, createdAt]) => {
-      refMap.set(id, createdAt)
-    })
-
-    eventsOrRefs.forEach((value) => {
-      if (Array.isArray(value)) {
-        refMap.set(value[0], value[1])
-        return
-      }
-
-      refMap.set(value.id, value.created_at)
-    })
-
-    return Array.from(refMap.entries())
-      .map(([id, createdAt]) => [id, createdAt] as TTimelineRef)
-      .sort((a, b) => this.compareTimelineRefs(a, b))
-  }
-
-  private async loadEventsFromRefs(refs: TTimelineRef[]) {
-    if (refs.length === 0) return []
-
-    return (
-      await this.eventDataLoader.loadMany(refs.map(([id]) => id))
-    ).filter((evt) => !!evt && !(evt instanceof Error)) as NEvent[]
-  }
-
-  private async takeCachedTimelineEvents(
-    timeline: Pick<TSingleTimeline | TMergedTimeline, 'refs' | 'cursor'>,
-    limit: number
-  ) {
-    const refSlice = timeline.refs.slice(timeline.cursor, timeline.cursor + limit)
-    if (refSlice.length === 0) return []
-
-    timeline.cursor += refSlice.length
-    return this.loadEventsFromRefs(refSlice)
-  }
 
   async subscribeTimeline(
     subRequests: { urls: string[]; filter: TSubRequestFilter }[],
@@ -393,284 +338,16 @@ class ClientService extends EventTarget {
       initialEoseThreshold?: number
     } = {}
   ) {
-    const newEventIdSet = new Set<string>()
-    const requestCount = subRequests.length
-    const threshold =
-      typeof initialEoseThreshold === 'number' && Number.isFinite(initialEoseThreshold)
-        ? Math.max(1, Math.min(requestCount, Math.floor(initialEoseThreshold)))
-        : Math.floor(requestCount / 2)
-    const key = this.generateMultipleTimelinesKey(subRequests)
-    const recentFeedKey = cacheRecentEvents && needSort ? `recentFeed:${key}` : undefined
-    const displayLimit = Math.max(...subRequests.map(({ filter }) => filter.limit ?? 0), 50)
-    const renderLimit = Math.min(
-      displayLimit,
-      RECENT_FEED_CACHE_MAX_EVENTS
+    return subscribeTimelineHelper(
+      this.getTimelineHost(),
+      subRequests,
+      { onEvents, onNew, onClose },
+      { startLogin, needSort, cacheRecentEvents, initialEoseThreshold }
     )
-    let knownEventIdSet = new Set<string>()
-    let knownEvents: NEvent[] = []
-    let eosedCount = 0
-    let lastPersistedSignature = ''
-    let childTimelineKeys: string[] = []
-
-    const updateMergedTimeline = (eventsToShow: NEvent[]) => {
-      this.timelines.set(key, {
-        type: 'merged',
-        refs: this.buildTimelineRefs(knownEvents),
-        childKeys: childTimelineKeys,
-        cursor: eventsToShow.length
-      })
-    }
-
-    if (recentFeedKey) {
-      const cachedFeed = await indexedDb.getRecentFeed(recentFeedKey).catch(() => null)
-      if (cachedFeed?.length) {
-        knownEvents = cachedFeed
-          .slice(0, renderLimit)
-          .sort((a, b) => compareEvents(b, a))
-        knownEventIdSet = new Set(knownEvents.map((evt) => evt.id))
-        knownEvents.forEach((evt) => {
-          this.addEventToCache(evt)
-        })
-        this.prefetchProfilesForEvents(knownEvents)
-        onEvents([...knownEvents], false)
-      }
-    }
-
-    const subs = await Promise.all(
-      subRequests.map(({ urls, filter }) => {
-        return this._subscribeTimeline(
-          urls,
-          filter,
-          {
-            onEvents: (_events, _eosed) => {
-              if (_eosed) {
-                eosedCount++
-              }
-
-              _events.forEach((evt) => {
-                if (knownEventIdSet.has(evt.id)) return
-                knownEventIdSet.add(evt.id)
-                knownEvents.push(evt)
-              })
-              knownEvents = this.sortEventsDesc(knownEvents)
-              const eventsToShow = knownEvents.slice(0, displayLimit)
-
-              if (eosedCount >= threshold) {
-                if (recentFeedKey && eventsToShow.length > 0) {
-                  const snapshot = eventsToShow.slice(0, renderLimit)
-                  const signature = `${snapshot[0]?.id ?? ''}:${snapshot[snapshot.length - 1]?.id ?? ''}:${snapshot.length}`
-                  if (signature !== lastPersistedSignature) {
-                    lastPersistedSignature = signature
-                    void indexedDb.putRecentFeed(recentFeedKey, snapshot)
-                  }
-                }
-                updateMergedTimeline(eventsToShow)
-                // Prefetch profiles for aggregated events before rendering
-                this.prefetchProfilesForEvents(eventsToShow)
-                onEvents(eventsToShow, eosedCount >= requestCount)
-              }
-            },
-            onNew: (evt) => {
-              if (newEventIdSet.has(evt.id)) return
-              newEventIdSet.add(evt.id)
-              // Prefetch profile for new event in aggregated timeline
-              this.prefetchProfilesForEvents([evt])
-              onNew(evt)
-            },
-            onClose
-          },
-          { startLogin, needSort }
-        )
-      })
-    )
-    childTimelineKeys = subs.map((sub) => sub.timelineKey)
-
-    updateMergedTimeline(knownEvents.slice(0, displayLimit))
-
-    return {
-      closer: () => {
-        onEvents = () => {}
-        onNew = () => {}
-        subs.forEach((sub) => {
-          sub.closer()
-        })
-      },
-      timelineKey: key
-    }
   }
 
   async loadMoreTimeline(key: string, until: number, limit: number) {
-    const timeline = this.timelines.get(key)
-    if (!timeline) return []
-
-    if (timeline.type === 'single') {
-      return this._loadMoreTimeline(key, until, limit)
-    }
-
-    const cachedEvents = await this.takeCachedTimelineEvents(timeline, limit)
-    if (cachedEvents.length >= limit) {
-      this.prefetchProfilesForEvents(cachedEvents)
-      return cachedEvents
-    }
-
-    const childEvents = await Promise.all(
-      timeline.childKeys.map((childKey) => this.loadMoreTimeline(childKey, until, limit))
-    )
-
-    const mergedEvents = childEvents.flat()
-    if (mergedEvents.length === 0) {
-      this.prefetchProfilesForEvents(cachedEvents)
-      return cachedEvents
-    }
-
-    timeline.refs = this.mergeTimelineRefs(timeline.refs, mergedEvents)
-
-    const additionalEvents = await this.takeCachedTimelineEvents(timeline, limit - cachedEvents.length)
-    const sortedEvents = this.sortEventsDesc([...cachedEvents, ...additionalEvents]).slice(0, limit)
-
-    // Prefetch profiles for aggregated events from multiple timelines
-    this.prefetchProfilesForEvents(sortedEvents)
-
-    return sortedEvents
-  }
-
-  subscribe(
-    urls: string[],
-    filter: Filter | Filter[],
-    {
-      onevent,
-      oneose,
-      onclose,
-      startLogin,
-      onAllClose
-    }: {
-      onevent?: (evt: NEvent) => void
-      oneose?: (eosed: boolean) => void
-      onclose?: (url: string, reason: string) => void
-      startLogin?: () => void
-      onAllClose?: (reasons: string[]) => void
-    }
-  ) {
-    const relays = Array.from(new Set(urls))
-    const filters = Array.isArray(filter) ? filter : [filter]
-
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const that = this
-    const _knownIds = new Set<string>()
-    let startedCount = 0
-    let eosedCount = 0
-    let eosed = false
-    let closedCount = 0
-    const closeReasons: string[] = []
-    const subPromises: Promise<{ close: () => void }>[] = []
-    relays.forEach((url) => {
-      let hasAuthed = false
-
-      subPromises.push(startSub())
-
-      async function startSub() {
-        startedCount++
-        const relay = await that.pool.ensureRelay(url).catch(() => {
-          return undefined
-        })
-        // cannot connect to relay
-        if (!relay) {
-          if (!eosed) {
-            eosedCount++
-            eosed = eosedCount >= startedCount
-            oneose?.(eosed)
-          }
-          return {
-            close: () => {}
-          }
-        }
-
-        return relay.subscribe(filters, {
-          receivedEvent: (relay, id) => {
-            that.trackEventSeenOn(id, relay)
-          },
-          alreadyHaveEvent: (id: string) => {
-            const have = _knownIds.has(id)
-            if (have) {
-              return true
-            }
-            _knownIds.add(id)
-            return false
-          },
-          onevent: (evt: NEvent) => {
-            onevent?.(evt)
-          },
-          oneose: () => {
-            // make sure eosed is not called multiple times
-            if (eosed) return
-
-            eosedCount++
-            eosed = eosedCount >= startedCount
-            oneose?.(eosed)
-          },
-          onclose: (reason: string) => {
-            // auth-required
-            if (reason.startsWith('auth-required') && !hasAuthed) {
-              // already logged in
-              if (that.signer) {
-                relay
-                  .auth(async (authEvt: EventTemplate) => {
-                    const evt = await that.signer!.signEvent(authEvt)
-                    if (!evt) {
-                      throw new Error('sign event failed')
-                    }
-                    return evt as VerifiedEvent
-                  })
-                  .then(() => {
-                    hasAuthed = true
-                    if (!eosed) {
-                      subPromises.push(startSub())
-                    }
-                  })
-                  .catch(() => {
-                    // ignore
-                  })
-                return
-              }
-
-              // open login dialog
-              if (startLogin) {
-                startLogin()
-                return
-              }
-            }
-
-            // close the subscription
-            closedCount++
-            closeReasons.push(reason)
-            onclose?.(url, reason)
-            if (closedCount >= startedCount) {
-              onAllClose?.(closeReasons)
-            }
-            return
-          },
-          eoseTimeout: 10_000 // 10s
-        })
-      }
-    })
-
-    return {
-      close: () => {
-        subPromises.forEach((subPromise) => {
-          subPromise
-            .then((sub) => {
-              sub.close()
-            })
-            .catch((err) => {
-              console.error(err)
-            })
-        })
-      }
-    }
-  }
-
-  querySync(relayUrls: string[], filter: Filter) {
-    return this.pool.querySync(relayUrls, filter)
+    return loadMoreTimelineHelper(this.getTimelineHost(), key, until, limit)
   }
 
   /**
@@ -697,222 +374,6 @@ class ClientService extends EventTarget {
       replaceableEventCacheMap: this.replaceableEventCacheMap,
       replaceableEventFromBigRelaysDataloader: this.replaceableEventFromBigRelaysDataloader
     })
-  }
-
-  private async _subscribeTimeline(
-    urls: string[],
-    filter: TSubRequestFilter, // filter with limit,
-    {
-      onEvents,
-      onNew,
-      onClose
-    }: {
-      onEvents: (events: NEvent[], eosed: boolean) => void
-      onNew: (evt: NEvent) => void
-      onClose?: (url: string, reason: string) => void
-    },
-    {
-      startLogin,
-      needSort = true
-    }: {
-      startLogin?: () => void
-      needSort?: boolean
-    } = {}
-  ) {
-    const relays = Array.from(new Set(urls))
-    const key = this.generateTimelineKey(relays, filter)
-    const timeline = this.timelines.get(key)
-    let cachedEvents: NEvent[] = []
-    let since: number | undefined
-    if (timeline?.type === 'single' && timeline.refs.length && needSort) {
-      cachedEvents = (
-        await this.eventDataLoader.loadMany(timeline.refs.slice(0, filter.limit).map(([id]) => id))
-      ).filter((evt) => !!evt && !(evt instanceof Error)) as NEvent[]
-      if (cachedEvents.length) {
-        // Prefetch profiles for cached events
-        this.prefetchProfilesForEvents(cachedEvents)
-        onEvents([...cachedEvents], false)
-        since = cachedEvents[0].created_at
-      }
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const that = this
-    let events: NEvent[] = []
-    let eosedAt: number | null = null
-    const subCloser = this.subscribe(relays, since ? { ...filter, since } : filter, {
-      startLogin,
-      onevent: (evt: NEvent) => {
-        that.addEventToCache(evt)
-        // not eosed yet, push to events
-        if (!eosedAt) {
-          return events.push(evt)
-        }
-        // new event
-        if (evt.created_at > eosedAt) {
-          // Prefetch profile for new event
-          that.prefetchProfilesForEvents([evt])
-          onNew(evt)
-        }
-
-        const timeline = that.timelines.get(key)
-        if (!timeline || timeline.type !== 'single' || !timeline.refs.length) {
-          return
-        }
-
-        // find the right position to insert
-        let idx = 0
-        for (const ref of timeline.refs) {
-          if (evt.created_at > ref[1] || (evt.created_at === ref[1] && evt.id < ref[0])) {
-            break
-          }
-          // the event is already in the cache
-          if (evt.created_at === ref[1] && evt.id === ref[0]) {
-            return
-          }
-          idx++
-        }
-        // the event is too old, ignore it
-        if (idx >= timeline.refs.length) return
-
-        // insert the event to the right position
-        timeline.refs.splice(idx, 0, [evt.id, evt.created_at])
-        if (idx <= timeline.cursor) {
-          timeline.cursor++
-        }
-      },
-      oneose: (eosed) => {
-        if (eosed && !eosedAt) {
-          eosedAt = dayjs().unix()
-        }
-        // (algo feeds) no need to sort and cache
-        if (!needSort) {
-          // Prefetch profiles for algo feeds
-          that.prefetchProfilesForEvents(events)
-          return onEvents([...events], !!eosedAt)
-        }
-        if (!eosed) {
-          events = that.sortEventsDesc(events).slice(0, filter.limit)
-          // Prefetch profiles before rendering
-          const eventsToShow = that.sortEventsDesc([...events, ...cachedEvents]).slice(0, filter.limit)
-          that.prefetchProfilesForEvents(eventsToShow)
-          return onEvents(eventsToShow, false)
-        }
-
-        events = that.sortEventsDesc(events).slice(0, filter.limit)
-        const timeline = that.timelines.get(key)
-        // no cache yet
-        if (!timeline || timeline.type !== 'single' || !timeline.refs.length) {
-          that.timelines.set(key, {
-            type: 'single',
-            refs: that.buildTimelineRefs(events),
-            filter,
-            urls,
-            cursor: events.length
-          })
-          // Prefetch profiles before rendering
-          that.prefetchProfilesForEvents(events)
-          return onEvents([...events], true)
-        }
-
-        // Prevent concurrent requests from duplicating the same event
-        const firstRef = timeline.refs[0]
-        const newRefs = events
-          .filter(
-            (evt) => that.compareTimelineRefs([evt.id, evt.created_at], firstRef) < 0
-          )
-          .map((evt) => [evt.id, evt.created_at] as TTimelineRef)
-
-        if (events.length >= filter.limit) {
-          // if new refs are more than limit, means old refs are too old, replace them
-          timeline.refs = newRefs
-          timeline.cursor = events.length
-          // Prefetch profiles before rendering
-          that.prefetchProfilesForEvents(events)
-          onEvents([...events], true)
-        } else {
-          // merge new refs with old refs
-          timeline.refs = that.mergeTimelineRefs(timeline.refs, newRefs)
-          const eventsToShow = that.sortEventsDesc([...events, ...cachedEvents]).slice(0, filter.limit)
-          timeline.cursor = eventsToShow.length
-          // Prefetch profiles before rendering
-          that.prefetchProfilesForEvents(eventsToShow)
-          onEvents(eventsToShow, true)
-        }
-      },
-      onclose: onClose
-    })
-
-    return {
-      timelineKey: key,
-      closer: () => {
-        onEvents = () => {}
-        onNew = () => {}
-        subCloser.close()
-      }
-    }
-  }
-
-  private async _loadMoreTimeline(key: string, until: number, limit: number) {
-    const timeline = this.timelines.get(key)
-    if (!timeline || timeline.type !== 'single') return []
-
-    const cachedEvents = await this.takeCachedTimelineEvents(timeline, limit)
-    if (cachedEvents.length >= limit) {
-      this.prefetchProfilesForEvents(cachedEvents)
-      return cachedEvents
-    }
-
-    const existingEventIds = new Set(timeline.refs.map(([id]) => id))
-    const remaining = limit - cachedEvents.length
-    let queryLimit = Math.max(limit, remaining * 2)
-    let queryUntil = timeline.refs[timeline.refs.length - 1]?.[1] ?? until
-    let additionalEvents: NEvent[] = []
-    let attempts = 0
-
-    while (additionalEvents.length < remaining && attempts < 4) {
-      attempts++
-      let queriedEvents = await this.query(timeline.urls, {
-        ...timeline.filter,
-        until: queryUntil,
-        limit: queryLimit
-      })
-      queriedEvents.forEach((evt) => {
-        this.addEventToCache(evt)
-      })
-      queriedEvents = this.sortEventsDesc(queriedEvents)
-
-      if (queriedEvents.length === 0) {
-        break
-      }
-
-      const uniqueNewEvents = queriedEvents.filter((evt) => {
-        if (existingEventIds.has(evt.id)) return false
-        existingEventIds.add(evt.id)
-        return true
-      })
-
-      if (uniqueNewEvents.length > 0) {
-        timeline.refs = this.mergeTimelineRefs(timeline.refs, uniqueNewEvents)
-        const nextCachedEvents = await this.takeCachedTimelineEvents(
-          timeline,
-          remaining - additionalEvents.length
-        )
-        additionalEvents = additionalEvents.concat(nextCachedEvents)
-      }
-
-      if (queriedEvents.length < queryLimit) {
-        break
-      }
-
-      queryLimit *= 2
-      queryUntil = queriedEvents[queriedEvents.length - 1]?.created_at ?? queryUntil
-    }
-
-    const allEvents = this.sortEventsDesc([...cachedEvents, ...additionalEvents]).slice(0, limit)
-    // Prefetch profiles for all events being returned
-    this.prefetchProfilesForEvents(allEvents)
-    return allEvents
   }
 
   /** =========== Event =========== */
@@ -954,58 +415,37 @@ class ClientService extends EventTarget {
       eoseThreshold?: number
     } = {}
   ) {
-    return await new Promise<NEvent[]>((resolve) => {
-      const events: NEvent[] = []
-      const relayCount = Array.from(new Set(urls)).length
-      const resolvedThreshold = Math.max(
-        1,
-        Math.min(
-          relayCount,
-          Number.isFinite(eoseThreshold)
-            ? Math.ceil(relayCount * (eoseThreshold as number))
-            : relayCount
-        )
-      )
-      let eoseCount = 0
-      let done = false
-      let timeout: number | undefined
+    return queryEvents(this.getQueryHost(), urls, filter, onevent, { timeoutMs, eoseThreshold })
+  }
 
-      let sub: { close: () => void } | null = null
-
-      const finish = () => {
-        if (done) return
-        done = true
-        if (timeout) {
-          window.clearTimeout(timeout)
-        }
-        sub?.close()
-        resolve(events)
-      }
-
-      if (timeoutMs && Number.isFinite(timeoutMs) && timeoutMs > 0) {
-        timeout = window.setTimeout(() => {
-          finish()
-        }, timeoutMs)
-      }
-
-      sub = this.subscribe(urls, filter, {
-        onevent(evt) {
-          onevent?.(evt)
-          events.push(evt)
-        },
-        oneose: (eosed) => {
-          if (done) return
-          eoseCount += 1
-
-          if (eosed || eoseCount >= resolvedThreshold) {
-            finish()
-          }
-        },
-        onAllClose: () => {
-          finish()
-        }
-      })
+  subscribe(
+    urls: string[],
+    filter: Filter | Filter[],
+    {
+      onevent,
+      oneose,
+      onclose,
+      startLogin,
+      onAllClose
+    }: {
+      onevent?: (evt: NEvent) => void
+      oneose?: (eosed: boolean) => void
+      onclose?: (url: string, reason: string) => void
+      startLogin?: () => void
+      onAllClose?: (reasons: string[]) => void
+    }
+  ) {
+    return subscribeEvents(this.getQueryHost(), urls, filter, {
+      onevent,
+      oneose,
+      onclose,
+      startLogin,
+      onAllClose
     })
+  }
+
+  querySync(relayUrls: string[], filter: Filter) {
+    return querySyncEvents(this.getQueryHost(), relayUrls, filter)
   }
 
   async fetchEvents(
@@ -1023,8 +463,7 @@ class ClientService extends EventTarget {
       eoseThreshold?: number
     } = {}
   ) {
-    const relays = Array.from(new Set(urls))
-    const events = await this.query(relays.length > 0 ? relays : BIG_RELAY_URLS, filter, onevent, {
+    const events = await this.query(defaultRelayUrls(urls), filter, onevent, {
       timeoutMs,
       eoseThreshold
     })
@@ -1058,18 +497,24 @@ class ClientService extends EventTarget {
       }
       if (coordinate) {
         const cache = this.replaceableEventCacheMap.get(coordinate)
-        if (cache) {
+        if (cache && !isEventExpired(cache)) {
           return cache
         }
+        if (cache) this.replaceableEventCacheMap.delete(coordinate)
+
         const indexedDbCache = await indexedDb.getReplaceableEventByCoordinate(coordinate)
-        if (indexedDbCache) {
+        if (indexedDbCache && !isEventExpired(indexedDbCache)) {
           this.replaceableEventCacheMap.set(coordinate, indexedDbCache)
           return indexedDbCache
         }
       } else if (eventId) {
         const cache = this.eventCacheMap.get(eventId)
         if (cache) {
-          return cache
+          const cachedEvent = await cache
+          if (cachedEvent && !isEventExpired(cachedEvent)) {
+            return cachedEvent
+          }
+          this.eventCacheMap.delete(eventId)
         }
       }
     }
@@ -1111,6 +556,7 @@ class ClientService extends EventTarget {
 
     // Check if cache is valid (exists and not expired)
     if (this.trendingNotesCache && now - this.trendingNotesCacheTime < this.TRENDING_CACHE_DURATION) {
+      this.trendingNotesCache = filterExpiredEvents(this.trendingNotesCache)
       return this.trendingNotesCache
     }
 
@@ -1132,7 +578,7 @@ class ClientService extends EventTarget {
     } catch (error) {
       console.error('fetchTrendingNotes error', error)
       // Return cached data if available, even if expired, as fallback
-      return this.trendingNotesCache || []
+      return filterExpiredEvents(this.trendingNotesCache || [])
     }
   }
 
@@ -1140,7 +586,7 @@ class ClientService extends EventTarget {
     if (events.length === 0) return
 
     events.forEach((event) => {
-      if (event.kind !== 30311) return
+      if (event.kind !== 30311 || isEventExpired(event)) return
 
       const dTag = event.tags.find((tag) => tag[0] === 'd')?.[1]
       const key = dTag ? `${event.pubkey}:${dTag}` : event.id
@@ -1158,7 +604,17 @@ class ClientService extends EventTarget {
   ): NEvent[] {
     if (!this.liveStreamCacheMap.size) return []
     if (Date.now() - this.liveStreamCacheTime > maxAgeMs) return []
-    return Array.from(this.liveStreamCacheMap.values()).sort((a, b) => b.created_at - a.created_at)
+
+    const activeEvents: NEvent[] = []
+    this.liveStreamCacheMap.forEach((event, key) => {
+      if (isEventExpired(event)) {
+        this.liveStreamCacheMap.delete(key)
+        return
+      }
+      activeEvents.push(event)
+    })
+
+    return activeEvents.sort((a, b) => b.created_at - a.created_at)
   }
 
   async prefetchLiveStreamEvents({
@@ -1200,6 +656,11 @@ class ClientService extends EventTarget {
   }
 
   addEventToCache(event: NEvent) {
+    if (isEventExpired(event)) {
+      this.eventCacheMap.delete(event.id)
+      return
+    }
+
     this.eventDataLoader.prime(event.id, Promise.resolve(event))
     if (isReplaceableEvent(event.kind)) {
       const coordinate = getReplaceableCoordinateFromEvent(event)
@@ -1315,6 +776,10 @@ class ClientService extends EventTarget {
 
         return false
       })
+    }
+
+    if (event && isEventExpired(event)) {
+      return undefined
     }
 
     if (event && event.id !== id) {
@@ -1883,7 +1348,7 @@ class ClientService extends EventTarget {
   }
 
   async fetchStarterPackEvents(pubkey: string) {
-    const events = await this.pool.querySync(BIG_RELAY_URLS, {
+    const events = await this.querySync(BIG_RELAY_URLS, {
       kinds: [ExtendedKind.STARTER_PACK],
       authors: [pubkey]
     })

@@ -1,38 +1,22 @@
-import { ExtendedKind } from '@/constants'
 import { tagNameEquals } from '@/lib/tag'
 import { TRelayInfo } from '@/types'
 import { Event, kinds } from 'nostr-tools'
-
-type TValue<T = any> = {
-  key: string
-  value: T | null
-  addedAt: number
-}
-
-const StoreNames = {
-  PROFILE_EVENTS: 'profileEvents',
-  RELAY_LIST_EVENTS: 'relayListEvents',
-  INBOX_RELAY_LIST_EVENTS: 'inboxRelayListEvents',
-  FOLLOW_LIST_EVENTS: 'followListEvents',
-  MUTE_LIST_EVENTS: 'muteListEvents',
-  BOOKMARK_LIST_EVENTS: 'bookmarkListEvents',
-  BLOSSOM_SERVER_LIST_EVENTS: 'blossomServerListEvents',
-  MUTE_DECRYPTED_TAGS: 'muteDecryptedTags',
-  USER_EMOJI_LIST_EVENTS: 'userEmojiListEvents',
-  EMOJI_SET_EVENTS: 'emojiSetEvents',
-  PIN_LIST_EVENTS: 'pinListEvents',
-  FAVORITE_RELAYS: 'favoriteRelays',
-  RELAY_SETS: 'relaySets',
-  FOLLOWING_FAVORITE_RELAYS: 'followingFavoriteRelays',
-  RELAY_INFOS: 'relayInfos',
-  RELAY_INFO_EVENTS: 'relayInfoEvents', // deprecated
-  GIF_CACHE: 'gifCache',
-  TRANSLATED_EVENTS: 'translatedEvents',
-  NOTE_STATS: 'noteStats',
-  NOTE_STATS_INTERACTION_META: 'noteStatsInteractionMeta',
-  LAST_ACTIVITY: 'lastActivity',
-  RECENT_FEEDS: 'recentFeeds'
-}
+import {
+  applyIndexedDbSchema,
+  getStoreNameByKind,
+  INDEXED_DB_NAME,
+  INDEXED_DB_VERSION,
+  StoreNames,
+  type TIndexedDbRecord
+} from './indexed-db/schema'
+import {
+  abortTransaction,
+  commitTransaction,
+  openIndexedDbStore,
+  readAllStoredValues,
+  readStoredValue,
+  requestPromise
+} from './indexed-db/transactions'
 
 class IndexedDbService {
   static instance: IndexedDbService
@@ -50,7 +34,7 @@ class IndexedDbService {
   init(): Promise<void> {
     if (!this.initPromise) {
       this.initPromise = new Promise((resolve, reject) => {
-        const request = window.indexedDB.open('jumble', 15)
+        const request = window.indexedDB.open(INDEXED_DB_NAME, INDEXED_DB_VERSION)
 
         request.onerror = (event) => {
           reject(event)
@@ -63,80 +47,7 @@ class IndexedDbService {
 
         request.onupgradeneeded = () => {
           const db = request.result
-          if (!db.objectStoreNames.contains(StoreNames.PROFILE_EVENTS)) {
-            db.createObjectStore(StoreNames.PROFILE_EVENTS, { keyPath: 'key' })
-          }
-          if (!db.objectStoreNames.contains(StoreNames.RELAY_LIST_EVENTS)) {
-            db.createObjectStore(StoreNames.RELAY_LIST_EVENTS, { keyPath: 'key' })
-          }
-          if (!db.objectStoreNames.contains(StoreNames.INBOX_RELAY_LIST_EVENTS)) {
-            db.createObjectStore(StoreNames.INBOX_RELAY_LIST_EVENTS, { keyPath: 'key' })
-          }
-          if (!db.objectStoreNames.contains(StoreNames.FOLLOW_LIST_EVENTS)) {
-            db.createObjectStore(StoreNames.FOLLOW_LIST_EVENTS, { keyPath: 'key' })
-          }
-          if (!db.objectStoreNames.contains(StoreNames.MUTE_LIST_EVENTS)) {
-            db.createObjectStore(StoreNames.MUTE_LIST_EVENTS, { keyPath: 'key' })
-          }
-          if (!db.objectStoreNames.contains(StoreNames.BOOKMARK_LIST_EVENTS)) {
-            db.createObjectStore(StoreNames.BOOKMARK_LIST_EVENTS, { keyPath: 'key' })
-          }
-          if (!db.objectStoreNames.contains(StoreNames.MUTE_DECRYPTED_TAGS)) {
-            db.createObjectStore(StoreNames.MUTE_DECRYPTED_TAGS, { keyPath: 'key' })
-          }
-          if (!db.objectStoreNames.contains(StoreNames.FAVORITE_RELAYS)) {
-            db.createObjectStore(StoreNames.FAVORITE_RELAYS, { keyPath: 'key' })
-          }
-          if (!db.objectStoreNames.contains(StoreNames.RELAY_SETS)) {
-            db.createObjectStore(StoreNames.RELAY_SETS, { keyPath: 'key' })
-          }
-          if (!db.objectStoreNames.contains(StoreNames.FOLLOWING_FAVORITE_RELAYS)) {
-            db.createObjectStore(StoreNames.FOLLOWING_FAVORITE_RELAYS, { keyPath: 'key' })
-          }
-          if (!db.objectStoreNames.contains(StoreNames.BLOSSOM_SERVER_LIST_EVENTS)) {
-            db.createObjectStore(StoreNames.BLOSSOM_SERVER_LIST_EVENTS, { keyPath: 'key' })
-          }
-          if (!db.objectStoreNames.contains(StoreNames.USER_EMOJI_LIST_EVENTS)) {
-            db.createObjectStore(StoreNames.USER_EMOJI_LIST_EVENTS, { keyPath: 'key' })
-          }
-          if (!db.objectStoreNames.contains(StoreNames.EMOJI_SET_EVENTS)) {
-            db.createObjectStore(StoreNames.EMOJI_SET_EVENTS, { keyPath: 'key' })
-          }
-          if (!db.objectStoreNames.contains(StoreNames.RELAY_INFOS)) {
-            db.createObjectStore(StoreNames.RELAY_INFOS, { keyPath: 'key' })
-          }
-          if (!db.objectStoreNames.contains(StoreNames.PIN_LIST_EVENTS)) {
-            db.createObjectStore(StoreNames.PIN_LIST_EVENTS, { keyPath: 'key' })
-          }
-          if (!db.objectStoreNames.contains(StoreNames.GIF_CACHE)) {
-            const gifStore = db.createObjectStore(StoreNames.GIF_CACHE, { keyPath: 'eventId' })
-            gifStore.createIndex('createdAt', 'createdAt', { unique: false })
-          }
-          if (!db.objectStoreNames.contains(StoreNames.TRANSLATED_EVENTS)) {
-            const translatedStore = db.createObjectStore(StoreNames.TRANSLATED_EVENTS, { keyPath: 'key' })
-            translatedStore.createIndex('addedAt', 'addedAt', { unique: false })
-          }
-          if (!db.objectStoreNames.contains(StoreNames.NOTE_STATS)) {
-            const noteStatsStore = db.createObjectStore(StoreNames.NOTE_STATS, { keyPath: 'key' })
-            noteStatsStore.createIndex('addedAt', 'addedAt', { unique: false })
-          }
-          if (!db.objectStoreNames.contains(StoreNames.NOTE_STATS_INTERACTION_META)) {
-            const interactionMetaStore = db.createObjectStore(StoreNames.NOTE_STATS_INTERACTION_META, {
-              keyPath: 'key'
-            })
-            interactionMetaStore.createIndex('addedAt', 'addedAt', { unique: false })
-          }
-          if (!db.objectStoreNames.contains(StoreNames.LAST_ACTIVITY)) {
-            const lastActivityStore = db.createObjectStore(StoreNames.LAST_ACTIVITY, { keyPath: 'key' })
-            lastActivityStore.createIndex('addedAt', 'addedAt', { unique: false })
-          }
-          if (!db.objectStoreNames.contains(StoreNames.RECENT_FEEDS)) {
-            const recentFeedsStore = db.createObjectStore(StoreNames.RECENT_FEEDS, { keyPath: 'key' })
-            recentFeedsStore.createIndex('addedAt', 'addedAt', { unique: false })
-          }
-          if (db.objectStoreNames.contains(StoreNames.RELAY_INFO_EVENTS)) {
-            db.deleteObjectStore(StoreNames.RELAY_INFO_EVENTS)
-          }
+          applyIndexedDbSchema(db)
           this.db = db
         }
       })
@@ -145,83 +56,115 @@ class IndexedDbService {
     return this.initPromise
   }
 
+  private async withStore<T>(
+    storeName: string,
+    mode: IDBTransactionMode,
+    work: (store: IDBObjectStore, transaction: IDBTransaction) => Promise<T> | T
+  ): Promise<T> {
+    await this.init()
+    if (!this.db) {
+      throw new Error('database not initialized')
+    }
+
+    const { transaction, store } = openIndexedDbStore(this.db, storeName, mode)
+
+    try {
+      const result = await work(store, transaction)
+      commitTransaction(transaction)
+      return result
+    } catch (error) {
+      abortTransaction(transaction)
+      throw error
+    }
+  }
+
+  private async getDb(): Promise<IDBDatabase> {
+    await this.init()
+    if (!this.db) {
+      throw new Error('database not initialized')
+    }
+    return this.db
+  }
+
+  private async readRecordValue<T>(storeName: string, key: IDBValidKey) {
+    return this.withStore(storeName, 'readonly', async (store) => {
+      const record = await requestPromise<TIndexedDbRecord<T> | undefined>(store.get(key))
+      return record?.value ?? null
+    })
+  }
+
+  private async writeRecordValue<T>(storeName: string, key: IDBValidKey, value: T): Promise<void> {
+    return this.withStore(storeName, 'readwrite', async (store) => {
+      await requestPromise(store.put({ key: String(key), value, addedAt: Date.now() }))
+    })
+  }
+
+  private async deleteRecordValue(storeName: string, key: IDBValidKey): Promise<void> {
+    return this.withStore(storeName, 'readwrite', async (store) => {
+      await requestPromise(store.delete(key))
+    })
+  }
+
+  private async readManyRecordValues<T>(
+    storeName: string,
+    keys: readonly string[]
+  ): Promise<(T | null)[]> {
+    return this.withStore(storeName, 'readonly', async (store) => {
+      return Promise.all(
+        keys.map(async (key) => {
+          const record = await requestPromise<TIndexedDbRecord<T> | undefined>(store.get(key))
+          return record?.value ?? null
+        })
+      )
+    })
+  }
+
+  private async writeManyRecordValues<T>(
+    storeName: string,
+    entries: { key: string; value: T }[]
+  ): Promise<void> {
+    if (entries.length === 0) {
+      return
+    }
+
+    await this.withStore(storeName, 'readwrite', async (store) => {
+      await Promise.all(
+        entries.map(({ key, value }) =>
+          requestPromise(store.put({ key, value, addedAt: Date.now() }))
+        )
+      )
+    })
+  }
+
   async putNullReplaceableEvent(pubkey: string, kind: number, d?: string) {
-    const storeName = this.getStoreNameByKind(kind)
+    const storeName = getStoreNameByKind(kind)
     if (!storeName) {
       return Promise.reject('store name not found')
     }
-    await this.initPromise
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        return reject('database not initialized')
-      }
-      const transaction = this.db.transaction(storeName, 'readwrite')
-      const store = transaction.objectStore(storeName)
-
+    return this.withStore(storeName, 'readwrite', async (store) => {
       const key = this.getReplaceableEventKey(pubkey, d)
-      const getRequest = store.get(key)
-      getRequest.onsuccess = () => {
-        const oldValue = getRequest.result as TValue<Event> | undefined
-        if (oldValue) {
-          transaction.commit()
-          return resolve(oldValue.value)
-        }
-        const putRequest = store.put(this.formatValue(key, null))
-        putRequest.onsuccess = () => {
-          transaction.commit()
-          resolve(null)
-        }
-
-        putRequest.onerror = (event) => {
-          transaction.commit()
-          reject(event)
-        }
+      const oldValue = await requestPromise<TIndexedDbRecord<Event> | undefined>(store.get(key))
+      if (oldValue) {
+        return oldValue.value
       }
-
-      getRequest.onerror = (event) => {
-        transaction.commit()
-        reject(event)
-      }
+      await requestPromise(store.put({ key, value: null, addedAt: Date.now() }))
+      return null
     })
   }
 
   async putReplaceableEvent(event: Event): Promise<Event> {
-    const storeName = this.getStoreNameByKind(event.kind)
+    const storeName = getStoreNameByKind(event.kind)
     if (!storeName) {
       return Promise.reject('store name not found')
     }
-    await this.initPromise
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        return reject('database not initialized')
-      }
-      const transaction = this.db.transaction(storeName, 'readwrite')
-      const store = transaction.objectStore(storeName)
-
+    return this.withStore(storeName, 'readwrite', async (store) => {
       const key = this.getReplaceableEventKeyFromEvent(event)
-      const getRequest = store.get(key)
-      getRequest.onsuccess = () => {
-        const oldValue = getRequest.result as TValue<Event> | undefined
-        if (oldValue?.value && oldValue.value.created_at >= event.created_at) {
-          transaction.commit()
-          return resolve(oldValue.value)
-        }
-        const putRequest = store.put(this.formatValue(key, event))
-        putRequest.onsuccess = () => {
-          transaction.commit()
-          resolve(event)
-        }
-
-        putRequest.onerror = (event) => {
-          transaction.commit()
-          reject(event)
-        }
+      const oldValue = await requestPromise<TIndexedDbRecord<Event> | undefined>(store.get(key))
+      if (oldValue?.value && oldValue.value.created_at >= event.created_at) {
+        return oldValue.value
       }
-
-      getRequest.onerror = (event) => {
-        transaction.commit()
-        reject(event)
-      }
+      await requestPromise(store.put({ key, value: event, addedAt: Date.now() }))
+      return event
     })
   }
 
@@ -230,30 +173,12 @@ class IndexedDbService {
     kind: number,
     d?: string
   ): Promise<Event | undefined | null> {
-    const storeName = this.getStoreNameByKind(kind)
+    const storeName = getStoreNameByKind(kind)
     if (!storeName) {
       return Promise.reject('store name not found')
     }
-    await this.initPromise
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        return reject('database not initialized')
-      }
-      const transaction = this.db.transaction(storeName, 'readonly')
-      const store = transaction.objectStore(storeName)
-      const key = this.getReplaceableEventKey(pubkey, d)
-      const request = store.get(key)
-
-      request.onsuccess = () => {
-        transaction.commit()
-        resolve((request.result as TValue<Event>)?.value)
-      }
-
-      request.onerror = (event) => {
-        transaction.commit()
-        reject(event)
-      }
-    })
+    const key = this.getReplaceableEventKey(pubkey, d)
+    return this.readRecordValue<Event>(storeName, key)
   }
 
   async getReplaceableEventByCoordinate(coordinate: string): Promise<Event | undefined | null> {
@@ -264,235 +189,69 @@ class IndexedDbService {
   }
 
   async deleteReplaceableEvent(pubkey: string, kind: number, d?: string): Promise<void> {
-    const storeName = this.getStoreNameByKind(kind)
+    const storeName = getStoreNameByKind(kind)
     if (!storeName) {
       return Promise.reject('store name not found')
     }
-    await this.initPromise
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        return reject('database not initialized')
-      }
-      const transaction = this.db.transaction(storeName, 'readwrite')
-      const store = transaction.objectStore(storeName)
-      const key = this.getReplaceableEventKey(pubkey, d)
-      const request = store.delete(key)
-
-      request.onsuccess = () => {
-        transaction.commit()
-        resolve()
-      }
-
-      request.onerror = (event) => {
-        transaction.commit()
-        reject(event)
-      }
-    })
+    const key = this.getReplaceableEventKey(pubkey, d)
+    return this.deleteRecordValue(storeName, key)
   }
 
   async getManyReplaceableEvents(
     pubkeys: readonly string[],
     kind: number
   ): Promise<(Event | undefined | null)[]> {
-    const storeName = this.getStoreNameByKind(kind)
+    const storeName = getStoreNameByKind(kind)
     if (!storeName) {
       return Promise.reject('store name not found')
     }
-    await this.initPromise
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        return reject('database not initialized')
-      }
-      const transaction = this.db.transaction(storeName, 'readonly')
-      const store = transaction.objectStore(storeName)
-      const events: (Event | null)[] = new Array(pubkeys.length).fill(undefined)
-      let count = 0
-      pubkeys.forEach((pubkey, i) => {
-        const request = store.get(this.getReplaceableEventKey(pubkey))
+    return this.readManyRecordValues<Event>(storeName, pubkeys.map((pubkey) => this.getReplaceableEventKey(pubkey)))
+  }
 
-        request.onsuccess = () => {
-          const event = (request.result as TValue<Event | null>)?.value
-          if (event || event === null) {
-            events[i] = event
-          }
+  async getMuteDecryptedTags(id: string): Promise<string[][] | null> {
+    return this.readRecordValue<string[][]>(StoreNames.MUTE_DECRYPTED_TAGS, id)
+  }
 
-          if (++count === pubkeys.length) {
-            transaction.commit()
-            resolve(events)
-          }
-        }
+  async putMuteDecryptedTags(id: string, tags: string[][]): Promise<void> {
+    return this.writeRecordValue(StoreNames.MUTE_DECRYPTED_TAGS, id, tags)
+  }
 
-        request.onerror = () => {
-          if (++count === pubkeys.length) {
-            transaction.commit()
-            resolve(events)
+  async iterateProfileEvents(callback: (event: Event) => Promise<void>): Promise<void> {
+    return this.withStore(StoreNames.PROFILE_EVENTS, 'readwrite', async (store) => {
+      await new Promise<void>((resolve, reject) => {
+        const request = store.openCursor()
+        request.onsuccess = (event) => {
+          const cursor = (event.target as IDBRequest<IDBCursorWithValue | null>).result
+          if (cursor) {
+            const value = (cursor.value as TIndexedDbRecord<Event>).value
+            if (value) {
+              void callback(value)
+            }
+            cursor.continue()
+          } else {
+            resolve()
           }
         }
+
+        request.onerror = (event) => reject(event)
       })
     })
   }
 
-  async getMuteDecryptedTags(id: string): Promise<string[][] | null> {
-    await this.initPromise
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        return reject('database not initialized')
-      }
-      const transaction = this.db.transaction(StoreNames.MUTE_DECRYPTED_TAGS, 'readonly')
-      const store = transaction.objectStore(StoreNames.MUTE_DECRYPTED_TAGS)
-      const request = store.get(id)
-
-      request.onsuccess = () => {
-        transaction.commit()
-        resolve((request.result as TValue<string[][]>)?.value)
-      }
-
-      request.onerror = (event) => {
-        transaction.commit()
-        reject(event)
-      }
-    })
-  }
-
-  async putMuteDecryptedTags(id: string, tags: string[][]): Promise<void> {
-    await this.initPromise
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        return reject('database not initialized')
-      }
-      const transaction = this.db.transaction(StoreNames.MUTE_DECRYPTED_TAGS, 'readwrite')
-      const store = transaction.objectStore(StoreNames.MUTE_DECRYPTED_TAGS)
-
-      const putRequest = store.put(this.formatValue(id, tags))
-      putRequest.onsuccess = () => {
-        transaction.commit()
-        resolve()
-      }
-
-      putRequest.onerror = (event) => {
-        transaction.commit()
-        reject(event)
-      }
-    })
-  }
-
-  async iterateProfileEvents(callback: (event: Event) => Promise<void>): Promise<void> {
-    await this.initPromise
-    if (!this.db) {
-      return
-    }
-
-    return new Promise<void>((resolve, reject) => {
-      const transaction = this.db!.transaction(StoreNames.PROFILE_EVENTS, 'readwrite')
-      const store = transaction.objectStore(StoreNames.PROFILE_EVENTS)
-      const request = store.openCursor()
-      request.onsuccess = (event) => {
-        const cursor = (event.target as IDBRequest).result
-        if (cursor) {
-          const value = (cursor.value as TValue<Event>).value
-          if (value) {
-            callback(value)
-          }
-          cursor.continue()
-        } else {
-          transaction.commit()
-          resolve()
-        }
-      }
-
-      request.onerror = (event) => {
-        transaction.commit()
-        reject(event)
-      }
-    })
-  }
-
   async putFollowingFavoriteRelays(pubkey: string, relays: [string, string[]][]): Promise<void> {
-    await this.initPromise
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        return reject('database not initialized')
-      }
-      const transaction = this.db.transaction(StoreNames.FOLLOWING_FAVORITE_RELAYS, 'readwrite')
-      const store = transaction.objectStore(StoreNames.FOLLOWING_FAVORITE_RELAYS)
-
-      const putRequest = store.put(this.formatValue(pubkey, relays))
-      putRequest.onsuccess = () => {
-        transaction.commit()
-        resolve()
-      }
-
-      putRequest.onerror = (event) => {
-        transaction.commit()
-        reject(event)
-      }
-    })
+    return this.writeRecordValue(StoreNames.FOLLOWING_FAVORITE_RELAYS, pubkey, relays)
   }
 
   async getFollowingFavoriteRelays(pubkey: string): Promise<[string, string[]][] | null> {
-    await this.initPromise
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        return reject('database not initialized')
-      }
-      const transaction = this.db.transaction(StoreNames.FOLLOWING_FAVORITE_RELAYS, 'readonly')
-      const store = transaction.objectStore(StoreNames.FOLLOWING_FAVORITE_RELAYS)
-      const request = store.get(pubkey)
-
-      request.onsuccess = () => {
-        transaction.commit()
-        resolve((request.result as TValue<[string, string[]][]>)?.value)
-      }
-
-      request.onerror = (event) => {
-        transaction.commit()
-        reject(event)
-      }
-    })
+    return this.readRecordValue<[string, string[]][]>(StoreNames.FOLLOWING_FAVORITE_RELAYS, pubkey)
   }
 
   async putRelayInfo(relayInfo: TRelayInfo): Promise<void> {
-    await this.initPromise
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        return reject('database not initialized')
-      }
-      const transaction = this.db.transaction(StoreNames.RELAY_INFOS, 'readwrite')
-      const store = transaction.objectStore(StoreNames.RELAY_INFOS)
-
-      const putRequest = store.put(this.formatValue(relayInfo.url, relayInfo))
-      putRequest.onsuccess = () => {
-        transaction.commit()
-        resolve()
-      }
-
-      putRequest.onerror = (event) => {
-        transaction.commit()
-        reject(event)
-      }
-    })
+    return this.writeRecordValue(StoreNames.RELAY_INFOS, relayInfo.url, relayInfo)
   }
 
   async getRelayInfo(url: string): Promise<TRelayInfo | null> {
-    await this.initPromise
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        return reject('database not initialized')
-      }
-      const transaction = this.db.transaction(StoreNames.RELAY_INFOS, 'readonly')
-      const store = transaction.objectStore(StoreNames.RELAY_INFOS)
-      const request = store.get(url)
-
-      request.onsuccess = () => {
-        transaction.commit()
-        resolve((request.result as TValue<TRelayInfo>)?.value)
-      }
-
-      request.onerror = (event) => {
-        transaction.commit()
-        reject(event)
-      }
-    })
+    return this.readRecordValue<TRelayInfo>(StoreNames.RELAY_INFOS, url)
   }
 
   private getReplaceableEventKeyFromEvent(event: Event): string {
@@ -511,164 +270,35 @@ class IndexedDbService {
     return d === undefined ? pubkey : `${pubkey}:${d}`
   }
 
-  private getStoreNameByKind(kind: number): string | undefined {
-    switch (kind) {
-      case kinds.Metadata:
-        return StoreNames.PROFILE_EVENTS
-      case kinds.RelayList:
-        return StoreNames.RELAY_LIST_EVENTS
-      case ExtendedKind.INBOX_RELAYS:
-        return StoreNames.INBOX_RELAY_LIST_EVENTS
-      case kinds.Contacts:
-        return StoreNames.FOLLOW_LIST_EVENTS
-      case kinds.Mutelist:
-        return StoreNames.MUTE_LIST_EVENTS
-      case ExtendedKind.BLOSSOM_SERVER_LIST:
-        return StoreNames.BLOSSOM_SERVER_LIST_EVENTS
-      case kinds.Relaysets:
-        return StoreNames.RELAY_SETS
-      case ExtendedKind.FAVORITE_RELAYS:
-        return StoreNames.FAVORITE_RELAYS
-      case kinds.BookmarkList:
-        return StoreNames.BOOKMARK_LIST_EVENTS
-      case kinds.UserEmojiList:
-        return StoreNames.USER_EMOJI_LIST_EVENTS
-      case kinds.Emojisets:
-        return StoreNames.EMOJI_SET_EVENTS
-      case kinds.Pinlist:
-        return StoreNames.PIN_LIST_EVENTS
-      default:
-        return undefined
-    }
-  }
-
-  private formatValue<T>(key: string, value: T): TValue<T> {
-    return {
-      key,
-      value,
-      addedAt: Date.now()
-    }
-  }
-
   // GIF cache methods
   async putGif(gif: any): Promise<void> {
-    await this.initPromise
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        return reject('database not initialized')
-      }
-      const transaction = this.db.transaction(StoreNames.GIF_CACHE, 'readwrite')
-      const store = transaction.objectStore(StoreNames.GIF_CACHE)
-
-      const putRequest = store.put(gif)
-      putRequest.onsuccess = () => {
-        transaction.commit()
-        resolve()
-      }
-
-      putRequest.onerror = (event) => {
-        transaction.commit()
-        reject(event)
-      }
+    return this.withStore(StoreNames.GIF_CACHE, 'readwrite', async (store) => {
+      await requestPromise(store.put(gif))
     })
   }
 
   async putManyGifs(gifs: any[]): Promise<void> {
     if (gifs.length === 0) return
-    await this.initPromise
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        return reject('database not initialized')
-      }
-      const transaction = this.db.transaction(StoreNames.GIF_CACHE, 'readwrite')
-      const store = transaction.objectStore(StoreNames.GIF_CACHE)
-
-      let completed = 0
-      let hasError = false
-
-      gifs.forEach((gif) => {
-        const putRequest = store.put(gif)
-        putRequest.onsuccess = () => {
-          completed++
-          if (completed === gifs.length) {
-            transaction.commit()
-            resolve()
-          }
-        }
-        putRequest.onerror = () => {
-          if (!hasError) {
-            hasError = true
-            transaction.abort()
-            reject('Error putting GIF')
-          }
-        }
-      })
+    await this.withStore(StoreNames.GIF_CACHE, 'readwrite', async (store) => {
+      await Promise.all(gifs.map((gif) => requestPromise(store.put(gif))))
     })
   }
 
   async getAllGifs(): Promise<any[]> {
-    await this.initPromise
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        return reject('database not initialized')
-      }
-      const transaction = this.db.transaction(StoreNames.GIF_CACHE, 'readonly')
-      const store = transaction.objectStore(StoreNames.GIF_CACHE)
-      const request = store.getAll()
-
-      request.onsuccess = () => {
-        transaction.commit()
-        resolve(request.result || [])
-      }
-
-      request.onerror = (event) => {
-        transaction.commit()
-        reject(event)
-      }
+    return this.withStore(StoreNames.GIF_CACHE, 'readonly', async (store) => {
+      return requestPromise<any[]>(store.getAll()).then((result) => result || [])
     })
   }
 
   async getGifCount(): Promise<number> {
-    await this.initPromise
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        return reject('database not initialized')
-      }
-      const transaction = this.db.transaction(StoreNames.GIF_CACHE, 'readonly')
-      const store = transaction.objectStore(StoreNames.GIF_CACHE)
-      const request = store.count()
-
-      request.onsuccess = () => {
-        transaction.commit()
-        resolve(request.result)
-      }
-
-      request.onerror = (event) => {
-        transaction.commit()
-        reject(event)
-      }
+    return this.withStore(StoreNames.GIF_CACHE, 'readonly', async (store) => {
+      return requestPromise<number>(store.count())
     })
   }
 
   async clearGifCache(): Promise<void> {
-    await this.initPromise
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        return reject('database not initialized')
-      }
-      const transaction = this.db.transaction(StoreNames.GIF_CACHE, 'readwrite')
-      const store = transaction.objectStore(StoreNames.GIF_CACHE)
-      const request = store.clear()
-
-      request.onsuccess = () => {
-        transaction.commit()
-        resolve()
-      }
-
-      request.onerror = (event) => {
-        transaction.commit()
-        reject(event)
-      }
+    return this.withStore(StoreNames.GIF_CACHE, 'readwrite', async (store) => {
+      await requestPromise(store.clear())
     })
   }
 
@@ -730,7 +360,7 @@ class IndexedDbService {
           request.onsuccess = (event) => {
             const cursor = (event.target as IDBRequest).result
             if (cursor) {
-              const value: TValue = cursor.value
+              const value: TIndexedDbRecord = cursor.value
               if (value.addedAt < expirationTimestamp) {
                 cursor.delete()
               }
@@ -749,293 +379,117 @@ class IndexedDbService {
   }
 
   async putTranslatedEvent(eventId: string, targetLanguage: string, translatedEvent: Event) {
-    await this.init()
-    if (!this.db) return
-
-    const key = `${targetLanguage}_${eventId}`
-    const value: TValue<Event> = {
-      key,
-      value: translatedEvent,
-      addedAt: Date.now()
-    }
-
-    return new Promise<void>((resolve, reject) => {
-      const transaction = this.db!.transaction([StoreNames.TRANSLATED_EVENTS], 'readwrite')
-      const store = transaction.objectStore(StoreNames.TRANSLATED_EVENTS)
-      const request = store.put(value)
-
-      request.onsuccess = () => resolve()
-      request.onerror = (event) => reject(event)
-    })
+    return this.writeRecordValue(
+      StoreNames.TRANSLATED_EVENTS,
+      `${targetLanguage}_${eventId}`,
+      translatedEvent
+    )
   }
 
   async getTranslatedEvent(eventId: string, targetLanguage: string): Promise<Event | null> {
-    await this.init()
-    if (!this.db) return null
-
-    const key = `${targetLanguage}_${eventId}`
-
-    return new Promise<Event | null>((resolve, reject) => {
-      const transaction = this.db!.transaction([StoreNames.TRANSLATED_EVENTS], 'readonly')
-      const store = transaction.objectStore(StoreNames.TRANSLATED_EVENTS)
-      const request = store.get(key)
-
-      request.onsuccess = () => {
-        const result: TValue<Event> | undefined = request.result
-        resolve(result?.value ?? null)
-      }
-      request.onerror = (event) => reject(event)
-    })
+    return this.readRecordValue<Event>(StoreNames.TRANSLATED_EVENTS, `${targetLanguage}_${eventId}`)
   }
 
   async getAllTranslatedEvents(): Promise<Map<string, Event>> {
-    await this.init()
-    if (!this.db) return new Map()
-
-    return new Promise<Map<string, Event>>((resolve, reject) => {
-      const transaction = this.db!.transaction([StoreNames.TRANSLATED_EVENTS], 'readonly')
-      const store = transaction.objectStore(StoreNames.TRANSLATED_EVENTS)
-      const request = store.getAll()
-
-      request.onsuccess = () => {
-        const results: TValue<Event>[] = request.result
-        const map = new Map<string, Event>()
-        results.forEach((item) => {
-          if (item.value) {
-            map.set(item.key, item.value)
-          }
-        })
-        resolve(map)
+    const results = await readAllStoredValues<Event>(await this.getDb(), StoreNames.TRANSLATED_EVENTS)
+    const map = new Map<string, Event>()
+    results.forEach((item) => {
+      if (item.value) {
+        map.set(item.key, item.value)
       }
-      request.onerror = (event) => reject(event)
     })
+    return map
   }
 
   async clearOldTranslatedEvents(maxAgeMs: number = 30 * 24 * 60 * 60 * 1000) {
-    await this.init()
-    if (!this.db) return
-
     const expirationTimestamp = Date.now() - maxAgeMs
 
-    return new Promise<void>((resolve, reject) => {
-      const transaction = this.db!.transaction([StoreNames.TRANSLATED_EVENTS], 'readwrite')
-      const store = transaction.objectStore(StoreNames.TRANSLATED_EVENTS)
+    return this.withStore(StoreNames.TRANSLATED_EVENTS, 'readwrite', async (store) => {
       const index = store.index('addedAt')
       const range = IDBKeyRange.upperBound(expirationTimestamp)
-      const request = index.openCursor(range)
-
-      request.onsuccess = (event) => {
-        const cursor = (event.target as IDBRequest).result
-        if (cursor) {
-          cursor.delete()
-          cursor.continue()
-        } else {
-          resolve()
+      await new Promise<void>((resolve, reject) => {
+        const request = index.openCursor(range)
+        request.onsuccess = (event) => {
+          const cursor = (event.target as IDBRequest<IDBCursorWithValue | null>).result
+          if (cursor) {
+            cursor.delete()
+            cursor.continue()
+          } else {
+            resolve()
+          }
         }
-      }
-
-      request.onerror = (event) => {
-        reject(event)
-      }
+        request.onerror = (event) => reject(event)
+      })
     })
   }
 
   async getNoteStats(eventId: string): Promise<Record<string, any> | null> {
-    await this.init()
-    if (!this.db) return null
-
-    return new Promise<Record<string, any> | null>((resolve, reject) => {
-      const transaction = this.db!.transaction([StoreNames.NOTE_STATS], 'readonly')
-      const store = transaction.objectStore(StoreNames.NOTE_STATS)
-      const request = store.get(eventId)
-
-      request.onsuccess = () => {
-        const result: TValue<Record<string, any>> | undefined = request.result
-        resolve(result?.value ?? null)
-      }
-      request.onerror = (event) => reject(event)
-    })
+    return this.readRecordValue<Record<string, any>>(StoreNames.NOTE_STATS, eventId)
   }
 
   async getManyNoteStats(eventIds: readonly string[]): Promise<Map<string, Record<string, any>>> {
-    await this.init()
-    if (!this.db || eventIds.length === 0) return new Map()
+    if (eventIds.length === 0) return new Map()
 
-    return new Promise<Map<string, Record<string, any>>>((resolve, reject) => {
-      const transaction = this.db!.transaction([StoreNames.NOTE_STATS], 'readonly')
-      const store = transaction.objectStore(StoreNames.NOTE_STATS)
-      const map = new Map<string, Record<string, any>>()
-      let count = 0
-
-      eventIds.forEach((eventId) => {
-        const request = store.get(eventId)
-        request.onsuccess = () => {
-          const result: TValue<Record<string, any>> | undefined = request.result
-          if (result?.value) {
-            map.set(eventId, result.value)
-          }
-          if (++count === eventIds.length) {
-            resolve(map)
-          }
-        }
-        request.onerror = () => {
-          if (++count === eventIds.length) {
-            resolve(map)
-          }
-        }
-      })
-
-      transaction.onerror = (event) => reject(event)
+    const values = await this.readManyRecordValues<Record<string, any>>(
+      StoreNames.NOTE_STATS,
+      eventIds as string[]
+    )
+    const map = new Map<string, Record<string, any>>()
+    values.forEach((value, index) => {
+      if (value) {
+        map.set(eventIds[index], value)
+      }
     })
+    return map
   }
 
   async putNoteStats(eventId: string, noteStats: Record<string, any>): Promise<void> {
-    await this.init()
-    if (!this.db) return
-
-    return new Promise<void>((resolve, reject) => {
-      const transaction = this.db!.transaction([StoreNames.NOTE_STATS], 'readwrite')
-      const store = transaction.objectStore(StoreNames.NOTE_STATS)
-      const request = store.put(this.formatValue(eventId, noteStats))
-
-      request.onsuccess = () => resolve()
-      request.onerror = (event) => reject(event)
-    })
+    return this.writeRecordValue(StoreNames.NOTE_STATS, eventId, noteStats)
   }
 
   async putManyNoteStats(entries: { eventId: string; noteStats: Record<string, any> }[]): Promise<void> {
-    if (entries.length === 0) return
-    await this.init()
-    if (!this.db) return
-
-    return new Promise<void>((resolve, reject) => {
-      const transaction = this.db!.transaction([StoreNames.NOTE_STATS], 'readwrite')
-      const store = transaction.objectStore(StoreNames.NOTE_STATS)
-      let completed = 0
-      let hasError = false
-
-      entries.forEach(({ eventId, noteStats }) => {
-        const request = store.put(this.formatValue(eventId, noteStats))
-        request.onsuccess = () => {
-          completed += 1
-          if (completed === entries.length) {
-            resolve()
-          }
-        }
-        request.onerror = (event) => {
-          if (!hasError) {
-            hasError = true
-            reject(event)
-          }
-        }
-      })
-    })
+    return this.writeManyRecordValues(
+      StoreNames.NOTE_STATS,
+      entries.map(({ eventId, noteStats }) => ({ key: eventId, value: noteStats }))
+    )
   }
 
   async getRecentFeed(key: string): Promise<Event[] | null> {
-    await this.init()
-    if (!this.db) return null
-
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([StoreNames.RECENT_FEEDS], 'readonly')
-      const store = transaction.objectStore(StoreNames.RECENT_FEEDS)
-      const request = store.get(key)
-
-      request.onsuccess = () => {
-        const result = request.result as TValue<Event[]> | undefined
-        resolve(result?.value ?? null)
-      }
-
-      request.onerror = (event) => reject(event)
-    })
+    return this.readRecordValue<Event[]>(StoreNames.RECENT_FEEDS, key)
   }
 
   async putRecentFeed(key: string, events: Event[]): Promise<void> {
-    if (events.length === 0) return
-    await this.init()
-    if (!this.db) return
-
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([StoreNames.RECENT_FEEDS], 'readwrite')
-      const store = transaction.objectStore(StoreNames.RECENT_FEEDS)
-      const request = store.put(this.formatValue(key, events))
-
-      request.onsuccess = () => resolve()
-      request.onerror = (event) => reject(event)
-    })
+    return this.writeRecordValue(StoreNames.RECENT_FEEDS, key, events)
   }
 
   async getManyLastActivity(
     pubkeys: readonly string[]
   ): Promise<Map<string, { lastPostTimestamp: number | null; checkedAt: number }>> {
-    await this.init()
-    if (!this.db || pubkeys.length === 0) return new Map()
+    if (pubkeys.length === 0) return new Map()
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([StoreNames.LAST_ACTIVITY], 'readonly')
-      const store = transaction.objectStore(StoreNames.LAST_ACTIVITY)
-      const result = new Map<string, { lastPostTimestamp: number | null; checkedAt: number }>()
-      let count = 0
-
-      pubkeys.forEach((pubkey) => {
-        const request = store.get(pubkey)
-        request.onsuccess = () => {
-          const record = request.result as TValue<{
-            lastPostTimestamp: number | null
-            checkedAt: number
-          }> | undefined
-          if (record?.value) {
-            result.set(pubkey, record.value)
-          }
-          if (++count === pubkeys.length) {
-            resolve(result)
-          }
-        }
-        request.onerror = () => {
-          if (++count === pubkeys.length) {
-            resolve(result)
-          }
-        }
-      })
-
-      transaction.onerror = (event) => reject(event)
+    const values = await this.readManyRecordValues<{
+      lastPostTimestamp: number | null
+      checkedAt: number
+    }>(StoreNames.LAST_ACTIVITY, pubkeys as string[])
+    const result = new Map<string, { lastPostTimestamp: number | null; checkedAt: number }>()
+    values.forEach((value, index) => {
+      if (value) {
+        result.set(pubkeys[index], value)
+      }
     })
+    return result
   }
 
   async putManyLastActivity(
     entries: { pubkey: string; lastPostTimestamp: number | null; checkedAt: number }[]
   ): Promise<void> {
-    if (entries.length === 0) return
-    await this.init()
-    if (!this.db) return
-
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([StoreNames.LAST_ACTIVITY], 'readwrite')
-      const store = transaction.objectStore(StoreNames.LAST_ACTIVITY)
-      let completed = 0
-      let hasError = false
-
-      entries.forEach(({ pubkey, lastPostTimestamp, checkedAt }) => {
-        const request = store.put(
-          this.formatValue(pubkey, {
-            lastPostTimestamp,
-            checkedAt
-          })
-        )
-        request.onsuccess = () => {
-          completed += 1
-          if (completed === entries.length) {
-            resolve()
-          }
-        }
-        request.onerror = (event) => {
-          if (!hasError) {
-            hasError = true
-            reject(event)
-          }
-        }
-      })
-    })
+    return this.writeManyRecordValues(
+      StoreNames.LAST_ACTIVITY,
+      entries.map(({ pubkey, lastPostTimestamp, checkedAt }) => ({
+        key: pubkey,
+        value: { lastPostTimestamp, checkedAt }
+      }))
+    )
   }
 }
 

@@ -66,6 +66,12 @@ const INTEREST_ICON_MAP = {
 
 type SignupProfileStep = 'identity' | 'photo' | 'bio' | 'interests' | 'loading'
 
+export type TSignupKeys = {
+  pubkey: string
+  nsec: string
+  npub: string
+}
+
 export type TSignupProfileResult = {
   pubkey: string
   keys: { nsec: string; npub: string }
@@ -73,7 +79,7 @@ export type TSignupProfileResult = {
   interestsFeed: TCustomFeed
 }
 
-function createSignupKeys() {
+export function createSignupKeys(): TSignupKeys {
   const sk = generateSecretKey()
   const nsec = nsecEncode(sk)
   const pubkey = getPublicKey(sk)
@@ -85,11 +91,13 @@ function createSignupKeys() {
 export default function SignupProfile({
   back,
   onProfileComplete,
-  inviterPubkey
+  inviterPubkey,
+  signupKeys
 }: {
   back: () => void
   onProfileComplete: (result: TSignupProfileResult) => Promise<void> | void
   inviterPubkey?: string
+  signupKeys: TSignupKeys
 }) {
   const { t } = useTranslation()
   const { nsecLogin, publish, updateProfileEvent } = useNostr()
@@ -102,7 +110,6 @@ export default function SignupProfile({
   const [selectedInterests, setSelectedInterests] = useState<TInterestCategoryId[]>([])
   const [hasCustomizedHandle, setHasCustomizedHandle] = useState(false)
   const [isPreparingAccount, setIsPreparingAccount] = useState(false)
-  const [generatedKeys] = useState(createSignupKeys)
   const signupAccountReadyRef = useRef(false)
   const signupAccountPromiseRef = useRef<Promise<void> | null>(null)
 
@@ -115,7 +122,7 @@ export default function SignupProfile({
       signupAccountPromiseRef.current = (async () => {
         setIsPreparingAccount(true)
         try {
-          await nsecLogin(generatedKeys.nsec, '', true)
+          await nsecLogin(signupKeys.nsec, '', true)
           await vanityAddress.registerSignupEligibility().catch((error) => {
             console.warn('Failed to register vanity eligibility during signup:', error)
           })
@@ -136,11 +143,11 @@ export default function SignupProfile({
     }
 
     await signupAccountPromiseRef.current
-  }, [generatedKeys.nsec, nsecLogin])
+  }, [nsecLogin, signupKeys.nsec])
 
   const generatedAvatar = useMemo(() => {
-    return generateImageByPubkey(generatedKeys.pubkey)
-  }, [generatedKeys])
+    return generateImageByPubkey(signupKeys.pubkey)
+  }, [signupKeys.pubkey])
 
   const continueFromIdentity = () => {
     if (!displayName.trim()) {
@@ -158,48 +165,42 @@ export default function SignupProfile({
     )
   }
 
-  const publishProfileInBackground = () => {
+  const publishProfile = async () => {
     const trimmedDisplayName = displayName.trim()
     const normalizedHandle = formatHandleValue(username)
     const trimmedAbout = about.trim()
 
-    void (async () => {
-      try {
-        const profileContent: Record<string, unknown> = {}
+    const profileContent: Record<string, unknown> = {}
 
-        if (trimmedDisplayName) {
-          profileContent.display_name = trimmedDisplayName
-          profileContent.displayName = trimmedDisplayName
-        }
+    if (trimmedDisplayName) {
+      profileContent.display_name = trimmedDisplayName
+      profileContent.displayName = trimmedDisplayName
+    }
 
-        if (normalizedHandle || trimmedDisplayName) {
-          profileContent.name = normalizedHandle || trimmedDisplayName
-        }
+    if (normalizedHandle || trimmedDisplayName) {
+      profileContent.name = normalizedHandle || trimmedDisplayName
+    }
 
-        if (trimmedAbout) {
-          profileContent.about = trimmedAbout
-        }
+    if (trimmedAbout) {
+      profileContent.about = trimmedAbout
+    }
 
-        if (avatar) {
-          profileContent.picture = avatar
-        }
+    if (avatar) {
+      profileContent.picture = avatar
+    }
 
-        if (inviterPubkey) {
-          profileContent.joined_through = inviterPubkey
-          profileContent.joined_at = Math.floor(Date.now() / 1000)
-        }
+    if (inviterPubkey) {
+      profileContent.joined_through = inviterPubkey
+      profileContent.joined_at = Math.floor(Date.now() / 1000)
+    }
 
-        if (Object.keys(profileContent).length === 0) {
-          return
-        }
+    if (Object.keys(profileContent).length === 0) {
+      return
+    }
 
-        const profileDraftEvent = createProfileDraftEvent(JSON.stringify(profileContent))
-        const newProfileEvent = await publish(profileDraftEvent)
-        await updateProfileEvent(newProfileEvent)
-      } catch (error) {
-        console.error('Failed to create profile:', error)
-      }
-    })()
+    const profileDraftEvent = createProfileDraftEvent(JSON.stringify(profileContent))
+    const newProfileEvent = await publish(profileDraftEvent)
+    await updateProfileEvent(newProfileEvent)
   }
 
   const finishOnboarding = async () => {
@@ -209,18 +210,16 @@ export default function SignupProfile({
 
     const normalizedDisplayName = displayName.trim()
     const normalizedHandle = formatHandleValue(username)
-    const interestsFeed = createInterestsCustomFeed(
-      buildInterestsFeedHashtags(selectedInterests)
-    )
+    const interestsFeed = createInterestsCustomFeed(buildInterestsFeedHashtags(selectedInterests))
 
     setStep('loading')
     try {
       await ensureSignupAccountReady()
-      publishProfileInBackground()
+      await publishProfile()
 
       await onProfileComplete({
-        pubkey: generatedKeys.pubkey,
-        keys: { nsec: generatedKeys.nsec, npub: generatedKeys.npub },
+        pubkey: signupKeys.pubkey,
+        keys: { nsec: signupKeys.nsec, npub: signupKeys.npub },
         profile: {
           displayName: normalizedDisplayName,
           username: normalizedHandle
@@ -352,15 +351,10 @@ export default function SignupProfile({
                   <Loader className="animate-spin text-white" size={20} />
                 </div>
               ) : (
-                <div className="absolute inset-0 hidden items-center justify-center rounded-full bg-black/35 opacity-0 transition-opacity group-hover:flex group-hover:opacity-100">
-                  <Upload className="text-white" size={20} />
+                <div className="absolute bottom-1.5 right-1.5 flex size-9 items-center justify-center rounded-full border border-white/15 bg-black/70 text-white shadow-lg transition-transform group-hover:scale-105">
+                  <Upload size={16} />
                 </div>
               )}
-              {!avatar && !uploadingAvatar && !isPreparingAccount ? (
-                <div className="absolute inset-x-0 bottom-0 bg-background/92 px-3 py-2 text-center text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground backdrop-blur-sm">
-                  Add photo
-                </div>
-              ) : null}
             </div>
           </Uploader>
           <p className="max-w-xs text-center text-xs text-muted-foreground">

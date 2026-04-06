@@ -2,7 +2,7 @@ import aiService, { DEFAULT_AI_MODEL } from '@/services/ai.service'
 import storage from '@/services/local-storage.service'
 import { TAIProviderConfig, TAIServiceConfig, TArticleSummary, TAIMessage } from '@/types'
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
-import { useNostr } from './NostrProvider'
+import { useNostr } from '@/providers/NostrProvider'
 
 type TAIContext = {
   serviceConfig: TAIServiceConfig
