@@ -114,7 +114,11 @@ export function useFetchLastActivity(pubkeys: string[], enabled: boolean = false
           // This is more reliable than batching with a limit
           const fetchPromises = batch.map(async (pubkey) => {
             try {
-              const events = await client.fetchEvents([], {
+              const relayUrls = await client.resolveAuthorOutboxRelayUrls([pubkey], {
+                authorRelayLimit: 4,
+                maxRelayCount: 6
+              })
+              const events = await client.fetchEvents(relayUrls, {
                 kinds: [1, 6],
                 authors: [pubkey],
                 limit: 1 // We only need the most recent event

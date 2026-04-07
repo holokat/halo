@@ -8,7 +8,12 @@ import {
   isReplaceableEvent
 } from '@/lib/event'
 import { BoundedMap } from '@/lib/bounded-map'
-import { getInboxRelayUrlsFromEvent, getProfileFromEvent, getRelayListFromEvent } from '@/lib/event-metadata'
+import {
+  getInboxRelayUrlsFromEvent,
+  getProfileFromEvent,
+  getRelayListFromContactListEvent,
+  getRelayListFromEvent
+} from '@/lib/event-metadata'
 import { getLiveStreamTagValue, LIVE_STREAM_RELAYS } from '@/lib/live-stream'
 import { formatPubkey, isValidPubkey, pubkeyToNpub, userIdToPubkey } from '@/lib/pubkey'
 import { getPubkeysFromPTags, getServersFromServerTags, tagNameEquals } from '@/lib/tag'
@@ -31,7 +36,14 @@ import {
   TIMELINE_CACHE_MAX,
   TTimeline
 } from '@/services/client/timeline'
-import { ISigner, TProfile, TPublishOptions, TRelayList, TSubRequestFilter } from '@/types'
+import {
+  ISigner,
+  TFeedSubRequest,
+  TProfile,
+  TPublishOptions,
+  TRelayList,
+  TSubRequestFilter
+} from '@/types'
 import DataLoader from 'dataloader'
 import dayjs from 'dayjs'
 import FlexSearch from 'flexsearch'
@@ -52,6 +64,22 @@ const EVENT_PROMISE_CACHE_MAX = 4000
 const LIVE_STREAM_CACHE_MAX = 256
 const METADATA_QUERY_TIMEOUT_MS = 2500
 const METADATA_QUERY_EOSE_THRESHOLD = 0.5
+const OUTBOX_AUTHOR_RELAY_LIMIT = 4
+const OUTBOX_SAFARI_RELAY_LIMIT = 10
+const OUTBOX_DISCOVERY_RELAY_LIMIT = 16
+const OUTBOX_DISCOVERY_TIMEOUT_MS = 3000
+const OUTBOX_DISCOVERY_EOSE_THRESHOLD = 0.5
+
+type TAuthorRelayResolutionOptions = {
+  authorRelayLimit?: number
+  maxRelayCount?: number
+  relayHintsByPubkey?: Map<string, string[]>
+}
+
+type TRelayListLookupOptions = {
+  refresh?: boolean
+  relayHintsByPubkey?: Map<string, string[]>
+}
 
 class ClientService extends EventTarget {
   static instance: ClientService
@@ -852,11 +880,17 @@ class ClientService extends EventTarget {
   private async _fetchFollowingFavoriteRelays(pubkey: string) {
     const fetchNewData = async () => {
       const followings = await this.fetchFollowings(pubkey)
-      const events = await this.fetchEvents(BIG_RELAY_URLS, {
-        authors: followings,
-        kinds: [ExtendedKind.FAVORITE_RELAYS, kinds.Relaysets],
-        limit: 1000
+      const subRequests = await this.buildAuthorOutboxSubRequests(followings, {
+        filter: {
+          kinds: [ExtendedKind.FAVORITE_RELAYS, kinds.Relaysets],
+          limit: 1000
+        }
       })
+      const events = (
+        await Promise.all(
+          subRequests.map((subRequest) => this.fetchEvents(subRequest.urls, subRequest.filter))
+        )
+      ).flat()
       const alreadyExistsFavoriteRelaysPubkeySet = new Set<string>()
       const alreadyExistsRelaySetsPubkeySet = new Set<string>()
       const uniqueEvents: NEvent[] = []
@@ -1042,11 +1076,270 @@ class ClientService extends EventTarget {
     return null
   }
 
+  private getDefaultOutboxRelayList(): TRelayList {
+    return {
+      write: BIG_RELAY_URLS,
+      read: BIG_RELAY_URLS,
+      originalRelays: []
+    }
+  }
+
+  private normalizeRelayUrls(relayUrls: readonly string[]) {
+    const normalizedRelayUrls: string[] = []
+
+    relayUrls.forEach((relayUrl) => {
+      const normalizedRelayUrl = normalizeUrl(relayUrl)
+      if (!normalizedRelayUrl || normalizedRelayUrls.includes(normalizedRelayUrl)) {
+        return
+      }
+      normalizedRelayUrls.push(normalizedRelayUrl)
+    })
+
+    return normalizedRelayUrls
+  }
+
+  private buildOutboxDiscoveryRelayUrls(
+    pubkeys: readonly string[],
+    relayHintsByPubkey?: Map<string, string[]>
+  ) {
+    const relayScoreMap = new Map<string, number>()
+
+    const addRelayUrls = (relayUrls: readonly string[], baseScore: number, limit = relayUrls.length) => {
+      this.normalizeRelayUrls(relayUrls)
+        .slice(0, limit)
+        .forEach((relayUrl, index) => {
+          relayScoreMap.set(relayUrl, (relayScoreMap.get(relayUrl) ?? 0) + Math.max(1, baseScore - index))
+        })
+    }
+
+    pubkeys.forEach((pubkey) => {
+      addRelayUrls(relayHintsByPubkey?.get(pubkey) ?? [], 320, 4)
+    })
+
+    addRelayUrls(this._preferredReadRelays, 220, 6)
+    addRelayUrls(this._favoriteRelays, 180, 6)
+    addRelayUrls(this.pool.getTrackedRelayUrls(), 140, 8)
+    addRelayUrls(BIG_RELAY_URLS, 100, BIG_RELAY_URLS.length)
+
+    return Array.from(relayScoreMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([relayUrl]) => relayUrl)
+      .slice(0, OUTBOX_DISCOVERY_RELAY_LIMIT)
+  }
+
+  private async fetchRelayListLookupResults(
+    pubkeys: string[],
+    { refresh = false, relayHintsByPubkey }: TRelayListLookupOptions = {}
+  ) {
+    const uniquePubkeys = Array.from(
+      new Set(pubkeys.filter((pubkey) => !!pubkey && isValidPubkey(pubkey)))
+    )
+    const relayListEventMap = new Map<string, NEvent>()
+    const contactEventMap = new Map<string, NEvent>()
+
+    if (uniquePubkeys.length === 0) {
+      return { pubkeys: [], relayLists: [], relayListEvents: [] }
+    }
+
+    const upsertLatestEvent = (target: Map<string, NEvent>, event: NEvent) => {
+      const existing = target.get(event.pubkey)
+      if (!existing || existing.created_at < event.created_at) {
+        target.set(event.pubkey, event)
+      }
+    }
+
+    const storedRelayListEvents = await indexedDb.getManyReplaceableEvents(uniquePubkeys, kinds.RelayList)
+    storedRelayListEvents.forEach((event) => {
+      if (event) {
+        relayListEventMap.set(event.pubkey, event)
+      }
+    })
+
+    const pubkeysMissingRelayList = uniquePubkeys.filter((pubkey) => !relayListEventMap.has(pubkey))
+    if (pubkeysMissingRelayList.length > 0) {
+      const storedContactEvents = await indexedDb.getManyReplaceableEvents(
+        pubkeysMissingRelayList,
+        kinds.Contacts
+      )
+      storedContactEvents.forEach((event) => {
+        if (event) {
+          contactEventMap.set(event.pubkey, event)
+        }
+      })
+    }
+
+    const pubkeysToRefresh = refresh
+      ? uniquePubkeys
+      : uniquePubkeys.filter((pubkey) => !relayListEventMap.has(pubkey))
+
+    if (pubkeysToRefresh.length > 0) {
+      const discoveryRelayUrls = this.buildOutboxDiscoveryRelayUrls(pubkeysToRefresh, relayHintsByPubkey)
+
+      if (discoveryRelayUrls.length > 0) {
+        const events = await this.query(
+          discoveryRelayUrls,
+          {
+            authors: pubkeysToRefresh,
+            kinds: [kinds.RelayList, kinds.Contacts]
+          },
+          undefined,
+          {
+            timeoutMs: OUTBOX_DISCOVERY_TIMEOUT_MS,
+            eoseThreshold: OUTBOX_DISCOVERY_EOSE_THRESHOLD
+          }
+        ).catch(() => [])
+
+        events.forEach((event) => {
+          if (event.kind === kinds.RelayList) {
+            upsertLatestEvent(relayListEventMap, event)
+            return
+          }
+
+          if (event.kind === kinds.Contacts) {
+            upsertLatestEvent(contactEventMap, event)
+          }
+        })
+      }
+    }
+
+    await Promise.allSettled([
+      ...Array.from(relayListEventMap.values()).map((event) => indexedDb.putReplaceableEvent(event)),
+      ...Array.from(contactEventMap.entries())
+        .filter(([pubkey]) => !relayListEventMap.has(pubkey))
+        .map(([, event]) => indexedDb.putReplaceableEvent(event))
+    ])
+
+    return {
+      pubkeys: uniquePubkeys,
+      relayLists: uniquePubkeys.map((pubkey) => {
+        const relayListEvent = relayListEventMap.get(pubkey)
+        if (relayListEvent) {
+          return getRelayListFromEvent(relayListEvent)
+        }
+
+        const contactEvent = contactEventMap.get(pubkey)
+        if (contactEvent) {
+          return getRelayListFromContactListEvent(contactEvent)
+        }
+
+        return this.getDefaultOutboxRelayList()
+      }),
+      relayListEvents: uniquePubkeys.map((pubkey) => relayListEventMap.get(pubkey) ?? null)
+    }
+  }
+
+  async ensureAuthorRelayLists(
+    pubkeys: string[],
+    options: TRelayListLookupOptions = {}
+  ): Promise<TRelayList[]> {
+    const { relayLists } = await this.fetchRelayListLookupResults(pubkeys, options)
+    return relayLists
+  }
+
+  async resolveAuthorOutboxRelayUrls(
+    pubkeys: string[],
+    {
+      authorRelayLimit = OUTBOX_AUTHOR_RELAY_LIMIT,
+      maxRelayCount = OUTBOX_DISCOVERY_RELAY_LIMIT,
+      relayHintsByPubkey
+    }: TAuthorRelayResolutionOptions = {}
+  ) {
+    const uniquePubkeys = Array.from(
+      new Set(pubkeys.filter((pubkey) => !!pubkey && isValidPubkey(pubkey)))
+    )
+    if (uniquePubkeys.length === 0) {
+      return BIG_RELAY_URLS
+    }
+
+    const relayLists = await this.ensureAuthorRelayLists(uniquePubkeys, { relayHintsByPubkey })
+    const relayScoreMap = new Map<string, number>()
+
+    const addRelayUrls = (relayUrls: readonly string[], baseScore: number, limit = relayUrls.length) => {
+      this.normalizeRelayUrls(relayUrls)
+        .slice(0, limit)
+        .forEach((relayUrl, index) => {
+          relayScoreMap.set(relayUrl, (relayScoreMap.get(relayUrl) ?? 0) + Math.max(1, baseScore - index))
+        })
+    }
+
+    uniquePubkeys.forEach((pubkey, index) => {
+      addRelayUrls(relayHintsByPubkey?.get(pubkey) ?? [], 260, 4)
+      addRelayUrls(relayLists[index]?.write ?? [], 200, authorRelayLimit)
+    })
+
+    const relayUrls = Array.from(relayScoreMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([relayUrl]) => relayUrl)
+      .slice(0, maxRelayCount)
+
+    return relayUrls.length > 0 ? relayUrls : BIG_RELAY_URLS
+  }
+
+  async buildAuthorOutboxSubRequests(
+    pubkeys: string[],
+    {
+      authorRelayLimit = OUTBOX_AUTHOR_RELAY_LIMIT,
+      relayHintsByPubkey,
+      filter = {}
+    }: TAuthorRelayResolutionOptions & { filter?: Omit<Filter, 'authors'> } = {}
+  ): Promise<TFeedSubRequest[]> {
+    const uniquePubkeys = Array.from(
+      new Set(pubkeys.filter((pubkey) => !!pubkey && isValidPubkey(pubkey)))
+    )
+    if (uniquePubkeys.length === 0) {
+      return []
+    }
+
+    if (isSafari()) {
+      const urls = await this.resolveAuthorOutboxRelayUrls(uniquePubkeys, {
+        authorRelayLimit: 2,
+        maxRelayCount: OUTBOX_SAFARI_RELAY_LIMIT,
+        relayHintsByPubkey
+      })
+      return [{ urls, filter: { ...filter, authors: uniquePubkeys } }]
+    }
+
+    const relayLists = await this.ensureAuthorRelayLists(uniquePubkeys, { relayHintsByPubkey })
+    const group: Record<string, Set<string>> = {}
+    relayLists.forEach((relayList, index) => {
+      relayList.write.slice(0, authorRelayLimit).forEach((relayUrl) => {
+        if (!group[relayUrl]) {
+          group[relayUrl] = new Set()
+        }
+        group[relayUrl].add(uniquePubkeys[index])
+      })
+    })
+
+    const relayCount = Object.keys(group).length
+    const coveredCount = new Map<string, number>()
+    Object.entries(group)
+      .sort(([, a], [, b]) => b.size - a.size)
+      .forEach(([relayUrl, authors]) => {
+        if (
+          relayCount > 10 &&
+          authors.size < 10 &&
+          Array.from(authors).every((pubkey) => (coveredCount.get(pubkey) ?? 0) >= 2)
+        ) {
+          delete group[relayUrl]
+          return
+        }
+
+        authors.forEach((pubkey) => {
+          coveredCount.set(pubkey, (coveredCount.get(pubkey) ?? 0) + 1)
+        })
+      })
+
+    return Object.entries(group).map(([relayUrl, authors]) => ({
+      urls: [relayUrl],
+      filter: { ...filter, authors: Array.from(authors) }
+    }))
+  }
+
   /** =========== Relay list =========== */
 
-  async fetchRelayListEvent(pubkey: string) {
-    const [relayEvent] = await this.fetchReplaceableEventsFromBigRelays([pubkey], kinds.RelayList)
-    return relayEvent ?? null
+  async fetchRelayListEvent(pubkey: string, options: TRelayListLookupOptions = {}) {
+    const { relayListEvents } = await this.fetchRelayListLookupResults([pubkey], options)
+    return relayListEvents[0] ?? null
   }
 
   async fetchInboxRelayListEvent(pubkey: string) {
@@ -1057,8 +1350,8 @@ class ClientService extends EventTarget {
     return relayEvent ?? null
   }
 
-  async fetchRelayList(pubkey: string): Promise<TRelayList> {
-    const [relayList] = await this.fetchRelayLists([pubkey])
+  async fetchRelayList(pubkey: string, options: TRelayListLookupOptions = {}): Promise<TRelayList> {
+    const [relayList] = await this.fetchRelayLists([pubkey], options)
     return relayList
   }
 
@@ -1110,19 +1403,11 @@ class ClientService extends EventTarget {
     return latestRelayEvent
   }
 
-  async fetchRelayLists(pubkeys: string[]): Promise<TRelayList[]> {
-    const relayEvents = await this.fetchReplaceableEventsFromBigRelays(pubkeys, kinds.RelayList)
-
-    return relayEvents.map((event) => {
-      if (event) {
-        return getRelayListFromEvent(event)
-      }
-      return {
-        write: BIG_RELAY_URLS,
-        read: BIG_RELAY_URLS,
-        originalRelays: []
-      }
-    })
+  async fetchRelayLists(
+    pubkeys: string[],
+    options: TRelayListLookupOptions = {}
+  ): Promise<TRelayList[]> {
+    return this.ensureAuthorRelayLists(pubkeys, options)
   }
 
   async fetchInboxRelayLists(pubkeys: string[]): Promise<string[][]> {
@@ -1135,7 +1420,7 @@ class ClientService extends EventTarget {
   }
 
   async forceUpdateRelayListEvent(pubkey: string) {
-    await this.replaceableEventBatchLoadFn([{ pubkey, kind: kinds.RelayList }])
+    await this.fetchRelayListEvent(pubkey, { refresh: true })
   }
 
   async forceUpdateInboxRelayListEvent(pubkey: string) {
@@ -1144,6 +1429,7 @@ class ClientService extends EventTarget {
 
   async updateRelayListCache(event: NEvent) {
     await this.updateReplaceableEventFromBigRelaysCache(event)
+    this.replaceableEventCacheMap.set(getReplaceableCoordinate(event.kind, event.pubkey), event)
   }
 
   async updateInboxRelayListCache(event: NEvent) {
@@ -1321,7 +1607,11 @@ class ClientService extends EventTarget {
                 }
               : { authors: [pubkey], kinds: [kind] }) as Filter
         )
-        const events = await this.query(BIG_RELAY_URLS, filters)
+        const relayUrls = await this.resolveAuthorOutboxRelayUrls([pubkey], {
+          authorRelayLimit: 6,
+          maxRelayCount: 8
+        })
+        const events = await this.query(relayUrls, filters)
 
         for (const event of events) {
           const key = getReplaceableCoordinateFromEvent(event)
@@ -1408,7 +1698,11 @@ class ClientService extends EventTarget {
   }
 
   async fetchStarterPackEvents(pubkey: string) {
-    const events = await this.querySync(BIG_RELAY_URLS, {
+    const relayUrls = await this.resolveAuthorOutboxRelayUrls([pubkey], {
+      authorRelayLimit: 6,
+      maxRelayCount: 8
+    })
+    const events = await this.querySync(relayUrls, {
       kinds: [ExtendedKind.STARTER_PACK],
       authors: [pubkey]
     })
@@ -1440,51 +1734,8 @@ class ClientService extends EventTarget {
 
   // ================= Utils =================
 
-  async generateSubRequestsForPubkeys(pubkeys: string[], myPubkey?: string | null) {
-    // If many websocket connections are initiated simultaneously, it will be
-    // very slow on Safari (for unknown reason)
-    if (isSafari()) {
-      let urls = BIG_RELAY_URLS
-      if (myPubkey) {
-        const relayList = await this.fetchRelayList(myPubkey)
-        urls = relayList.read.concat(BIG_RELAY_URLS).slice(0, 5)
-      }
-      return [{ urls, filter: { authors: pubkeys } }]
-    }
-
-    const relayLists = await this.fetchRelayLists(pubkeys)
-    const group: Record<string, Set<string>> = {}
-    relayLists.forEach((relayList, index) => {
-      relayList.write.slice(0, 4).forEach((url) => {
-        if (!group[url]) {
-          group[url] = new Set()
-        }
-        group[url].add(pubkeys[index])
-      })
-    })
-
-    const relayCount = Object.keys(group).length
-    const coveredCount = new Map<string, number>()
-    Object.entries(group)
-      .sort(([, a], [, b]) => b.size - a.size)
-      .forEach(([url, pubkeys]) => {
-        if (
-          relayCount > 10 &&
-          pubkeys.size < 10 &&
-          Array.from(pubkeys).every((pubkey) => (coveredCount.get(pubkey) ?? 0) >= 2)
-        ) {
-          delete group[url]
-        } else {
-          pubkeys.forEach((pubkey) => {
-            coveredCount.set(pubkey, (coveredCount.get(pubkey) ?? 0) + 1)
-          })
-        }
-      })
-
-    return Object.entries(group).map(([url, authors]) => ({
-      urls: [url],
-      filter: { authors: Array.from(authors) }
-    }))
+  async generateSubRequestsForPubkeys(pubkeys: string[], _myPubkey?: string | null) {
+    return this.buildAuthorOutboxSubRequests(pubkeys)
   }
 }
 

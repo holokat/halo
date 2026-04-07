@@ -1,7 +1,7 @@
 import { BIG_RELAY_URLS } from '@/constants'
 import { Filter, kinds } from 'nostr-tools'
 
-type TRelayListLike = { read: string[] }
+type TRelayListLike = { read: string[]; write: string[] }
 
 export function buildNoteStatsBatchFilters(
   eventIds: Set<string>,
@@ -63,7 +63,7 @@ export function pickNoteStatsRelayUrls(
   })
 
   relayLists.forEach((relayList) => {
-    relayList.read.slice(0, 4).forEach((relayUrl, index) => {
+    relayList.write.slice(0, 4).forEach((relayUrl, index) => {
       relayScoreMap.set(relayUrl, (relayScoreMap.get(relayUrl) ?? 0) + (10 - index))
     })
   })

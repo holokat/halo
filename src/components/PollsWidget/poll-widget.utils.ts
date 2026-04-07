@@ -156,30 +156,26 @@ export function formatPollStatusLabel(
 }
 
 export async function resolvePollWidgetRelays(followings: string[]) {
-  const relaySet = new Set<string>(BIG_RELAY_URLS)
-
   try {
-    const relayLists = await client.fetchRelayLists(followings)
-    relayLists.forEach((relayList) => {
-      relayList.read.slice(0, RELAYS_PER_AUTHOR).forEach((relay) => {
-        const normalizedRelay = relay ? relay.toString() : ''
-        if (normalizedRelay) {
-          relaySet.add(normalizedRelay)
-        }
-      })
+    return await client.resolveAuthorOutboxRelayUrls(followings, {
+      authorRelayLimit: RELAYS_PER_AUTHOR,
+      maxRelayCount: MAX_POLL_WIDGET_RELAYS
     })
   } catch (error) {
     console.error('Failed to resolve poll widget relays:', error)
+    return BIG_RELAY_URLS
   }
-
-  return Array.from(relaySet).slice(0, MAX_POLL_WIDGET_RELAYS)
 }
 
 export async function ensurePollRelays(creator: string, poll: { relayUrls: string[] }) {
   const relays = poll.relayUrls.slice(0, 4)
   if (!relays.length) {
-    const relayList = await client.fetchRelayList(creator)
-    relays.push(...relayList.read.slice(0, 4))
+    relays.push(
+      ...(await client.resolveAuthorOutboxRelayUrls([creator], {
+        authorRelayLimit: 4,
+        maxRelayCount: 4
+      }))
+    )
   }
   return relays.length ? relays : BIG_RELAY_URLS
 }

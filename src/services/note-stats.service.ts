@@ -344,11 +344,11 @@ class NoteStatsService {
         }
       })
 
-      let relayLists: { read: string[] }[] = []
+      let relayLists: { read: string[]; write: string[] }[] = []
       try {
         relayLists = await Promise.race([
           client.fetchRelayLists(Array.from(authors)),
-          new Promise<{ read: string[] }[]>((resolve) => {
+          new Promise<{ read: string[]; write: string[] }[]>((resolve) => {
             setTimeout(() => resolve([]), NOTE_STATS_RELAY_LIST_TIMEOUT_MS)
           })
         ])

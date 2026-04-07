@@ -24,6 +24,10 @@ export class SmartPool extends SimplePool {
     return super.ensureRelay(url, { connectionTimeout: DEFAULT_CONNECTION_TIMEOUT })
   }
 
+  getTrackedRelayUrls() {
+    return Array.from(this.relays.keys())
+  }
+
   private cleanIdleRelays() {
     const idleRelays: string[] = []
     this.relays.forEach((relay, url) => {

@@ -43,7 +43,11 @@ export function useFetchGallery(pubkey?: string, dTag: string = 'gallery') {
 
         // Fetch the gallery list (kind 30001)
         const listFilter = galleryService.createGalleryListFilter(hexPubkey, dTag)
-        const listEvents = await client.fetchEvents([], listFilter)
+        const listRelayUrls = await client.resolveAuthorOutboxRelayUrls([hexPubkey], {
+          authorRelayLimit: 6,
+          maxRelayCount: 8
+        })
+        const listEvents = await client.fetchEvents(listRelayUrls, listFilter)
 
         console.log('[useFetchGallery] Found list events:', listEvents.length)
 

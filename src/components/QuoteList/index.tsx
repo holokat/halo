@@ -37,10 +37,12 @@ export default function QuoteList({ event, className }: { event: Event; classNam
       setEvents([])
       setHasMore(true)
 
-      const relayList = await client.fetchRelayList(event.pubkey)
-      const relayUrls = relayList.read.concat(BIG_RELAY_URLS)
       const seenOn = client.getSeenEventRelayUrls(event.id)
-      relayUrls.unshift(...seenOn)
+      const relayUrls = await client.resolveAuthorOutboxRelayUrls([event.pubkey], {
+        authorRelayLimit: 6,
+        maxRelayCount: 10,
+        relayHintsByPubkey: new Map([[event.pubkey, seenOn]])
+      })
 
       const { closer, timelineKey } = await client.subscribeTimeline(
         [

@@ -328,8 +328,12 @@ export default function PollsFeed() {
 async function ensurePollRelays(creator: string, poll: { relayUrls: string[] }) {
   const relays = poll.relayUrls.slice(0, 4)
   if (!relays.length) {
-    const relayList = await client.fetchRelayList(creator)
-    relays.push(...relayList.read.slice(0, 4))
+    relays.push(
+      ...(await client.resolveAuthorOutboxRelayUrls([creator], {
+        authorRelayLimit: 4,
+        maxRelayCount: 4
+      }))
+    )
   }
   return relays.length ? relays : BIG_RELAY_URLS
 }

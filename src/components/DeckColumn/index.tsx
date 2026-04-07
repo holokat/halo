@@ -420,15 +420,7 @@ function ReadsContent() {
     }
 
     const init = async () => {
-      const relayList = await client.fetchRelayList(pubkey)
-      setSubRequests([
-        {
-          urls: relayList.read.concat(BIG_RELAY_URLS).slice(0, 8),
-          filter: {
-            authors: followings
-          }
-        }
-      ])
+      setSubRequests(await client.buildAuthorOutboxSubRequests(followings))
     }
 
     init()

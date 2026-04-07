@@ -423,12 +423,8 @@ export function createNostrActions({
     if (storedUserEmojiListEvent) setUserEmojiListEvent(storedUserEmojiListEvent)
     if (storedPinListEvent) setPinListEvent(storedPinListEvent)
 
-    const relayListEvents = await client.fetchEvents(BIG_RELAY_URLS, {
-      kinds: [kinds.RelayList],
-      authors: [account.pubkey]
-    })
-    const relayListEvent = getLatestEvent(relayListEvents) ?? storedRelayListEvent
-    const relayList = getRelayListFromEvent(relayListEvent)
+    const relayList = await client.fetchRelayList(account.pubkey, { refresh: true })
+    const relayListEvent = (await client.fetchRelayListEvent(account.pubkey)) ?? storedRelayListEvent
     if (relayListEvent) {
       client.updateRelayListCache(relayListEvent)
       await indexedDb.putReplaceableEvent(relayListEvent)

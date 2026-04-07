@@ -32,15 +32,7 @@ const ReadsPage = forwardRef((_, ref) => {
     const init = async () => {
       // If logged in and has followings, show articles from people you follow
       if (pubkey && followings.length > 0) {
-        const relayList = await client.fetchRelayList(pubkey)
-        setSubRequests([
-          {
-            urls: relayList.read.concat(BIG_RELAY_URLS).slice(0, 8),
-            filter: {
-              authors: followings
-            }
-          }
-        ])
+        setSubRequests(await client.buildAuthorOutboxSubRequests(followings))
       } else {
         // If not logged in or no followings, show public articles from big relays
         setSubRequests([
