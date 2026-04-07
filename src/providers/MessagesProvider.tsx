@@ -77,7 +77,9 @@ const MESSAGE_SUBSCRIPTION_REPLAY_LIMIT = 200
 const MESSAGE_LOOKUP_READ_RELAYS = 4
 const MESSAGE_LOOKUP_WRITE_RELAYS = 2
 const MESSAGE_DECRYPT_BATCH_SIZE = 24
+const MESSAGE_DECRYPT_TIMEOUT_MS = 8_000
 const MESSAGE_INITIAL_QUERY_TIMEOUT_MS = 12_000
+const MESSAGE_BACKFILL_QUERY_TIMEOUT_MS = 8_000
 
 export const useMessages = () => {
   const context = useContext(MessagesContext)
@@ -144,6 +146,37 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
       return unwrapDirectMessage(wrap, pubkey, decryptRef.current, decryptedMessageCacheRef.current)
     },
     [pubkey]
+  )
+
+  const unwrapDirectMessageWithTimeout = useCallback(
+    async (wrap: Event) => {
+      const timeoutToken = Symbol('dm-decrypt-timeout')
+      let timeoutId: number | undefined
+
+      try {
+        const result = await Promise.race([
+          unwrapDirectMessageWithCache(wrap),
+          new Promise<typeof timeoutToken>((resolve) => {
+            timeoutId = window.setTimeout(() => resolve(timeoutToken), MESSAGE_DECRYPT_TIMEOUT_MS)
+          })
+        ])
+
+        if (result === timeoutToken) {
+          warnDm('Timed out while decrypting DM gift wrap', {
+            wrapId: wrap.id,
+            timeoutMs: MESSAGE_DECRYPT_TIMEOUT_MS
+          })
+          return null
+        }
+
+        return result
+      } finally {
+        if (timeoutId) {
+          window.clearTimeout(timeoutId)
+        }
+      }
+    },
+    [unwrapDirectMessageWithCache]
   )
 
   const publishedInboxRelayUrls = useMemo(() => {
@@ -311,8 +344,22 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
       for (let index = 0; index < wrappedEvents.length; index += MESSAGE_DECRYPT_BATCH_SIZE) {
         const wrappedChunk = wrappedEvents.slice(index, index + MESSAGE_DECRYPT_BATCH_SIZE)
         const unwrappedChunk = (
-          await Promise.all(wrappedChunk.map((wrappedEvent) => unwrapDirectMessageWithCache(wrappedEvent)))
-        ).filter((event): event is TConversationEvent => !!event)
+          await Promise.allSettled(
+            wrappedChunk.map((wrappedEvent) => unwrapDirectMessageWithTimeout(wrappedEvent))
+          )
+        )
+          .map((result, resultIndex) => {
+            if (result.status === 'fulfilled') {
+              return result.value
+            }
+
+            warnDm('DM wrap batch failed to decrypt one event', {
+              wrapId: wrappedChunk[resultIndex]?.id,
+              error: result.reason instanceof Error ? result.reason.message : String(result.reason)
+            })
+            return null
+          })
+          .filter((event): event is TConversationEvent => !!event)
 
         if (unwrappedChunk.length === 0) {
           debugDm('DM wrap batch produced no decryptable events', {
@@ -425,7 +472,10 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
                 ...(nextUntil ? { until: nextUntil } : {})
               },
               {
-                timeoutMs: pageIndex === 0 ? MESSAGE_INITIAL_QUERY_TIMEOUT_MS : undefined
+                timeoutMs:
+                  pageIndex === 0
+                    ? MESSAGE_INITIAL_QUERY_TIMEOUT_MS
+                    : MESSAGE_BACKFILL_QUERY_TIMEOUT_MS
               }
             )
           ).filter((wrappedEvent) => {
@@ -505,7 +555,13 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
       }
       subscription?.close()
     }
-  }, [account?.signerType, messageLookupRelayUrls, nip44Supported, pubkey, unwrapDirectMessageWithCache])
+  }, [
+    account?.signerType,
+    messageLookupRelayUrls,
+    nip44Supported,
+    pubkey,
+    unwrapDirectMessageWithTimeout
+  ])
 
   const conversations = useMemo(
     () =>
