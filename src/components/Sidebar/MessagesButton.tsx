@@ -20,7 +20,14 @@ export default function MessagesButton() {
   return (
     <SidebarItem
       title={t('Messages')}
-      onClick={() => checkLogin(() => navigate('messages', { composeTo: undefined }))}
+      onClick={() =>
+        checkLogin(() =>
+          navigate('messages', {
+            composeTo: undefined,
+            composeRequestId: Date.now()
+          })
+        )
+      }
       active={current === 'messages'}
       aria-label={showUnreadDot ? t('Messages') + ', new messages' : t('Messages')}
     >

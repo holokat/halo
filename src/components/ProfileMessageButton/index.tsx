@@ -20,7 +20,14 @@ export default function ProfileMessageButton({ pubkey }: { pubkey: string }) {
       className="rounded-full"
       aria-label={t('Message')}
       title={t('Message')}
-      onClick={() => checkLogin(() => navigate('messages', { composeTo: pubkey }))}
+      onClick={() =>
+        checkLogin(() =>
+          navigate('messages', {
+            composeTo: pubkey,
+            composeRequestId: Date.now()
+          })
+        )
+      }
     >
       <MessageCircle />
     </Button>

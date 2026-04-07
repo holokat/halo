@@ -21,10 +21,18 @@ import { MessagesPageTitlebar } from './messages-page-titlebar'
 import { MessagesOverview, ComposeMessageView } from './messages-page-overview'
 import { ConversationThreadView } from './messages-page-thread'
 
-const MessagesPage = forwardRef(({ composeTo }: { composeTo?: string | null }, ref) => {
+const MessagesPage = forwardRef(({
+  composeTo,
+  composeRequestId
+}: {
+  composeTo?: string | null
+  composeRequestId?: number
+}, ref) => {
   const { t } = useTranslation()
   const layoutRef = useRef<TPageRef>(null)
-  const previousComposeToRef = useRef<string | null | undefined>(composeTo)
+  const previousComposeToRef = useRef<string | null | undefined>(undefined)
+  const previousComposeRequestIdRef = useRef<number | undefined>(undefined)
+  const pendingComposeToRef = useRef<string | null>(null)
   const { pubkey, startLogin } = useNostr()
   const {
     conversations,
@@ -91,10 +99,15 @@ const MessagesPage = forwardRef(({ composeTo }: { composeTo?: string | null }, r
   }, [composeQuery])
 
   useEffect(() => {
-    if (selectedConversationId && !selectedConversation) {
+    if (
+      selectedConversationId &&
+      !selectedConversation &&
+      hasLoadedMessages &&
+      !isLoading
+    ) {
       setSelectedConversationId(null)
     }
-  }, [selectedConversation, selectedConversationId])
+  }, [hasLoadedMessages, isLoading, selectedConversation, selectedConversationId])
 
   useEffect(() => {
     if (selectedConversation && !selectedConversation.isRequest && activeTab === 'requests') {
@@ -103,16 +116,24 @@ const MessagesPage = forwardRef(({ composeTo }: { composeTo?: string | null }, r
   }, [activeTab, selectedConversation])
 
   useEffect(() => {
-    if (composeTo === previousComposeToRef.current) {
+    const isNewComposeRequest = composeRequestId !== undefined
+      ? composeRequestId !== previousComposeRequestIdRef.current
+      : composeTo !== previousComposeToRef.current
+
+    if (!isNewComposeRequest && (!composeTo || pendingComposeToRef.current !== composeTo)) {
       return
     }
 
+    previousComposeRequestIdRef.current = composeRequestId
     previousComposeToRef.current = composeTo
 
     if (!composeTo) {
+      pendingComposeToRef.current = null
       setSelectedConversationId(null)
       setDraftRecipientPubkeys([])
       setComposeRecipientPubkeys([])
+      setComposeQuery('')
+      setDebouncedComposeQuery('')
       setIsComposePickerOpen(false)
       return
     }
@@ -120,19 +141,25 @@ const MessagesPage = forwardRef(({ composeTo }: { composeTo?: string | null }, r
     const matchingConversation = findDirectConversationByPubkey(conversations, composeTo)
 
     if (matchingConversation) {
+      pendingComposeToRef.current = null
       setActiveTab(matchingConversation.isRequest ? 'requests' : 'conversations')
       setSelectedConversationId(matchingConversation.id)
       setDraftRecipientPubkeys([])
       setComposeRecipientPubkeys([])
+      setComposeQuery('')
+      setDebouncedComposeQuery('')
       setIsComposePickerOpen(false)
       return
     }
 
+    pendingComposeToRef.current = composeTo
     setSelectedConversationId(null)
     setDraftRecipientPubkeys([composeTo])
     setComposeRecipientPubkeys([])
+    setComposeQuery('')
+    setDebouncedComposeQuery('')
     setIsComposePickerOpen(false)
-  }, [conversations, composeTo])
+  }, [composeRequestId, composeTo, conversations])
 
   const openConversation = (conversation: TMessageConversation) => {
     setActiveTab(conversation.isRequest ? 'requests' : 'conversations')

@@ -17,7 +17,14 @@ export default function MessagesButton() {
   return (
     <BottomNavigationBarItem
       active={current === 'messages' && display}
-      onClick={() => checkLogin(() => navigate('messages', { composeTo: undefined }))}
+      onClick={() =>
+        checkLogin(() =>
+          navigate('messages', {
+            composeTo: undefined,
+            composeRequestId: Date.now()
+          })
+        )
+      }
       aria-label={showUnreadDot ? 'Messages, new messages' : 'Messages'}
     >
       <div className="relative">

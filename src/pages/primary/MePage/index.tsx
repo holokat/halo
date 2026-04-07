@@ -146,7 +146,14 @@ const MePage = forwardRef((_, ref) => {
           <UserRound />
           {t('Profile')}
         </Item>
-        <Item onClick={() => navigate('messages', { composeTo: undefined })}>
+        <Item
+          onClick={() =>
+            navigate('messages', {
+              composeTo: undefined,
+              composeRequestId: Date.now()
+            })
+          }
+        >
           <div className="relative">
             <MessageCircle />
             {hasUnreadMessages && messageNotificationsEnabled && !isDistractionFree && (

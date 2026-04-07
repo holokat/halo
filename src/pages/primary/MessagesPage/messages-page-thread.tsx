@@ -38,7 +38,7 @@ import { cn } from '@/lib/utils'
 import { TDirectMessage } from '@/providers/MessagesProvider'
 import { TEmoji } from '@/types'
 import { Info, Loader, MessageCircle, SmilePlus } from 'lucide-react'
-import { Fragment, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { ConversationComposer } from './messages-page-composer'
@@ -51,6 +51,52 @@ import {
 } from './messages-page.utils'
 
 const EmojiPicker = lazy(() => import('@/components/EmojiPicker'))
+const AUTO_SCROLL_BOTTOM_THRESHOLD_PX = 160
+const DEFAULT_COMPOSER_OFFSET_PX = 160
+const COMPOSER_CLEARANCE_PX = 24
+
+function resolveScrollContainer(element: HTMLElement | null): HTMLElement | Window {
+  if (!element) {
+    return window
+  }
+
+  let parent = element.parentElement
+
+  while (parent) {
+    const styles = window.getComputedStyle(parent)
+    const overflowY = styles.overflowY
+    const isScrollable = /(auto|scroll|overlay)/.test(overflowY)
+
+    if (isScrollable && parent.scrollHeight > parent.clientHeight) {
+      return parent
+    }
+
+    parent = parent.parentElement
+  }
+
+  return window
+}
+
+function getScrollMetrics(container: HTMLElement | Window) {
+  if (container === window) {
+    const doc = document.documentElement
+    const body = document.body
+
+    return {
+      scrollTop: window.scrollY || doc.scrollTop || body.scrollTop || 0,
+      clientHeight: window.innerHeight,
+      scrollHeight: Math.max(doc.scrollHeight, body.scrollHeight)
+    }
+  }
+
+  const element = container as HTMLElement
+
+  return {
+    scrollTop: element.scrollTop,
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight
+  }
+}
 
 function EmojiPickerFallback() {
   return (
@@ -82,9 +128,85 @@ export function ConversationThreadView({
   )
   const recipientPubkeys = conversation?.participantPubkeys ?? draftRecipientPubkeys
   const bottomAnchorRef = useRef<HTMLDivElement | null>(null)
+  const composerContainerRef = useRef<HTMLDivElement | null>(null)
+  const autoScrollRef = useRef(true)
   const previousThreadKeyRef = useRef<string | null>(null)
+  const [composerOffsetPx, setComposerOffsetPx] = useState(DEFAULT_COMPOSER_OFFSET_PX)
   const threadKey = conversation?.id ?? (draftRecipientPubkeys.length > 0 ? toConversationId(draftRecipientPubkeys) : null)
+  const lastVisibleMessage = visibleMessages[visibleMessages.length - 1] ?? null
   const lastVisibleMessageKey = visibleMessages[visibleMessages.length - 1]?.wrapId ?? null
+  const threadBottomOffset = `calc(${composerOffsetPx}px + env(safe-area-inset-bottom))`
+
+  const updateAutoScrollState = useCallback(() => {
+    const container = resolveScrollContainer(bottomAnchorRef.current)
+    const { scrollTop, clientHeight, scrollHeight } = getScrollMetrics(container)
+    const distanceFromBottom = Math.max(scrollHeight - scrollTop - clientHeight, 0)
+
+    autoScrollRef.current = distanceFromBottom <= AUTO_SCROLL_BOTTOM_THRESHOLD_PX
+  }, [])
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior) => {
+    autoScrollRef.current = true
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        bottomAnchorRef.current?.scrollIntoView({
+          behavior,
+          block: 'end'
+        })
+      })
+    })
+  }, [])
+
+  useEffect(() => {
+    const composerContainer = composerContainerRef.current
+
+    if (!composerContainer) {
+      return
+    }
+
+    const updateComposerOffset = () => {
+      const nextComposerOffset =
+        Math.ceil(composerContainer.getBoundingClientRect().height) + COMPOSER_CLEARANCE_PX
+
+      setComposerOffsetPx((currentOffset) =>
+        currentOffset === nextComposerOffset ? currentOffset : nextComposerOffset
+      )
+    }
+
+    updateComposerOffset()
+
+    if (typeof ResizeObserver === 'undefined') {
+      return
+    }
+
+    const observer = new ResizeObserver(() => {
+      updateComposerOffset()
+    })
+
+    observer.observe(composerContainer)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [threadKey])
+
+  useEffect(() => {
+    updateAutoScrollState()
+
+    const container = resolveScrollContainer(bottomAnchorRef.current)
+    const handleScroll = () => {
+      updateAutoScrollState()
+    }
+
+    container.addEventListener('scroll', handleScroll, { passive: true })
+    window.addEventListener('resize', handleScroll)
+
+    return () => {
+      container.removeEventListener('scroll', handleScroll)
+      window.removeEventListener('resize', handleScroll)
+    }
+  }, [threadKey, updateAutoScrollState])
 
   useEffect(() => {
     if (!threadKey) {
@@ -94,13 +216,15 @@ export function ConversationThreadView({
     const isNewThread = previousThreadKeyRef.current !== threadKey
     previousThreadKeyRef.current = threadKey
 
-    window.requestAnimationFrame(() => {
-      bottomAnchorRef.current?.scrollIntoView({
-        behavior: isNewThread ? 'auto' : 'smooth',
-        block: 'end'
-      })
-    })
-  }, [lastVisibleMessageKey, threadKey])
+    if (isNewThread) {
+      scrollToBottom('auto')
+      return
+    }
+
+    if (autoScrollRef.current || lastVisibleMessage?.isOutgoing) {
+      scrollToBottom(lastVisibleMessage?.isOutgoing ? 'auto' : 'smooth')
+    }
+  }, [lastVisibleMessage?.isOutgoing, lastVisibleMessageKey, scrollToBottom, threadKey])
 
   if (recipientPubkeys.length === 0) {
     return (
@@ -119,7 +243,7 @@ export function ConversationThreadView({
 
   return (
     <div className="flex min-h-[calc(100dvh-9.5rem)] flex-col">
-      <div className="flex-1 space-y-4 pb-32">
+      <div className="flex-1 space-y-4" style={{ paddingBottom: threadBottomOffset }}>
         {recipientPubkeys.length > 1 && (
           <ConversationParticipantsSummary
             participantPubkeys={recipientPubkeys}
@@ -154,10 +278,11 @@ export function ConversationThreadView({
             </p>
           </div>
         )}
-        <div ref={bottomAnchorRef} />
+        <div ref={bottomAnchorRef} style={{ scrollMarginBottom: threadBottomOffset }} />
       </div>
 
       <div
+        ref={composerContainerRef}
         className="-mx-4 -mb-4 sticky bottom-0 mt-auto border-t bg-background/95 px-4 pt-2.5 backdrop-blur supports-[backdrop-filter]:bg-background/80"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.5rem)' }}
       >

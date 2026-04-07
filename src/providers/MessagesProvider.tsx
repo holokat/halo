@@ -115,6 +115,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
   const [resolvedInboxRelayUrls, setResolvedInboxRelayUrls] = useState<string[]>([])
   const decryptRef = useRef(nip44Decrypt)
   const decryptedMessageCacheRef = useRef(new Map<string, TConversationEvent | null>())
+  const stateOwnerPubkeyRef = useRef<string | null>(null)
 
   useEffect(() => {
     decryptRef.current = nip44Decrypt
@@ -267,6 +268,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!pubkey) {
       debugDm('Resetting DM state because there is no active pubkey')
+      stateOwnerPubkeyRef.current = null
       setMessages([])
       setReactions([])
       setMessagesReadAt(0)
@@ -278,13 +280,24 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    setMessagesReadAt(storage.getLastReadMessageTime(pubkey))
-    setConversationReadAtMap(storage.getMessageConversationReadTimeMap(pubkey))
-    setDismissedConversationMap(storage.getDismissedMessageConversationMap(pubkey))
-    setMessages([])
-    setReactions([])
-    setHasLoadedMessages(false)
-    setError(null)
+    const isAccountSwitch = stateOwnerPubkeyRef.current !== pubkey
+    stateOwnerPubkeyRef.current = pubkey
+
+    if (isAccountSwitch) {
+      setMessagesReadAt(storage.getLastReadMessageTime(pubkey))
+      setConversationReadAtMap(storage.getMessageConversationReadTimeMap(pubkey))
+      setDismissedConversationMap(storage.getDismissedMessageConversationMap(pubkey))
+      setMessages([])
+      setReactions([])
+      setHasLoadedMessages(false)
+      setError(null)
+    } else {
+      debugDm('Continuing DM sync for the same account without clearing existing state', {
+        pubkey,
+        publishedInboxRelayUrls,
+        messageLookupRelayUrls
+      })
+    }
 
     debugDm('Starting DM sync', {
       pubkey,
