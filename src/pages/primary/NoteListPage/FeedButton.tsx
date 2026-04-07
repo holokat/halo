@@ -8,7 +8,18 @@ import { useCustomFeeds } from '@/providers/CustomFeedsProvider'
 import { useFavoriteRelays } from '@/providers/FavoriteRelaysProvider'
 import { useFeed } from '@/providers/FeedProvider'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
-import { BarChart3, BookmarkIcon, Box, ChevronDown, Hash, Highlighter, Search, UserRound, UsersRound } from 'lucide-react'
+import {
+  BarChart3,
+  BookmarkIcon,
+  Box,
+  ChevronDown,
+  Hash,
+  Highlighter,
+  Search,
+  TrendingUp,
+  UserRound,
+  UsersRound
+} from 'lucide-react'
 import { forwardRef, HTMLAttributes, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -70,6 +81,9 @@ const FeedSwitcherTrigger = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEle
       if (feedInfo.feedType === 'following') {
         return t('Following')
       }
+      if (feedInfo.feedType === 'trending') {
+        return t('Trending')
+      }
       if (feedInfo.feedType === 'bookmarks') {
         return t('Bookmarks')
       }
@@ -98,6 +112,9 @@ const FeedSwitcherTrigger = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEle
     const icon = useMemo(() => {
       if (feedInfo.feedType === 'following') {
         return <UsersRound />
+      }
+      if (feedInfo.feedType === 'trending') {
+        return <TrendingUp />
       }
       if (feedInfo.feedType === 'bookmarks') {
         return <BookmarkIcon />

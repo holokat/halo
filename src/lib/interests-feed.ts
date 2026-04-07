@@ -67,11 +67,7 @@ export const INTEREST_CATEGORIES: TInterestCategory[] = [
 ]
 
 export function normalizeCustomFeedHashtag(value: string) {
-  return value
-    .trim()
-    .replace(/^#/, '')
-    .replace(/\s+/g, '')
-    .toLowerCase()
+  return value.trim().replace(/^#/, '').replace(/\s+/g, '').toLowerCase()
 }
 
 export function dedupeCustomFeedHashtags(values: string[]) {
@@ -109,12 +105,21 @@ export function getCustomFeedHashtags(feed: TCustomFeed) {
 
 export function buildHashtagFeedSubRequests(
   hashtags: string[],
-  urls: string[]
+  urls: string[],
+  hashtagsPerRequest: number = 1
 ): TFeedSubRequest[] {
-  return dedupeCustomFeedHashtags(hashtags).map((hashtag) => ({
-    urls,
-    filter: { '#t': [hashtag] }
-  }))
+  const normalizedHashtags = dedupeCustomFeedHashtags(hashtags)
+  const chunkSize = Math.max(1, Math.floor(hashtagsPerRequest))
+  const requests: TFeedSubRequest[] = []
+
+  for (let index = 0; index < normalizedHashtags.length; index += chunkSize) {
+    requests.push({
+      urls,
+      filter: { '#t': normalizedHashtags.slice(index, index + chunkSize) }
+    })
+  }
+
+  return requests
 }
 
 export function shouldBypassTrustFilterForCustomFeed(feedId: string) {

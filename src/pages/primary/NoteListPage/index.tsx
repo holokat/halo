@@ -4,6 +4,7 @@ import MobileTopNavMenuButton from '@/components/MobileTopNavMenuButton'
 import NormalFeed from '@/components/NormalFeed'
 import RelayInfo from '@/components/RelayInfo'
 import PinButton from '@/components/PinButton'
+import TrendingNotes from '@/components/TrendingNotes'
 import { Button } from '@/components/ui/button'
 import {
   getCustomFeedSubRequests,
@@ -140,6 +141,8 @@ const NoteListPage = forwardRef((_, ref) => {
     }
   } else if (feedInfo.feedType === 'following') {
     content = <FollowingFeed />
+  } else if (feedInfo.feedType === 'trending') {
+    content = <TrendingNotes showHeader={false} />
   } else if (feedInfo.feedType === 'one-per-person') {
     if (!pubkey) {
       content = (

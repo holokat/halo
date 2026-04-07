@@ -2,6 +2,7 @@ import { BIG_RELAY_URLS, ExtendedKind } from '@/constants'
 import { filterExpiredEvents, isEventExpired } from '@/lib/event-expiration'
 import {
   compareEvents,
+  getLatestEvent,
   getReplaceableCoordinate,
   getReplaceableCoordinateFromEvent,
   isReplaceableEvent
@@ -45,6 +46,7 @@ import {
 } from 'nostr-tools'
 import { AbstractRelay } from 'nostr-tools/abstract-relay'
 import indexedDb from './indexed-db.service'
+import discoveryService from './discovery.service'
 const REPLACEABLE_EVENT_CACHE_MAX = 4000
 const EVENT_PROMISE_CACHE_MAX = 4000
 const LIVE_STREAM_CACHE_MAX = 256
@@ -561,6 +563,21 @@ class ClientService extends EventTarget {
     }
 
     try {
+      const discoveryEvents = await discoveryService.fetchTrendingNotes(100)
+      if (discoveryEvents && discoveryEvents.length > 0) {
+        discoveryEvents.forEach((event) => {
+          this.addEventToCache(event)
+        })
+
+        this.trendingNotesCache = filterExpiredEvents(discoveryEvents)
+        this.trendingNotesCacheTime = now
+        return this.trendingNotesCache
+      }
+    } catch (error) {
+      console.warn('fetchTrendingNotes discovery fallback', error)
+    }
+
+    try {
       // Fetch trending notes from wss://trending.relays.land
       const events = await this.query(['wss://trending.relays.land'], {
         kinds: [1], // text notes
@@ -1045,9 +1062,52 @@ class ClientService extends EventTarget {
     return relayList
   }
 
-  async fetchInboxRelayList(pubkey: string): Promise<string[]> {
+  async fetchInboxRelayList(
+    pubkey: string,
+    options: { refreshIfEmpty?: boolean } = {}
+  ): Promise<string[]> {
     const [relayList] = await this.fetchInboxRelayLists([pubkey])
-    return relayList
+    if (relayList.length > 0 || !options.refreshIfEmpty) {
+      return relayList
+    }
+
+    const refreshedRelayEvent = await this.refreshInboxRelayListEvent(pubkey)
+    if (!refreshedRelayEvent) {
+      return []
+    }
+
+    return getInboxRelayUrlsFromEvent(refreshedRelayEvent)
+  }
+
+  async refreshInboxRelayListEvent(pubkey: string): Promise<NEvent | null> {
+    await this.forceUpdateInboxRelayListEvent(pubkey)
+
+    const refreshedRelayEvent = await indexedDb.getReplaceableEvent(pubkey, ExtendedKind.INBOX_RELAYS)
+    if (refreshedRelayEvent) {
+      await this.updateInboxRelayListCache(refreshedRelayEvent)
+      return refreshedRelayEvent
+    }
+
+    const relayList = await this.fetchRelayList(pubkey).catch(() => null)
+    const relayUrls = relayList
+      ? Array.from(new Set(relayList.read.concat(relayList.write))).slice(0, 8)
+      : []
+
+    if (relayUrls.length === 0) {
+      return null
+    }
+
+    const relayEvents = await this.query(relayUrls, {
+      authors: [pubkey],
+      kinds: [ExtendedKind.INBOX_RELAYS]
+    }).catch(() => [])
+
+    const latestRelayEvent = getLatestEvent(relayEvents) ?? null
+    if (latestRelayEvent) {
+      await this.updateInboxRelayListCache(latestRelayEvent)
+    }
+
+    return latestRelayEvent
   }
 
   async fetchRelayLists(pubkeys: string[]): Promise<TRelayList[]> {

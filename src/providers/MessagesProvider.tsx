@@ -28,6 +28,7 @@ import {
   type TMessageConversation
 } from './messages/types'
 import { toConversationId } from './messages/shared'
+import { debugDm, warnDm } from './messages/debug'
 export type {
   TDirectMessage,
   TDirectMessageReaction,
@@ -109,6 +110,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
   const [dismissedConversationMap, setDismissedConversationMap] = useState<Record<string, number>>(
     {}
   )
+  const [resolvedInboxRelayUrls, setResolvedInboxRelayUrls] = useState<string[]>([])
   const decryptRef = useRef(nip44Decrypt)
   const decryptedMessageCacheRef = useRef(new Map<string, TConversationEvent | null>())
 
@@ -120,6 +122,18 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     decryptedMessageCacheRef.current.clear()
   }, [pubkey])
+
+  useEffect(() => {
+    setResolvedInboxRelayUrls([])
+  }, [pubkey])
+
+  useEffect(() => {
+    if (inboxRelayUrls.length === 0) {
+      return
+    }
+
+    setResolvedInboxRelayUrls(Array.from(new Set(inboxRelayUrls)))
+  }, [inboxRelayUrls])
 
   const unwrapDirectMessageWithCache = useCallback(
     (wrap: Event) => {
@@ -133,8 +147,44 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
   )
 
   const publishedInboxRelayUrls = useMemo(() => {
-    return Array.from(new Set(inboxRelayUrls))
-  }, [inboxRelayUrls])
+    return Array.from(
+      new Set(resolvedInboxRelayUrls.length > 0 ? resolvedInboxRelayUrls : inboxRelayUrls)
+    )
+  }, [inboxRelayUrls, resolvedInboxRelayUrls])
+  const publishedInboxRelayUrlsKey = publishedInboxRelayUrls.join('|')
+
+  const ensurePublishedInboxRelayUrls = useCallback(async () => {
+    if (!pubkey) {
+      return []
+    }
+
+    if (publishedInboxRelayUrls.length > 0) {
+      return publishedInboxRelayUrls
+    }
+
+    debugDm('Refreshing published inbox relay list because local state is empty', {
+      pubkey
+    })
+
+    const refreshedInboxRelayUrls = await client
+      .fetchInboxRelayList(pubkey, { refreshIfEmpty: true })
+      .catch((refreshError) => {
+        warnDm('Failed to refresh published inbox relay list', {
+          pubkey,
+          error: refreshError instanceof Error ? refreshError.message : String(refreshError)
+        })
+        return []
+      })
+
+    setResolvedInboxRelayUrls(refreshedInboxRelayUrls)
+
+    debugDm('Resolved published inbox relay list', {
+      pubkey,
+      relayUrls: refreshedInboxRelayUrls
+    })
+
+    return refreshedInboxRelayUrls
+  }, [pubkey, publishedInboxRelayUrlsKey])
 
   const messageLookupRelayUrls = useMemo(() => {
     return Array.from(
@@ -149,7 +199,41 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
   const isSupported = !!pubkey && account?.signerType !== 'npub' && nip44Supported
 
   useEffect(() => {
+    if (
+      !pubkey ||
+      account?.signerType === 'npub' ||
+      !nip44Supported ||
+      publishedInboxRelayUrls.length > 0
+    ) {
+      return
+    }
+
+    let isCancelled = false
+
+    void ensurePublishedInboxRelayUrls().then((relayUrls) => {
+      if (isCancelled || relayUrls.length > 0) {
+        return
+      }
+
+      warnDm('Inbox relay refresh still returned no relays for the active account', {
+        pubkey
+      })
+    })
+
+    return () => {
+      isCancelled = true
+    }
+  }, [
+    account?.signerType,
+    ensurePublishedInboxRelayUrls,
+    nip44Supported,
+    pubkey,
+    publishedInboxRelayUrls.length
+  ])
+
+  useEffect(() => {
     if (!pubkey) {
+      debugDm('Resetting DM state because there is no active pubkey')
       setMessages([])
       setReactions([])
       setMessagesReadAt(0)
@@ -169,19 +253,38 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
     setHasLoadedMessages(false)
     setError(null)
 
+    debugDm('Starting DM sync', {
+      pubkey,
+      signerType: account?.signerType,
+      nip44Supported,
+      publishedInboxRelayUrls,
+      messageLookupRelayUrls
+    })
+
     if (account?.signerType === 'npub') {
+      warnDm('DM sync unavailable because the active account is npub-only', {
+        pubkey
+      })
       setIsLoading(false)
       setHasLoadedMessages(true)
       setError('Direct messages require a signer that can decrypt NIP-17 messages.')
       return
     }
     if (!nip44Supported) {
+      warnDm('DM sync unavailable because the signer does not support NIP-44', {
+        pubkey,
+        signerType: account?.signerType
+      })
       setIsLoading(false)
       setHasLoadedMessages(true)
       setError('Direct messages require a signer that supports NIP-44.')
       return
     }
     if (messageLookupRelayUrls.length === 0) {
+      warnDm('DM sync unavailable because there are no lookup relays', {
+        pubkey,
+        publishedInboxRelayUrls
+      })
       setIsLoading(false)
       setHasLoadedMessages(true)
       setError('Direct messages need inbox relays or mailbox relays to receive messages.')
@@ -197,6 +300,11 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
         return 0
       }
 
+      debugDm('Applying DM gift wraps', {
+        wrapCount: wrappedEvents.length,
+        wrapIds: wrappedEvents.map((wrappedEvent) => wrappedEvent.id)
+      })
+
       let unwrappedCount = 0
       const participantPubkeySet = new Set<string>()
 
@@ -207,6 +315,9 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
         ).filter((event): event is TConversationEvent => !!event)
 
         if (unwrappedChunk.length === 0) {
+          debugDm('DM wrap batch produced no decryptable events', {
+            wrapIds: wrappedChunk.map((wrappedEvent) => wrappedEvent.id)
+          })
           continue
         }
 
@@ -226,6 +337,13 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
         const unwrappedMessages = unwrappedChunk.filter(isDirectMessageEvent)
         const unwrappedReactions = unwrappedChunk.filter(isDirectMessageReactionEvent)
 
+        debugDm('DM wrap batch decrypted successfully', {
+          wrapIds: wrappedChunk.map((wrappedEvent) => wrappedEvent.id),
+          unwrappedCount: unwrappedChunk.length,
+          messageCount: unwrappedMessages.length,
+          reactionCount: unwrappedReactions.length
+        })
+
         if (unwrappedMessages.length > 0) {
           setMessages((currentMessages) => mergeMessages(currentMessages, unwrappedMessages))
         }
@@ -244,6 +362,11 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
 
     const startSubscription = () => {
       subscription?.close()
+      debugDm('Starting DM live subscription', {
+        relayUrls: messageLookupRelayUrls,
+        pubkey,
+        replayLimit: MESSAGE_SUBSCRIPTION_REPLAY_LIMIT
+      })
       subscription = client.subscribe(
         messageLookupRelayUrls,
         {
@@ -253,6 +376,11 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
         },
         {
           onevent: (wrappedEvent) => {
+            debugDm('Received live DM wrap from subscription', {
+              wrapId: wrappedEvent.id,
+              relayHint: wrappedEvent.tags.find(([tagName]) => tagName === 'p')?.[2],
+              createdAt: wrappedEvent.created_at
+            })
             void applyWrappedEvents([wrappedEvent])
           },
           onAllClose: (reasons) => {
@@ -260,6 +388,10 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
               return
             }
 
+            warnDm('DM live subscription closed', {
+              relayUrls: messageLookupRelayUrls,
+              reasons
+            })
             reconnectTimer = window.setTimeout(() => {
               if (isMounted) {
                 startSubscription()
@@ -305,6 +437,13 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
             return true
           })
 
+          debugDm('Fetched DM backfill page', {
+            pageIndex,
+            until: nextUntil,
+            wrapCount: wrappedEvents.length,
+            wrapIds: wrappedEvents.slice(0, 10).map((wrappedEvent) => wrappedEvent.id)
+          })
+
           if (!wrappedEvents.length) {
             break
           }
@@ -322,12 +461,23 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
 
         if (!isMounted) return
 
+        debugDm('Finished DM backfill', {
+          loadedWrapCount,
+          unwrappedCount,
+          messageCount: messages.length,
+          reactionCount: reactions.length
+        })
+
         if (loadedWrapCount > 0 && unwrappedCount === 0) {
           setError('Wrapped messages were found, but they could not be decrypted with this signer.')
         } else {
           setError(null)
         }
       } catch (loadError) {
+        warnDm('DM backfill failed', {
+          error: loadError instanceof Error ? loadError.message : String(loadError),
+          relayUrls: messageLookupRelayUrls
+        })
         if (isMounted) {
           const message =
             loadError instanceof Error ? loadError.message : 'Failed to load direct messages.'
@@ -337,6 +487,10 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
         if (isMounted) {
           setIsLoading(false)
           setHasLoadedMessages(true)
+          debugDm('DM sync finished initial load', {
+            pubkey,
+            isLoading: false
+          })
           startSubscription()
         }
       }
@@ -400,17 +554,20 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
         throw new Error('You need to be logged in to send direct messages.')
       }
 
+      const nextPublishedInboxRelayUrls = await ensurePublishedInboxRelayUrls()
+
       return createWrappedRumorEvents({
-        fetchInboxRelayList: (recipientPubkey) => client.fetchInboxRelayList(recipientPubkey),
+        fetchInboxRelayList: (recipientPubkey) =>
+          client.fetchInboxRelayList(recipientPubkey, { refreshIfEmpty: true }),
         nip44Encrypt,
         pubkey,
-        publishedInboxRelayUrls,
+        publishedInboxRelayUrls: nextPublishedInboxRelayUrls,
         rumorEvent,
         rumorRecipients,
         signEvent
       })
     },
-    [nip44Encrypt, pubkey, publishedInboxRelayUrls, signEvent]
+    [ensurePublishedInboxRelayUrls, nip44Encrypt, pubkey, signEvent]
   )
 
   const sendMessage = useCallback(
@@ -427,7 +584,9 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
       if (!pubkey || account?.signerType === 'npub' || !nip44Supported) {
         throw new Error('Direct messages require a signer that can encrypt NIP-17 messages.')
       }
-      if (publishedInboxRelayUrls.length === 0) {
+
+      const nextPublishedInboxRelayUrls = await ensurePublishedInboxRelayUrls()
+      if (nextPublishedInboxRelayUrls.length === 0) {
         throw new Error('Set up inbox relays before sending direct messages.')
       }
 
@@ -525,7 +684,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
         }
       })()
     },
-    [account?.signerType, buildWrappedRumorEvents, nip44Supported, pubkey, publishedInboxRelayUrls, t]
+    [account?.signerType, buildWrappedRumorEvents, ensurePublishedInboxRelayUrls, nip44Supported, pubkey, t]
   )
 
   const sendReaction = useCallback(
@@ -536,7 +695,9 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
       if (targetMessage.isOutgoing) {
         throw new Error('You can only react to messages from other people.')
       }
-      if (publishedInboxRelayUrls.length === 0) {
+
+      const nextPublishedInboxRelayUrls = await ensurePublishedInboxRelayUrls()
+      if (nextPublishedInboxRelayUrls.length === 0) {
         throw new Error('Set up inbox relays before sending direct messages.')
       }
 
@@ -617,7 +778,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
         }
       })()
     },
-    [account?.signerType, buildWrappedRumorEvents, nip44Supported, pubkey, publishedInboxRelayUrls, t]
+    [account?.signerType, buildWrappedRumorEvents, ensurePublishedInboxRelayUrls, nip44Supported, pubkey, t]
   )
 
   const markAllAsRead = useCallback(() => {

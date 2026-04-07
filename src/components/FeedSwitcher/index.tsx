@@ -16,6 +16,7 @@ import {
   Minus,
   Pin,
   Search,
+  TrendingUp,
   Trash2,
   UserRound,
   UsersRound
@@ -66,6 +67,21 @@ export default function FeedSwitcher({
           </div>
         </FeedSwitcherItem>
       )}
+
+      <FeedSwitcherItem
+        isActive={feedInfo.feedType === 'trending'}
+        onClick={() => {
+          switchFeed('trending')
+          close?.()
+        }}
+      >
+        <div className="flex gap-2 items-center">
+          <div className="flex justify-center items-center w-6 h-6 shrink-0">
+            <TrendingUp className="size-4" />
+          </div>
+          <div>{t('Trending')}</div>
+        </div>
+      </FeedSwitcherItem>
 
       {showReadsOption && (
         <FeedSwitcherItem

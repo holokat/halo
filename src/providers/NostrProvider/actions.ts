@@ -436,11 +436,13 @@ export function createNostrActions({
     setRelayList(relayList)
     client.setPreferredReadRelays(relayList.read)
 
-    const inboxRelayEvents = await client.fetchEvents(BIG_RELAY_URLS, {
-      kinds: [ExtendedKind.INBOX_RELAYS],
-      authors: [account.pubkey]
-    })
-    let inboxRelayEvent = getLatestEvent(inboxRelayEvents) ?? storedInboxRelayEvent ?? null
+    let inboxRelayEvent =
+      (await client.refreshInboxRelayListEvent(account.pubkey).catch((error) => {
+        console.warn('Failed to refresh inbox relay list event:', error)
+        return null
+      })) ??
+      storedInboxRelayEvent ??
+      null
     const hasPublishedInboxRelays =
       inboxRelayEvent?.tags.some(([tagName]) => tagName === 'relay') ?? false
 

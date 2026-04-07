@@ -106,6 +106,10 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         return await switchFeed('relay', { relay: feedInfo.id })
       }
 
+      if (feedInfo.feedType === 'trending') {
+        return await switchFeed('trending')
+      }
+
       // update following feed if pubkey changes
       if (feedInfo.feedType === 'following' && pubkey) {
         return await switchFeed('following', { pubkey })
@@ -158,6 +162,11 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
 
       if (nextFeedInfo.feedType === 'relay') {
         void switchFeed('relay', { relay: nextFeedInfo.id })
+        return
+      }
+
+      if (nextFeedInfo.feedType === 'trending') {
+        void switchFeed('trending')
         return
       }
 
@@ -259,6 +268,16 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         setIsReady(true)
         return
       }
+      const newFeedInfo = { feedType }
+      setFeedInfo(newFeedInfo)
+      feedInfoRef.current = newFeedInfo
+      storage.setFeedInfo(newFeedInfo, pubkey)
+
+      setRelayUrls([])
+      setIsReady(true)
+      return
+    }
+    if (feedType === 'trending') {
       const newFeedInfo = { feedType }
       setFeedInfo(newFeedInfo)
       feedInfoRef.current = newFeedInfo

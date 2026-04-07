@@ -6,8 +6,16 @@ const env = (import.meta as ImportMeta & {
 
 const DEFAULT_APP_API_BASE_URL =
   typeof window !== 'undefined' ? window.location.origin : 'https://x21.social'
+const DEFAULT_DISCOVERY_API_BASE_URL = 'https://api.nostrarchives.com'
 
 export const APP_API_BASE_URL = env?.VITE_APP_API_BASE_URL || DEFAULT_APP_API_BASE_URL
+
+const configuredDiscoveryApiBaseUrl = env?.VITE_DISCOVERY_API_BASE_URL
+export const DISCOVERY_API_BASE_URL =
+  typeof configuredDiscoveryApiBaseUrl === 'string'
+    ? configuredDiscoveryApiBaseUrl
+    : DEFAULT_DISCOVERY_API_BASE_URL
+export const DISCOVERY_API_ENABLED = DISCOVERY_API_BASE_URL.trim().length > 0
 
 export const TRANSLATION_API_BASE_URL =
   env?.VITE_TRANSLATION_API_BASE_URL ||

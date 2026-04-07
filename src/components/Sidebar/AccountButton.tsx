@@ -9,8 +9,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import useDeferredAction from '@/hooks/useDeferredAction'
+import { toSettings, toWallet } from '@/lib/link'
 import { cn } from '@/lib/utils'
-import { toWallet } from '@/lib/link'
 import { formatPubkey, generateImageByPubkey } from '@/lib/pubkey'
 import { usePrimaryPage, useSecondaryPage } from '@/PageManager'
 import { useCompactSidebar } from '@/providers/CompactSidebarProvider'
@@ -83,21 +83,41 @@ function ProfileButton() {
     deferAction(() => setDialogOpen(true))
   }
 
+  const navigateFromMenu = (action: () => void) => {
+    setMenuOpen(false)
+    deferAction(action)
+  }
+
   const dropdownMenu = (
     <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
       <DropdownMenuTrigger asChild>
         <ProfileButtonContent username={username} avatar={avatar} defaultAvatar={defaultAvatar} />
       </DropdownMenuTrigger>
       <DropdownMenuContent side="top">
-        <DropdownMenuItem onClick={() => navigate('profile')}>
+        <DropdownMenuItem
+          onSelect={(e) => {
+            e.preventDefault()
+            navigateFromMenu(() => navigate('profile'))
+          }}
+        >
           <UserRound />
           {t('Profile')}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => push('/settings')}>
+        <DropdownMenuItem
+          onSelect={(e) => {
+            e.preventDefault()
+            navigateFromMenu(() => push(toSettings()))
+          }}
+        >
           <Settings />
           {t('Settings')}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => push(toWallet())}>
+        <DropdownMenuItem
+          onSelect={(e) => {
+            e.preventDefault()
+            navigateFromMenu(() => push(toWallet()))
+          }}
+        >
           <Wallet />
           {t('Wallet')}
         </DropdownMenuItem>

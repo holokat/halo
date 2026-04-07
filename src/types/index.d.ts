@@ -194,6 +194,7 @@ export type TAccountPointer = Pick<TAccount, 'pubkey' | 'signerType'>
 
 export type TFeedType =
   | 'following'
+  | 'trending'
   | 'relays'
   | 'relay'
   | 'bookmarks'

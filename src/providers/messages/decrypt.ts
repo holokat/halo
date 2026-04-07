@@ -6,6 +6,7 @@ import {
   TDirectMessageReaction
 } from './types'
 import { toConversationId } from './shared'
+import { debugDm, warnDm } from './debug'
 
 export type { TConversationEvent } from './types'
 
@@ -117,28 +118,63 @@ export async function unwrapDirectMessage(
 ): Promise<TConversationEvent | null> {
   const cached = cache.get(wrap.id)
   if (cached !== undefined) {
+    debugDm('Using cached DM unwrap result', {
+      wrapId: wrap.id,
+      result: cached ? 'event' : 'null'
+    })
     return cached
   }
 
+  let stage = 'decrypt-wrap'
+
   try {
+    debugDm('Attempting to unwrap DM gift wrap', {
+      wrapId: wrap.id,
+      wrapPubkey: wrap.pubkey,
+      wrapCreatedAt: wrap.created_at,
+      recipientPubkey: accountPubkey,
+      recipientTags: wrap.tags.filter(([tagName]) => tagName === 'p').map(([, value]) => value)
+    })
+
     const sealContent = await decrypt(wrap.pubkey, wrap.content)
+    stage = 'parse-seal'
     const parsedSeal = JSON.parse(sealContent)
     if (
       !isVerifiedSealEvent(parsedSeal) ||
       parsedSeal.kind !== kinds.Seal ||
       parsedSeal.tags.length !== 0
     ) {
+      warnDm('Rejected DM wrap because decrypted seal was invalid', {
+        wrapId: wrap.id,
+        stage,
+        sealKind: isEventWithId(parsedSeal) ? parsedSeal.kind : undefined,
+        hasSealSignature: hasEventSignature(parsedSeal),
+        sealTagsLength: Array.isArray(parsedSeal?.tags) ? parsedSeal.tags.length : undefined
+      })
       cache.set(wrap.id, null)
       return null
     }
 
+    stage = 'decrypt-rumor'
     const rumorContent = await decrypt(parsedSeal.pubkey, parsedSeal.content)
+    stage = 'parse-rumor'
     const parsedRumor = JSON.parse(rumorContent)
     if (!isUnsignedRumorEvent(parsedRumor)) {
+      warnDm('Rejected DM wrap because decrypted rumor was invalid', {
+        wrapId: wrap.id,
+        stage,
+        rumorKind: isEventWithId(parsedRumor) ? parsedRumor.kind : undefined,
+        rumorPubkey: isEventWithId(parsedRumor) ? parsedRumor.pubkey : undefined
+      })
       cache.set(wrap.id, null)
       return null
     }
     if (parsedSeal.pubkey !== parsedRumor.pubkey) {
+      warnDm('Rejected DM wrap because seal pubkey did not match rumor pubkey', {
+        wrapId: wrap.id,
+        sealPubkey: parsedSeal.pubkey,
+        rumorPubkey: parsedRumor.pubkey
+      })
       cache.set(wrap.id, null)
       return null
     }
@@ -152,6 +188,13 @@ export async function unwrapDirectMessage(
     )
     const isOutgoing = parsedRumor.pubkey === accountPubkey
     if (!isOutgoing && !recipientPubkeys.includes(accountPubkey)) {
+      warnDm('Rejected DM wrap because account pubkey was not part of recipients', {
+        wrapId: wrap.id,
+        rumorId: parsedRumor.id,
+        senderPubkey: parsedRumor.pubkey,
+        recipientPubkeys,
+        accountPubkey
+      })
       cache.set(wrap.id, null)
       return null
     }
@@ -164,6 +207,12 @@ export async function unwrapDirectMessage(
     ).sort()
 
     if (participantPubkeys.length === 0) {
+      warnDm('Rejected DM wrap because no participants remained after normalization', {
+        wrapId: wrap.id,
+        rumorId: parsedRumor.id,
+        recipientPubkeys,
+        accountPubkey
+      })
       cache.set(wrap.id, null)
       return null
     }
@@ -191,6 +240,14 @@ export async function unwrapDirectMessage(
           parsedRumor.tags.find(([tagName]) => tagName === 'e')?.[1]
       }
 
+      debugDm('Successfully unwrapped DM message', {
+        wrapId: wrap.id,
+        rumorId: parsedRumor.id,
+        kind: parsedRumor.kind,
+        senderPubkey: parsedRumor.pubkey,
+        participantPubkeys,
+        isOutgoing
+      })
       cache.set(wrap.id, message)
       return message
     }
@@ -209,13 +266,31 @@ export async function unwrapDirectMessage(
         emoji: parsedRumor.content || '+'
       }
 
+      debugDm('Successfully unwrapped DM reaction', {
+        wrapId: wrap.id,
+        rumorId: parsedRumor.id,
+        targetMessageId,
+        senderPubkey: parsedRumor.pubkey,
+        participantPubkeys,
+        isOutgoing
+      })
       cache.set(wrap.id, reaction)
       return reaction
     }
 
+    warnDm('Rejected DM wrap because rumor kind is unsupported', {
+      wrapId: wrap.id,
+      rumorId: parsedRumor.id,
+      rumorKind: parsedRumor.kind
+    })
     cache.set(wrap.id, null)
     return null
-  } catch {
+  } catch (error) {
+    warnDm('Failed to unwrap DM wrap', {
+      wrapId: wrap.id,
+      stage,
+      error: error instanceof Error ? error.message : String(error)
+    })
     return null
   }
 }

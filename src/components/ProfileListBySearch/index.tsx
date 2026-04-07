@@ -1,5 +1,6 @@
 import { SEARCHABLE_RELAY_URLS } from '@/constants'
 import client from '@/services/client.service'
+import discoveryService from '@/services/discovery.service'
 import dayjs from 'dayjs'
 import { useEffect, useRef, useState } from 'react'
 import UserItem, { UserItemSkeleton } from '../UserItem'
@@ -8,15 +9,29 @@ const LIMIT = 50
 
 export function ProfileListBySearch({ search }: { search: string }) {
   const [until, setUntil] = useState<number>(() => dayjs().unix())
+  const [offset, setOffset] = useState(0)
   const [hasMore, setHasMore] = useState<boolean>(true)
   const [pubkeySet, setPubkeySet] = useState(new Set<string>())
+  const [mode, setMode] = useState<'discovery' | 'relay' | null>(null)
+  const [loading, setLoading] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const requestVersionRef = useRef(0)
 
   useEffect(() => {
-    setUntil(dayjs().unix())
+    requestVersionRef.current += 1
+    const nextUntil = dayjs().unix()
+    setUntil(nextUntil)
+    setOffset(0)
     setHasMore(true)
     setPubkeySet(new Set<string>())
-    loadMore()
+    setMode(null)
+    setLoading(false)
+    void loadMore({
+      force: true,
+      nextMode: null,
+      nextOffset: 0,
+      nextUntil
+    })
   }, [search])
 
   useEffect(() => {
@@ -28,7 +43,7 @@ export function ProfileListBySearch({ search }: { search: string }) {
     }
 
     const observerInstance = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && hasMore) {
+      if (entries[0].isIntersecting && hasMore && !loading) {
         loadMore()
       }
     }, options)
@@ -44,24 +59,71 @@ export function ProfileListBySearch({ search }: { search: string }) {
         observerInstance.unobserve(currentBottomRef)
       }
     }
-  }, [hasMore, search, until])
+  }, [hasMore, loading, search, until, offset, mode])
 
-  const loadMore = async () => {
-    const profiles = await client.searchProfiles(SEARCHABLE_RELAY_URLS, {
-      search,
-      until,
-      limit: LIMIT
-    })
-    const newPubkeySet = new Set<string>()
-    profiles.forEach((profile) => {
-      if (!pubkeySet.has(profile.pubkey)) {
-        newPubkeySet.add(profile.pubkey)
+  const loadMore = async ({
+    force = false,
+    nextMode,
+    nextOffset,
+    nextUntil
+  }: {
+    force?: boolean
+    nextMode?: 'discovery' | 'relay' | null
+    nextOffset?: number
+    nextUntil?: number
+  } = {}) => {
+    if (!search || loading || (!force && !hasMore)) {
+      return
+    }
+
+    setLoading(true)
+    const requestVersion = requestVersionRef.current
+    const activeMode = nextMode ?? mode
+    const activeOffset = nextOffset ?? offset
+    const activeUntil = nextUntil ?? until
+
+    try {
+      const shouldUseDiscovery = activeMode !== 'relay'
+      if (shouldUseDiscovery) {
+        try {
+          const profiles = await discoveryService.searchProfiles(search, LIMIT, activeOffset)
+          if (requestVersion !== requestVersionRef.current) {
+            return
+          }
+
+          if (profiles.length === 0 && activeOffset === 0) {
+            throw new Error('No indexed discovery results')
+          }
+
+          setMode('discovery')
+          setPubkeySet((prev) => new Set([...prev, ...profiles.map((profile) => profile.pubkey)]))
+          setHasMore(profiles.length >= LIMIT)
+          setOffset((prev) => prev + profiles.length)
+          return
+        } catch (error) {
+          console.warn('Profile search discovery fallback', error)
+        }
       }
-    })
-    setPubkeySet((prev) => new Set([...prev, ...newPubkeySet]))
-    setHasMore(profiles.length >= LIMIT)
-    const lastProfileCreatedAt = profiles[profiles.length - 1].created_at
-    setUntil(lastProfileCreatedAt ? lastProfileCreatedAt - 1 : 0)
+
+      const profiles = await client.searchProfiles(SEARCHABLE_RELAY_URLS, {
+        search,
+        until: activeUntil,
+        limit: LIMIT
+      })
+      if (requestVersion !== requestVersionRef.current) {
+        return
+      }
+
+      setMode('relay')
+      setPubkeySet((prev) => new Set([...prev, ...profiles.map((profile) => profile.pubkey)]))
+      setHasMore(profiles.length >= LIMIT)
+      const lastProfileCreatedAt = profiles[profiles.length - 1]?.created_at
+      setUntil(lastProfileCreatedAt ? lastProfileCreatedAt - 1 : 0)
+    } finally {
+      if (requestVersion === requestVersionRef.current) {
+        setLoading(false)
+      }
+    }
   }
 
   return (
@@ -69,7 +131,7 @@ export function ProfileListBySearch({ search }: { search: string }) {
       {Array.from(pubkeySet).map((pubkey, index) => (
         <UserItem key={`${index}-${pubkey}`} pubkey={pubkey} />
       ))}
-      {hasMore && <UserItemSkeleton />}
+      {(loading || hasMore) && <UserItemSkeleton />}
       {hasMore && <div ref={bottomRef} />}
     </div>
   )

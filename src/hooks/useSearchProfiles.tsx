@@ -1,6 +1,7 @@
 import { SEARCHABLE_RELAY_URLS } from '@/constants'
 import { useFeed } from '@/providers/FeedProvider'
 import client from '@/services/client.service'
+import discoveryService from '@/services/discovery.service'
 import { TProfile } from '@/types'
 import { useEffect, useState } from 'react'
 import { useFetchRelayInfos } from './useFetchRelayInfos'
@@ -13,21 +14,65 @@ export function useSearchProfiles(search: string, limit: number) {
   const [profiles, setProfiles] = useState<TProfile[]>([])
 
   useEffect(() => {
+    let active = true
+
+    const mergeProfiles = (...groups: (TProfile[] | null | undefined)[]) => {
+      const orderedProfiles: TProfile[] = []
+      const existingPubkeys = new Set<string>()
+
+      groups.forEach((profiles) => {
+        profiles?.forEach((profile) => {
+          if (existingPubkeys.has(profile.pubkey)) {
+            return
+          }
+
+          existingPubkeys.add(profile.pubkey)
+          orderedProfiles.push(profile)
+        })
+      })
+
+      return orderedProfiles
+    }
+
     const fetchProfiles = async () => {
       if (!search) {
-        setProfiles([])
+        if (active) {
+          setProfiles([])
+          setIsFetching(false)
+          setError(null)
+        }
         return
       }
 
-      setIsFetching(true)
-      setProfiles([])
+      if (active) {
+        setIsFetching(true)
+        setError(null)
+        setProfiles([])
+      }
+
       try {
-        const profiles = await client.searchProfilesFromLocal(search, limit)
-        setProfiles(profiles)
-        if (profiles.length >= limit) {
+        const localProfiles = await client.searchProfilesFromLocal(search, limit)
+        let discoveryProfiles: TProfile[] = []
+
+        if (active) {
+          setProfiles(localProfiles)
+        }
+
+        try {
+          discoveryProfiles = await discoveryService.suggestProfiles(search, limit)
+        } catch (error) {
+          console.warn('Profile discovery fallback', error)
+        }
+
+        const mergedProfiles = mergeProfiles(discoveryProfiles, localProfiles)
+        if (active) {
+          setProfiles(mergedProfiles)
+        }
+
+        if (mergedProfiles.length >= limit) {
           return
         }
-        const existingPubkeys = new Set(profiles.map((profile) => profile.pubkey))
+
         const fetchedProfiles = await client.searchProfiles(
           searchableRelayUrls.concat(SEARCHABLE_RELAY_URLS).slice(0, 4),
           {
@@ -35,24 +80,26 @@ export function useSearchProfiles(search: string, limit: number) {
             limit
           }
         )
-        if (fetchedProfiles.length) {
-          fetchedProfiles.forEach((profile) => {
-            if (existingPubkeys.has(profile.pubkey)) {
-              return
-            }
-            existingPubkeys.add(profile.pubkey)
-            profiles.push(profile)
-          })
-          setProfiles([...profiles])
+
+        if (fetchedProfiles.length && active) {
+          setProfiles(mergeProfiles(mergedProfiles, fetchedProfiles))
         }
       } catch (err) {
-        setError(err as Error)
+        if (active) {
+          setError(err as Error)
+        }
       } finally {
-        setIsFetching(false)
+        if (active) {
+          setIsFetching(false)
+        }
       }
     }
 
     fetchProfiles()
+
+    return () => {
+      active = false
+    }
   }, [searchableRelayUrls, search, limit])
 
   return { isFetching, error, profiles }
