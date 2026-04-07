@@ -176,6 +176,20 @@ class ClientService extends EventTarget {
     return getMetadataRelayTiers(this._preferredReadRelays, this._favoriteRelays, BIG_RELAY_URLS)
   }
 
+  getTrackedRelayStates() {
+    return this.pool
+      .getTrackedRelayStates()
+      .sort((a, b) => {
+        if (a.connected !== b.connected) {
+          return a.connected ? -1 : 1
+        }
+        if (a.subscriptionCount !== b.subscriptionCount) {
+          return b.subscriptionCount - a.subscriptionCount
+        }
+        return a.url.localeCompare(b.url)
+      })
+  }
+
   async determineTargetRelays(
     event: NEvent,
     { specifiedRelayUrls, additionalRelayUrls }: TPublishOptions = {}
@@ -239,18 +253,27 @@ class ClientService extends EventTarget {
     return relays
   }
 
-  async publishEvent(relayUrls: string[], event: NEvent) {
+  async publishEvent(
+    relayUrls: string[],
+    event: NEvent,
+    options: { minSuccessCount?: number; publishTimeout?: number } = {}
+  ) {
     const uniqueRelayUrls = Array.from(new Set(relayUrls))
+    const requiredSuccessCount = Math.min(
+      uniqueRelayUrls.length,
+      Math.max(1, options.minSuccessCount ?? Math.ceil(uniqueRelayUrls.length / 3))
+    )
     await new Promise<void>((resolve, reject) => {
       let successCount = 0
       let finishedCount = 0
+      let isSettled = false
       const errors: { url: string; error: any }[] = []
       Promise.allSettled(
         uniqueRelayUrls.map(async (url) => {
           // eslint-disable-next-line @typescript-eslint/no-this-alias
           const that = this
           const relay = await this.pool.ensureRelay(url)
-          relay.publishTimeout = 10_000 // 10s
+          relay.publishTimeout = options.publishTimeout ?? 10_000
           const markRelaySuccess = () => {
             this.trackEventSeenOn(event.id, relay)
             successCount++
@@ -279,13 +302,16 @@ class ClientService extends EventTarget {
               errors.push({ url, error })
             })
             .finally(() => {
-              // If one third of the relays have accepted the event, consider it a success
-              const isSuccess = successCount >= uniqueRelayUrls.length / 3
-              if (isSuccess) {
+              if (!isSettled && successCount >= requiredSuccessCount) {
+                isSettled = true
                 this.emitNewEvent(event)
                 resolve()
               }
               if (++finishedCount >= uniqueRelayUrls.length) {
+                if (isSettled) {
+                  return
+                }
+                isSettled = true
                 reject(
                   new AggregateError(
                     errors.map(
@@ -1623,25 +1649,39 @@ class ClientService extends EventTarget {
       })
     )
 
-    return params.map(({ pubkey, kind, d }) => {
+    return Promise.all(params.map(async ({ pubkey, kind, d }) => {
       const key = `${kind}:${pubkey}:${d ?? ''}`
       const event = eventMap.get(key)
       if (kind === kinds.Pinlist) return event ?? null
 
       if (event) {
-        indexedDb.putReplaceableEvent(event)
+        await indexedDb.putReplaceableEvent(event)
         return event
-      } else {
-        indexedDb.putNullReplaceableEvent(pubkey, kind, d)
-        return null
       }
-    })
+
+      const storedEvent = await indexedDb.getReplaceableEvent(pubkey, kind, d)
+      if (storedEvent) {
+        return storedEvent
+      }
+
+      await indexedDb.putNullReplaceableEvent(pubkey, kind, d)
+      return null
+    }))
   }
 
-  private async fetchReplaceableEvent(pubkey: string, kind: number, d?: string) {
-    const storedEvent = await indexedDb.getReplaceableEvent(pubkey, kind, d)
-    if (storedEvent !== undefined) {
-      return storedEvent
+  private async fetchReplaceableEvent(
+    pubkey: string,
+    kind: number,
+    d?: string,
+    { refresh = false }: { refresh?: boolean } = {}
+  ) {
+    if (!refresh) {
+      const storedEvent = await indexedDb.getReplaceableEvent(pubkey, kind, d)
+      if (storedEvent !== undefined) {
+        return storedEvent
+      }
+    } else {
+      this.replaceableEventDataLoader.clear({ pubkey, kind, d })
     }
 
     return await this.replaceableEventDataLoader.load({ pubkey, kind, d })
@@ -1658,8 +1698,8 @@ class ClientService extends EventTarget {
 
   /** =========== Replaceable event =========== */
 
-  async fetchFollowListEvent(pubkey: string) {
-    return await this.fetchReplaceableEvent(pubkey, kinds.Contacts)
+  async fetchFollowListEvent(pubkey: string, options?: { refresh?: boolean }) {
+    return await this.fetchReplaceableEvent(pubkey, kinds.Contacts, undefined, options)
   }
 
   async fetchFollowings(pubkey: string) {

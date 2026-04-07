@@ -41,7 +41,6 @@ import { Event, nip19 } from 'nostr-tools'
 import { TStarterPack } from '@/providers/ListsProvider'
 import NoteList from '@/components/NoteList'
 import { useFollowList } from '@/providers/FollowListProvider'
-import { createFollowListDraftEvent } from '@/lib/draft-event'
 import localStorageService from '@/services/local-storage.service'
 import ProfileList from '@/components/ProfileList'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
@@ -53,10 +52,10 @@ import ShareListDialog from '@/components/ShareListDialog'
 const ListsPage = forwardRef((_, ref) => {
   const { t } = useTranslation()
   const layoutRef = useRef<TPageRef>(null)
-  const { pubkey, checkLogin, publish, updateFollowListEvent } = useNostr()
+  const { pubkey, checkLogin } = useNostr()
   const { push } = useSecondaryPage()
   const { lists, isLoading: isLoadingMyLists, deleteList, fetchLists } = useLists()
-  const { followings } = useFollowList()
+  const { followings, followMultiple } = useFollowList()
   const { deckViewMode, pinColumn, pinnedColumns } = useDeckView()
   const { layoutMode } = useLayoutMode()
   const [searchQuery, setSearchQuery] = useState('')
@@ -297,25 +296,7 @@ const ListsPage = forwardRef((_, ref) => {
 
     const { unwrap } = toast.promise(
       (async () => {
-        // Create a new follow list event with all the new follows at once
-        const followListEvent = await client.fetchFollowListEvent(pubkey)
-        const existingTags = followListEvent?.tags ?? []
-        const newTags = [...existingTags]
-
-        // Add new p tags for users to follow
-        pubkeysToFollow.forEach(pk => {
-          if (!newTags.some(tag => tag[0] === 'p' && tag[1] === pk)) {
-            newTags.push(['p', pk])
-          }
-        })
-
-        const newFollowListDraftEvent = createFollowListDraftEvent(
-          newTags,
-          followListEvent?.content
-        )
-
-        const newFollowListEvent = await publish(newFollowListDraftEvent)
-        await updateFollowListEvent(newFollowListEvent)
+        await followMultiple(pubkeysToFollow)
 
         // Mark list as followed
         setFollowedLists(prev => new Set(prev).add(listKey))
@@ -401,25 +382,7 @@ const ListsPage = forwardRef((_, ref) => {
 
       const { unwrap } = toast.promise(
         (async () => {
-          // Create a new follow list event with all the new follows at once
-          const followListEvent = await client.fetchFollowListEvent(pubkey)
-          const existingTags = followListEvent?.tags ?? []
-          const newTags = [...existingTags]
-
-          // Add new p tags for users to follow
-          pubkeysToFollow.forEach(pk => {
-            if (!newTags.some(tag => tag[0] === 'p' && tag[1] === pk)) {
-              newTags.push(['p', pk])
-            }
-          })
-
-          const newFollowListDraftEvent = createFollowListDraftEvent(
-            newTags,
-            followListEvent?.content
-          )
-
-          const newFollowListEvent = await publish(newFollowListDraftEvent)
-          await updateFollowListEvent(newFollowListEvent)
+          await followMultiple(pubkeysToFollow)
 
           // Mark list as followed
           setFollowedLists(prev => new Set(prev).add(listKey))

@@ -1,4 +1,3 @@
-import { DEFAULT_FAVORITE_RELAYS } from '@/constants'
 import { getCustomFeedHashtags, INTERESTS_FEED_ID } from '@/lib/custom-feed'
 import { FEED_INFO_CHANGED_EVENT, TFeedInfoChangedDetail } from '@/lib/feed-sync'
 import { getRelaySetFromEvent } from '@/lib/event-metadata'
@@ -47,8 +46,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
   const [relayUrls, setRelayUrls] = useState<string[]>([])
   const [isReady, setIsReady] = useState(false)
   const [feedInfo, setFeedInfo] = useState<TFeedInfo>({
-    feedType: 'relay',
-    id: DEFAULT_FAVORITE_RELAYS[0]
+    feedType: 'news'
   })
   const feedInfoRef = useRef<TFeedInfo>(feedInfo)
 
@@ -66,7 +64,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
           feedInfo = storedFeedInfo
         } else {
           const interestsFeed = storage
-            .getCustomFeeds()
+            .getCustomFeeds(pubkey)
             .find((feed) => feed.id === INTERESTS_FEED_ID && getCustomFeedHashtags(feed).length > 0)
 
           if (interestsFeed) {
@@ -78,12 +76,8 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
           const followings = followListEvent ? getPubkeysFromPTags(followListEvent.tags) : []
 
           if (followings.length === 0) {
-            // New users with no followings should default to nostr.wine relay feed
-            feedInfo = {
-              feedType: 'relay',
-              id: DEFAULT_FAVORITE_RELAYS[0] // wss://nostr.wine/
-            }
-            return await switchFeed('relay', { relay: feedInfo.id })
+            feedInfo = { feedType: 'news' }
+            return await switchFeed('news')
           } else {
             // Users with followings default to following feed
             feedInfo = { feedType: 'following' }
@@ -91,11 +85,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } else {
-        // For logged out users, default to nostr.wine relay feed
-        feedInfo = {
-          feedType: 'relay',
-          id: DEFAULT_FAVORITE_RELAYS[0] // wss://nostr.wine/
-        }
+        feedInfo = { feedType: 'news' }
       }
 
       if (feedInfo.feedType === 'relays') {
@@ -108,6 +98,10 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
 
       if (feedInfo.feedType === 'trending') {
         return await switchFeed('trending')
+      }
+
+      if (feedInfo.feedType === 'news') {
+        return await switchFeed('news')
       }
 
       // update following feed if pubkey changes
@@ -167,6 +161,11 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
 
       if (nextFeedInfo.feedType === 'trending') {
         void switchFeed('trending')
+        return
+      }
+
+      if (nextFeedInfo.feedType === 'news') {
+        void switchFeed('news')
         return
       }
 
@@ -278,6 +277,16 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       return
     }
     if (feedType === 'trending') {
+      const newFeedInfo = { feedType }
+      setFeedInfo(newFeedInfo)
+      feedInfoRef.current = newFeedInfo
+      storage.setFeedInfo(newFeedInfo, pubkey)
+
+      setRelayUrls([])
+      setIsReady(true)
+      return
+    }
+    if (feedType === 'news') {
       const newFeedInfo = { feedType }
       setFeedInfo(newFeedInfo)
       feedInfoRef.current = newFeedInfo

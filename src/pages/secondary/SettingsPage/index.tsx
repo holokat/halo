@@ -324,9 +324,9 @@ const SettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
         id: 'relays',
         icon: <Server />,
         iconToneClassName: SETTINGS_ICON_TONE_CLASSNAME,
-        title: t('Relays'),
+        title: t('Network'),
         route: toRelaySettings(),
-        keywords: ['relay settings', 'favorite relays', 'mailbox']
+        keywords: ['network', 'relay settings', 'favorite relays', 'mailbox', 'sources']
       },
       {
         id: 'backup',
@@ -482,7 +482,7 @@ const SettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
           </SettingItem>
           <SettingItem className="clickable" iconToneClassName={SETTINGS_ICON_TONE_CLASSNAME} onClick={() => push(toRelaySettings())}>
             <Server />
-            {t('Relays')}
+            {t('Network')}
           </SettingItem>
           <SettingItem className="clickable" iconToneClassName={SETTINGS_ICON_TONE_CLASSNAME} onClick={() => push(toBackupSettings())}>
             <Cloud />

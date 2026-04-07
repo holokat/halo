@@ -107,7 +107,6 @@ class LocalStorageService {
   private aiServiceConfigMap: Record<string, TAIServiceConfig> = {}
   private aiToolsConfigMap: Record<string, TAIToolsConfig> = {}
   private defaultShowNsfw: boolean = false
-  private dismissedTooManyRelaysAlert: boolean = false
   private showKinds: number[] = []
   private mediaOnly: boolean = true
   private hideContentMentioningMutedUsers: boolean = false
@@ -157,7 +156,7 @@ class LocalStorageService {
   private newsWidgetRelays: string[] = DEFAULT_NEWS_WIDGET_RELAYS
   private newsWidgetHashtags: string[] = []
   private zapSound: TZapSound = ZAP_SOUNDS.NONE
-  private customFeeds: TCustomFeed[] = []
+  private customFeedsMap: Record<string, TCustomFeed[]> = {}
   private chargeZapEnabled: boolean = false
   private chargeZapLimit: number = 1000
   private zapOnReactions: boolean = false
@@ -315,7 +314,6 @@ class LocalStorageService {
 
   private initDisplayState() {
     this.defaultShowNsfw = readStoredBoolean(StorageKey.DEFAULT_SHOW_NSFW)
-    this.dismissedTooManyRelaysAlert = readStoredBoolean(StorageKey.DISMISSED_TOO_MANY_RELAYS_ALERT)
 
     const showKindsStr = readStoredStringValue(StorageKey.SHOW_KINDS)
     if (!showKindsStr) {
@@ -574,9 +572,18 @@ class LocalStorageService {
       this.zapSound = zapSound as TZapSound
     }
 
-    const customFeedsStr = readStoredStringValue(StorageKey.CUSTOM_FEEDS)
-    if (customFeedsStr) {
-      this.customFeeds = JSON.parse(customFeedsStr)
+    const storedCustomFeeds = readStoredJson<unknown>(StorageKey.CUSTOM_FEEDS, {})
+    if (Array.isArray(storedCustomFeeds)) {
+      const ownerKey = this.getCustomFeedsOwnerKey(this.currentAccount?.pubkey)
+      this.customFeedsMap = { [ownerKey]: this.sanitizeCustomFeeds(storedCustomFeeds) }
+      this.setJson(StorageKey.CUSTOM_FEEDS, this.customFeedsMap)
+    } else if (storedCustomFeeds && typeof storedCustomFeeds === 'object') {
+      this.customFeedsMap = Object.fromEntries(
+        Object.entries(storedCustomFeeds as Record<string, unknown>).map(([key, feeds]) => [
+          key,
+          this.sanitizeCustomFeeds(feeds)
+        ])
+      )
     }
 
     this.chargeZapEnabled = readStoredBoolean(StorageKey.CHARGE_ZAP_ENABLED)
@@ -1004,15 +1011,6 @@ class LocalStorageService {
   setDefaultShowNsfw(defaultShowNsfw: boolean) {
     this.defaultShowNsfw = defaultShowNsfw
     this.setBoolean(StorageKey.DEFAULT_SHOW_NSFW, defaultShowNsfw)
-  }
-
-  getDismissedTooManyRelaysAlert() {
-    return this.dismissedTooManyRelaysAlert
-  }
-
-  setDismissedTooManyRelaysAlert(dismissed: boolean) {
-    this.dismissedTooManyRelaysAlert = dismissed
-    this.setBoolean(StorageKey.DISMISSED_TOO_MANY_RELAYS_ALERT, dismissed)
   }
 
   getShowKinds() {
@@ -1520,26 +1518,65 @@ class LocalStorageService {
     this.setString(StorageKey.ZAP_SOUND, sound)
   }
 
-  getCustomFeeds() {
-    return this.customFeeds
+  private getCustomFeedsOwnerKey(pubkey?: string | null) {
+    return pubkey ?? this.currentAccount?.pubkey ?? 'default'
   }
 
-  addCustomFeed(feed: TCustomFeed) {
-    this.customFeeds.push(feed)
-    this.setJson(StorageKey.CUSTOM_FEEDS, this.customFeeds)
-  }
-
-  removeCustomFeed(id: string) {
-    this.customFeeds = this.customFeeds.filter((feed) => feed.id !== id)
-    this.setJson(StorageKey.CUSTOM_FEEDS, this.customFeeds)
-  }
-
-  updateCustomFeed(id: string, updates: Partial<TCustomFeed>) {
-    const index = this.customFeeds.findIndex((feed) => feed.id === id)
-    if (index !== -1) {
-      this.customFeeds[index] = { ...this.customFeeds[index], ...updates }
-      this.setJson(StorageKey.CUSTOM_FEEDS, this.customFeeds)
+  private sanitizeCustomFeeds(value: unknown): TCustomFeed[] {
+    if (!Array.isArray(value)) {
+      return []
     }
+
+    return value.filter((feed): feed is TCustomFeed => {
+      return (
+        !!feed &&
+        typeof feed === 'object' &&
+        typeof (feed as TCustomFeed).id === 'string' &&
+        typeof (feed as TCustomFeed).name === 'string' &&
+        typeof (feed as TCustomFeed).searchParams === 'object'
+      )
+    })
+  }
+
+  private persistCustomFeedsForKey(ownerKey: string, feeds: TCustomFeed[]) {
+    this.customFeedsMap[ownerKey] = feeds
+    this.setJson(StorageKey.CUSTOM_FEEDS, this.customFeedsMap)
+  }
+
+  getCustomFeeds(pubkey?: string | null) {
+    return [...(this.customFeedsMap[this.getCustomFeedsOwnerKey(pubkey)] ?? [])]
+  }
+
+  addCustomFeed(feed: TCustomFeed, pubkey?: string | null) {
+    const ownerKey = this.getCustomFeedsOwnerKey(pubkey)
+    const feeds = this.getCustomFeeds(pubkey)
+    const index = feeds.findIndex((currentFeed) => currentFeed.id === feed.id)
+
+    if (index !== -1) {
+      feeds[index] = feed
+    } else {
+      feeds.push(feed)
+    }
+
+    this.persistCustomFeedsForKey(ownerKey, feeds)
+  }
+
+  removeCustomFeed(id: string, pubkey?: string | null) {
+    const ownerKey = this.getCustomFeedsOwnerKey(pubkey)
+    const feeds = this.getCustomFeeds(pubkey).filter((feed) => feed.id !== id)
+    this.persistCustomFeedsForKey(ownerKey, feeds)
+  }
+
+  updateCustomFeed(id: string, updates: Partial<TCustomFeed>, pubkey?: string | null) {
+    const ownerKey = this.getCustomFeedsOwnerKey(pubkey)
+    const feeds = this.getCustomFeeds(pubkey)
+    const index = feeds.findIndex((feed) => feed.id === id)
+    if (index === -1) {
+      return
+    }
+
+    feeds[index] = { ...feeds[index], ...updates }
+    this.persistCustomFeedsForKey(ownerKey, feeds)
   }
 
   getZapOnReactions() {

@@ -28,6 +28,14 @@ export class SmartPool extends SimplePool {
     return Array.from(this.relays.keys())
   }
 
+  getTrackedRelayStates() {
+    return Array.from(this.relays.values()).map((relay) => ({
+      url: relay.url,
+      connected: relay.connected,
+      subscriptionCount: relay.openSubs.size
+    }))
+  }
+
   private cleanIdleRelays() {
     const idleRelays: string[] = []
     this.relays.forEach((relay, url) => {

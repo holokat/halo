@@ -67,7 +67,6 @@ export const StorageKey = {
   HIDE_UNTRUSTED_NOTES: 'hideUntrustedNotes',
   TRUST_LEVEL: 'trustLevel',
   DEFAULT_SHOW_NSFW: 'defaultShowNsfw',
-  DISMISSED_TOO_MANY_RELAYS_ALERT: 'dismissedTooManyRelaysAlert',
   SHOW_KINDS: 'showKinds',
   SHOW_KINDS_VERSION: 'showKindsVersion',
   MEDIA_ONLY: 'mediaOnly',

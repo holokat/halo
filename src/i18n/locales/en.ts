@@ -17,6 +17,9 @@ export default {
     'Zap n sats': 'Zap {{n}} sats',
     zapComment: 'Comment',
     Sats: 'Sats',
-    'Zap failed': 'Zap failed'
+    'Zap failed': 'Zap failed',
+    "username's following": "{{username}}'s following",
+    FollowListNotFoundConfirmation:
+      'We could not find your follow list. Create a new one? If you have followed people before, choose Cancel so you do not overwrite your previous follow list.'
   }
 }

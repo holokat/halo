@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/select'
 import { useFetchFollowings, useFetchProfile, useFetchLastActivity } from '@/hooks'
 import SecondaryPageLayout from '@/layouts/SecondaryPageLayout'
+import { formatPubkey } from '@/lib/pubkey'
 import { useFollowList } from '@/providers/FollowListProvider'
 import { useNostr } from '@/providers/NostrProvider'
 import { Loader, UserPlus, UserMinus, Filter } from 'lucide-react'
@@ -45,6 +46,25 @@ const FollowingListPage = forwardRef(({ id, index }: { id?: string; index?: numb
   const isViewingOthers = useMemo(() => {
     return targetPubkey && accountPubkey && targetPubkey !== accountPubkey
   }, [targetPubkey, accountPubkey])
+  const followingTitle = useMemo(() => {
+    if (!id) {
+      return t('Following')
+    }
+
+    const displayName =
+      profile?.original_username?.trim() ||
+      profile?.username?.trim() ||
+      (targetPubkey ? formatPubkey(targetPubkey) : '')
+
+    if (!displayName) {
+      return t('Following')
+    }
+
+    return t("username's following", {
+      username: displayName,
+      defaultValue: "{{username}}'s following"
+    })
+  }, [id, profile?.original_username, profile?.username, targetPubkey, t])
 
   // Determine which list to use (viewing own list or someone else's)
   const displayFollowings = useMemo(() => {
@@ -136,7 +156,9 @@ const FollowingListPage = forwardRef(({ id, index }: { id?: string; index?: numb
       try {
         // Fetch current follow list
         const clientService = (await import('@/services/client.service')).default
-        const followListEvent = await clientService.fetchFollowListEvent(accountPubkey!)
+        const followListEvent = await clientService.fetchFollowListEvent(accountPubkey!, {
+          refresh: true
+        })
 
         if (!followListEvent) {
           toast.error(t('Could not fetch follow list'))
@@ -178,11 +200,7 @@ const FollowingListPage = forwardRef(({ id, index }: { id?: string; index?: numb
     <SecondaryPageLayout
       ref={ref}
       index={index}
-      title={
-        id && profile?.username
-          ? t("username's following", { username: profile.username })
-          : t('Following')
-      }
+      title={followingTitle}
       displayScrollToTopButton
     >
       <div className="px-4 pt-2 pb-3 sticky top-0 bg-background z-10 space-y-2">

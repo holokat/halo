@@ -32,6 +32,7 @@ import { useTranslation } from 'react-i18next'
 import SlowConnectionToggle from '@/components/Titlebar/SlowConnectionToggle'
 import FeedButton from './FeedButton'
 import FollowingFeed from './FollowingFeed'
+import NewsFeed from './NewsFeed'
 import PollsFeed from './PollsFeed'
 import RelaysFeed from './RelaysFeed'
 import OneNotePerPersonFeed from './OneNotePerPersonFeed'
@@ -143,6 +144,8 @@ const NoteListPage = forwardRef((_, ref) => {
     content = <FollowingFeed />
   } else if (feedInfo.feedType === 'trending') {
     content = <TrendingNotes showHeader={false} />
+  } else if (feedInfo.feedType === 'news') {
+    content = <NewsFeed />
   } else if (feedInfo.feedType === 'one-per-person') {
     if (!pubkey) {
       content = (

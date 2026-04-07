@@ -1,4 +1,5 @@
 import { CUSTOM_FEEDS_CHANGED_EVENT } from '@/lib/feed-sync'
+import { useNostr } from '@/providers/NostrProvider'
 import storage from '@/services/local-storage.service'
 import { TCustomFeed } from '@/types'
 import { createContext, useContext, useEffect, useState } from 'react'
@@ -25,13 +26,14 @@ export const useOptionalCustomFeeds = () => {
 }
 
 export function CustomFeedsProvider({ children }: { children: React.ReactNode }) {
+  const { pubkey } = useNostr()
   const [customFeeds, setCustomFeeds] = useState<TCustomFeed[]>([])
 
   useEffect(() => {
-    setCustomFeeds(storage.getCustomFeeds())
+    setCustomFeeds(storage.getCustomFeeds(pubkey))
 
     const handleCustomFeedsChanged = () => {
-      setCustomFeeds(storage.getCustomFeeds())
+      setCustomFeeds(storage.getCustomFeeds(pubkey))
     }
 
     window.addEventListener(CUSTOM_FEEDS_CHANGED_EVENT, handleCustomFeedsChanged)
@@ -39,21 +41,21 @@ export function CustomFeedsProvider({ children }: { children: React.ReactNode })
     return () => {
       window.removeEventListener(CUSTOM_FEEDS_CHANGED_EVENT, handleCustomFeedsChanged)
     }
-  }, [])
+  }, [pubkey])
 
   const addCustomFeed = (feed: TCustomFeed) => {
-    storage.addCustomFeed(feed)
-    setCustomFeeds(storage.getCustomFeeds())
+    storage.addCustomFeed(feed, pubkey)
+    setCustomFeeds(storage.getCustomFeeds(pubkey))
   }
 
   const removeCustomFeed = (id: string) => {
-    storage.removeCustomFeed(id)
-    setCustomFeeds(storage.getCustomFeeds())
+    storage.removeCustomFeed(id, pubkey)
+    setCustomFeeds(storage.getCustomFeeds(pubkey))
   }
 
   const updateCustomFeed = (id: string, updates: Partial<TCustomFeed>) => {
-    storage.updateCustomFeed(id, updates)
-    setCustomFeeds(storage.getCustomFeeds())
+    storage.updateCustomFeed(id, updates, pubkey)
+    setCustomFeeds(storage.getCustomFeeds(pubkey))
   }
 
   return (
