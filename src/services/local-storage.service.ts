@@ -30,6 +30,7 @@ import {
   ZAP_SOUNDS
 } from '@/constants'
 import { isSameAccount } from '@/lib/account'
+import { normalizePollCreateData } from '@/lib/poll'
 import { randomString } from '@/lib/random'
 import { isWebsocketUrl, normalizeUrl } from '@/lib/url'
 import {
@@ -43,6 +44,7 @@ import {
   TFontFamily,
   TMediaAutoLoadPolicy,
   TMediaUploadServiceConfig,
+  TLocalPostDraft,
   TNoteListMode,
   TNotificationStyle,
   TPageTheme,
@@ -55,6 +57,7 @@ import {
   TEmoji,
   TLogoStyle
 } from '@/types'
+import type { JSONContent } from '@tiptap/react'
 import { TMenuItemConfig } from '@/constants/menu-items'
 import {
   getDefaultMenuItems,
@@ -157,6 +160,7 @@ class LocalStorageService {
   private newsWidgetHashtags: string[] = []
   private zapSound: TZapSound = ZAP_SOUNDS.NONE
   private customFeedsMap: Record<string, TCustomFeed[]> = {}
+  private localPostDraftsMap: Record<string, TLocalPostDraft[]> = {}
   private chargeZapEnabled: boolean = false
   private chargeZapLimit: number = 1000
   private zapOnReactions: boolean = false
@@ -582,6 +586,16 @@ class LocalStorageService {
         Object.entries(storedCustomFeeds as Record<string, unknown>).map(([key, feeds]) => [
           key,
           this.sanitizeCustomFeeds(feeds)
+        ])
+      )
+    }
+
+    const storedLocalPostDrafts = readStoredJson<unknown>(StorageKey.LOCAL_POST_DRAFTS, {})
+    if (storedLocalPostDrafts && typeof storedLocalPostDrafts === 'object') {
+      this.localPostDraftsMap = Object.fromEntries(
+        Object.entries(storedLocalPostDrafts as Record<string, unknown>).map(([key, drafts]) => [
+          key,
+          this.sanitizeLocalPostDrafts(drafts)
         ])
       )
     }
@@ -1522,6 +1536,10 @@ class LocalStorageService {
     return pubkey ?? this.currentAccount?.pubkey ?? 'default'
   }
 
+  private getLocalPostDraftsOwnerKey(pubkey?: string | null) {
+    return pubkey ?? this.currentAccount?.pubkey ?? 'default'
+  }
+
   private sanitizeCustomFeeds(value: unknown): TCustomFeed[] {
     if (!Array.isArray(value)) {
       return []
@@ -1541,6 +1559,22 @@ class LocalStorageService {
   private persistCustomFeedsForKey(ownerKey: string, feeds: TCustomFeed[]) {
     this.customFeedsMap[ownerKey] = feeds
     this.setJson(StorageKey.CUSTOM_FEEDS, this.customFeedsMap)
+  }
+
+  private sanitizeLocalPostDrafts(value: unknown): TLocalPostDraft[] {
+    if (!Array.isArray(value)) {
+      return []
+    }
+
+    return value
+      .map((draft) => sanitizeLocalPostDraft(draft))
+      .filter((draft): draft is TLocalPostDraft => !!draft)
+      .sort((a, b) => b.updatedAt - a.updatedAt)
+  }
+
+  private persistLocalPostDraftsForKey(ownerKey: string, drafts: TLocalPostDraft[]) {
+    this.localPostDraftsMap[ownerKey] = [...drafts].sort((a, b) => b.updatedAt - a.updatedAt)
+    this.setJson(StorageKey.LOCAL_POST_DRAFTS, this.localPostDraftsMap)
   }
 
   getCustomFeeds(pubkey?: string | null) {
@@ -1577,6 +1611,56 @@ class LocalStorageService {
 
     feeds[index] = { ...feeds[index], ...updates }
     this.persistCustomFeedsForKey(ownerKey, feeds)
+  }
+
+  getLocalPostDrafts(pubkey?: string | null) {
+    const ownerKey = this.getLocalPostDraftsOwnerKey(pubkey)
+    return cloneSerializable(this.localPostDraftsMap[ownerKey] ?? [])
+  }
+
+  saveLocalPostDraft(
+    draft: Omit<TLocalPostDraft, 'id' | 'createdAt' | 'updatedAt'> & { id?: string },
+    pubkey?: string | null
+  ) {
+    const ownerKey = this.getLocalPostDraftsOwnerKey(pubkey)
+    const drafts = this.getLocalPostDrafts(pubkey)
+    const now = Date.now()
+    const draftId = draft.id?.trim() || randomString(12)
+    const nextDraft: TLocalPostDraft = {
+      id: draftId,
+      content: cloneDraftContent(draft.content),
+      previewText: typeof draft.previewText === 'string' ? draft.previewText : '',
+      images: sanitizeDraftImages(draft.images),
+      isNsfw: !!draft.isNsfw,
+      isPoll: !!draft.isPoll,
+      pollCreateData: normalizePollCreateData(draft.pollCreateData),
+      addClientTag: draft.addClientTag ?? true,
+      scheduledFor:
+        typeof draft.scheduledFor === 'number' && Number.isFinite(draft.scheduledFor)
+          ? draft.scheduledFor
+          : null,
+      minPow:
+        typeof draft.minPow === 'number' && Number.isFinite(draft.minPow) ? draft.minPow : 0,
+      createdAt: now,
+      updatedAt: now
+    }
+
+    const index = drafts.findIndex((item) => item.id === draftId)
+    if (index >= 0) {
+      nextDraft.createdAt = drafts[index].createdAt
+      drafts[index] = nextDraft
+    } else {
+      drafts.unshift(nextDraft)
+    }
+
+    this.persistLocalPostDraftsForKey(ownerKey, drafts)
+    return cloneSerializable(nextDraft)
+  }
+
+  removeLocalPostDraft(id: string, pubkey?: string | null) {
+    const ownerKey = this.getLocalPostDraftsOwnerKey(pubkey)
+    const drafts = this.getLocalPostDrafts(pubkey).filter((draft) => draft.id !== id)
+    this.persistLocalPostDraftsForKey(ownerKey, drafts)
   }
 
   getZapOnReactions() {
@@ -1828,6 +1912,82 @@ export default instance
 
 function normalizeWidgetHashtag(tag: string) {
   return tag.trim().replace(/^#/, '').toLowerCase()
+}
+
+function sanitizeLocalPostDraft(value: unknown): TLocalPostDraft | null {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+
+  const draft = value as Partial<TLocalPostDraft>
+  const id = typeof draft.id === 'string' ? draft.id.trim() : ''
+  if (!id) {
+    return null
+  }
+
+  return {
+    id,
+    content: cloneDraftContent(draft.content),
+    previewText: typeof draft.previewText === 'string' ? draft.previewText : '',
+    images: sanitizeDraftImages(draft.images),
+    isNsfw: !!draft.isNsfw,
+    isPoll: !!draft.isPoll,
+    pollCreateData: normalizePollCreateData(draft.pollCreateData),
+    addClientTag: draft.addClientTag ?? true,
+    scheduledFor:
+      typeof draft.scheduledFor === 'number' && Number.isFinite(draft.scheduledFor)
+        ? draft.scheduledFor
+        : null,
+    minPow: typeof draft.minPow === 'number' && Number.isFinite(draft.minPow) ? draft.minPow : 0,
+    createdAt:
+      typeof draft.createdAt === 'number' && Number.isFinite(draft.createdAt)
+        ? draft.createdAt
+        : Date.now(),
+    updatedAt:
+      typeof draft.updatedAt === 'number' && Number.isFinite(draft.updatedAt)
+        ? draft.updatedAt
+        : Date.now()
+  }
+}
+
+function sanitizeDraftImages(value: unknown): { url: string; alt?: string }[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value.flatMap((image) => {
+    if (!image || typeof image !== 'object') {
+      return []
+    }
+
+    const url = typeof (image as { url?: unknown }).url === 'string' ? (image as { url: string }).url : ''
+    if (!url.trim()) {
+      return []
+    }
+
+    const alt =
+      typeof (image as { alt?: unknown }).alt === 'string'
+        ? (image as { alt: string }).alt
+        : undefined
+
+    return [{ url, ...(alt ? { alt } : {}) }]
+  })
+}
+
+function cloneDraftContent(value: unknown): JSONContent | string {
+  if (typeof value === 'string') {
+    return value
+  }
+
+  if (!value || typeof value !== 'object') {
+    return ''
+  }
+
+  return cloneSerializable(value as JSONContent)
+}
+
+function cloneSerializable<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T
 }
 
 function sanitizeWidgetHeights(heights: Record<string, number> | null | undefined) {

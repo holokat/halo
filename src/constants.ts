@@ -112,6 +112,7 @@ export const StorageKey = {
   ZAP_SOUND: 'zapSound',
   FONT_FAMILY: 'fontFamily',
   CUSTOM_FEEDS: 'customFeeds',
+  LOCAL_POST_DRAFTS: 'localPostDrafts',
   CHARGE_ZAP_ENABLED: 'chargeZapEnabled',
   CHARGE_ZAP_LIMIT: 'chargeZapLimit',
   ZAP_ON_REACTIONS: 'zapOnReactions',

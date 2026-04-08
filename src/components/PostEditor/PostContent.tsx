@@ -14,9 +14,10 @@ import { useNostr } from '@/providers/NostrProvider'
 import { useReply } from '@/providers/ReplyProvider'
 import { useNoteExpiration } from '@/providers/NoteExpirationProvider'
 import client from '@/services/client.service'
+import storage from '@/services/local-storage.service'
 import postEditorCache, { ImageAttachment } from '@/services/post-editor-cache.service'
 import scheduledPostsService from '@/services/scheduled-posts.service'
-import { TPollCreateData } from '@/types'
+import { TLocalPostDraft, TPollCreateData } from '@/types'
 import {
   CircleUserRound,
   Clock,
@@ -74,7 +75,7 @@ export default function PostContent({
   defaultContent?: string
   initialMentionIds?: string[]
   parentEvent?: Event
-  close: () => void
+  close: (options?: { saveLocalDraft?: boolean }) => void
   openFrom?: string[]
   isMobileComposer: boolean
   isProtectedEvent: boolean
@@ -103,8 +104,11 @@ export default function PostContent({
   const [pollCreateData, setPollCreateData] = useState<TPollCreateData>(createDefaultPollCreateData)
   const [scheduledFor, setScheduledFor] = useState<number | null>(null)
   const [minPow, setMinPow] = useState(0)
+  const [localDrafts, setLocalDrafts] = useState<TLocalPostDraft[]>([])
+  const [activeLocalDraftId, setActiveLocalDraftId] = useState<string | null>(null)
   const isFirstRender = useRef(true)
   const hasAppliedInitialMentions = useRef(false)
+  const draftOwnerPubkey = account?.pubkey ?? pubkey ?? null
   const requiredMentionPubkeys = useMemo(
     () =>
       Array.from(
@@ -183,6 +187,8 @@ export default function PostContent({
         setAddClientTag(cachedSettings.addClientTag ?? false)
         setImages(cachedSettings.images ?? [])
         setScheduledFor(cachedSettings.scheduledFor ?? null)
+        setMinPow(cachedSettings.minPow ?? 0)
+        setActiveLocalDraftId(cachedSettings.activeLocalDraftId ?? null)
       }
       return
     }
@@ -194,7 +200,9 @@ export default function PostContent({
         pollCreateData,
         addClientTag,
         images,
-        scheduledFor
+        scheduledFor,
+        minPow,
+        activeLocalDraftId
       }
     )
   }, [
@@ -205,8 +213,66 @@ export default function PostContent({
     pollCreateData,
     addClientTag,
     images,
-    scheduledFor
+    scheduledFor,
+    minPow,
+    activeLocalDraftId
   ])
+
+  const refreshLocalDrafts = useCallback(() => {
+    if (!draftOwnerPubkey || parentEvent) {
+      setLocalDrafts([])
+      return
+    }
+
+    setLocalDrafts(storage.getLocalPostDrafts(draftOwnerPubkey))
+  }, [draftOwnerPubkey, parentEvent])
+
+  useEffect(() => {
+    refreshLocalDrafts()
+  }, [refreshLocalDrafts])
+
+  useEffect(() => {
+    if (activeLocalDraftId && !localDrafts.some((draft) => draft.id === activeLocalDraftId)) {
+      setActiveLocalDraftId(null)
+    }
+  }, [activeLocalDraftId, localDrafts])
+
+  const clearUsedLocalDraft = useCallback(() => {
+    if (!draftOwnerPubkey || !activeLocalDraftId) {
+      return
+    }
+
+    storage.removeLocalPostDraft(activeLocalDraftId, draftOwnerPubkey)
+    setActiveLocalDraftId(null)
+    refreshLocalDrafts()
+  }, [activeLocalDraftId, draftOwnerPubkey, refreshLocalDrafts])
+
+  const handleSelectLocalDraft = useCallback((draft: TLocalPostDraft) => {
+    setImages(draft.images)
+    setIsNsfw(draft.isNsfw)
+    setIsPoll(draft.isPoll)
+    setPollCreateData(normalizePollCreateData(draft.pollCreateData))
+    setAddClientTag(draft.addClientTag)
+    setScheduledFor(draft.scheduledFor)
+    setMinPow(draft.minPow)
+    setActiveLocalDraftId(draft.id)
+    setShowMoreOptions(false)
+  }, [])
+
+  const handleDeleteLocalDraft = useCallback(
+    (draftId: string) => {
+      if (!draftOwnerPubkey) {
+        return
+      }
+
+      storage.removeLocalPostDraft(draftId, draftOwnerPubkey)
+      if (activeLocalDraftId === draftId) {
+        setActiveLocalDraftId(null)
+      }
+      refreshLocalDrafts()
+    },
+    [activeLocalDraftId, draftOwnerPubkey, refreshLocalDrafts]
+  )
 
   useEffect(() => {
     if (hasAppliedInitialMentions.current || !initialMentionIds.length || !textareaRef.current) {
@@ -278,7 +344,7 @@ export default function PostContent({
 
           client.addEventToCache(optimisticReply)
           addReplies([optimisticReply])
-          close()
+          close({ saveLocalDraft: false })
 
           void (async () => {
             try {
@@ -304,10 +370,11 @@ export default function PostContent({
         }
 
         const newEvent = await publish(draftEvent, publishOptions)
+        clearUsedLocalDraft()
         clearComposerDraftCache(defaultContent, parentEvent)
         deleteDraftEventCache(draftEvent)
         addReplies([newEvent])
-        close()
+        close({ saveLocalDraft: false })
       } catch (error) {
         const errors = error instanceof AggregateError ? error.errors : [error]
         errors.forEach((err) => {
@@ -378,8 +445,9 @@ export default function PostContent({
           scheduledFor
         )
 
+        clearUsedLocalDraft()
         clearComposerDraftCache(defaultContent, parentEvent)
-        close()
+        close({ saveLocalDraft: false })
         toast.success(
           t('Scheduled for {{time}}', {
             time: formatScheduledDateTime(scheduledFor)
@@ -413,6 +481,7 @@ export default function PostContent({
       minPow,
       defaultContent,
       close,
+      clearUsedLocalDraft,
       formatScheduledDateTime,
       checkLogin,
       t
@@ -598,6 +667,10 @@ export default function PostContent({
       images={images}
       onRemoveImage={handleRemoveImage}
       onUpdateImageAlt={handleUpdateImageAlt}
+      localDrafts={localDrafts}
+      activeLocalDraftId={activeLocalDraftId}
+      onSelectLocalDraft={handleSelectLocalDraft}
+      onDeleteLocalDraft={handleDeleteLocalDraft}
     />
   )
 

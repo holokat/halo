@@ -51,7 +51,8 @@ class IndexedDbService {
           this.db = db
         }
       })
-      setTimeout(() => this.cleanUp(), 1000 * 60) // 1 minute
+      const cleanupTimer = setTimeout(() => this.cleanUp(), 1000 * 60) // 1 minute
+      cleanupTimer.unref?.()
     }
     return this.initPromise
   }

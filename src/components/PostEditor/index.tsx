@@ -7,10 +7,17 @@ import {
 } from '@/components/ui/dialog'
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from '@/components/ui/drawer'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { normalizePollCreateData } from '@/lib/poll'
+import { parseEditorJsonToText } from '@/lib/tiptap'
+import { useNostr } from '@/providers/NostrProvider'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
+import storage from '@/services/local-storage.service'
+import postEditorCache from '@/services/post-editor-cache.service'
 import postEditor from '@/services/post-editor.service'
 import { Event } from 'nostr-tools'
-import { Dispatch, useMemo, useState } from 'react'
+import { Dispatch, useCallback, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import PostContent from './PostContent'
 import Title from './Title'
 
@@ -29,9 +36,81 @@ export default function PostEditor({
   setOpen: Dispatch<boolean>
   openFrom?: string[]
 }) {
+  const { t } = useTranslation()
   const { isSmallScreen } = useScreenSize()
+  const { account, pubkey } = useNostr()
   const [isProtectedEvent, setIsProtectedEvent] = useState(false)
   const [additionalRelayUrls, setAdditionalRelayUrls] = useState<string[]>([])
+  const draftOwnerPubkey = account?.pubkey ?? pubkey ?? null
+
+  const handleClose = useCallback(
+    ({ saveLocalDraft = true }: { saveLocalDraft?: boolean } = {}) => {
+      if (!saveLocalDraft || parentEvent) {
+        setOpen(false)
+        return
+      }
+
+      const rawContent = postEditorCache.getPostContentCache({ defaultContent, parentEvent })
+      const settings = postEditorCache.getPostSettingsCache({ defaultContent, parentEvent })
+      const content = Array.isArray(rawContent) ? { type: 'doc', content: rawContent } : rawContent ?? ''
+      const previewText =
+        typeof content === 'string' ? content.trim() : parseEditorJsonToText(content).trim()
+      const defaultText = defaultContent.trim()
+      const hasPollContent =
+        !!settings?.isPoll &&
+        normalizePollCreateData(settings.pollCreateData).options.some(
+          (option) => option.label.trim() || option.image
+        )
+      const hasMeaningfulDraft =
+        (previewText.length > 0 && previewText !== defaultText) ||
+        (settings?.images?.length ?? 0) > 0 ||
+        hasPollContent
+
+      if (!hasMeaningfulDraft) {
+        postEditorCache.clearPostCache({ defaultContent, parentEvent })
+        setOpen(false)
+        return
+      }
+
+      if (!draftOwnerPubkey) {
+        setOpen(false)
+        return
+      }
+
+      storage.saveLocalPostDraft(
+        {
+          id: settings?.activeLocalDraftId ?? undefined,
+          content,
+          previewText,
+          images: settings?.images ?? [],
+          isNsfw: settings?.isNsfw ?? false,
+          isPoll: settings?.isPoll ?? false,
+          pollCreateData: normalizePollCreateData(settings?.pollCreateData),
+          addClientTag: settings?.addClientTag ?? true,
+          scheduledFor: settings?.scheduledFor ?? null,
+          minPow: settings?.minPow ?? 0
+        },
+        draftOwnerPubkey
+      )
+
+      postEditorCache.clearPostCache({ defaultContent, parentEvent })
+      toast.success(t('Saved to drafts', { defaultValue: 'Saved to drafts' }))
+      setOpen(false)
+    },
+    [defaultContent, draftOwnerPubkey, parentEvent, setOpen, t]
+  )
+
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (nextOpen) {
+        setOpen(true)
+        return
+      }
+
+      handleClose()
+    },
+    [handleClose, setOpen]
+  )
 
   const content = useMemo(() => {
     return (
@@ -39,7 +118,7 @@ export default function PostEditor({
         defaultContent={defaultContent}
         initialMentionIds={initialMentionIds}
         parentEvent={parentEvent}
-        close={() => setOpen(false)}
+        close={handleClose}
         openFrom={openFrom}
         isMobileComposer={isSmallScreen}
         isProtectedEvent={isProtectedEvent}
@@ -54,6 +133,7 @@ export default function PostEditor({
     parentEvent,
     openFrom,
     isSmallScreen,
+    handleClose,
     isProtectedEvent,
     additionalRelayUrls
   ])
@@ -62,7 +142,7 @@ export default function PostEditor({
     return (
       <Drawer
         open={open}
-        onOpenChange={setOpen}
+        onOpenChange={handleOpenChange}
         shouldScaleBackground={false}
         // Keep the composer header stable when the virtual keyboard opens.
         repositionInputs={false}
@@ -88,7 +168,7 @@ export default function PostEditor({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         className="p-0 max-w-2xl bg-card"
         withoutClose

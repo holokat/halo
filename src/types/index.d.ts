@@ -1,3 +1,4 @@
+import type { JSONContent } from '@tiptap/react'
 import { Event, Filter, VerifiedEvent } from 'nostr-tools'
 import { DISTRACTION_FREE_MODE, MEDIA_AUTO_LOAD_POLICY, NOTIFICATION_LIST_STYLE, POLL_TYPE } from '../constants'
 
@@ -212,6 +213,21 @@ export type TCustomFeed = {
   hashtags?: string[]
 }
 
+export type TLocalPostDraft = {
+  id: string
+  content: JSONContent | string
+  previewText: string
+  images: { url: string; alt?: string }[]
+  isNsfw: boolean
+  isPoll: boolean
+  pollCreateData: TPollCreateData
+  addClientTag: boolean
+  scheduledFor: number | null
+  minPow: number
+  createdAt: number
+  updatedAt: number
+}
+
 export type TLanguage = 'en' | 'zh' | 'pl'
 
 export type TImetaInfo = {
@@ -238,6 +254,14 @@ export type TPageRef = { scrollToTop: (behavior?: ScrollBehavior) => void }
 export type TEmoji = {
   shortcode: string
   url: string
+}
+
+export type TNoteReaction = {
+  id: string
+  pubkey: string
+  created_at: number
+  emoji: TEmoji | string
+  bonusCount: number
 }
 
 export type TTranslationAccount = {

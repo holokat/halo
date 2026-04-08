@@ -14,6 +14,8 @@ type TPostSettings = {
   addClientTag?: boolean
   images?: ImageAttachment[]
   scheduledFor?: number | null
+  minPow?: number
+  activeLocalDraftId?: string | null
 }
 
 class PostEditorCacheService {
