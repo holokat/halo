@@ -1,6 +1,6 @@
 import { DEFAULT_READ_RELAY_URLS, DEFAULT_WRITE_RELAY_URLS, ExtendedKind } from '@/constants'
 import { TRelayDiscovery, TRelayList, TRelaySet } from '@/types'
-import type { Event } from 'nostr-tools'
+import { kinds, type Event } from 'nostr-tools'
 import { buildATag } from '../draft-event.tags'
 import { getReplaceableEventIdentifier } from '../event'
 import { isWebsocketUrl, normalizeUrl } from '../url'
@@ -18,12 +18,16 @@ export function getRelayListFromEvent(event?: Event | null) {
     }
   }
 
+  if (event.kind === kinds.Contacts) {
+    return getRelayListFromContactListEvent(event)
+  }
+
   const torBrowserDetected = isTorBrowser()
   const writeSet = new Set<string>()
   const readSet = new Set<string>()
   const relayScopeMap = new Map<string, TRelayList['originalRelays'][number]['scope']>()
 
-  event.tags.filter(tagNameEquals('r')).forEach(([, url, type]) => {
+  event.tags.filter(([tagName]) => tagName === 'r' || tagName === 'relay').forEach(([, url, type]) => {
     if (!url || !isWebsocketUrl(url)) return
 
     const normalizedUrl = normalizeUrl(url)
@@ -47,6 +51,65 @@ export function getRelayListFromEvent(event?: Event | null) {
   const originalRelays = Array.from(relayScopeMap.entries()).map(([url, scope]) => ({ url, scope }))
   const write = Array.from(writeSet)
   const read = Array.from(readSet)
+
+  return {
+    write: write.length && write.length <= 8 ? write : DEFAULT_WRITE_RELAY_URLS,
+    read: read.length && read.length <= 8 ? read : DEFAULT_READ_RELAY_URLS,
+    originalRelays: originalRelays.length ? originalRelays : defaultOriginalRelays
+  }
+}
+
+export function getRelayListFromContactListEvent(event?: Event | null): TRelayList {
+  const defaultOriginalRelays = buildDefaultRelayList()
+
+  if (!event || event.kind !== kinds.Contacts || !event.content) {
+    return {
+      write: DEFAULT_WRITE_RELAY_URLS,
+      read: DEFAULT_READ_RELAY_URLS,
+      originalRelays: defaultOriginalRelays
+    }
+  }
+
+  const torBrowserDetected = isTorBrowser()
+  const readSet = new Set<string>()
+  const writeSet = new Set<string>()
+  const relayScopeMap = new Map<string, TRelayList['originalRelays'][number]['scope']>()
+
+  try {
+    const content = JSON.parse(event.content) as Record<string, { read?: boolean; write?: boolean } | null>
+
+    Object.entries(content).forEach(([url, config]) => {
+      if (!url || !isWebsocketUrl(url)) return
+
+      const normalizedUrl = normalizeUrl(url)
+      if (!normalizedUrl) return
+      if (normalizedUrl.endsWith('.onion/') && !torBrowserDetected) return
+
+      const canRead = config === null || config?.read === true
+      const canWrite = config === null || config?.write === true
+      if (!canRead && !canWrite) return
+
+      const scope = canRead && canWrite ? 'both' : canRead ? 'read' : 'write'
+      relayScopeMap.set(normalizedUrl, mergeRelayScopes(relayScopeMap.get(normalizedUrl), scope))
+
+      if (canRead) {
+        readSet.add(normalizedUrl)
+      }
+      if (canWrite) {
+        writeSet.add(normalizedUrl)
+      }
+    })
+  } catch {
+    return {
+      write: DEFAULT_WRITE_RELAY_URLS,
+      read: DEFAULT_READ_RELAY_URLS,
+      originalRelays: defaultOriginalRelays
+    }
+  }
+
+  const originalRelays = Array.from(relayScopeMap.entries()).map(([url, scope]) => ({ url, scope }))
+  const read = Array.from(readSet)
+  const write = Array.from(writeSet)
 
   return {
     write: write.length && write.length <= 8 ? write : DEFAULT_WRITE_RELAY_URLS,

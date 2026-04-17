@@ -2,16 +2,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { parseEditorJsonToText } from '@/lib/tiptap'
 import { cn } from '@/lib/utils'
 import customEmojiService from '@/services/custom-emoji.service'
-import postEditorCache from '@/services/post-editor-cache.service'
-import { TEmoji } from '@/types'
-import Document from '@tiptap/extension-document'
+import postEditorCache, { type ImageAttachment } from '@/services/post-editor-cache.service'
+import { TEmoji, TLocalPostDraft } from '@/types'
 import { HardBreak } from '@tiptap/extension-hard-break'
 import History from '@tiptap/extension-history'
 import Paragraph from '@tiptap/extension-paragraph'
 import Placeholder from '@tiptap/extension-placeholder'
 import Text from '@tiptap/extension-text'
 import { TextSelection } from '@tiptap/pm/state'
+import type { Content, JSONContent } from '@tiptap/react'
 import { EditorContent, useEditor } from '@tiptap/react'
+import Document from '@tiptap/extension-document'
 import { Event } from 'nostr-tools'
 import {
   Dispatch,
@@ -38,12 +39,14 @@ import WebCommand from './WebCommand'
 import webCommandSuggestion from './WebCommand/suggestion'
 import Preview from './Preview'
 import ImagePreview from '../ImagePreview'
+import LocalDrafts from './LocalDrafts'
 
 export type TPostTextareaHandle = {
   appendText: (text: string, addNewline?: boolean) => void
   insertText: (text: string) => void
   insertEmoji: (emoji: string | TEmoji) => void
   insertMention: (userId: string, position?: 'start' | 'end') => void
+  replaceContent: (content: Content) => void
 }
 
 const PostTextarea = forwardRef<
@@ -61,9 +64,12 @@ const PostTextarea = forwardRef<
     onUploadProgress?: (file: File, progress: number) => void
     onUploadEnd?: (file: File) => void
     onImageUploadSuccess?: (url: string) => void
-    images?: Array<{ url: string; alt?: string }>
+    images?: ImageAttachment[]
     onRemoveImage?: (index: number) => void
-    onUpdateImageAlt?: (index: number, alt: string) => void
+    localDrafts?: TLocalPostDraft[]
+    activeLocalDraftId?: string | null
+    onSelectLocalDraft?: (draft: TLocalPostDraft) => void
+    onDeleteLocalDraft?: (draftId: string) => void
   }
 >(
   (
@@ -82,7 +88,10 @@ const PostTextarea = forwardRef<
       onImageUploadSuccess,
       images = [],
       onRemoveImage,
-      onUpdateImageAlt
+      localDrafts = [],
+      activeLocalDraftId,
+      onSelectLocalDraft,
+      onDeleteLocalDraft
     },
     ref
   ) => {
@@ -219,6 +228,15 @@ const PostTextarea = forwardRef<
           }
           chain.createMention(userId).run()
         }
+      },
+      replaceContent: (content: Content) => {
+        if (!editor) return
+        editor.commands.setContent(content)
+        window.requestAnimationFrame(() => {
+          if (!editor.isDestroyed) {
+            editor.chain().focus('end').run()
+          }
+        })
       }
     }))
 
@@ -237,45 +255,70 @@ const PostTextarea = forwardRef<
         return
       }
 
-      const timerId = window.setTimeout(() => {
-        if (!editor.isDestroyed) {
-          editor.chain().focus('end').run()
-        }
-      }, isMobileComposer ? 80 : 40)
+      const timerId = window.setTimeout(
+        () => {
+          if (!editor.isDestroyed) {
+            editor.chain().focus('end').run()
+          }
+        },
+        isMobileComposer ? 80 : 40
+      )
 
       return () => window.clearTimeout(timerId)
     }, [editor, isMobileComposer])
+
+    const showDraftTab = !!onSelectLocalDraft && !!onDeleteLocalDraft && !parentEvent
+    const draftTriggerLabel = t('Drafts', { defaultValue: 'Drafts' })
+
+    const handleSelectDraft = (draft: TLocalPostDraft) => {
+      if (!editor) return
+
+      editor.commands.setContent(draft.content as JSONContent | string)
+      onSelectLocalDraft?.(draft)
+      setTabValue('edit')
+
+      window.requestAnimationFrame(() => {
+        if (!editor.isDestroyed) {
+          editor.chain().focus('end').run()
+        }
+      })
+    }
 
     if (!editor) {
       return null
     }
 
-    if (isMobileComposer) {
-      return (
-        <div className="space-y-3">
-          <EditorContent className="tiptap" editor={editor} />
-          {onRemoveImage && onUpdateImageAlt && (
-            <ImagePreview
-              images={images}
-              onRemove={onRemoveImage}
-              onUpdateAlt={onUpdateImageAlt}
-              mode="mobile"
-              hideAltControls
-            />
-          )}
-        </div>
-      )
-    }
-
     return (
       <div className="space-y-2">
         <Tabs defaultValue="edit" value={tabValue} onValueChange={(v) => setTabValue(v)}>
-          <TabsList>
+          <TabsList
+            className={cn(
+              isMobileComposer &&
+                `grid h-auto w-full ${showDraftTab ? 'grid-cols-3' : 'grid-cols-2'}`
+            )}
+          >
             <TabsTrigger value="edit">{t('Edit')}</TabsTrigger>
             <TabsTrigger value="preview">{t('Preview')}</TabsTrigger>
+            {showDraftTab ? (
+              <TabsTrigger value="drafts" className="gap-2">
+                <span>{draftTriggerLabel}</span>
+                <span className="rounded-full bg-foreground/10 px-1.5 py-0.5 text-[11px] leading-none">
+                  {localDrafts.length}
+                </span>
+              </TabsTrigger>
+            ) : null}
           </TabsList>
           <TabsContent value="edit" className="mt-2">
-            <EditorContent className="tiptap" editor={editor} />
+            <div className="space-y-3">
+              <EditorContent className="tiptap" editor={editor} />
+              {onRemoveImage && (
+                <ImagePreview
+                  images={images}
+                  onRemove={onRemoveImage}
+                  mode={isMobileComposer ? 'mobile' : 'default'}
+                />
+              )}
+            </div>
           </TabsContent>
           <TabsContent
             value="preview"
@@ -287,15 +330,19 @@ const PostTextarea = forwardRef<
           >
             <Preview content={previewContent} images={images} className={className} />
           </TabsContent>
+          {showDraftTab ? (
+            <TabsContent value="drafts" className="mt-2">
+              <LocalDrafts
+                drafts={localDrafts}
+                activeDraftId={activeLocalDraftId}
+                onSelectDraft={handleSelectDraft}
+                onDeleteDraft={(draftId) => {
+                  onDeleteLocalDraft?.(draftId)
+                }}
+              />
+            </TabsContent>
+          ) : null}
         </Tabs>
-        {tabValue === 'edit' && onRemoveImage && onUpdateImageAlt && (
-          <ImagePreview
-            images={images}
-            onRemove={onRemoveImage}
-            onUpdateAlt={onUpdateImageAlt}
-            mode="default"
-          />
-        )}
       </div>
     )
   }

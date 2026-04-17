@@ -1,3 +1,4 @@
+import type { JSONContent } from '@tiptap/react'
 import { Event, Filter, VerifiedEvent } from 'nostr-tools'
 import { DISTRACTION_FREE_MODE, MEDIA_AUTO_LOAD_POLICY, NOTIFICATION_LIST_STYLE, POLL_TYPE } from '../constants'
 
@@ -195,6 +196,7 @@ export type TAccountPointer = Pick<TAccount, 'pubkey' | 'signerType'>
 export type TFeedType =
   | 'following'
   | 'trending'
+  | 'news'
   | 'relays'
   | 'relay'
   | 'bookmarks'
@@ -211,6 +213,21 @@ export type TCustomFeed = {
   hashtags?: string[]
 }
 
+export type TLocalPostDraft = {
+  id: string
+  content: JSONContent | string
+  previewText: string
+  images: { url: string; alt?: string }[]
+  isNsfw: boolean
+  isPoll: boolean
+  pollCreateData: TPollCreateData
+  addClientTag: boolean
+  scheduledFor: number | null
+  minPow: number
+  createdAt: number
+  updatedAt: number
+}
+
 export type TLanguage = 'en' | 'zh' | 'pl'
 
 export type TImetaInfo = {
@@ -220,12 +237,14 @@ export type TImetaInfo = {
   dim?: { width: number; height: number }
   mimeType?: string
   pubkey?: string
+  gifLoop?: boolean
 }
 
 export type TPublishOptions = {
   specifiedRelayUrls?: string[]
   additionalRelayUrls?: string[]
   minPow?: number
+  minSuccessCount?: number
 }
 
 export type TNoteListMode = 'posts' | 'postsAndReplies' | 'you' | 'reads' | 'highlights' | 'media'
@@ -237,6 +256,14 @@ export type TPageRef = { scrollToTop: (behavior?: ScrollBehavior) => void }
 export type TEmoji = {
   shortcode: string
   url: string
+}
+
+export type TNoteReaction = {
+  id: string
+  pubkey: string
+  created_at: number
+  emoji: TEmoji | string
+  bonusCount: number
 }
 
 export type TTranslationAccount = {

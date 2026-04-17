@@ -9,6 +9,7 @@ import { TDraftEvent, TEmoji, TMailboxRelay, TPollCreateData, TRelaySet } from '
 import { sha256 } from '@noble/hashes/sha2'
 import dayjs from 'dayjs'
 import { Event, kinds } from 'nostr-tools'
+import { clampReactionBonusCount, REACTION_BONUS_TAG } from './reaction'
 import {
   getReplaceableCoordinateFromEvent,
   isProtectedEvent,
@@ -92,7 +93,11 @@ function generateDraftEventCacheKey(draft: Omit<TDraftEvent, 'created_at'>) {
 }
 
 // https://github.com/nostr-protocol/nips/blob/master/25.md
-export function createReactionDraftEvent(event: Event, emoji: TEmoji | string = '+'): TDraftEvent {
+export function createReactionDraftEvent(
+  event: Event,
+  emoji: TEmoji | string = '+',
+  { bonusCount = 0 }: { bonusCount?: number } = {}
+): TDraftEvent {
   const tags: string[][] = []
   tags.push(buildETag(event.id, event.pubkey))
   tags.push(buildPTag(event.pubkey))
@@ -110,6 +115,11 @@ export function createReactionDraftEvent(event: Event, emoji: TEmoji | string = 
   } else {
     content = `:${emoji.shortcode}:`
     tags.push(buildEmojiTag(emoji))
+  }
+
+  const sanitizedBonusCount = clampReactionBonusCount(bonusCount)
+  if (sanitizedBonusCount > 0) {
+    tags.push([REACTION_BONUS_TAG, String(sanitizedBonusCount)])
   }
 
   return {

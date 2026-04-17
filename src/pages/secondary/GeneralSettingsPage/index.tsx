@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
@@ -13,6 +14,7 @@ import { usePaymentsEnabled } from '@/providers/PaymentsEnabledProvider'
 import { useTextOnlyMode } from '@/providers/TextOnlyModeProvider'
 import { useLowBandwidthMode } from '@/providers/LowBandwidthModeProvider'
 import { useDisableAvatarAnimations } from '@/providers/DisableAvatarAnimationsProvider'
+import { useLiveReactionFountain } from '@/providers/LiveReactionFountainProvider'
 import { useUserPreferences } from '@/providers/UserPreferencesProvider'
 import { SelectValue } from '@radix-ui/react-select'
 import { Check, BellOff, BellRing } from 'lucide-react'
@@ -29,16 +31,15 @@ const GeneralSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
   const [activeTab, setActiveTab] = useState(getInitialTab)
   const [language, setLanguage] = useState<TLanguage>(i18n.language as TLanguage)
   const { distractionFreeMode, setDistractionFreeMode } = useDistractionFreeMode()
-  const {
-    hideReadsInProfiles,
-    setHideReadsInProfiles
-  } = useReadsVisibility()
+  const { hideReadsInProfiles, setHideReadsInProfiles } = useReadsVisibility()
   const { isRTL, toggleRTL, showRTLToggle } = useRTL()
   const { paymentsEnabled, setPaymentsEnabled } = usePaymentsEnabled()
   const { textOnlyMode, setTextOnlyMode } = useTextOnlyMode()
   const { lowBandwidthMode, setLowBandwidthMode } = useLowBandwidthMode()
   const { disableAvatarAnimations, setDisableAvatarAnimations } = useDisableAvatarAnimations()
   const { messageNotificationsEnabled, updateMessageNotificationsEnabled } = useUserPreferences()
+  const { reactionFountainEnabled, setReactionFountainEnabled, previewReactionFountain } =
+    useLiveReactionFountain()
 
   const handleLanguageChange = (value: TLanguage) => {
     i18n.changeLanguage(value)
@@ -56,12 +57,7 @@ const GeneralSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
   return (
     <SecondaryPageLayout ref={ref} index={index} title={t('General')}>
       <div className="mt-3">
-        <Tabs
-          tabs={tabDefinitions}
-          value={activeTab}
-          onTabChange={setActiveTab}
-          threshold={0}
-        />
+        <Tabs tabs={tabDefinitions} value={activeTab} onTabChange={setActiveTab} threshold={0} />
 
         {/* INTERFACE TAB */}
         {activeTab === 'interface' && (
@@ -103,11 +99,7 @@ const GeneralSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
                 <Label htmlFor="rtl-mode" className="text-base font-normal">
                   {t('Right-to-left layout')}
                 </Label>
-                <Switch
-                  id="rtl-mode"
-                  checked={isRTL}
-                  onCheckedChange={toggleRTL}
-                />
+                <Switch id="rtl-mode" checked={isRTL} onCheckedChange={toggleRTL} />
               </SettingItem>
             )}
             <SettingItem>
@@ -116,7 +108,9 @@ const GeneralSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
                   {t('Text Only Mode')}
                 </Label>
                 <p className="text-sm text-muted-foreground">
-                  {t('Strip media from notes and profiles to reduce bandwidth usage. Images and videos will be replaced with clickable load links.')}
+                  {t(
+                    'Strip media from notes and profiles to reduce bandwidth usage. Images and videos will be replaced with clickable load links.'
+                  )}
                 </p>
               </div>
               <Switch
@@ -131,7 +125,9 @@ const GeneralSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
                   {t('Slow Connection Mode')}
                 </Label>
                 <p className="text-sm text-muted-foreground">
-                  {t('Connect to only relay.damus.io, hide reactions and zaps. Optimized for slow connections.')}
+                  {t(
+                    'Connect to only relay.damus.io, hide reactions and zaps. Optimized for slow connections.'
+                  )}
                 </p>
               </div>
               <Switch
@@ -161,7 +157,9 @@ const GeneralSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
                   {t('Disable Avatar Animations')}
                 </Label>
                 <p className="text-sm text-muted-foreground">
-                  {t('Stop animated GIFs in profile avatars. Only affects avatars, not GIFs in notes.')}
+                  {t(
+                    'Stop animated GIFs in profile avatars. Only affects avatars, not GIFs in notes.'
+                  )}
                 </p>
               </div>
               <Switch
@@ -171,11 +169,31 @@ const GeneralSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
               />
             </SettingItem>
             <SettingItem className="flex-col items-start gap-3">
-              <Label className="text-base font-normal">
-                {t('Distraction-Free Mode')}
-              </Label>
+              <div className="flex w-full items-start justify-between gap-4">
+                <div className="flex flex-col gap-1 pr-4">
+                  <Label htmlFor="reaction-fountain" className="text-base font-normal">
+                    {t('Reaction Fountain')}
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    {t('Animate incoming reactions in real time while the app is open.')}
+                  </p>
+                </div>
+                <Switch
+                  id="reaction-fountain"
+                  checked={reactionFountainEnabled}
+                  onCheckedChange={setReactionFountainEnabled}
+                />
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={previewReactionFountain}>
+                {t('Preview Reaction Fountain')}
+              </Button>
+            </SettingItem>
+            <SettingItem className="flex-col items-start gap-3">
+              <Label className="text-base font-normal">{t('Distraction-Free Mode')}</Label>
               <p className="text-sm text-muted-foreground">
-                {t('Choose how much attention-grabbing UI you want. Focus mode hides notification badges and new-notes nudges, but notifications still load in the Notifications page.')}
+                {t(
+                  'Choose how much attention-grabbing UI you want. Focus mode hides notification badges and new-notes nudges, but notifications still load in the Notifications page.'
+                )}
               </p>
               <div className="grid grid-cols-2 gap-3 w-full">
                 <button

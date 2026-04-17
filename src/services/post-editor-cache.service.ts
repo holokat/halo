@@ -5,6 +5,13 @@ import { Event } from 'nostr-tools'
 export type ImageAttachment = {
   url: string
   alt?: string
+  mimeType?: string
+  fileSizeBytes?: number
+  width?: number
+  height?: number
+  gifLoop?: boolean
+  previewUrl?: string
+  imetaTag?: string[]
 }
 
 type TPostSettings = {
@@ -14,6 +21,8 @@ type TPostSettings = {
   addClientTag?: boolean
   images?: ImageAttachment[]
   scheduledFor?: number | null
+  minPow?: number
+  activeLocalDraftId?: string | null
 }
 
 class PostEditorCacheService {

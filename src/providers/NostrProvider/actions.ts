@@ -360,6 +360,8 @@ export function createNostrActions({
 
   const loadAccountState = async () => {
     setRelayList(null)
+    client.setPreferredReadRelays([])
+    client.setPreferredWriteRelays([])
     setInboxRelayUrls([])
     setProfile(null)
     setProfileEvent(null)
@@ -423,18 +425,15 @@ export function createNostrActions({
     if (storedUserEmojiListEvent) setUserEmojiListEvent(storedUserEmojiListEvent)
     if (storedPinListEvent) setPinListEvent(storedPinListEvent)
 
-    const relayListEvents = await client.fetchEvents(BIG_RELAY_URLS, {
-      kinds: [kinds.RelayList],
-      authors: [account.pubkey]
-    })
-    const relayListEvent = getLatestEvent(relayListEvents) ?? storedRelayListEvent
-    const relayList = getRelayListFromEvent(relayListEvent)
+    const relayList = await client.fetchRelayList(account.pubkey, { refresh: true })
+    const relayListEvent = (await client.fetchRelayListEvent(account.pubkey)) ?? storedRelayListEvent
     if (relayListEvent) {
       client.updateRelayListCache(relayListEvent)
       await indexedDb.putReplaceableEvent(relayListEvent)
     }
     setRelayList(relayList)
     client.setPreferredReadRelays(relayList.read)
+    client.setPreferredWriteRelays(relayList.write)
 
     let inboxRelayEvent =
       (await client.refreshInboxRelayListEvent(account.pubkey).catch((error) => {
@@ -598,8 +597,9 @@ export function createNostrActions({
 
   const publish = async (
     draftEvent: TDraftEvent,
-    { minPow = 0, ...options }: TPublishOptions = {}
+    { minPow = 0, minSuccessCount, ...options }: TPublishOptions = {}
   ) => {
+    const publishStartedAt = getNowMs()
     const currentAccount = activeAccountRef.current
     const currentSigner = signerRef.current
 
@@ -620,6 +620,13 @@ export function createNostrActions({
       throw new Error('sign event failed')
     }
 
+    console.debug('[PostPublish]', 'draft signed', {
+      eventId: event.id,
+      kind: event.kind,
+      minPow,
+      signDurationMs: roundDurationMs(publishStartedAt)
+    })
+
     if (event.kind !== kinds.Application && event.pubkey !== currentAccount.pubkey) {
       const eventAuthor = await client.fetchProfile(event.pubkey)
       const result = confirm(
@@ -634,7 +641,13 @@ export function createNostrActions({
     }
 
     const relays = await client.determineTargetRelays(event, options)
-    await client.publishEvent(relays, event)
+    await client.publishEvent(relays, event, { minSuccessCount })
+    console.debug('[PostPublish]', 'publish pipeline completed', {
+      eventId: event.id,
+      kind: event.kind,
+      durationMs: roundDurationMs(publishStartedAt),
+      relayCount: relays.length
+    })
     return event
   }
 
@@ -702,6 +715,7 @@ export function createNostrActions({
     const nextRelayList = getRelayListFromEvent(newRelayList)
     setRelayList(nextRelayList)
     client.setPreferredReadRelays(nextRelayList.read)
+    client.setPreferredWriteRelays(nextRelayList.write)
   }
 
   const updateInboxRelayEvent = async (inboxRelayEvent: Event) => {
@@ -825,4 +839,16 @@ export function createNostrActions({
     loginByNostrLoginHash,
     startLogin
   }
+}
+
+function getNowMs() {
+  if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+    return performance.now()
+  }
+
+  return Date.now()
+}
+
+function roundDurationMs(startedAt: number) {
+  return Math.round((getNowMs() - startedAt) * 10) / 10
 }

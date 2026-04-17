@@ -1,27 +1,42 @@
-import client from './client.service'
-import indexedDbService from './indexed-db.service'
-import { Event, Filter } from 'nostr-tools'
+import type { ImageAttachment } from './post-editor-cache.service'
+import mediaUpload from './media-upload.service'
 
-// Relays that may have GIF/file metadata events
-// gifbuddy.lol is the primary source with 25k+ GIFs
-const GIF_RELAYS = [
-  'wss://relay.gifbuddy.lol'
-]
-const BATCH_SIZE = 100 // Batch size for IndexedDB operations
+const KLIPY_BASE_URL = 'https://api.klipy.com'
+const DEFAULT_KLIPY_APP_KEY = 'dX6PP8oWX2kZFBuIq9fBOQOT3LBsniCzMqcNuBe0HksGkNGMdkBY4bgmgdW1uH2R'
+const KLIPY_CUSTOMER_ID_KEY = 'flow.klipy.anonymousCustomerID'
+const DEFAULT_PAGE_SIZE = 24
+const env = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env
 
-export interface GifEvent extends Event {
-  kind: 1063
+type KlipyAssetFormat = 'gif' | 'jpg' | 'mp4' | 'webp'
+
+export interface KlipyGIFAsset {
+  url: string
+  width?: number
+  height?: number
+  size?: number
+  mimeType: string
+  fileExtension: string
 }
 
+type KlipyFilesBySize = Record<string, Partial<Record<KlipyAssetFormat, KlipyGIFAsset>>>
+
 export interface GifData {
+  id: string
+  apiId: string
+  slug: string
+  title: string
+  alt: string
   url: string
   previewUrl?: string
-  alt?: string
-  size?: string
-  hash?: string
-  eventId?: string
-  createdAt?: number
-  pubkey?: string
+  animatedPreviewUrl?: string
+  mp4Url?: string
+  gifUrl?: string
+  width?: number
+  height?: number
+  size?: number
+  customerId: string
+  searchQuery?: string
+  filesBySize: KlipyFilesBySize
 }
 
 export interface GifSearchResult {
@@ -29,327 +44,408 @@ export interface GifSearchResult {
   hasMore: boolean
 }
 
-interface GifSearchCache {
-  [query: string]: {
-    gifs: GifData[]
-    timestamp: number
+type KlipyGIFListResponse = {
+  result?: boolean
+  data?: {
+    data?: unknown[]
+    has_next?: boolean
   }
 }
 
+type UploadGifOptions = {
+  onProgress?: (progressPercent: number) => void
+}
+
+const MIME_BY_FORMAT: Record<KlipyAssetFormat, string> = {
+  gif: 'image/gif',
+  jpg: 'image/jpeg',
+  mp4: 'video/mp4',
+  webp: 'image/webp'
+}
+
+function readString(value: unknown) {
+  return typeof value === 'string' ? value : ''
+}
+
+function readNumber(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+function parseKlipyAsset(value: unknown, format: KlipyAssetFormat): KlipyGIFAsset | null {
+  if (!value || typeof value !== 'object') return null
+  const record = value as Record<string, unknown>
+  const url = readString(record.url).trim()
+  if (!url) return null
+
+  return {
+    url,
+    width: readNumber(record.width),
+    height: readNumber(record.height),
+    size: readNumber(record.size),
+    mimeType: MIME_BY_FORMAT[format],
+    fileExtension: format === 'jpg' ? 'jpg' : format
+  }
+}
+
+function assetFromSizes(
+  filesBySize: KlipyFilesBySize,
+  format: KlipyAssetFormat,
+  preferredSizes: string[]
+) {
+  for (const size of preferredSizes) {
+    const asset = filesBySize[size]?.[format]
+    if (asset) return asset
+  }
+
+  for (const formats of Object.values(filesBySize)) {
+    const asset = formats[format]
+    if (asset) return asset
+  }
+
+  return undefined
+}
+
+function preferredPreviewAsset(filesBySize: KlipyFilesBySize) {
+  return (
+    assetFromSizes(filesBySize, 'jpg', ['sm', 'md', 'hd', 'xs', 'tiny']) ??
+    assetFromSizes(filesBySize, 'webp', ['sm', 'md', 'hd', 'xs', 'tiny']) ??
+    preferredPublishAsset(filesBySize)
+  )
+}
+
+function preferredPublishAsset(filesBySize: KlipyFilesBySize) {
+  return (
+    assetFromSizes(filesBySize, 'mp4', ['md', 'sm', 'hd', 'xs', 'tiny']) ??
+    assetFromSizes(filesBySize, 'gif', ['md', 'sm', 'xs', 'tiny', 'hd'])
+  )
+}
+
+function preferredAnimatedPreviewAsset(filesBySize: KlipyFilesBySize) {
+  return (
+    assetFromSizes(filesBySize, 'mp4', ['sm', 'md', 'xs', 'tiny', 'hd']) ??
+    assetFromSizes(filesBySize, 'gif', ['sm', 'md', 'xs', 'tiny', 'hd'])
+  )
+}
+
+export function parseKlipyGIFItem(
+  value: unknown,
+  customerId: string,
+  searchQuery?: string
+): GifData | null {
+  if (!value || typeof value !== 'object') return null
+  const record = value as Record<string, unknown>
+  const rawId = record.id
+  const apiId = typeof rawId === 'number' || typeof rawId === 'string' ? String(rawId) : ''
+  if (!apiId) return null
+
+  const file = record.file
+  if (!file || typeof file !== 'object') return null
+
+  const filesBySize: KlipyFilesBySize = {}
+  for (const [sizeKey, formatsValue] of Object.entries(file as Record<string, unknown>)) {
+    if (!formatsValue || typeof formatsValue !== 'object') continue
+    const normalizedSize = sizeKey.toLowerCase()
+    const formats: Partial<Record<KlipyAssetFormat, KlipyGIFAsset>> = {}
+
+    for (const format of ['gif', 'jpg', 'mp4', 'webp'] as KlipyAssetFormat[]) {
+      const asset = parseKlipyAsset((formatsValue as Record<string, unknown>)[format], format)
+      if (asset) {
+        formats[format] = asset
+      }
+    }
+
+    if (Object.keys(formats).length > 0) {
+      filesBySize[normalizedSize] = formats
+    }
+  }
+
+  const publishAsset = preferredPublishAsset(filesBySize)
+  if (!publishAsset) return null
+
+  const previewAsset = preferredPreviewAsset(filesBySize)
+  const animatedPreviewAsset = preferredAnimatedPreviewAsset(filesBySize)
+  const slug = readString(record.slug).trim() || apiId
+  const title = readString(record.title).trim()
+
+  return {
+    id: slug,
+    apiId,
+    slug,
+    title,
+    alt: title || 'GIF',
+    url: publishAsset.url,
+    previewUrl: previewAsset?.url,
+    animatedPreviewUrl: animatedPreviewAsset?.url,
+    mp4Url:
+      preferredPublishAsset(filesBySize)?.mimeType === 'video/mp4' ? publishAsset.url : undefined,
+    gifUrl: assetFromSizes(filesBySize, 'gif', ['md', 'sm', 'xs', 'tiny', 'hd'])?.url,
+    width: publishAsset.width,
+    height: publishAsset.height,
+    size: publishAsset.size,
+    customerId,
+    searchQuery,
+    filesBySize
+  }
+}
+
+export function buildGifLoopImetaTag(params: {
+  uploadTags?: string[][]
+  url: string
+  mimeType: string
+  size?: number
+  width?: number
+  height?: number
+  alt?: string
+  gifLoop?: boolean
+}) {
+  const values: string[] = []
+  const seenPrefixes = new Set<string>()
+
+  const append = (prefix: string, value: string | number | undefined) => {
+    if (value === undefined || value === '') return
+    const key = prefix.toLowerCase()
+    seenPrefixes.add(key)
+    values.push(`${prefix} ${value}`)
+  }
+
+  append('url', params.url)
+
+  for (const tag of params.uploadTags ?? []) {
+    const [name, value] = tag
+    if (!name || !value) continue
+    const key = name.toLowerCase()
+    if (key === 'url' || key === 'm' || key === 'size' || key === 'dim' || key === 'alt') {
+      continue
+    }
+    append(name, value)
+  }
+
+  append('m', params.mimeType)
+  append('size', params.size)
+
+  if (params.width && params.height) {
+    append('dim', `${Math.round(params.width)}x${Math.round(params.height)}`)
+  }
+
+  if (params.alt?.trim()) {
+    append('alt', params.alt.trim())
+  }
+
+  if (params.gifLoop && !seenPrefixes.has('flow-gif-loop')) {
+    append('flow-gif-loop', '1')
+  }
+
+  return ['imeta', ...values]
+}
+
 class GifService {
-  private allGifsCache: Map<string, GifData> = new Map() // eventId -> GifData
-  private searchCache: GifSearchCache = {}
-  private isInitialized = false
-  private initializationPromise: Promise<void> | null = null
-  private updateCallbacks: Set<() => void> = new Set()
+  static readonly defaultPageSize = DEFAULT_PAGE_SIZE
 
-  private gifEventToData(event: GifEvent): GifData | null {
-    const urlTag = event.tags.find((tag) => tag[0] === 'url')
-    if (!urlTag || !urlTag[1]) return null
+  private readonly appKey = env?.VITE_KLIPY_APP_KEY?.trim() || DEFAULT_KLIPY_APP_KEY
 
-    const url = urlTag[1]
-    const mimeType = event.tags.find((tag) => tag[0] === 'm')?.[1]
+  async fetchRecentGifs(
+    limit: number = DEFAULT_PAGE_SIZE,
+    offset: number = 0,
+    accountPubkey?: string
+  ): Promise<GifSearchResult> {
+    return this.fetchGIFs({
+      path: 'gifs/trending',
+      limit,
+      offset,
+      accountPubkey
+    })
+  }
 
-    // Only accept actual GIFs
-    if (mimeType) {
-      if (!mimeType.includes('gif')) return null
-    } else {
-      // No MIME type - check URL extension
-      const urlLower = url.toLowerCase()
-      if (!urlLower.endsWith('.gif')) return null
+  async searchGifs(
+    query: string,
+    limit: number = DEFAULT_PAGE_SIZE,
+    offset: number = 0,
+    accountPubkey?: string
+  ): Promise<GifSearchResult> {
+    const trimmedQuery = query.trim()
+    if (!trimmedQuery) {
+      return this.fetchRecentGifs(limit, offset, accountPubkey)
     }
 
-    const thumbTag = event.tags.find((tag) => tag[0] === 'thumb')
-    const imageTag = event.tags.find((tag) => tag[0] === 'image')
-    const altTag = event.tags.find((tag) => tag[0] === 'alt')
-    const sizeTag = event.tags.find((tag) => tag[0] === 'size')
-    const hashTag = event.tags.find((tag) => tag[0] === 'x')
+    return this.fetchGIFs({
+      path: 'gifs/search',
+      limit,
+      offset,
+      query: trimmedQuery,
+      accountPubkey
+    })
+  }
+
+  async createAttachmentFromGif(
+    gif: GifData,
+    options?: UploadGifOptions
+  ): Promise<ImageAttachment> {
+    const asset = preferredPublishAsset(gif.filesBySize)
+    if (!asset) {
+      throw new Error("That GIF doesn't have an animated file.")
+    }
+
+    options?.onProgress?.(5)
+    const response = await fetch(asset.url)
+    if (!response.ok) {
+      throw new Error(`Couldn't download that GIF (${response.status}).`)
+    }
+
+    const blob = await response.blob()
+    const mimeType = asset.mimeType || blob.type || 'application/octet-stream'
+    const file = new File([blob], this.filenameForGif(gif, asset.fileExtension), {
+      type: mimeType,
+      lastModified: Date.now()
+    })
+
+    options?.onProgress?.(18)
+    const uploadResult = await mediaUpload.upload(file, {
+      onProgress: (progress) => {
+        options?.onProgress?.(18 + Math.round(progress * 0.82))
+      },
+      skipImageConversion: true
+    })
+
+    const gifLoop = mimeType.startsWith('video/')
+    const imetaTag = buildGifLoopImetaTag({
+      uploadTags: uploadResult.tags,
+      url: uploadResult.url,
+      mimeType,
+      size: file.size || asset.size,
+      width: asset.width,
+      height: asset.height,
+      alt: gif.alt,
+      gifLoop
+    })
+
+    mediaUpload.setImetaTagByUrl(uploadResult.url, imetaTag)
 
     return {
-      url,
-      previewUrl: thumbTag?.[1] || imageTag?.[1] || url,
-      alt: altTag?.[1] || event.content,
-      size: sizeTag?.[1],
-      hash: hashTag?.[1],
-      eventId: event.id,
-      createdAt: event.created_at,
-      pubkey: event.pubkey
+      url: uploadResult.url,
+      alt: gif.alt,
+      mimeType,
+      fileSizeBytes: file.size || asset.size,
+      width: asset.width,
+      height: asset.height,
+      gifLoop,
+      previewUrl: gif.previewUrl,
+      imetaTag
     }
   }
 
-  private async loadCacheFromStorage(): Promise<void> {
+  async registerShare(gif: GifData): Promise<void> {
+    if (!gif.slug.trim()) return
+
     try {
-      const gifs = await indexedDbService.getAllGifs()
-      gifs.forEach((gif) => {
-        if (gif.eventId) {
-          this.allGifsCache.set(gif.eventId, gif)
-        }
+      const url = new URL(
+        `${KLIPY_BASE_URL}/api/v1/${this.appKey}/gifs/share/${encodeURIComponent(gif.slug)}`
+      )
+      await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          customer_id: gif.customerId,
+          q: gif.searchQuery?.trim() || undefined
+        })
       })
-    } catch (error) {
-      console.error('[GifService] Error loading cache from IndexedDB:', error)
+    } catch {
+      // Share registration is analytics-only; never block the composer on it.
     }
-  }
-
-  private async saveCacheToStorage(): Promise<void> {
-    try {
-      // Get all new GIFs that need to be saved
-      const gifsToSave = Array.from(this.allGifsCache.values())
-
-      if (gifsToSave.length === 0) return
-
-      // Save in batches to avoid blocking
-      for (let i = 0; i < gifsToSave.length; i += BATCH_SIZE) {
-        const batch = gifsToSave.slice(i, i + BATCH_SIZE)
-        await indexedDbService.putManyGifs(batch)
-      }
-    } catch (error) {
-      console.error('[GifService] Error saving cache to IndexedDB:', error)
-    }
-  }
-
-  private async initialize(): Promise<void> {
-    if (this.isInitialized) return
-    if (this.initializationPromise) return this.initializationPromise
-
-    this.initializationPromise = (async () => {
-      // Load cache from IndexedDB
-      await this.loadCacheFromStorage()
-
-      this.isInitialized = true
-
-      // Start fetching immediately - don't wait for cache to be big enough
-      // This ensures we get fresh GIFs even on first load
-      this.backgroundFetchGifs()
-    })()
-
-    return this.initializationPromise
-  }
-
-  private async backgroundFetchGifs(): Promise<void> {
-    try {
-      // First fetch - get a good initial batch immediately
-      let result = await this.fetchAndCacheGifs(2000)
-
-      // Continue fetching more batches
-      let batchNumber = 2
-      const batchSize = 2000
-      const maxBatches = 50 // Increase to 50 batches to get more GIFs
-      let consecutiveEmptyBatches = 0
-
-      while (batchNumber <= maxBatches) {
-        // Small delay between batches to not overwhelm the relay
-        await new Promise(resolve => setTimeout(resolve, 1000))
-
-        result = await this.fetchAndCacheGifs(batchSize)
-        batchNumber++
-
-        // Track consecutive batches with no events
-        if (result.totalEvents === 0) {
-          consecutiveEmptyBatches++
-          if (consecutiveEmptyBatches >= 3) {
-            break
-          }
-        } else {
-          consecutiveEmptyBatches = 0
-        }
-
-        // Stop if we got absolutely no events at all
-        if (result.totalEvents === 0 && batchNumber > 5) {
-          break
-        }
-      }
-    } catch (error) {
-      console.error('[GifService] Background fetch error:', error)
-    }
-  }
-
-  private async fetchAndCacheGifs(limit: number = 2000): Promise<{ newGifs: number; totalEvents: number }> {
-    try {
-      // Build filter - if we have cached GIFs, fetch older ones
-      const filter: Filter = {
-        kinds: [1063],
-        limit
-      }
-
-      // If we have cached GIFs, fetch older ones using 'until'
-      if (this.allGifsCache.size > 0) {
-        const cachedGifs = Array.from(this.allGifsCache.values())
-        const oldestCached = cachedGifs.reduce((oldest, gif) =>
-          (gif.createdAt || 0) < (oldest.createdAt || 0) ? gif : oldest
-        )
-        if (oldestCached.createdAt) {
-          filter.until = oldestCached.createdAt - 1
-        }
-      }
-
-      const events = await client.querySync(GIF_RELAYS, filter) as GifEvent[]
-
-      let newGifsCount = 0
-      let filteredOut = 0
-      events.forEach((event) => {
-        const gifData = this.gifEventToData(event)
-        if (gifData) {
-          if (gifData.eventId && !this.allGifsCache.has(gifData.eventId)) {
-            this.allGifsCache.set(gifData.eventId, gifData)
-            newGifsCount++
-          }
-        } else {
-          filteredOut++
-        }
-      })
-
-      // Save to localStorage and notify subscribers if we got new GIFs
-      if (newGifsCount > 0) {
-        this.saveCacheToStorage()
-        this.notifyCacheUpdate()
-      }
-
-      return {
-        newGifs: newGifsCount,
-        totalEvents: events.length
-      }
-    } catch (error) {
-      console.error('[GifService] Error fetching GIFs:', error)
-      return { newGifs: 0, totalEvents: 0 }
-    }
-  }
-
-  async fetchRecentGifs(limit: number = 24, offset: number = 0): Promise<GifSearchResult> {
-    await this.initialize()
-
-    // Get all GIFs sorted by created_at (most recent first)
-    const sortedGifs = Array.from(this.allGifsCache.values())
-      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
-
-    const gifs = sortedGifs.slice(offset, offset + limit)
-    const hasMore = offset + limit < sortedGifs.length
-
-    return {
-      gifs,
-      hasMore
-    }
-  }
-
-  async searchGifs(query: string, limit: number = 24, offset: number = 0, filterByPubkey?: string): Promise<GifSearchResult> {
-    if (!query.trim()) {
-      return filterByPubkey
-        ? this.fetchMyGifs(filterByPubkey, limit, offset)
-        : this.fetchRecentGifs(limit, offset)
-    }
-
-    await this.initialize()
-
-    const lowerQuery = query.toLowerCase()
-    const cacheKey = filterByPubkey ? `${query}:${filterByPubkey}` : query
-
-    // Check if we have a recent search cache
-    const cached = this.searchCache[cacheKey]
-    if (cached && Date.now() - cached.timestamp < 5 * 60 * 1000) { // 5 minutes
-      const gifs = cached.gifs.slice(offset, offset + limit)
-      const hasMore = offset + limit < cached.gifs.length
-      return { gifs, hasMore }
-    }
-
-    // Filter all cached GIFs
-    const matchingGifs = Array.from(this.allGifsCache.values())
-      .filter((gif) => {
-        const matchesQuery = gif.alt?.toLowerCase().includes(lowerQuery) ||
-          gif.url.toLowerCase().includes(lowerQuery)
-        const matchesPubkey = !filterByPubkey || gif.pubkey === filterByPubkey
-        return matchesQuery && matchesPubkey
-      })
-      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
-
-    // Cache the search results
-    this.searchCache[cacheKey] = {
-      gifs: matchingGifs,
-      timestamp: Date.now()
-    }
-
-    const gifs = matchingGifs.slice(offset, offset + limit)
-    const hasMore = offset + limit < matchingGifs.length
-
-    return {
-      gifs,
-      hasMore
-    }
-  }
-
-  async fetchMyGifs(pubkey: string, limit: number = 24, offset: number = 0): Promise<GifSearchResult> {
-    await this.initialize()
-
-    // Filter GIFs by pubkey and sort by created_at (most recent first)
-    const myGifs = Array.from(this.allGifsCache.values())
-      .filter((gif) => gif.pubkey === pubkey)
-      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
-
-    const gifs = myGifs.slice(offset, offset + limit)
-    const hasMore = offset + limit < myGifs.length
-
-    return {
-      gifs,
-      hasMore
-    }
-  }
-
-  async addUserGif(gifData: GifData): Promise<void> {
-    if (gifData.eventId) {
-      this.allGifsCache.set(gifData.eventId, gifData)
-      await this.saveCacheToStorage()
-      this.notifyCacheUpdate()
-    }
-  }
-
-  async refreshCache(): Promise<void> {
-    await this.backgroundFetchGifs()
   }
 
   getCacheSize(): number {
-    return this.allGifsCache.size
+    return 0
   }
 
-  async getCacheSizeFromDB(): Promise<number> {
-    try {
-      return await indexedDbService.getGifCount()
-    } catch (error) {
-      console.error('[GifService] Error getting cache size from DB:', error)
-      return 0
+  onCacheUpdate(): () => void {
+    return () => undefined
+  }
+
+  private async fetchGIFs({
+    path,
+    limit,
+    offset,
+    query,
+    accountPubkey
+  }: {
+    path: string
+    limit: number
+    offset: number
+    query?: string
+    accountPubkey?: string
+  }): Promise<GifSearchResult> {
+    const customerId = this.customerId(accountPubkey)
+    const page = Math.max(Math.floor(offset / Math.max(limit, 1)) + 1, 1)
+    const perPage = Math.min(Math.max(limit, 1), 50)
+    const url = new URL(`${KLIPY_BASE_URL}/api/v1/${this.appKey}/${path}`)
+
+    url.searchParams.set('page', String(page))
+    url.searchParams.set('per_page', String(perPage))
+    url.searchParams.set('customer_id', customerId)
+    url.searchParams.set('format_filter', 'gif,jpg,mp4,webp')
+
+    const locale = this.localeCode()
+    if (locale) {
+      url.searchParams.set('locale', locale)
+    }
+
+    if (query?.trim()) {
+      url.searchParams.set('q', query.trim())
+      url.searchParams.set('content_filter', 'low')
+    }
+
+    const response = await fetch(url)
+    if (!response.ok) {
+      throw new Error(`Klipy request failed (${response.status}).`)
+    }
+
+    const payload = (await response.json()) as KlipyGIFListResponse
+    if (!payload.result || !Array.isArray(payload.data?.data)) {
+      throw new Error('Klipy returned an invalid response.')
+    }
+
+    return {
+      gifs: payload.data.data
+        .map((item) => parseKlipyGIFItem(item, customerId, query))
+        .filter((item): item is GifData => item !== null),
+      hasMore: !!payload.data.has_next
     }
   }
 
-  async clearCache(): Promise<void> {
-    this.allGifsCache.clear()
-    this.searchCache = {}
-    await indexedDbService.clearGifCache()
-    this.isInitialized = false
-    this.initializationPromise = null
-  }
-
-  // Force fetch more GIFs manually
-  async fetchMoreGifs(): Promise<number> {
-    await this.initialize()
-    const result = await this.fetchAndCacheGifs(2000)
-    return result.newGifs
-  }
-
-  // Subscribe to cache updates
-  onCacheUpdate(callback: () => void): () => void {
-    this.updateCallbacks.add(callback)
-    // Return unsubscribe function
-    return () => {
-      this.updateCallbacks.delete(callback)
+  private customerId(accountPubkey?: string) {
+    const normalizedPubkey = accountPubkey?.trim().toLowerCase()
+    if (normalizedPubkey) {
+      return normalizedPubkey
     }
+
+    const storage = globalThis.window?.localStorage
+    const existingId = storage?.getItem(KLIPY_CUSTOMER_ID_KEY)?.trim()
+    if (existingId) {
+      return existingId
+    }
+
+    const createdId = `flow-${crypto.randomUUID().toLowerCase()}`
+    storage?.setItem(KLIPY_CUSTOMER_ID_KEY, createdId)
+    return createdId
   }
 
-  // Notify all subscribers of cache update
-  private notifyCacheUpdate(): void {
-    this.updateCallbacks.forEach(callback => {
-      try {
-        callback()
-      } catch (error) {
-        console.error('[GifService] Error in update callback:', error)
-      }
-    })
+  private localeCode() {
+    const locale = navigator.language || ''
+    const [, region] = locale.split('-')
+    return (region || locale.split('-')[0] || '').toLowerCase() || undefined
+  }
+
+  private filenameForGif(gif: GifData, fileExtension: string) {
+    const safeSlug =
+      gif.slug
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 48) || 'klipy-gif'
+
+    return `${safeSlug}-${Date.now()}.${fileExtension}`
   }
 }
 

@@ -44,5 +44,7 @@ export function extractTTagValues(content: string) {
 }
 
 export function extractImagesFromContent(content: string) {
-  return content.match(/https?:\/\/[^\s"']+\.(jpg|jpeg|png|gif|webp|heic)/gi)
+  return content.match(
+    /https?:\/\/[^\s"']+\.(jpg|jpeg|png|gif|webp|heic|mp4|webm|ogg|mov|m4v|mp3|wav|flac|aac|m4a|opus|wma)/gi
+  )
 }

@@ -75,7 +75,7 @@ export default function InviteWelcomeFlow({
       const newFollowListEvent = await publish(followListDraftEvent)
       await updateFollowListEvent(newFollowListEvent)
 
-      upsertStoredCustomFeed(interestsFeed)
+      upsertStoredCustomFeed(interestsFeed, pubkey)
 
       persistStoredFeedInfo({ feedType: 'custom', id: interestsFeed.id }, pubkey)
 

@@ -1,4 +1,4 @@
-import { BIG_RELAY_URLS, DEFAULT_FAVORITE_RELAYS } from '@/constants'
+import { BIG_RELAY_URLS } from '@/constants'
 import { createFavoriteRelaysDraftEvent, createRelaySetDraftEvent } from '@/lib/draft-event'
 import { getReplaceableEventIdentifier } from '@/lib/event'
 import { getRelaySetFromEvent } from '@/lib/event-metadata'
@@ -6,7 +6,6 @@ import { randomString } from '@/lib/random'
 import { isWebsocketUrl, normalizeUrl } from '@/lib/url'
 import client from '@/services/client.service'
 import indexedDb from '@/services/indexed-db.service'
-import storage from '@/services/local-storage.service'
 import { TRelaySet } from '@/types'
 import { Event, kinds } from 'nostr-tools'
 import { createContext, useContext, useEffect, useState } from 'react'
@@ -45,17 +44,7 @@ export function FavoriteRelaysProvider({ children }: { children: React.ReactNode
 
   useEffect(() => {
     if (!favoriteRelaysEvent) {
-      const favoriteRelays: string[] = DEFAULT_FAVORITE_RELAYS
-      const storedRelaySets = storage.getRelaySets()
-      storedRelaySets.forEach(({ relayUrls }) => {
-        relayUrls.forEach((url) => {
-          if (!favoriteRelays.includes(url)) {
-            favoriteRelays.push(url)
-          }
-        })
-      })
-
-      setFavoriteRelays(favoriteRelays)
+      setFavoriteRelays([])
       setRelaySetEvents([])
       return
     }

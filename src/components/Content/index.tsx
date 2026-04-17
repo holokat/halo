@@ -12,6 +12,7 @@ import {
   parseContent
 } from '@/lib/content-parser'
 import { getImetaInfosFromEvent } from '@/lib/event'
+import { encodeQuoteReference, getRenderableQuoteReferences } from '@/lib/event-references'
 import { getEmojiInfosFromEmojiTags, getImetaInfoFromImetaTag } from '@/lib/tag'
 import { cn, detectLanguage, isSameLanguage } from '@/lib/utils'
 import mediaUpload from '@/services/media-upload.service'
@@ -97,9 +98,17 @@ export default function Content({
     autoTranslateEvent(event)
   }, [event, shouldAutoTranslate, autoTranslateEvent, i18n.language])
 
-  const { nodes, allImages, lastNormalUrl, relayUrls, emojiInfos, totalMediaCount } = useMemo(() => {
-    const _content = translatedEvent?.content ?? event?.content ?? content
-    if (!_content) return {}
+  const {
+    nodes,
+    allImages,
+    mediaInfoByUrl,
+    lastNormalUrl,
+    relayUrls,
+    emojiInfos,
+    totalMediaCount,
+    fallbackQuotes
+  } = useMemo(() => {
+    const _content = translatedEvent?.content ?? event?.content ?? content ?? ''
 
     const imetaInfos = event ? getImetaInfosFromEvent(event) : []
     const imetaInfoMap = new Map(imetaInfos.map((info) => [info.url, info]))
@@ -169,6 +178,13 @@ export default function Content({
       return urls
     }, [])
 
+    const fallbackQuotes = event
+      ? getRenderableQuoteReferences({
+          content: _content,
+          tags: event.tags
+        }).map((ref) => encodeQuoteReference(ref))
+      : []
+
     // Count total media items (images, videos, youtube)
     const totalMediaCount = nodes.reduce((count, node) => {
       if (node.type === 'image') return count + 1
@@ -179,10 +195,19 @@ export default function Content({
       return count
     }, 0)
 
-    return { nodes, allImages, emojiInfos, lastNormalUrl, relayUrls, totalMediaCount }
+    return {
+      nodes,
+      allImages,
+      mediaInfoByUrl: imetaInfoMap,
+      emojiInfos,
+      lastNormalUrl,
+      relayUrls,
+      totalMediaCount,
+      fallbackQuotes
+    }
   }, [event, translatedEvent, content])
 
-  if (!nodes || nodes.length === 0) {
+  if ((!nodes || nodes.length === 0) && (!fallbackQuotes || fallbackQuotes.length === 0)) {
     return null
   }
 
@@ -251,6 +276,10 @@ export default function Content({
           )
         }
         if (node.type === 'media') {
+          const localImetaTag = mediaUpload.getImetaTagByUrl(node.data)
+          const mediaInfo =
+            mediaInfoByUrl.get(node.data) ??
+            (localImetaTag ? getImetaInfoFromImetaTag(localImetaTag, event?.pubkey) : undefined)
           if (textOnlyMode) {
             const isLoaded = loadedMedia.has(node.data)
             if (isLoaded) {
@@ -263,6 +292,7 @@ export default function Content({
                   mustLoad
                   compactMedia={compactMedia}
                   isSingleMedia={totalMediaCount <= 2}
+                  isGifLike={!!mediaInfo?.gifLoop}
                 />
               )
             }
@@ -276,7 +306,16 @@ export default function Content({
             )
           }
           return (
-            <MediaPlayer className="mt-2" key={index} src={node.data} pubkey={event?.pubkey} mustLoad={mustLoadMedia} compactMedia={compactMedia} isSingleMedia={totalMediaCount <= 2} />
+            <MediaPlayer
+              className="mt-2"
+              key={index}
+              src={node.data}
+              pubkey={event?.pubkey}
+              mustLoad={mustLoadMedia}
+              compactMedia={compactMedia}
+              isSingleMedia={totalMediaCount <= 2}
+              isGifLike={!!mediaInfo?.gifLoop}
+            />
           )
         }
         if (node.type === 'url') {
@@ -344,7 +383,16 @@ export default function Content({
         }
         return null
       })}
-      {!textOnlyMode && lastNormalUrl && <WebPreview className="mt-2" url={lastNormalUrl} pubkey={event?.pubkey} />}
+      {fallbackQuotes?.map((quoteId, index) => (
+        <EmbeddedNote
+          key={`fallback-quote-${quoteId}-${index}`}
+          noteId={quoteId}
+          className="mt-2"
+        />
+      ))}
+      {!textOnlyMode && lastNormalUrl && (
+        <WebPreview className="mt-2" url={lastNormalUrl} pubkey={event?.pubkey} />
+      )}
       {!textOnlyMode && !!relayUrls?.length && <RelayPreview className="mt-2" urls={relayUrls} />}
     </div>
   )

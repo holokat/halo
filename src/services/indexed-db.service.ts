@@ -51,7 +51,8 @@ class IndexedDbService {
           this.db = db
         }
       })
-      setTimeout(() => this.cleanUp(), 1000 * 60) // 1 minute
+      const cleanupTimer = setTimeout(() => this.cleanUp(), 1000 * 60) // 1 minute
+      cleanupTimer.unref?.()
     }
     return this.initPromise
   }
@@ -178,7 +179,13 @@ class IndexedDbService {
       return Promise.reject('store name not found')
     }
     const key = this.getReplaceableEventKey(pubkey, d)
-    return this.readRecordValue<Event>(storeName, key)
+    return this.withStore(storeName, 'readonly', async (store) => {
+      const record = await requestPromise<TIndexedDbRecord<Event | null> | undefined>(store.get(key))
+      if (!record) {
+        return undefined
+      }
+      return record.value
+    })
   }
 
   async getReplaceableEventByCoordinate(coordinate: string): Promise<Event | undefined | null> {
@@ -205,7 +212,18 @@ class IndexedDbService {
     if (!storeName) {
       return Promise.reject('store name not found')
     }
-    return this.readManyRecordValues<Event>(storeName, pubkeys.map((pubkey) => this.getReplaceableEventKey(pubkey)))
+    return this.withStore(storeName, 'readonly', async (store) => {
+      return Promise.all(
+        pubkeys.map(async (pubkey) => {
+          const key = this.getReplaceableEventKey(pubkey)
+          const record = await requestPromise<TIndexedDbRecord<Event | null> | undefined>(store.get(key))
+          if (!record) {
+            return undefined
+          }
+          return record.value
+        })
+      )
+    })
   }
 
   async getMuteDecryptedTags(id: string): Promise<string[][] | null> {

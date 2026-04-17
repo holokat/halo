@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button'
+import InfoPopoverButton from '@/components/InfoPopoverButton'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { normalizeUrl } from '@/lib/url'
@@ -12,7 +13,7 @@ import RelayCountWarning from './RelayCountWarning'
 import FollowsRelayRecommendations from './FollowsRelayRecommendations'
 import InboxRelayRecommendations from './InboxRelayRecommendations'
 import { createInboxRelayListDraftEvent, createRelayListDraftEvent } from '@/lib/draft-event'
-import { Plus, Trash2 } from 'lucide-react'
+import { Info, Plus, Trash2 } from 'lucide-react'
 import RelayIcon from '../RelayIcon'
 import RelayTutorialDialog from '../RelayTutorialDialog'
 import RelayHealthBadge from '../RelayHealthBadge'
@@ -166,11 +167,11 @@ export default function MailboxSetting({
   const saveRelays = useCallback(async () => {
     if (!pubkey || !relayList || isSaving || !hasChange) return
     if (readRelays.length === 0) {
-      toast.error(t('Add at least one read relay to load your feed.'))
+      toast.error(t('Add at least one feed relay before saving.'))
       return
     }
     if (inboxRelays.length === 0) {
-      toast.error(t('Add at least one inbox relay so other clients know where to deliver your messages.'))
+      toast.error(t('Add at least one inbox relay so other apps know where to deliver your messages.'))
       return
     }
 
@@ -189,10 +190,10 @@ export default function MailboxSetting({
 
       setHasRelayChange(false)
       setHasInboxRelayChange(false)
-      toast.success(t('Relay settings saved'))
+      toast.success(t('Network settings saved'))
     } catch (error) {
-      console.error('Failed to save relay settings:', error)
-      toast.error(t('Failed to save relay settings'))
+      console.error('Failed to save network settings:', error)
+      toast.error(t('Failed to save network settings'))
     } finally {
       setIsSaving(false)
     }
@@ -237,14 +238,17 @@ export default function MailboxSetting({
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between gap-3">
-            <CardTitle className="text-sm">{t('My Relays')}</CardTitle>
+            <CardTitle className="text-sm">{t('Published preferences')}</CardTitle>
             <RelayTutorialDialog>
-              <button
+              <Button
                 type="button"
-                className="text-sm font-medium text-primary transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                variant="ghost"
+                size="icon"
+                className="size-8 rounded-full text-muted-foreground hover:text-foreground"
+                aria-label={t("What's a relay?")}
               >
-                {t("What's a relay?")}
-              </button>
+                <Info className="size-4" />
+              </Button>
             </RelayTutorialDialog>
           </div>
         </CardHeader>
@@ -252,13 +256,13 @@ export default function MailboxSetting({
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'read' | 'write')}>
             <TabsList className="grid w-full grid-cols-2 rounded-full p-1">
               <TabsTrigger value="read" className="rounded-full">
-                <span className="mr-2">{t('Read Relays')}</span>
+                <span className="mr-2">{t('Feeds')}</span>
                 <span className="rounded-full bg-background/80 px-2 py-0.5 text-[11px] font-medium">
                   {readRelays.length}
                 </span>
               </TabsTrigger>
               <TabsTrigger value="write" className="rounded-full">
-                <span className="mr-2">{t('Publish Relays')}</span>
+                <span className="mr-2">{t('Posting')}</span>
                 <span className="rounded-full bg-background/80 px-2 py-0.5 text-[11px] font-medium">
                   {publishRelays.length}
                 </span>
@@ -274,7 +278,7 @@ export default function MailboxSetting({
               />
               <NewMailboxRelayInput
                 saveNewMailboxRelay={(url) => addRelayToScope(url, 'read')}
-                placeholder={t('Add read relay (wss://...)')}
+                placeholder={t('Add feed relay')}
                 addLabel={t('Add')}
               />
             </TabsContent>
@@ -288,7 +292,7 @@ export default function MailboxSetting({
               />
               <NewMailboxRelayInput
                 saveNewMailboxRelay={(url) => addRelayToScope(url, 'write')}
-                placeholder={t('Add publish relay (wss://...)')}
+                placeholder={t('Add posting relay')}
                 addLabel={t('Add')}
               />
             </TabsContent>
@@ -298,7 +302,7 @@ export default function MailboxSetting({
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm">{t('Recommended from follows')}</CardTitle>
+          <CardTitle className="text-sm">{t('Suggestions from people you follow')}</CardTitle>
         </CardHeader>
         <CardContent>
           <FollowsRelayRecommendations
@@ -313,25 +317,22 @@ export default function MailboxSetting({
 
       <Card>
         <CardHeader className="pb-3">
-          <div className="space-y-1">
-            <CardTitle className="text-sm">{t('Direct Message Inbox')}</CardTitle>
-            <p className="text-sm text-muted-foreground">
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle className="text-sm">{t('Message delivery')}</CardTitle>
+            <InfoPopoverButton label={t('About message delivery')}>
               {t(
-                'These relays are published in your kind 10050 inbox list so other apps know where to deliver your NIP-17 direct messages.'
+                'These inbox relays are published so other Nostr apps know where to deliver your direct messages.'
               )}
-            </p>
+            </InfoPopoverButton>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <InboxRelayList relays={inboxRelays} onRemove={removeInboxRelay} />
           <NewMailboxRelayInput
             saveNewMailboxRelay={addInboxRelay}
-            placeholder={t('Add inbox relay (wss://...)')}
+            placeholder={t('Add inbox relay')}
             addLabel={t('Add')}
           />
-          <div className="text-xs text-muted-foreground">
-            {t('We recommend keeping 2-3 inbox relays so your DMs stay reliable without a lot of maintenance.')}
-          </div>
           <InboxRelayRecommendations
             existingRelayUrls={inboxRelays}
             onAddRelay={(url) => {
@@ -364,7 +365,7 @@ function RelayList({
   if (relays.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed px-4 py-5 text-sm text-muted-foreground">
-        {role === 'read' ? t('No read relays added yet') : t('No publish relays added yet')}
+        {role === 'read' ? t('No feed relays added yet') : t('No posting relays added yet')}
       </div>
     )
   }
@@ -384,7 +385,7 @@ function RelayList({
             {relay.scope !== 'both' && (
               <Button size="sm" variant="outline" onClick={() => onAddOtherScope(relay.url)}>
                 <Plus className="size-4" />
-                {role === 'read' ? t('Also publish') : t('Also read')}
+                {role === 'read' ? t('Also use for posting') : t('Also use for feeds')}
               </Button>
             )}
             <Button size="icon" variant="ghost" onClick={() => onRemove(relay.url)} aria-label={t('Remove relay')}>

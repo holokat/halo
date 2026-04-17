@@ -82,6 +82,15 @@ export function getImetaInfoFromImetaTag(tag: string[], pubkey?: string): TImeta
       imeta.dim = { width, height }
     }
   }
+  const gifLoopItem = tag.find((item) => {
+    const value = item.trim().toLowerCase()
+    return (
+      value === 'flow-gif-loop 1' || value === 'flow-gif-loop true' || value === 'flow-gif-loop yes'
+    )
+  })
+  if (gifLoopItem) {
+    imeta.gifLoop = true
+  }
   return imeta
 }
 

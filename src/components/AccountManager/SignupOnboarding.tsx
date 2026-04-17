@@ -32,7 +32,7 @@ export default function SignupOnboarding({
           interestsFeed
         }: TSignupProfileResult) => {
           try {
-            upsertStoredCustomFeed(interestsFeed)
+            upsertStoredCustomFeed(interestsFeed, pubkey)
 
             persistStoredFeedInfo({ feedType: 'custom', id: interestsFeed.id }, pubkey)
           } catch (error) {

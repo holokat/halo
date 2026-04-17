@@ -10,9 +10,15 @@ import {
 } from '@/constants'
 import { TEmoji } from '@/types'
 import { clsx, type ClassValue } from 'clsx'
-import { parseNativeEmoji } from 'emoji-picker-react/src/dataUtils/parseNativeEmoji'
 import { franc } from 'franc-min'
 import { twMerge } from 'tailwind-merge'
+
+function parseNativeEmoji(unified: string): string {
+  return unified
+    .split('-')
+    .map((hex) => String.fromCodePoint(Number.parseInt(hex, 16)))
+    .join('')
+}
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))

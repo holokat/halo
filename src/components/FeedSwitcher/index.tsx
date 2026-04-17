@@ -1,23 +1,23 @@
-import { toRelaySettings } from '@/lib/link'
-import { getCustomFeedHashtags } from '@/lib/custom-feed'
+import { toFeedsSettings } from '@/lib/link'
+import { getCustomFeedHashtags, INTERESTS_FEED_ID } from '@/lib/custom-feed'
 import { isWebsocketUrl, normalizeUrl, simplifyUrl } from '@/lib/url'
-import { SecondaryPageLink, usePrimaryPage } from '@/PageManager'
+import { SecondaryPageLink, useSecondaryPage } from '@/PageManager'
 import { useCustomFeeds } from '@/providers/CustomFeedsProvider'
 import { useFavoriteRelays } from '@/providers/FavoriteRelaysProvider'
 import { useFeed } from '@/providers/FeedProvider'
 import { useNostr } from '@/providers/NostrProvider'
 import {
-  BookOpen,
   BookmarkIcon,
   BarChart3,
+  ChevronDown,
+  ChevronUp,
   Hash,
   Highlighter,
   Loader2,
   Minus,
+  Newspaper,
   Pin,
-  Search,
   TrendingUp,
-  Trash2,
   UserRound,
   UsersRound
 } from 'lucide-react'
@@ -27,26 +27,44 @@ import PinButton from '../PinButton'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import RelayIcon from '../RelayIcon'
-import RelaySetCard from '../RelaySetCard'
 
 function stripRelayProtocol(value: string) {
   return value.trim().replace(/^(?:wss?|https?):\/\//i, '')
 }
 
 export default function FeedSwitcher({
-  close,
-  showReadsOption = false
+  close
 }: {
   close?: () => void
-  showReadsOption?: boolean
 }) {
   const { t } = useTranslation()
   const { pubkey } = useNostr()
-  const { navigate, current } = usePrimaryPage()
-  const { relaySets, favoriteRelays, addFavoriteRelays, deleteFavoriteRelays } =
-    useFavoriteRelays()
+  const { push } = useSecondaryPage()
+  const { favoriteRelays, addFavoriteRelays, deleteFavoriteRelays } = useFavoriteRelays()
   const { feedInfo, switchFeed } = useFeed()
-  const { customFeeds, removeCustomFeed } = useCustomFeeds()
+  const { customFeeds } = useCustomFeeds()
+  const interestsFeed = useMemo(
+    () => customFeeds.find((feed) => feed.id === INTERESTS_FEED_ID),
+    [customFeeds]
+  )
+  const hasConfiguredInterests = useMemo(
+    () => !!interestsFeed && getCustomFeedHashtags(interestsFeed).length > 0,
+    [interestsFeed]
+  )
+  const isAdvancedFeedActive = useMemo(
+    () =>
+      feedInfo.feedType === 'bookmarks' ||
+      feedInfo.feedType === 'highlights' ||
+      feedInfo.feedType === 'relay',
+    [feedInfo]
+  )
+  const [showAdvanced, setShowAdvanced] = useState(isAdvancedFeedActive)
+
+  useEffect(() => {
+    if (isAdvancedFeedActive) {
+      setShowAdvanced(true)
+    }
+  }, [isAdvancedFeedActive])
 
   return (
     <div className="space-y-2">
@@ -83,67 +101,54 @@ export default function FeedSwitcher({
         </div>
       </FeedSwitcherItem>
 
-      {showReadsOption && (
-        <FeedSwitcherItem
-          isActive={current === 'reads'}
-          onClick={() => {
-            navigate('reads')
-            close?.()
-          }}
-        >
-          <div className="flex gap-2 items-center">
-            <div className="flex justify-center items-center w-6 h-6 shrink-0">
-              <BookOpen className="size-4" />
-            </div>
-            <div>{t('Reads')}</div>
+      <FeedSwitcherItem
+        isActive={feedInfo.feedType === 'news'}
+        onClick={() => {
+          switchFeed('news')
+          close?.()
+        }}
+      >
+        <div className="flex gap-2 items-center">
+          <div className="flex justify-center items-center w-6 h-6 shrink-0">
+            <Newspaper className="size-4" />
           </div>
-        </FeedSwitcherItem>
-      )}
+          <div>{t('News', { defaultValue: 'News' })}</div>
+        </div>
+      </FeedSwitcherItem>
+
+      <FeedSwitcherItem
+        isActive={feedInfo.feedType === 'custom' && feedInfo.id === INTERESTS_FEED_ID}
+        onClick={() => {
+          if (hasConfiguredInterests && interestsFeed) {
+            void switchFeed('custom', { customFeedId: interestsFeed.id })
+          } else {
+            push(toFeedsSettings())
+          }
+          close?.()
+        }}
+      >
+        <div className="flex gap-2 items-center">
+          <div className="flex justify-center items-center w-6 h-6 shrink-0">
+            <Hash className="size-4" />
+          </div>
+          <div>{t('Interests', { defaultValue: 'Interests' })}</div>
+        </div>
+      </FeedSwitcherItem>
 
       {pubkey && (
         <FeedSwitcherItem
-          isActive={feedInfo.feedType === 'bookmarks'}
+          isActive={feedInfo.feedType === 'one-per-person'}
           onClick={() => {
             if (!pubkey) return
-            switchFeed('bookmarks', { pubkey })
+            switchFeed('one-per-person', { pubkey })
             close?.()
           }}
-          controls={
-            <PinButton
-              column={{ type: 'bookmarks' }}
-              className="opacity-0 group-hover:opacity-100 transition-opacity"
-            />
-          }
         >
           <div className="flex gap-2 items-center">
             <div className="flex justify-center items-center w-6 h-6 shrink-0">
-              <BookmarkIcon className="size-4" />
+              <UserRound className="size-4" />
             </div>
-            <div>{t('Bookmarks')}</div>
-          </div>
-        </FeedSwitcherItem>
-      )}
-
-      {pubkey && (
-        <FeedSwitcherItem
-          isActive={feedInfo.feedType === 'highlights'}
-          onClick={() => {
-            if (!pubkey) return
-            switchFeed('highlights', { pubkey })
-            close?.()
-          }}
-          controls={
-            <PinButton
-              column={{ type: 'highlights' }}
-              className="opacity-0 group-hover:opacity-100 transition-opacity"
-            />
-          }
-        >
-          <div className="flex gap-2 items-center">
-            <div className="flex justify-center items-center w-6 h-6 shrink-0">
-              <Highlighter className="size-4" />
-            </div>
-            <div>{t('Highlights')}</div>
+            <div>{t('Latest Note')}</div>
           </div>
         </FeedSwitcherItem>
       )}
@@ -166,151 +171,137 @@ export default function FeedSwitcher({
         </FeedSwitcherItem>
       )}
 
-      {pubkey && (
-        <FeedSwitcherItem
-          isActive={feedInfo.feedType === 'one-per-person'}
-          onClick={() => {
-            if (!pubkey) return
-            switchFeed('one-per-person', { pubkey })
-            close?.()
-          }}
-        >
-          <div className="flex gap-2 items-center">
-            <div className="flex justify-center items-center w-6 h-6 shrink-0">
-              <UserRound className="size-4" />
-            </div>
-            <div>{t('Latest Note')}</div>
-          </div>
-        </FeedSwitcherItem>
-      )}
+      <button
+        type="button"
+        className="flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground"
+        onClick={() => setShowAdvanced((prev) => !prev)}
+      >
+        <span>{showAdvanced ? t('Hide more', { defaultValue: 'Hide more' }) : t('More', { defaultValue: 'More' })}</span>
+        {showAdvanced ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+      </button>
 
-      <QuickRelayInput
-        close={close}
-        favoriteRelays={favoriteRelays}
-        pubkey={pubkey}
-        activeRelay={feedInfo.feedType === 'relay' ? feedInfo.id : undefined}
-        onOpenRelay={async (relay) => {
-          await switchFeed('relay', { relay })
-        }}
-        onSaveRelay={async (relay) => {
-          await addFavoriteRelays([relay])
-        }}
-      />
-
-      {customFeeds.length > 0 && (
-        <>
-          <div className="text-xs font-semibold mt-4 mb-2">
-            {t('Custom Feeds')}
-          </div>
-          {customFeeds.map((feed) => (
+      {showAdvanced && (
+        <div className="space-y-2">
+          {pubkey && (
             <FeedSwitcherItem
-              key={feed.id}
-              isActive={feedInfo.feedType === 'custom' && feedInfo.id === feed.id}
+              isActive={feedInfo.feedType === 'highlights'}
               onClick={() => {
-                switchFeed('custom', { customFeedId: feed.id })
+                if (!pubkey) return
+                switchFeed('highlights', { pubkey })
                 close?.()
               }}
               controls={
-                <div className="flex gap-1 items-center">
-                  <PinButton
-                    column={{
-                      type: 'custom',
-                      props: { customFeedId: feed.id }
-                    }}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity"
-                  />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      removeCustomFeed(feed.id)
-                    }}
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
-                </div>
+                <PinButton
+                  column={{ type: 'highlights' }}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                />
               }
             >
               <div className="flex gap-2 items-center">
                 <div className="flex justify-center items-center w-6 h-6 shrink-0">
-                  {getCustomFeedHashtags(feed).length > 0 ? (
-                    <Hash className="size-4" />
-                  ) : (
-                    <Search className="size-4" />
-                  )}
+                  <Highlighter className="size-4" />
                 </div>
-                <div className="truncate">{feed.name}</div>
+                <div>{t('Highlights')}</div>
               </div>
             </FeedSwitcherItem>
-          ))}
-        </>
-      )}
+          )}
 
-      <div className="flex justify-end items-center text-sm">
-        <SecondaryPageLink
-          to={toRelaySettings()}
-          className="text-primary font-semibold"
-          onClick={() => close?.()}
-        >
-          {t('edit')}
-        </SecondaryPageLink>
-      </div>
-      {relaySets
-        .filter((set) => set.relayUrls.length > 0)
-        .map((set) => (
-          <RelaySetCard
-            key={set.id}
-            relaySet={set}
-            select={feedInfo.feedType === 'relays' && set.id === feedInfo.id}
-            onSelectChange={(select) => {
-              if (!select) return
-              switchFeed('relays', { activeRelaySetId: set.id })
-              close?.()
+          {pubkey && (
+            <FeedSwitcherItem
+              isActive={feedInfo.feedType === 'bookmarks'}
+              onClick={() => {
+                if (!pubkey) return
+                switchFeed('bookmarks', { pubkey })
+                close?.()
+              }}
+              controls={
+                <PinButton
+                  column={{ type: 'bookmarks' }}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                />
+              }
+            >
+              <div className="flex gap-2 items-center">
+                <div className="flex justify-center items-center w-6 h-6 shrink-0">
+                  <BookmarkIcon className="size-4" />
+                </div>
+                <div>{t('Bookmarks')}</div>
+              </div>
+            </FeedSwitcherItem>
+          )}
+
+          {favoriteRelays.length > 0 && (
+            <div className="space-y-2 pt-2">
+              <div className="px-1 text-xs font-semibold text-muted-foreground">
+                {t('Bookmarked relays', { defaultValue: 'Bookmarked relays' })}
+              </div>
+              {favoriteRelays.map((relay) => (
+                <FeedSwitcherItem
+                  key={relay}
+                  isActive={feedInfo.feedType === 'relay' && feedInfo.id === relay}
+                  onClick={() => {
+                    switchFeed('relay', { relay })
+                    close?.()
+                  }}
+                  controls={
+                    <div className="flex gap-1 items-center">
+                      <PinButton
+                        column={{
+                          type: 'relay',
+                          props: { url: relay }
+                        }}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      />
+                      {pubkey && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          title={t('Remove bookmark', { defaultValue: 'Remove bookmark' })}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            void deleteFavoriteRelays([relay])
+                          }}
+                        >
+                          <Minus className="size-4" />
+                        </Button>
+                      )}
+                    </div>
+                  }
+                >
+                  <div className="flex gap-2 items-center w-full">
+                    <RelayIcon url={relay} />
+                    <div className="flex-1 w-0 truncate">{simplifyUrl(relay)}</div>
+                  </div>
+                </FeedSwitcherItem>
+              ))}
+            </div>
+          )}
+
+          <QuickRelayInput
+            close={close}
+            favoriteRelays={favoriteRelays}
+            pubkey={pubkey}
+            activeRelay={feedInfo.feedType === 'relay' ? feedInfo.id : undefined}
+            onOpenRelay={async (relay) => {
+              await switchFeed('relay', { relay })
+            }}
+            onSaveRelay={async (relay) => {
+              await addFavoriteRelays([relay])
             }}
           />
-        ))}
-      {favoriteRelays.map((relay) => (
-        <FeedSwitcherItem
-          key={relay}
-          isActive={feedInfo.feedType === 'relay' && feedInfo.id === relay}
-          onClick={() => {
-            switchFeed('relay', { relay })
-            close?.()
-          }}
-          controls={
-            <div className="flex gap-1 items-center">
-              <PinButton
-                column={{
-                  type: 'relay',
-                  props: { url: relay }
-                }}
-                className="opacity-0 group-hover:opacity-100 transition-opacity"
-              />
-              {pubkey && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                  title={t('Unfavorite')}
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    void deleteFavoriteRelays([relay])
-                  }}
-                >
-                  <Minus className="size-4" />
-                </Button>
-              )}
-            </div>
-          }
-        >
-          <div className="flex gap-2 items-center w-full">
-            <RelayIcon url={relay} />
-            <div className="flex-1 w-0 truncate">{simplifyUrl(relay)}</div>
+
+          <div className="flex justify-end items-center pt-1 text-sm">
+            <SecondaryPageLink
+              to={toFeedsSettings()}
+              className="text-primary font-semibold"
+              onClick={() => close?.()}
+            >
+              {t('Manage feeds', { defaultValue: 'Manage feeds' })}
+            </SecondaryPageLink>
           </div>
-        </FeedSwitcherItem>
-      ))}
+        </div>
+      )}
     </div>
   )
 }

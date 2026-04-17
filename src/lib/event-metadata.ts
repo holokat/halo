@@ -1,4 +1,10 @@
-export { getRelayListFromEvent, getInboxRelayUrlsFromEvent, getRelayDiscoveryFromEvent, getRelaySetFromEvent } from './event-metadata/relay'
+export {
+  getRelayListFromEvent,
+  getRelayListFromContactListEvent,
+  getInboxRelayUrlsFromEvent,
+  getRelayDiscoveryFromEvent,
+  getRelaySetFromEvent
+} from './event-metadata/relay'
 export {
   getCommunityDefinitionFromEvent,
   getEmojisAndEmojiSetsFromEvent,

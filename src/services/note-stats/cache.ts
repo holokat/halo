@@ -1,9 +1,9 @@
 import type { TNoteStats } from '../note-stats.service'
-import type { TEmoji } from '@/types'
+import type { TNoteReaction } from '@/types'
 
 export type TSerializedNoteStats = {
   likeIdSet?: string[]
-  likes?: { id: string; pubkey: string; created_at: number; emoji: TEmoji | string }[]
+  likes?: TNoteReaction[]
   repostPubkeySet?: string[]
   reposts?: { id: string; pubkey: string; created_at: number }[]
   zapPrSet?: string[]
@@ -33,7 +33,10 @@ export function serializeNoteStats(stats: Partial<TNoteStats>): TSerializedNoteS
 export function deserializeNoteStats(stats: TSerializedNoteStats): Partial<TNoteStats> {
   return {
     likeIdSet: new Set(stats.likeIdSet ?? []),
-    likes: stats.likes ?? [],
+    likes: (stats.likes ?? []).map((like) => ({
+      ...like,
+      bonusCount: typeof like.bonusCount === 'number' ? like.bonusCount : 0
+    })),
     repostPubkeySet: new Set(stats.repostPubkeySet ?? []),
     reposts: stats.reposts ?? [],
     zapPrSet: new Set(stats.zapPrSet ?? []),

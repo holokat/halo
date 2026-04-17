@@ -181,17 +181,25 @@ export default function ReplyNoteList({ index, event }: { index?: number; event:
       setLoading(true)
 
       try {
-        const relayList = await client.fetchRelayList(
-          (rootInfo as { pubkey?: string }).pubkey ?? event.pubkey
-        )
-        const relayUrls = relayList.read.concat(BIG_RELAY_URLS)
         const seenOn =
           rootInfo.type === 'E'
             ? client.getSeenEventRelayUrls(rootInfo.id)
             : rootInfo.type === 'A'
               ? client.getSeenEventRelayUrls(rootInfo.eventId)
               : []
-        relayUrls.unshift(...seenOn)
+        if (rootInfo.type === 'A' && rootInfo.relay) {
+          seenOn.unshift(rootInfo.relay)
+        }
+        const relayUrls = await client.resolveAuthorOutboxRelayUrls(
+          [(rootInfo as { pubkey?: string }).pubkey ?? event.pubkey],
+          {
+            authorRelayLimit: 6,
+            maxRelayCount: 10,
+            relayHintsByPubkey: new Map([
+              [((rootInfo as { pubkey?: string }).pubkey ?? event.pubkey), seenOn]
+            ])
+          }
+        )
 
         const filters: (Omit<Filter, 'since' | 'until'> & {
           limit: number

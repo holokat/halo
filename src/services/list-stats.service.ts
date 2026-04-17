@@ -74,7 +74,7 @@ class ListStatsService {
     }
 
     const events: Event[] = []
-    const relays = authorRelayList.read.concat(BIG_RELAY_URLS).slice(0, 5)
+    const relays = authorRelayList.write.concat(BIG_RELAY_URLS).slice(0, 5)
     await client.fetchEvents(relays, filters, {
       onevent: (evt) => {
         this.updateListStatsByEvents(authorPubkey, dTag, [evt])

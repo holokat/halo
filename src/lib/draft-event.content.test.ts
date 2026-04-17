@@ -10,10 +10,14 @@ test('extractTTagValues dedupes hashtags and standalone cashtags', () => {
   assert.deepEqual(values, ['bitcoin', 'mstr', 'btc'])
 })
 
-test('extractImagesFromContent returns direct image links only', () => {
-  const images = extractImagesFromContent(
-    'Image https://cdn.example.com/a.png and https://cdn.example.com/b.webp?size=large but not https://example.com/watch?v=1'
+test('extractImagesFromContent returns direct media links for imeta lookup', () => {
+  const media = extractImagesFromContent(
+    'Image https://cdn.example.com/a.png, video https://cdn.example.com/c.mp4 and https://cdn.example.com/b.webp?size=large but not https://example.com/watch?v=1'
   )
 
-  assert.deepEqual(images, ['https://cdn.example.com/a.png', 'https://cdn.example.com/b.webp'])
+  assert.deepEqual(media, [
+    'https://cdn.example.com/a.png',
+    'https://cdn.example.com/c.mp4',
+    'https://cdn.example.com/b.webp'
+  ])
 })

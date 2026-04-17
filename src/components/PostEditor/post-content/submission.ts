@@ -97,14 +97,40 @@ export function appendImageMetadataTags(draftEvent: TDraftEvent, images: ImageAt
   }
 
   images.forEach((image) => {
-    const imetaTags: string[] = ['imeta', `url ${image.url}`]
-    if (image.alt) {
-      imetaTags.push(`alt ${image.alt}`)
-    }
-    draftEvent.tags.push(imetaTags)
+    draftEvent.tags.push(buildImageAttachmentImetaTag(image))
   })
 
   return draftEvent
+}
+
+export function buildImageAttachmentImetaTag(image: ImageAttachment) {
+  const imetaTags = image.imetaTag?.length ? [...image.imetaTag] : ['imeta', `url ${image.url}`]
+
+  if (!imetaTags.some((item) => item.startsWith('url '))) {
+    imetaTags.push(`url ${image.url}`)
+  }
+
+  if (image.mimeType && !imetaTags.some((item) => item.startsWith('m '))) {
+    imetaTags.push(`m ${image.mimeType}`)
+  }
+
+  if (image.fileSizeBytes && !imetaTags.some((item) => item.startsWith('size '))) {
+    imetaTags.push(`size ${image.fileSizeBytes}`)
+  }
+
+  if (image.width && image.height && !imetaTags.some((item) => item.startsWith('dim '))) {
+    imetaTags.push(`dim ${Math.round(image.width)}x${Math.round(image.height)}`)
+  }
+
+  if (image.alt && !imetaTags.some((item) => item.startsWith('alt '))) {
+    imetaTags.push(`alt ${image.alt}`)
+  }
+
+  if (image.gifLoop && !imetaTags.some((item) => item.toLowerCase().startsWith('flow-gif-loop '))) {
+    imetaTags.push('flow-gif-loop 1')
+  }
+
+  return imetaTags
 }
 
 export function appendExpirationTag(draftEvent: TDraftEvent, expirationTimestamp: number | null) {

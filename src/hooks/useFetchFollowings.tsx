@@ -12,10 +12,18 @@ export function useFetchFollowings(pubkey?: string | null) {
     const init = async () => {
       try {
         setIsFetching(true)
-        if (!pubkey) return
+        if (!pubkey) {
+          setFollowListEvent(null)
+          setFollowings([])
+          return
+        }
 
-        const event = await client.fetchFollowListEvent(pubkey)
-        if (!event) return
+        const event = await client.fetchFollowListEvent(pubkey, { refresh: true })
+        if (!event) {
+          setFollowListEvent(null)
+          setFollowings([])
+          return
+        }
 
         setFollowListEvent(event)
         setFollowings(getPubkeysFromPTags(event.tags))

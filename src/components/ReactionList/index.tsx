@@ -1,5 +1,6 @@
 import { useSecondaryPage } from '@/PageManager'
 import { useNoteStatsById } from '@/hooks/useNoteStatsById'
+import { getReactionDisplayEmoji } from '@/lib/reaction'
 import { toProfile } from '@/lib/link'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import { useUserTrust } from '@/providers/UserTrustProvider'
@@ -51,11 +52,14 @@ export default function ReactionList({ event }: { event: Event }) {
         >
           <div className="w-6 flex flex-col items-center">
             <Emoji
-              emoji={like.emoji}
+              emoji={getReactionDisplayEmoji(like.emoji)}
               classNames={{
                 text: 'text-xl'
               }}
             />
+            {like.bonusCount > 0 && (
+              <span className="mt-1 text-[10px] font-semibold text-primary/90">+{like.bonusCount}</span>
+            )}
           </div>
 
           <UserAvatar userId={like.pubkey} size="medium" className="shrink-0" />

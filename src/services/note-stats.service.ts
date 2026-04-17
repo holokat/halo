@@ -1,9 +1,10 @@
 import { getReplaceableCoordinateFromEvent, isReplaceableEvent } from '@/lib/event'
+import { getReactionBonusCountFromTags } from '@/lib/reaction'
 import { getZapInfoFromEvent } from '@/lib/event-metadata'
 import { getEmojiInfosFromEmojiTags, tagNameEquals } from '@/lib/tag'
 import client from '@/services/client.service'
 import indexedDb from '@/services/indexed-db.service'
-import { TEmoji } from '@/types'
+import { TEmoji, TNoteReaction } from '@/types'
 import dayjs from 'dayjs'
 import { Event, Filter, kinds } from 'nostr-tools'
 import {
@@ -19,7 +20,7 @@ import {
 
 export type TNoteStats = {
   likeIdSet: Set<string>
-  likes: { id: string; pubkey: string; created_at: number; emoji: TEmoji | string }[]
+  likes: TNoteReaction[]
   repostPubkeySet: Set<string>
   reposts: { id: string; pubkey: string; created_at: number }[]
   zapPrSet: Set<string>
@@ -244,8 +245,10 @@ class NoteStatsService {
       }
     }
 
+    const bonusCount = getReactionBonusCountFromTags(evt.tags)
+
     likeIdSet.add(evt.id)
-    likes.push({ id: evt.id, pubkey: evt.pubkey, created_at: evt.created_at, emoji })
+    likes.push({ id: evt.id, pubkey: evt.pubkey, created_at: evt.created_at, emoji, bonusCount })
     this.noteStatsMap.set(targetEventId, { ...old, likeIdSet, likes })
     this.interactionMetaById.set(evt.id, {
       type: 'reaction',
@@ -344,11 +347,11 @@ class NoteStatsService {
         }
       })
 
-      let relayLists: { read: string[] }[] = []
+      let relayLists: { read: string[]; write: string[] }[] = []
       try {
         relayLists = await Promise.race([
           client.fetchRelayLists(Array.from(authors)),
-          new Promise<{ read: string[] }[]>((resolve) => {
+          new Promise<{ read: string[]; write: string[] }[]>((resolve) => {
             setTimeout(() => resolve([]), NOTE_STATS_RELAY_LIST_TIMEOUT_MS)
           })
         ])
@@ -523,6 +526,7 @@ class NoteStatsService {
         if ((existing?.updatedAt ?? 0) >= (deserialized.updatedAt ?? 0)) return
 
         this.noteStatsMap.set(id, deserialized)
+        this.rebuildInteractionMeta(id, deserialized)
         if (notify) {
           this.notifyNoteStats(id)
         }
@@ -573,6 +577,24 @@ class NoteStatsService {
     if (this.pendingPersistIds.size) {
       this.schedulePersist(Array.from(this.pendingPersistIds)[0])
     }
+  }
+
+  private rebuildInteractionMeta(noteId: string, noteStats: Partial<TNoteStats>) {
+    noteStats.likes?.forEach((like) => {
+      this.interactionMetaById.set(like.id, {
+        type: 'reaction',
+        targetEventId: noteId,
+        pubkey: like.pubkey
+      })
+    })
+
+    noteStats.reposts?.forEach((repost) => {
+      this.interactionMetaById.set(repost.id, {
+        type: 'repost',
+        targetEventId: noteId,
+        pubkey: repost.pubkey
+      })
+    })
   }
 }
 

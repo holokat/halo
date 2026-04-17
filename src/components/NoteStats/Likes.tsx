@@ -1,5 +1,6 @@
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { useNoteStatsById } from '@/hooks/useNoteStatsById'
+import { summarizeReactions } from '@/lib/reaction'
 import { cn } from '@/lib/utils'
 import { useNostr } from '@/providers/NostrProvider'
 import { useUserTrust } from '@/providers/UserTrustProvider'
@@ -9,6 +10,7 @@ import { Event } from 'nostr-tools'
 import { useMemo, useRef, useState } from 'react'
 import Emoji from '../Emoji'
 import { beginOptimisticReaction } from './reaction'
+import { formatCount } from './utils'
 
 export default function Likes({ event }: { event: Event }) {
   const { pubkey, checkLogin, signEvent } = useNostr()
@@ -27,15 +29,7 @@ export default function Likes({ event }: { event: Event }) {
 
     if (!trustedLikes) return []
 
-    const stats = new Map<string, { key: string; emoji: TEmoji | string; pubkeys: Set<string> }>()
-    trustedLikes.forEach((item) => {
-      const key = typeof item.emoji === 'string' ? item.emoji : item.emoji.url
-      if (!stats.has(key)) {
-        stats.set(key, { key, pubkeys: new Set(), emoji: item.emoji })
-      }
-      stats.get(key)?.pubkeys.add(item.pubkey)
-    })
-    return Array.from(stats.values()).sort((a, b) => b.pubkeys.size - a.pubkeys.size)
+    return summarizeReactions(trustedLikes)
   }, [noteStats, hideUntrustedInteractions, isUserTrustedForInteractions])
 
   if (!likes.length) return null
@@ -45,10 +39,10 @@ export default function Likes({ event }: { event: Event }) {
       if (liking || publishInFlightRef.current || !pubkey) return
 
       setLiking(key)
+      publishInFlightRef.current = true
 
       try {
-        const { publishTask } = await beginOptimisticReaction(event, emoji, signEvent)
-        publishInFlightRef.current = true
+        const { publishTask } = beginOptimisticReaction(event, emoji, pubkey, signEvent)
         setLiking(null)
         void publishTask
           .catch((error) => {
@@ -121,7 +115,7 @@ export default function Likes({ event }: { event: Event }) {
   return (
     <ScrollArea className="pb-2 mb-1">
       <div className="flex gap-1">
-        {likes.map(({ key, emoji, pubkeys }) => (
+        {likes.map(({ key, emoji, pubkeys, weight }) => (
           <div
             key={key}
             className={cn(
@@ -164,7 +158,7 @@ export default function Likes({ event }: { event: Event }) {
                   <Emoji emoji={emoji} classNames={{ img: 'size-4', text: 'text-base' }} />
                 </div>
               )}
-              <div className="text-sm ml-1">{pubkeys.size}</div>
+              <div className="text-sm ml-1">{formatCount(weight)}</div>
             </div>
           </div>
         ))}

@@ -1,6 +1,6 @@
 import FeedSwitcher from '@/components/FeedSwitcher'
 import { Drawer, DrawerContent } from '@/components/ui/drawer'
-import { getCustomFeedHashtags } from '@/lib/custom-feed'
+import { getCustomFeedHashtags, INTERESTS_FEED_ID } from '@/lib/custom-feed'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { simplifyUrl } from '@/lib/url'
 import { cn } from '@/lib/utils'
@@ -15,6 +15,7 @@ import {
   ChevronDown,
   Hash,
   Highlighter,
+  Newspaper,
   Search,
   TrendingUp,
   UserRound,
@@ -37,7 +38,7 @@ export default function FeedButton({ className }: { className?: string }) {
               className="overflow-y-auto overscroll-contain py-2 px-4"
               style={{ touchAction: 'pan-y' }}
             >
-              <FeedSwitcher close={() => setOpen(false)} showReadsOption />
+              <FeedSwitcher close={() => setOpen(false)} />
             </div>
           </DrawerContent>
         </Drawer>
@@ -84,6 +85,9 @@ const FeedSwitcherTrigger = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEle
       if (feedInfo.feedType === 'trending') {
         return t('Trending')
       }
+      if (feedInfo.feedType === 'news') {
+        return t('News', { defaultValue: 'News' })
+      }
       if (feedInfo.feedType === 'bookmarks') {
         return t('Bookmarks')
       }
@@ -97,6 +101,9 @@ const FeedSwitcherTrigger = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEle
         return t('Latest Note')
       }
       if (feedInfo.feedType === 'custom') {
+        if (feedInfo.id === INTERESTS_FEED_ID) {
+          return t('Interests', { defaultValue: 'Interests' })
+        }
         return activeCustomFeed?.name ?? t('Custom Feed')
       }
       if (feedInfo.feedType === 'relay') {
@@ -116,6 +123,9 @@ const FeedSwitcherTrigger = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEle
       if (feedInfo.feedType === 'trending') {
         return <TrendingUp />
       }
+      if (feedInfo.feedType === 'news') {
+        return <Newspaper />
+      }
       if (feedInfo.feedType === 'bookmarks') {
         return <BookmarkIcon />
       }
@@ -129,6 +139,9 @@ const FeedSwitcherTrigger = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEle
         return <UserRound />
       }
       if (feedInfo.feedType === 'custom') {
+        if (feedInfo.id === INTERESTS_FEED_ID) {
+          return <Hash />
+        }
         if (activeCustomFeed && getCustomFeedHashtags(activeCustomFeed).length > 0) {
           return <Hash />
         }

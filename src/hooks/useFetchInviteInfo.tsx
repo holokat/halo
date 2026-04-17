@@ -1,24 +1,18 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState } from 'react'
 import { Event } from 'nostr-tools'
 import client from '@/services/client.service'
-import { BIG_RELAY_URLS, ExtendedKind } from '@/constants'
-import { useFavoriteRelays } from '@/providers/FavoriteRelaysProvider'
+import { ExtendedKind } from '@/constants'
 
 /**
  * Hook to fetch invite information for a user
  * Returns the invite acceptance event if the user was invited by someone
  */
 export function useFetchInviteInfo(pubkey?: string) {
-  const { favoriteRelays } = useFavoriteRelays()
   const [inviteEvent, setInviteEvent] = useState<Event | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const inviteKind =
     (ExtendedKind as unknown as Record<string, number>).INVITE_ACCEPTANCE ??
     ExtendedKind.STARTER_PACK
-
-  const relayUrls = useMemo(() => {
-    return favoriteRelays.length > 0 ? favoriteRelays : BIG_RELAY_URLS
-  }, [favoriteRelays])
 
   useEffect(() => {
     if (!pubkey) {
@@ -29,6 +23,10 @@ export function useFetchInviteInfo(pubkey?: string) {
     const fetchInvite = async () => {
       setIsLoading(true)
       try {
+        const relayUrls = await client.resolveAuthorOutboxRelayUrls([pubkey], {
+          authorRelayLimit: 6,
+          maxRelayCount: 8
+        })
         console.log('[useFetchInviteInfo]', Date.now(), 'Fetching invite info for pubkey:', pubkey)
         console.log('[useFetchInviteInfo]', Date.now(), 'Searching kind:', inviteKind)
         console.log('[useFetchInviteInfo]', Date.now(), 'Using relays:', relayUrls)
@@ -61,7 +59,7 @@ export function useFetchInviteInfo(pubkey?: string) {
     }
 
     fetchInvite()
-  }, [pubkey, relayUrls, inviteKind])
+  }, [pubkey, inviteKind])
 
   const returnValue = { inviteEvent, isLoading }
   console.log('[useFetchInviteInfo]', Date.now(), 'Returning:', returnValue)

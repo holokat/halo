@@ -42,18 +42,22 @@ export default function FavoriteRelaysSetting({
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm">{t('Recommended sources')}</CardTitle>
-            <CardDescription>
-              {t('Suggestions based on your language, region, and social graph.')}
-            </CardDescription>
+            <CardTitle className="text-sm">
+              {compact ? t('Suggestions') : t('Recommended sources')}
+            </CardTitle>
+            {!compact && (
+              <CardDescription>
+                {t('Suggestions based on your language, region, and social graph.')}
+              </CardDescription>
+            )}
           </CardHeader>
           <CardContent className="space-y-4">
             <RecommendedRelays />
             {includeFollowsRecommendations && (
               <FollowsRelayRecommendations
                 existingRelayUrls={favoriteRelays}
-                title={t('From people you follow')}
-                description={t('Relays often used by accounts you follow.')}
+                title={compact ? t('From follows') : t('From people you follow')}
+                description={compact ? '' : t('Relays often used by accounts you follow.')}
                 onAddRelay={(url) => {
                   addFavoriteRelays([url])
                 }}
@@ -65,8 +69,12 @@ export default function FavoriteRelaysSetting({
         {!hideRelayList && (
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm">{t('Saved relay sources')}</CardTitle>
-              <CardDescription>{t('Used across feeds and discovery.')}</CardDescription>
+              <CardTitle className="text-sm">
+                {compact ? t('Saved sources') : t('Saved relay sources')}
+              </CardTitle>
+              {!compact && (
+                <CardDescription>{t('Used across feeds and discovery.')}</CardDescription>
+              )}
             </CardHeader>
             <CardContent className="space-y-4">
               <FavoriteRelayList hideTitle />
@@ -79,9 +87,11 @@ export default function FavoriteRelaysSetting({
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">{t('Source groups')}</CardTitle>
-              <CardDescription>
-                {t('Create reusable relay groups for different views.')}
-              </CardDescription>
+              {!compact && (
+                <CardDescription>
+                  {t('Create reusable relay groups for different views.')}
+                </CardDescription>
+              )}
             </CardHeader>
             <CardContent className="space-y-4">
               <RelaySetList hideTitle />

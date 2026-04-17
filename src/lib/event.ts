@@ -5,6 +5,12 @@ import { LRUCache } from 'lru-cache'
 import { Event, kinds, nip19, UnsignedEvent } from 'nostr-tools'
 import { fastEventHash, getPow } from 'nostr-tools/nip13'
 import {
+  getEmbeddedEventHexIdsFromContent,
+  getEmbeddedReplaceableCoordinatesFromContent,
+  getQuotedEventHexIdsFromTags,
+  getQuotedReplaceableCoordinatesFromTags
+} from './event-references'
+import {
   generateBech32IdFromATag,
   generateBech32IdFromETag,
   getImetaInfoFromImetaTag,
@@ -65,7 +71,7 @@ export function isFromMutedDomain(nip05: string | undefined, mutedDomains: strin
 
   // Check for exact match or if the domain ends with any muted domain
   // This allows partial matching, e.g., "mostr.pub" will match "mastodon-social.mostr.pub"
-  return mutedDomains.some(mutedDomain => {
+  return mutedDomains.some((mutedDomain) => {
     const normalizedMutedDomain = mutedDomain.toLowerCase()
     // Exact match
     if (domain === normalizedMutedDomain) return true
@@ -136,13 +142,13 @@ export function getParentETag(event?: Event) {
     return tagName === 'e' && marker === 'reply'
   })
   if (!tag) {
-    const embeddedEventIds = getEmbeddedNoteBech32Ids(event)
+    const quotedEventIds = new Set([
+      ...getEmbeddedNoteBech32Ids(event),
+      ...getQuotedEventHexIdsFromTags(event.tags)
+    ])
     tag = event.tags.findLast(
       ([tagName, tagValue, , marker]) =>
-        tagName === 'e' &&
-        !!tagValue &&
-        marker !== 'mention' &&
-        !embeddedEventIds.includes(tagValue)
+        tagName === 'e' && !!tagValue && marker !== 'mention' && !quotedEventIds.has(tagValue)
     )
   }
   return tag
@@ -154,6 +160,22 @@ export function getParentATag(event?: Event) {
     ![kinds.ShortTextNote, ExtendedKind.COMMENT, ExtendedKind.VOICE_COMMENT].includes(event.kind)
   ) {
     return undefined
+  }
+
+  if (event.kind === kinds.ShortTextNote) {
+    const quotedCoordinates = new Set([
+      ...getQuotedReplaceableCoordinatesFromTags(event.tags),
+      ...getEmbeddedReplaceableCoordinatesFromContent(event.content)
+    ])
+
+    return (
+      event.tags.find(
+        ([tagName, tagValue]) => tagName === 'a' && !!tagValue && !quotedCoordinates.has(tagValue)
+      ) ??
+      event.tags.find(
+        ([tagName, tagValue]) => tagName === 'A' && !!tagValue && !quotedCoordinates.has(tagValue)
+      )
+    )
   }
 
   return event.tags.find(tagNameEquals('a')) ?? event.tags.find(tagNameEquals('A'))
@@ -189,9 +211,12 @@ export function getRootETag(event?: Event) {
     return tagName === 'e' && marker === 'root'
   })
   if (!tag) {
-    const embeddedEventIds = getEmbeddedNoteBech32Ids(event)
+    const quotedEventIds = new Set([
+      ...getEmbeddedNoteBech32Ids(event),
+      ...getQuotedEventHexIdsFromTags(event.tags)
+    ])
     tag = event.tags.find(
-      ([tagName, tagValue]) => tagName === 'e' && !!tagValue && !embeddedEventIds.includes(tagValue)
+      ([tagName, tagValue]) => tagName === 'e' && !!tagValue && !quotedEventIds.has(tagValue)
     )
   }
   return tag
@@ -260,7 +285,8 @@ export function getImetaInfosFromEvent(event: Event) {
         blurHash: imageInfo.blurHash ?? existingInfo?.blurHash,
         dim: imageInfo.dim ?? existingInfo?.dim,
         mimeType: imageInfo.mimeType ?? existingInfo?.mimeType,
-        pubkey: imageInfo.pubkey ?? existingInfo?.pubkey
+        pubkey: imageInfo.pubkey ?? existingInfo?.pubkey,
+        gifLoop: imageInfo.gifLoop || existingInfo?.gifLoop
       })
     }
   })
@@ -271,20 +297,7 @@ export function getEmbeddedNoteBech32Ids(event: Event) {
   const cache = EVENT_EMBEDDED_NOTES_CACHE.get(event.id)
   if (cache) return cache
 
-  const embeddedNoteBech32Ids: string[] = []
-  const embeddedNoteRegex = /nostr:(note1[a-z0-9]{58}|nevent1[a-z0-9]+)/g
-  ;(event.content.match(embeddedNoteRegex) || []).forEach((note) => {
-    try {
-      const { type, data } = nip19.decode(note.split(':')[1])
-      if (type === 'nevent') {
-        embeddedNoteBech32Ids.push(data.id)
-      } else if (type === 'note') {
-        embeddedNoteBech32Ids.push(data)
-      }
-    } catch {
-      // ignore
-    }
-  })
+  const embeddedNoteBech32Ids = getEmbeddedEventHexIdsFromContent(event.content)
   EVENT_EMBEDDED_NOTES_CACHE.set(event.id, embeddedNoteBech32Ids)
   return embeddedNoteBech32Ids
 }
@@ -404,7 +417,8 @@ export function hasMedia(event: Event): boolean {
   }
 
   // Check content for media URLs
-  const URL_REGEX = /https?:\/\/[\w\p{L}\p{N}\p{M}&.\-/?=#@%+_:!~*]+[^\s.,;:'")\]}!?，。；："'！？】）]/gu
+  const URL_REGEX =
+    /https?:\/\/[\w\p{L}\p{N}\p{M}&.\-/?=#@%+_:!~*]+[^\s.,;:'")\]}!?，。；："'！？】）]/gu
   const urls = event.content.match(URL_REGEX) || []
 
   for (const url of urls) {
@@ -486,7 +500,8 @@ export function extractMediaUrls(event: Event): { images: string[]; videos: stri
   })
 
   // Extract from content URLs
-  const URL_REGEX = /https?:\/\/[\w\p{L}\p{N}\p{M}&.\-/?=#@%+_:!~*]+[^\s.,;:'")\]}!?，。；："'！？】）]/gu
+  const URL_REGEX =
+    /https?:\/\/[\w\p{L}\p{N}\p{M}&.\-/?=#@%+_:!~*]+[^\s.,;:'")\]}!?，。；："'！？】）]/gu
   const urls = event.content.match(URL_REGEX) || []
 
   for (const url of urls) {

@@ -13,7 +13,7 @@ import client from '@/services/client.service'
 import noteStatsService from '@/services/note-stats.service'
 import { TFeedSubRequest } from '@/types'
 import dayjs from 'dayjs'
-import { Event } from 'nostr-tools'
+import { Event, matchFilter } from 'nostr-tools'
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import PullToRefresh from 'react-simple-pull-to-refresh'
@@ -247,6 +247,47 @@ const NoteList = forwardRef(
         promise.then((closer) => closer())
       }
     }, [subRequestsKey, refreshCount, showKindsKey, isMainFeed, areAlgoRelays, initialEoseThreshold])
+
+    useEffect(() => {
+      if (!pubkey || !subRequests.length || showKinds.length === 0) {
+        return
+      }
+
+      const handler = (data: globalThis.Event) => {
+        const event = (data as CustomEvent<Event>).detail
+        if (event.pubkey !== pubkey) {
+          return
+        }
+
+        const matchesFeed = subRequests.some(({ filter }) =>
+          matchFilter(
+            {
+              kinds: showKinds,
+              ...filter
+            },
+            event
+          )
+        )
+        if (!matchesFeed) {
+          return
+        }
+
+        client.addEventToCache(event)
+        setNewEvents((oldEvents) => oldEvents.filter((oldEvent) => oldEvent.id !== event.id))
+        setEvents((oldEvents) => {
+          if (oldEvents.some((oldEvent) => oldEvent.id === event.id)) {
+            return oldEvents
+          }
+
+          return [event, ...oldEvents].sort((a, b) => b.created_at - a.created_at)
+        })
+      }
+
+      client.addEventListener('newEvent', handler)
+      return () => {
+        client.removeEventListener('newEvent', handler)
+      }
+    }, [pubkey, showKindsKey, subRequestsKey])
 
     useEffect(() => {
       if (onEventsChange) {

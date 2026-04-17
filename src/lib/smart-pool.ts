@@ -13,7 +13,8 @@ export class SmartPool extends SimplePool {
     super({ enablePing: true })
 
     // Keep relay count bounded on long sessions.
-    setInterval(() => this.cleanIdleRelays(), CLEANUP_INTERVAL)
+    const cleanupInterval = setInterval(() => this.cleanIdleRelays(), CLEANUP_INTERVAL)
+    cleanupInterval.unref?.()
   }
 
   ensureRelay(url: string): Promise<AbstractRelay> {
@@ -22,6 +23,18 @@ export class SmartPool extends SimplePool {
     }
     this.relayIdleTracker.set(url, Date.now())
     return super.ensureRelay(url, { connectionTimeout: DEFAULT_CONNECTION_TIMEOUT })
+  }
+
+  getTrackedRelayUrls() {
+    return Array.from(this.relays.keys())
+  }
+
+  getTrackedRelayStates() {
+    return Array.from(this.relays.values()).map((relay) => ({
+      url: relay.url,
+      connected: relay.connected,
+      subscriptionCount: relay.openSubs.size
+    }))
   }
 
   private cleanIdleRelays() {

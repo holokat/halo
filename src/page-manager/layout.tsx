@@ -5,7 +5,6 @@ import BottomNavigationBar from '@/components/BottomNavigationBar'
 import DeckColumn from '@/components/DeckColumn'
 import HomePage from '@/pages/secondary/HomePage'
 import Sidebar from '@/components/Sidebar'
-import TooManyRelaysAlertDialog from '@/components/TooManyRelaysAlertDialog'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { type ReactElement, type ReactNode } from 'react'
 import { cloneElement } from 'react'
@@ -198,7 +197,6 @@ export function PageManagerShell({
         </div>
       ))}
       <BottomNavigationBar />
-      <TooManyRelaysAlertDialog />
     </div>
   )
   }
@@ -282,7 +280,6 @@ export function PageManagerShell({
           </HomePageWrapper>
         </div>
       )}
-      <TooManyRelaysAlertDialog />
       <BackgroundAudio className="fixed bottom-20 right-0 z-50 w-80 overflow-hidden rounded-l-full rounded-r-none border shadow-lg" />
     </div>
   )

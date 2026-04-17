@@ -25,13 +25,15 @@ export function notifyFeedInfoChanged(detail: TFeedInfoChangedDetail) {
   window.dispatchEvent(new CustomEvent<TFeedInfoChangedDetail>(FEED_INFO_CHANGED_EVENT, { detail }))
 }
 
-export function upsertStoredCustomFeed(feed: TCustomFeed) {
-  const existingFeed = storage.getCustomFeeds().find((currentFeed) => currentFeed.id === feed.id)
+export function upsertStoredCustomFeed(feed: TCustomFeed, pubkey?: string | null) {
+  const existingFeed = storage
+    .getCustomFeeds(pubkey)
+    .find((currentFeed) => currentFeed.id === feed.id)
 
   if (existingFeed) {
-    storage.updateCustomFeed(feed.id, feed)
+    storage.updateCustomFeed(feed.id, feed, pubkey)
   } else {
-    storage.addCustomFeed(feed)
+    storage.addCustomFeed(feed, pubkey)
   }
 
   notifyCustomFeedsChanged()

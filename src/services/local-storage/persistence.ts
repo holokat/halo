@@ -1,12 +1,21 @@
 export function getStorageItem(key: string): string | null {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return null
+  }
   return window.localStorage.getItem(key)
 }
 
 export function setStorageItem(key: string, value: string): void {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return
+  }
   window.localStorage.setItem(key, value)
 }
 
 export function removeStorageItem(key: string): void {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return
+  }
   window.localStorage.removeItem(key)
 }
 

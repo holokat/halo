@@ -86,6 +86,8 @@ export default function FollowsRelayRecommendations({
     return null
   }
 
+  const bodyText = description ?? t('Not sure what to add? Try some relays from people you follow')
+
   return (
     <div className="space-y-3">
       {!hideHeader && (
@@ -94,9 +96,7 @@ export default function FollowsRelayRecommendations({
           <span>{title ?? t('Recommended from follows')}</span>
         </div>
       )}
-      <p className="text-sm text-muted-foreground">
-        {description ?? t('Not sure what to add? Try some relays from people you follow')}
-      </p>
+      {bodyText ? <p className="text-sm text-muted-foreground">{bodyText}</p> : null}
       <div className="space-y-2">
         {topRecommendations.map((rec) => (
           <RecommendationItem key={rec.url} recommendation={rec} onAdd={onAddRelay} />

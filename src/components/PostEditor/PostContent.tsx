@@ -14,9 +14,10 @@ import { useNostr } from '@/providers/NostrProvider'
 import { useReply } from '@/providers/ReplyProvider'
 import { useNoteExpiration } from '@/providers/NoteExpirationProvider'
 import client from '@/services/client.service'
+import storage from '@/services/local-storage.service'
 import postEditorCache, { ImageAttachment } from '@/services/post-editor-cache.service'
 import scheduledPostsService from '@/services/scheduled-posts.service'
-import { TPollCreateData } from '@/types'
+import { TLocalPostDraft, TPollCreateData } from '@/types'
 import {
   CircleUserRound,
   Clock,
@@ -74,7 +75,7 @@ export default function PostContent({
   defaultContent?: string
   initialMentionIds?: string[]
   parentEvent?: Event
-  close: () => void
+  close: (options?: { saveLocalDraft?: boolean }) => void
   openFrom?: string[]
   isMobileComposer: boolean
   isProtectedEvent: boolean
@@ -103,8 +104,11 @@ export default function PostContent({
   const [pollCreateData, setPollCreateData] = useState<TPollCreateData>(createDefaultPollCreateData)
   const [scheduledFor, setScheduledFor] = useState<number | null>(null)
   const [minPow, setMinPow] = useState(0)
+  const [localDrafts, setLocalDrafts] = useState<TLocalPostDraft[]>([])
+  const [activeLocalDraftId, setActiveLocalDraftId] = useState<string | null>(null)
   const isFirstRender = useRef(true)
   const hasAppliedInitialMentions = useRef(false)
+  const draftOwnerPubkey = account?.pubkey ?? pubkey ?? null
   const requiredMentionPubkeys = useMemo(
     () =>
       Array.from(
@@ -148,9 +152,11 @@ export default function PostContent({
   const hasDetectedPrivateKey = detectedPrivateKeys.length > 0
 
   const canPost = useMemo(() => {
+    const hasPostContent = text.trim().length > 0 || images.length > 0
+
     return (
       !!pubkey &&
-      !!text &&
+      hasPostContent &&
       !hasDetectedPrivateKey &&
       !posting &&
       !uploadProgresses.length &&
@@ -160,6 +166,7 @@ export default function PostContent({
   }, [
     pubkey,
     text,
+    images.length,
     hasDetectedPrivateKey,
     posting,
     uploadProgresses,
@@ -183,6 +190,8 @@ export default function PostContent({
         setAddClientTag(cachedSettings.addClientTag ?? false)
         setImages(cachedSettings.images ?? [])
         setScheduledFor(cachedSettings.scheduledFor ?? null)
+        setMinPow(cachedSettings.minPow ?? 0)
+        setActiveLocalDraftId(cachedSettings.activeLocalDraftId ?? null)
       }
       return
     }
@@ -194,7 +203,9 @@ export default function PostContent({
         pollCreateData,
         addClientTag,
         images,
-        scheduledFor
+        scheduledFor,
+        minPow,
+        activeLocalDraftId
       }
     )
   }, [
@@ -205,8 +216,66 @@ export default function PostContent({
     pollCreateData,
     addClientTag,
     images,
-    scheduledFor
+    scheduledFor,
+    minPow,
+    activeLocalDraftId
   ])
+
+  const refreshLocalDrafts = useCallback(() => {
+    if (!draftOwnerPubkey || parentEvent) {
+      setLocalDrafts([])
+      return
+    }
+
+    setLocalDrafts(storage.getLocalPostDrafts(draftOwnerPubkey))
+  }, [draftOwnerPubkey, parentEvent])
+
+  useEffect(() => {
+    refreshLocalDrafts()
+  }, [refreshLocalDrafts])
+
+  useEffect(() => {
+    if (activeLocalDraftId && !localDrafts.some((draft) => draft.id === activeLocalDraftId)) {
+      setActiveLocalDraftId(null)
+    }
+  }, [activeLocalDraftId, localDrafts])
+
+  const clearUsedLocalDraft = useCallback(() => {
+    if (!draftOwnerPubkey || !activeLocalDraftId) {
+      return
+    }
+
+    storage.removeLocalPostDraft(activeLocalDraftId, draftOwnerPubkey)
+    setActiveLocalDraftId(null)
+    refreshLocalDrafts()
+  }, [activeLocalDraftId, draftOwnerPubkey, refreshLocalDrafts])
+
+  const handleSelectLocalDraft = useCallback((draft: TLocalPostDraft) => {
+    setImages(draft.images)
+    setIsNsfw(draft.isNsfw)
+    setIsPoll(draft.isPoll)
+    setPollCreateData(normalizePollCreateData(draft.pollCreateData))
+    setAddClientTag(draft.addClientTag)
+    setScheduledFor(draft.scheduledFor)
+    setMinPow(draft.minPow)
+    setActiveLocalDraftId(draft.id)
+    setShowMoreOptions(false)
+  }, [])
+
+  const handleDeleteLocalDraft = useCallback(
+    (draftId: string) => {
+      if (!draftOwnerPubkey) {
+        return
+      }
+
+      storage.removeLocalPostDraft(draftId, draftOwnerPubkey)
+      if (activeLocalDraftId === draftId) {
+        setActiveLocalDraftId(null)
+      }
+      refreshLocalDrafts()
+    },
+    [activeLocalDraftId, draftOwnerPubkey, refreshLocalDrafts]
+  )
 
   useEffect(() => {
     if (hasAppliedInitialMentions.current || !initialMentionIds.length || !textareaRef.current) {
@@ -227,9 +296,12 @@ export default function PostContent({
   const post = async (e?: React.MouseEvent) => {
     e?.stopPropagation()
     checkLogin(async () => {
+      const submissionStartedAt = getNowMs()
       if (hasDetectedPrivateKey) {
         toast.error(
-          t('Posting blocked: this note includes an nsec private key. Remove it to protect your account.'),
+          t(
+            'Posting blocked: this note includes an nsec private key. Remove it to protect your account.'
+          ),
           { duration: 6000 }
         )
         return
@@ -253,12 +325,23 @@ export default function PostContent({
           text
         })
 
+        console.debug('[PostPublish]', 'composer draft prepared', {
+          imageCount: images.length,
+          isReply: Boolean(parentEvent),
+          minPow,
+          pollOptionCount: isPoll ? pollCreateData.options.length : 0,
+          prepareDurationMs: roundDurationMs(submissionStartedAt),
+          textLength: text.length
+        })
+
         appendImageMetadataTags(draftEvent, images)
         appendExpirationTag(draftEvent, getExpirationTimestamp(defaultExpiration))
 
         if (hasPrivateKeyInDraft(draftEvent.content, draftEvent.tags)) {
           toast.error(
-            t('Posting blocked: this note includes an nsec private key. Remove it to protect your account.'),
+            t(
+              'Posting blocked: this note includes an nsec private key. Remove it to protect your account.'
+            ),
             { duration: 6000 }
           )
           return
@@ -267,7 +350,8 @@ export default function PostContent({
         const publishOptions = {
           specifiedRelayUrls: isProtectedEvent ? additionalRelayUrls : undefined,
           additionalRelayUrls: isPoll ? pollCreateData.relays : additionalRelayUrls,
-          minPow
+          minPow,
+          minSuccessCount: 1
         }
 
         if (parentEvent) {
@@ -278,12 +362,20 @@ export default function PostContent({
 
           client.addEventToCache(optimisticReply)
           addReplies([optimisticReply])
-          close()
+
+          console.debug('[PostPublish]', 'composer handing off reply to background publish', {
+            eventId: optimisticReply.id,
+            signAndPrepareDurationMs: roundDurationMs(submissionStartedAt)
+          })
+
+          close({ saveLocalDraft: false })
 
           void (async () => {
             try {
               const relays = await client.determineTargetRelays(optimisticReply, publishOptions)
-              await client.publishEvent(relays, optimisticReply)
+              await client.publishEvent(relays, optimisticReply, {
+                minSuccessCount: publishOptions.minSuccessCount
+              })
               clearComposerDraftCache(defaultContent, parentEvent)
               deleteDraftEventCache(draftEvent)
               toast.success(t('Post successful'), { duration: 2000 })
@@ -304,10 +396,13 @@ export default function PostContent({
         }
 
         const newEvent = await publish(draftEvent, publishOptions)
+        clearUsedLocalDraft()
         clearComposerDraftCache(defaultContent, parentEvent)
         deleteDraftEventCache(draftEvent)
         addReplies([newEvent])
-        close()
+        close({ saveLocalDraft: false })
+        toast.success(t('Post successful'), { duration: 2000 })
+        return
       } catch (error) {
         const errors = error instanceof AggregateError ? error.errors : [error]
         errors.forEach((err) => {
@@ -320,9 +415,6 @@ export default function PostContent({
         return
       } finally {
         setPosting(false)
-      }
-      if (!parentEvent) {
-        toast.success(t('Post successful'), { duration: 2000 })
       }
     })
   }
@@ -378,8 +470,9 @@ export default function PostContent({
           scheduledFor
         )
 
+        clearUsedLocalDraft()
         clearComposerDraftCache(defaultContent, parentEvent)
-        close()
+        close({ saveLocalDraft: false })
         toast.success(
           t('Scheduled for {{time}}', {
             time: formatScheduledDateTime(scheduledFor)
@@ -413,6 +506,7 @@ export default function PostContent({
       minPow,
       defaultContent,
       close,
+      clearUsedLocalDraft,
       formatScheduledDateTime,
       checkLogin,
       t
@@ -433,7 +527,9 @@ export default function PostContent({
     (e?: React.MouseEvent) => {
       if (hasDetectedPrivateKey) {
         toast.error(
-          t('Posting blocked: this note includes an nsec private key. Remove it to protect your account.'),
+          t(
+            'Posting blocked: this note includes an nsec private key. Remove it to protect your account.'
+          ),
           { duration: 6000 }
         )
         return
@@ -544,10 +640,6 @@ export default function PostContent({
     setImages((prev) => prev.filter((_, i) => i !== index))
   }, [])
 
-  const handleUpdateImageAlt = useCallback((index: number, alt: string) => {
-    setImages((prev) => prev.map((img, i) => (i === index ? { ...img, alt } : img)))
-  }, [])
-
   const handleViewScheduledQueue = useCallback(() => {
     close()
     window.setTimeout(() => {
@@ -582,13 +674,7 @@ export default function PostContent({
       defaultContent={defaultContent}
       parentEvent={parentEvent}
       onSubmit={() => handlePrimaryAction()}
-      className={
-        isMobileComposer
-          ? 'min-h-[44dvh]'
-          : isPoll
-            ? 'min-h-20'
-            : 'min-h-32'
-      }
+      className={isMobileComposer ? 'min-h-[44dvh]' : isPoll ? 'min-h-20' : 'min-h-32'}
       placeholder={isMobileComposer ? mobilePlaceholder : undefined}
       isMobileComposer={isMobileComposer}
       onUploadStart={handleUploadStart}
@@ -597,7 +683,10 @@ export default function PostContent({
       onImageUploadSuccess={handleImageUploadSuccess}
       images={images}
       onRemoveImage={handleRemoveImage}
-      onUpdateImageAlt={handleUpdateImageAlt}
+      localDrafts={localDrafts}
+      activeLocalDraftId={activeLocalDraftId}
+      onSelectLocalDraft={handleSelectLocalDraft}
+      onDeleteLocalDraft={handleDeleteLocalDraft}
     />
   )
 
@@ -658,8 +747,8 @@ export default function PostContent({
         </Button>
       </Uploader>
       <GifPicker
-        onGifSelect={(url) => {
-          setImages((prev) => [...prev, { url }])
+        onGifSelect={(attachment) => {
+          setImages((prev) => [...prev, attachment])
         }}
       >
         <Button variant="ghost" size="icon" className={toolButtonClass}>
@@ -890,4 +979,16 @@ export default function PostContent({
       />
     </div>
   )
+}
+
+function getNowMs() {
+  if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+    return performance.now()
+  }
+
+  return Date.now()
+}
+
+function roundDurationMs(startedAt: number) {
+  return Math.round((getNowMs() - startedAt) * 10) / 10
 }
