@@ -90,6 +90,7 @@ class ClientService extends EventTarget {
 
   // User's preferred relays for tiered fetching (read relays first, then favorites)
   private _preferredReadRelays: string[] = []
+  private _preferredWriteRelays: string[] = []
   private _favoriteRelays: string[] = []
 
   private timelines = new BoundedMap<string, TTimeline>(TIMELINE_CACHE_MAX)
@@ -160,6 +161,10 @@ class ClientService extends EventTarget {
     this._preferredReadRelays = relays
   }
 
+  setPreferredWriteRelays(relays: string[]) {
+    this._preferredWriteRelays = relays
+  }
+
   /**
    * Set the user's favorite relays (discovery/algo relays).
    * These are used as the second tier when fetching metadata.
@@ -194,6 +199,7 @@ class ClientService extends EventTarget {
     event: NEvent,
     { specifiedRelayUrls, additionalRelayUrls }: TPublishOptions = {}
   ) {
+    const startedAt = getNowMs()
     if (event.kind === kinds.Report) {
       const targetEventId = event.tags.find(tagNameEquals('e'))?.[1]
       if (targetEventId) {
@@ -207,24 +213,19 @@ class ClientService extends EventTarget {
     } else {
       const isGiftWrap = event.kind === kinds.GiftWrap
       const _additionalRelayUrls: string[] = additionalRelayUrls ?? []
-      if (!specifiedRelayUrls?.length && ![kinds.Contacts, kinds.Mutelist].includes(event.kind)) {
-        const mentions: string[] = []
+      const shouldResolveMentionRelays = ![kinds.Contacts, kinds.Mutelist].includes(event.kind)
+      const mentionPubkeys: string[] = []
+      if (shouldResolveMentionRelays) {
         event.tags.forEach(([tagName, tagValue]) => {
           if (
             ['p', 'P'].includes(tagName) &&
             !!tagValue &&
             isValidPubkey(tagValue) &&
-            !mentions.includes(tagValue)
+            !mentionPubkeys.includes(tagValue)
           ) {
-            mentions.push(tagValue)
+            mentionPubkeys.push(tagValue)
           }
         })
-        if (mentions.length > 0) {
-          const relayLists = await this.fetchRelayLists(mentions)
-          relayLists.forEach((relayList) => {
-            _additionalRelayUrls.push(...relayList.read.slice(0, 4))
-          })
-        }
       }
       if (
         [
@@ -239,8 +240,26 @@ class ClientService extends EventTarget {
         _additionalRelayUrls.push(...BIG_RELAY_URLS)
       }
 
-      // Gift wraps are signed by ephemeral keys, so author relay lookups only add latency.
-      const relayList = isGiftWrap ? null : await this.fetchRelayList(event.pubkey)
+      const authorRelayListPromise = isGiftWrap
+        ? Promise.resolve<TRelayList | null>(null)
+        : event.pubkey === this.pubkey && this._preferredWriteRelays.length > 0
+          ? Promise.resolve<TRelayList>({
+              write: this._preferredWriteRelays,
+              read: this._preferredReadRelays,
+              originalRelays: []
+            })
+          : this.fetchRelayList(event.pubkey)
+      const mentionRelayListsPromise =
+        mentionPubkeys.length > 0 ? this.fetchRelayLists(mentionPubkeys) : Promise.resolve([])
+
+      const [relayList, mentionRelayLists] = await Promise.all([
+        authorRelayListPromise,
+        mentionRelayListsPromise
+      ])
+
+      mentionRelayLists.forEach((relayList) => {
+        _additionalRelayUrls.push(...relayList.read.slice(0, 4))
+      })
       relays = Array.from(
         new Set((relayList?.write.slice(0, 10) ?? []).concat(_additionalRelayUrls))
       )
@@ -250,6 +269,14 @@ class ClientService extends EventTarget {
       relays.push(...BIG_RELAY_URLS)
     }
 
+    console.debug('[PostPublish]', 'resolved target relays', {
+      eventId: event.id,
+      kind: event.kind,
+      relayCount: relays.length,
+      durationMs: roundDurationMs(startedAt),
+      usedPreferredWriteRelays: event.pubkey === this.pubkey && this._preferredWriteRelays.length > 0
+    })
+
     return relays
   }
 
@@ -258,6 +285,7 @@ class ClientService extends EventTarget {
     event: NEvent,
     options: { minSuccessCount?: number; publishTimeout?: number } = {}
   ) {
+    const startedAt = getNowMs()
     const uniqueRelayUrls = Array.from(new Set(relayUrls))
     const requiredSuccessCount = Math.min(
       uniqueRelayUrls.length,
@@ -277,6 +305,13 @@ class ClientService extends EventTarget {
           const markRelaySuccess = () => {
             this.trackEventSeenOn(event.id, relay)
             successCount++
+            console.debug('[PostPublish]', 'relay accepted event', {
+              eventId: event.id,
+              relayUrl: url,
+              successCount,
+              requiredSuccessCount,
+              elapsedMs: roundDurationMs(startedAt)
+            })
           }
 
           return relay
@@ -305,6 +340,13 @@ class ClientService extends EventTarget {
               if (!isSettled && successCount >= requiredSuccessCount) {
                 isSettled = true
                 this.emitNewEvent(event)
+                console.debug('[PostPublish]', 'publish resolved', {
+                  eventId: event.id,
+                  relayCount: uniqueRelayUrls.length,
+                  successCount,
+                  requiredSuccessCount,
+                  durationMs: roundDurationMs(startedAt)
+                })
                 resolve()
               }
               if (++finishedCount >= uniqueRelayUrls.length) {
@@ -312,6 +354,17 @@ class ClientService extends EventTarget {
                   return
                 }
                 isSettled = true
+                console.warn('[PostPublish]', 'publish failed', {
+                  eventId: event.id,
+                  relayCount: uniqueRelayUrls.length,
+                  successCount,
+                  requiredSuccessCount,
+                  durationMs: roundDurationMs(startedAt),
+                  errors: errors.map(({ url, error }) => ({
+                    url,
+                    message: error instanceof Error ? error.message : String(error)
+                  }))
+                })
                 reject(
                   new AggregateError(
                     errors.map(
@@ -1777,6 +1830,18 @@ class ClientService extends EventTarget {
   async generateSubRequestsForPubkeys(pubkeys: string[], _myPubkey?: string | null) {
     return this.buildAuthorOutboxSubRequests(pubkeys)
   }
+}
+
+function getNowMs() {
+  if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+    return performance.now()
+  }
+
+  return Date.now()
+}
+
+function roundDurationMs(startedAt: number) {
+  return Math.round((getNowMs() - startedAt) * 10) / 10
 }
 
 const instance = ClientService.getInstance()

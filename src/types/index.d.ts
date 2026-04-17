@@ -237,12 +237,14 @@ export type TImetaInfo = {
   dim?: { width: number; height: number }
   mimeType?: string
   pubkey?: string
+  gifLoop?: boolean
 }
 
 export type TPublishOptions = {
   specifiedRelayUrls?: string[]
   additionalRelayUrls?: string[]
   minPow?: number
+  minSuccessCount?: number
 }
 
 export type TNoteListMode = 'posts' | 'postsAndReplies' | 'you' | 'reads' | 'highlights' | 'media'

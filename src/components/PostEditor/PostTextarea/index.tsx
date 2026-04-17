@@ -2,7 +2,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { parseEditorJsonToText } from '@/lib/tiptap'
 import { cn } from '@/lib/utils'
 import customEmojiService from '@/services/custom-emoji.service'
-import postEditorCache from '@/services/post-editor-cache.service'
+import postEditorCache, { type ImageAttachment } from '@/services/post-editor-cache.service'
 import { TEmoji, TLocalPostDraft } from '@/types'
 import { HardBreak } from '@tiptap/extension-hard-break'
 import History from '@tiptap/extension-history'
@@ -64,9 +64,8 @@ const PostTextarea = forwardRef<
     onUploadProgress?: (file: File, progress: number) => void
     onUploadEnd?: (file: File) => void
     onImageUploadSuccess?: (url: string) => void
-    images?: Array<{ url: string; alt?: string }>
+    images?: ImageAttachment[]
     onRemoveImage?: (index: number) => void
-    onUpdateImageAlt?: (index: number, alt: string) => void
     localDrafts?: TLocalPostDraft[]
     activeLocalDraftId?: string | null
     onSelectLocalDraft?: (draft: TLocalPostDraft) => void
@@ -89,7 +88,6 @@ const PostTextarea = forwardRef<
       onImageUploadSuccess,
       images = [],
       onRemoveImage,
-      onUpdateImageAlt,
       localDrafts = [],
       activeLocalDraftId,
       onSelectLocalDraft,
@@ -257,11 +255,14 @@ const PostTextarea = forwardRef<
         return
       }
 
-      const timerId = window.setTimeout(() => {
-        if (!editor.isDestroyed) {
-          editor.chain().focus('end').run()
-        }
-      }, isMobileComposer ? 80 : 40)
+      const timerId = window.setTimeout(
+        () => {
+          if (!editor.isDestroyed) {
+            editor.chain().focus('end').run()
+          }
+        },
+        isMobileComposer ? 80 : 40
+      )
 
       return () => window.clearTimeout(timerId)
     }, [editor, isMobileComposer])
@@ -310,13 +311,11 @@ const PostTextarea = forwardRef<
           <TabsContent value="edit" className="mt-2">
             <div className="space-y-3">
               <EditorContent className="tiptap" editor={editor} />
-              {onRemoveImage && onUpdateImageAlt && (
+              {onRemoveImage && (
                 <ImagePreview
                   images={images}
                   onRemove={onRemoveImage}
-                  onUpdateAlt={onUpdateImageAlt}
                   mode={isMobileComposer ? 'mobile' : 'default'}
-                  hideAltControls={isMobileComposer}
                 />
               )}
             </div>

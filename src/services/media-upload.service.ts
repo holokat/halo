@@ -269,6 +269,10 @@ class MediaUploadService {
   getImetaTagByUrl(url: string) {
     return this.imetaTagMap.get(url)
   }
+
+  setImetaTagByUrl(url: string, imetaTag: string[]) {
+    this.imetaTagMap.set(url, imetaTag)
+  }
 }
 
 const instance = new MediaUploadService()

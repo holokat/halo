@@ -9,6 +9,7 @@ import { ACTUAL_ZAP_SOUNDS, ZAP_SOUNDS } from '@/constants'
 import { useNoteStatsById } from '@/hooks/useNoteStatsById'
 import { getLightningAddressFromProfile } from '@/lib/lightning'
 import {
+  getReactionBoostVisualProgress,
   getWeightedReactionCount,
   isStandardLikeEmoji
 } from '@/lib/reaction'
@@ -24,7 +25,7 @@ import noteStatsService from '@/services/note-stats.service'
 import { TEmoji, TNoteReaction } from '@/types'
 import { Heart, Loader } from 'lucide-react'
 import { Event } from 'nostr-tools'
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import Emoji from '../Emoji'
@@ -87,6 +88,7 @@ export default function LikeButton({ event }: { event: Event }) {
   const [isPickerOpen, setIsPickerOpen] = useState(false)
   const [canZap, setCanZap] = useState(false)
   const [burstVersion, setBurstVersion] = useState(0)
+  const [burstIntensity, setBurstIntensity] = useState(0)
   const [isBoostActive, setIsBoostActive] = useState(false)
   const [boostBonusCount, setBoostBonusCount] = useState(0)
   const [releasedBonusCount, setReleasedBonusCount] = useState(0)
@@ -206,6 +208,7 @@ export default function LikeButton({ event }: { event: Event }) {
         const { publishTask } = beginOptimisticReaction(event, emoji, pubkey, signEvent, {
           bonusCount
         })
+        setBurstIntensity(getReactionBoostVisualProgress(bonusCount))
         setBurstVersion((version) => version + 1)
         setLiking(false)
 
@@ -396,6 +399,22 @@ export default function LikeButton({ event }: { event: Event }) {
   }
 
   const displayBonusCount = isBoostActive ? boostBonusCount : releasedBonusCount
+  const boostVisualProgress = getReactionBoostVisualProgress(boostBonusCount)
+  const releasedBonusVisualProgress = getReactionBoostVisualProgress(releasedBonusCount)
+  const heartBeatStyle = isBoostActive
+    ? ({
+        '--reaction-charge-beat-min-scale': `${1.02 + boostVisualProgress * 0.08}`,
+        '--reaction-charge-beat-max-scale': `${1.14 + boostVisualProgress * 0.26}`,
+        '--reaction-charge-beat-duration': `${Math.round(760 - boostVisualProgress * 220)}ms`
+      } as CSSProperties)
+    : undefined
+  const bonusIndicatorStyle = displayBonusCount > 0
+    ? ({
+        transform: isBoostActive
+          ? `translateY(${-2 - boostVisualProgress * 2}px) scale(${1.02 + boostVisualProgress * 0.18})`
+          : `translateY(${-4 - releasedBonusVisualProgress * (isReleasedBonusFading ? 3 : 1.5)}px) scale(${1 + releasedBonusVisualProgress * 0.08})`
+      } as CSSProperties)
+    : undefined
   const showStandardLikeState = isBoostActive || isStandardLikeEmoji(myLastReaction?.emoji)
   const trigger = (
     <button
@@ -432,21 +451,37 @@ export default function LikeButton({ event }: { event: Event }) {
       aria-label={myLastReaction ? `${t('React')}, ${t('you reacted')}` : t('React')}
       aria-pressed={!!myLastReaction || isBoostActive}
     >
-      {burstVersion > 0 && <ReactionBurst key={burstVersion} />}
-      {isBoostActive && <ReactionBoostTrail />}
+      {burstVersion > 0 && <ReactionBurst key={burstVersion} intensity={burstIntensity} />}
+      {isBoostActive && <ReactionBoostTrail intensity={boostVisualProgress} />}
 
       {liking ? (
         <Loader className="animate-spin" aria-hidden="true" />
       ) : showStandardLikeState ? (
         <span
-          key={`liked-${burstVersion}`}
           className={cn(
-            'inline-flex motion-reduce:animate-none transition-transform duration-150',
-            burstVersion > 0 && 'animate-reaction-burst-pop',
-            isBoostActive && 'scale-110'
+            'inline-flex items-center justify-center motion-reduce:animate-none',
+            isBoostActive && 'animate-reaction-charge-beat'
           )}
+          style={heartBeatStyle}
         >
-          <Heart className={cn('fill-current', isBoostActive && 'stroke-[2.2]')} aria-hidden="true" />
+          <span
+            key={`liked-${burstVersion}`}
+            className={cn(
+              'inline-flex motion-reduce:animate-none transition-transform duration-150',
+              burstVersion > 0 && 'animate-reaction-burst-pop',
+              isBoostActive && 'scale-110'
+            )}
+            style={
+              isBoostActive
+                ? ({
+                    '--reaction-burst-pop-start-scale': `${0.9 + boostVisualProgress * 0.04}`,
+                    '--reaction-burst-pop-peak-scale': `${1.18 + boostVisualProgress * 0.18}`
+                  } as CSSProperties)
+                : undefined
+            }
+          >
+            <Heart className={cn('fill-current', isBoostActive && 'stroke-[2.2]')} aria-hidden="true" />
+          </span>
         </span>
       ) : myLastReaction ? (
         <span
@@ -466,10 +501,12 @@ export default function LikeButton({ event }: { event: Event }) {
         <span
           className={cn(
             'text-xs font-semibold transition-all duration-300',
-            isBoostActive && 'text-primary opacity-100 -translate-y-0.5',
-            !isBoostActive && !isReleasedBonusFading && 'text-primary opacity-100 -translate-y-1',
-            !isBoostActive && isReleasedBonusFading && 'text-primary opacity-0 -translate-y-2'
+            'text-primary',
+            isBoostActive && 'opacity-100',
+            !isBoostActive && !isReleasedBonusFading && 'opacity-100',
+            !isBoostActive && isReleasedBonusFading && 'opacity-0'
           )}
+          style={bonusIndicatorStyle}
         >
           +{displayBonusCount}
         </span>

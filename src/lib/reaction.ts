@@ -2,6 +2,7 @@ import { TEmoji, TNoteReaction } from '@/types'
 import { tagNameEquals } from './tag'
 
 export const REACTION_BONUS_TAG = 'reaction_bonus'
+export const MAX_REACTION_BOOST_VISUAL_BONUS_COUNT = 32
 
 type TReactionSummary = {
   key: string
@@ -30,6 +31,20 @@ export function getReactionBonusCountFromTags(tags: string[][] = []) {
 
 export function getReactionWeight(bonusCount?: number) {
   return 1 + clampReactionBonusCount(bonusCount)
+}
+
+export function getReactionBoostVisualProgress(bonusCount?: number) {
+  const clampedBonusCount = Math.min(
+    clampReactionBonusCount(bonusCount),
+    MAX_REACTION_BOOST_VISUAL_BONUS_COUNT
+  )
+
+  if (clampedBonusCount <= 0) return 0
+
+  return (
+    Math.log2(clampedBonusCount + 1) /
+    Math.log2(MAX_REACTION_BOOST_VISUAL_BONUS_COUNT + 1)
+  )
 }
 
 export function getWeightedReactionCount(reactions: TNoteReaction[] = []) {

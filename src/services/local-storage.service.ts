@@ -177,6 +177,7 @@ class LocalStorageService {
   private lowBandwidthMode: boolean = false
   private disableAvatarAnimations: boolean = false
   private messageNotificationsEnabled: boolean = true
+  private reactionFountainEnabled: boolean = false
   private reactionOptionsEnabled: boolean = false
   private defaultReactionEmojis: string[] = ['👍', '❤️', '😂', '🥲', '👀', '🫡', '🫂']
 
@@ -618,6 +619,7 @@ class LocalStorageService {
     this.disableAvatarAnimations = readStoredBoolean(StorageKey.DISABLE_AVATAR_ANIMATIONS)
     this.messageNotificationsEnabled =
       readStoredBooleanValue(StorageKey.MESSAGE_NOTIFICATIONS_ENABLED) ?? true
+    this.reactionFountainEnabled = readStoredBoolean(StorageKey.REACTION_FOUNTAIN_ENABLED)
     this.distractionFreeMode = readStoredEnum(
       StorageKey.DISTRACTION_FREE_MODE,
       Object.values(DISTRACTION_FREE_MODE) as TDistractionFreeMode[],
@@ -889,6 +891,15 @@ class LocalStorageService {
   setMessageNotificationsEnabled(enabled: boolean) {
     this.messageNotificationsEnabled = enabled
     this.setBoolean(StorageKey.MESSAGE_NOTIFICATIONS_ENABLED, enabled)
+  }
+
+  getReactionFountainEnabled() {
+    return this.reactionFountainEnabled
+  }
+
+  setReactionFountainEnabled(enabled: boolean) {
+    this.reactionFountainEnabled = enabled
+    this.setBoolean(StorageKey.REACTION_FOUNTAIN_ENABLED, enabled)
   }
 
   getLastReadNotificationTime(pubkey: string) {
@@ -1639,8 +1650,7 @@ class LocalStorageService {
         typeof draft.scheduledFor === 'number' && Number.isFinite(draft.scheduledFor)
           ? draft.scheduledFor
           : null,
-      minPow:
-        typeof draft.minPow === 'number' && Number.isFinite(draft.minPow) ? draft.minPow : 0,
+      minPow: typeof draft.minPow === 'number' && Number.isFinite(draft.minPow) ? draft.minPow : 0,
       createdAt: now,
       updatedAt: now
     }
@@ -1960,7 +1970,8 @@ function sanitizeDraftImages(value: unknown): { url: string; alt?: string }[] {
       return []
     }
 
-    const url = typeof (image as { url?: unknown }).url === 'string' ? (image as { url: string }).url : ''
+    const url =
+      typeof (image as { url?: unknown }).url === 'string' ? (image as { url: string }).url : ''
     if (!url.trim()) {
       return []
     }

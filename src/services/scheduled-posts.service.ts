@@ -10,7 +10,7 @@ import { getStorageJson, setStorageJson } from '@/services/local-storage/persist
 import { TDraftEvent, TPublishOptions, TPollCreateData, TSignerType } from '@/types'
 import dayjs from 'dayjs'
 import { Event, kinds } from 'nostr-tools'
-import { ImageAttachment } from './post-editor-cache.service'
+import type { ImageAttachment } from './post-editor-cache.service'
 
 const SCHEDULED_POSTS_CHANGED_EVENT = 'scheduled-posts:changed'
 
@@ -120,13 +120,29 @@ function normalizeScheduledPost(post: Partial<TScheduledPost>): TScheduledPost |
         ? payload.images
             .filter(
               (image): image is ImageAttachment =>
-                !!image &&
-                typeof image.url === 'string' &&
-                !!image.url.trim()
+                !!image && typeof image.url === 'string' && !!image.url.trim()
             )
             .map((image) => ({
               url: image.url.trim(),
-              alt: typeof image.alt === 'string' ? image.alt : undefined
+              alt: typeof image.alt === 'string' ? image.alt : undefined,
+              mimeType: typeof image.mimeType === 'string' ? image.mimeType : undefined,
+              fileSizeBytes:
+                typeof image.fileSizeBytes === 'number' && Number.isFinite(image.fileSizeBytes)
+                  ? image.fileSizeBytes
+                  : undefined,
+              width:
+                typeof image.width === 'number' && Number.isFinite(image.width)
+                  ? image.width
+                  : undefined,
+              height:
+                typeof image.height === 'number' && Number.isFinite(image.height)
+                  ? image.height
+                  : undefined,
+              gifLoop: !!image.gifLoop,
+              previewUrl: typeof image.previewUrl === 'string' ? image.previewUrl : undefined,
+              imetaTag: Array.isArray(image.imetaTag)
+                ? image.imetaTag.filter((item): item is string => typeof item === 'string')
+                : undefined
             }))
         : [],
       mentions: Array.isArray(payload.mentions)
@@ -363,11 +379,7 @@ class ScheduledPostsService {
 
     if (payload.images.length > 0) {
       payload.images.forEach((image) => {
-        const imetaTags: string[] = ['imeta', `url ${image.url}`]
-        if (image.alt) {
-          imetaTags.push(`alt ${image.alt}`)
-        }
-        draftEvent.tags.push(imetaTags)
+        draftEvent.tags.push(buildScheduledImageImetaTag(image))
       })
     }
 
@@ -387,6 +399,31 @@ class ScheduledPostsService {
       }
     }
   }
+}
+
+function buildScheduledImageImetaTag(image: ImageAttachment) {
+  const imetaTags = image.imetaTag?.length ? [...image.imetaTag] : ['imeta', `url ${image.url}`]
+
+  if (!imetaTags.some((item) => item.startsWith('url '))) {
+    imetaTags.push(`url ${image.url}`)
+  }
+  if (image.mimeType && !imetaTags.some((item) => item.startsWith('m '))) {
+    imetaTags.push(`m ${image.mimeType}`)
+  }
+  if (image.fileSizeBytes && !imetaTags.some((item) => item.startsWith('size '))) {
+    imetaTags.push(`size ${image.fileSizeBytes}`)
+  }
+  if (image.width && image.height && !imetaTags.some((item) => item.startsWith('dim '))) {
+    imetaTags.push(`dim ${Math.round(image.width)}x${Math.round(image.height)}`)
+  }
+  if (image.alt && !imetaTags.some((item) => item.startsWith('alt '))) {
+    imetaTags.push(`alt ${image.alt}`)
+  }
+  if (image.gifLoop && !imetaTags.some((item) => item.toLowerCase().startsWith('flow-gif-loop '))) {
+    imetaTags.push('flow-gif-loop 1')
+  }
+
+  return imetaTags
 }
 
 export const scheduledPostsChangedEventName = SCHEDULED_POSTS_CHANGED_EVENT

@@ -11,7 +11,8 @@ export default function MediaPlayer({
   className,
   mustLoad = false,
   compactMedia = false,
-  isSingleMedia = true
+  isSingleMedia = true,
+  isGifLike = false
 }: {
   src: string
   pubkey?: string
@@ -19,6 +20,7 @@ export default function MediaPlayer({
   mustLoad?: boolean
   compactMedia?: boolean
   isSingleMedia?: boolean
+  isGifLike?: boolean
 }) {
   const { t } = useTranslation()
   const { shouldAutoLoadMedia } = useContentPolicy()
@@ -91,7 +93,15 @@ export default function MediaPlayer({
   }
 
   if (mediaType === 'video') {
-    return <VideoPlayer src={src} className={compactMedia ? 'w-20 h-20 rounded overflow-hidden' : className} compactMedia={compactMedia} isSingleMedia={isSingleMedia} />
+    return (
+      <VideoPlayer
+        src={src}
+        className={compactMedia ? 'w-20 h-20 rounded overflow-hidden' : className}
+        compactMedia={compactMedia}
+        isSingleMedia={isSingleMedia}
+        isGifLike={isGifLike}
+      />
+    )
   }
 
   return <AudioPlayer src={src} className={className} />

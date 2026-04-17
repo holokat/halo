@@ -2,8 +2,10 @@ import { Card } from '@/components/ui/card'
 import { transformCustomEmojisInContent } from '@/lib/draft-event'
 import { createFakeEvent } from '@/lib/event'
 import { cn } from '@/lib/utils'
+import type { ImageAttachment } from '@/services/post-editor-cache.service'
 import { useMemo } from 'react'
 import Content from '../../Content'
+import { buildImageAttachmentImetaTag } from '../post-content/submission'
 
 export default function Preview({
   content,
@@ -12,7 +14,7 @@ export default function Preview({
 }: {
   content: string
   className?: string
-  images?: Array<{ url: string; alt?: string }>
+  images?: ImageAttachment[]
 }) {
   const { content: processedContent, emojiTags } = useMemo(
     () => transformCustomEmojisInContent(content),
@@ -21,13 +23,7 @@ export default function Preview({
 
   // Create imeta tags for images
   const imetaTags = useMemo(() => {
-    return images.map((img) => {
-      const imetaParts: string[] = ['imeta', `url ${img.url}`]
-      if (img.alt) {
-        imetaParts.push(`alt ${img.alt}`)
-      }
-      return imetaParts
-    })
+    return images.map(buildImageAttachmentImetaTag)
   }, [images])
 
   const allTags = useMemo(() => [...emojiTags, ...imetaTags], [emojiTags, imetaTags])

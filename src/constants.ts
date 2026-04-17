@@ -1,8 +1,10 @@
 import { kinds } from 'nostr-tools'
 
-const env = (import.meta as ImportMeta & {
-  env?: Record<string, string | boolean | undefined>
-}).env
+const env = (
+  import.meta as ImportMeta & {
+    env?: Record<string, string | boolean | undefined>
+  }
+).env
 
 const DEFAULT_APP_API_BASE_URL =
   typeof window !== 'undefined' ? window.location.origin : 'https://x21.social'
@@ -18,8 +20,7 @@ export const DISCOVERY_API_BASE_URL =
 export const DISCOVERY_API_ENABLED = DISCOVERY_API_BASE_URL.trim().length > 0
 
 export const TRANSLATION_API_BASE_URL =
-  env?.VITE_TRANSLATION_API_BASE_URL ||
-  (env?.DEV ? 'https://api.jumble.social' : APP_API_BASE_URL)
+  env?.VITE_TRANSLATION_API_BASE_URL || (env?.DEV ? 'https://api.jumble.social' : APP_API_BASE_URL)
 
 export const DEFAULT_FAVORITE_RELAYS = [
   'wss://nostr.wine/',
@@ -143,6 +144,7 @@ export const StorageKey = {
   DEFAULT_REACTION_EMOJIS: 'defaultReactionEmojis',
   REACTION_OPTIONS_ENABLED: 'reactionOptionsEnabled',
   MESSAGE_NOTIFICATIONS_ENABLED: 'messageNotificationsEnabled',
+  REACTION_FOUNTAIN_ENABLED: 'reactionFountainEnabled',
   COLLAPSE_LONG_NOTES: 'collapseLongNotes',
   ALWAYS_SHOW_FULL_MEDIA: 'alwaysShowFullMedia',
   MEDIA_UPLOAD_SERVICE: 'mediaUploadService', // deprecated

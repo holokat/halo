@@ -152,9 +152,11 @@ export default function PostContent({
   const hasDetectedPrivateKey = detectedPrivateKeys.length > 0
 
   const canPost = useMemo(() => {
+    const hasPostContent = text.trim().length > 0 || images.length > 0
+
     return (
       !!pubkey &&
-      !!text &&
+      hasPostContent &&
       !hasDetectedPrivateKey &&
       !posting &&
       !uploadProgresses.length &&
@@ -164,6 +166,7 @@ export default function PostContent({
   }, [
     pubkey,
     text,
+    images.length,
     hasDetectedPrivateKey,
     posting,
     uploadProgresses,
@@ -293,9 +296,12 @@ export default function PostContent({
   const post = async (e?: React.MouseEvent) => {
     e?.stopPropagation()
     checkLogin(async () => {
+      const submissionStartedAt = getNowMs()
       if (hasDetectedPrivateKey) {
         toast.error(
-          t('Posting blocked: this note includes an nsec private key. Remove it to protect your account.'),
+          t(
+            'Posting blocked: this note includes an nsec private key. Remove it to protect your account.'
+          ),
           { duration: 6000 }
         )
         return
@@ -319,12 +325,23 @@ export default function PostContent({
           text
         })
 
+        console.debug('[PostPublish]', 'composer draft prepared', {
+          imageCount: images.length,
+          isReply: Boolean(parentEvent),
+          minPow,
+          pollOptionCount: isPoll ? pollCreateData.options.length : 0,
+          prepareDurationMs: roundDurationMs(submissionStartedAt),
+          textLength: text.length
+        })
+
         appendImageMetadataTags(draftEvent, images)
         appendExpirationTag(draftEvent, getExpirationTimestamp(defaultExpiration))
 
         if (hasPrivateKeyInDraft(draftEvent.content, draftEvent.tags)) {
           toast.error(
-            t('Posting blocked: this note includes an nsec private key. Remove it to protect your account.'),
+            t(
+              'Posting blocked: this note includes an nsec private key. Remove it to protect your account.'
+            ),
             { duration: 6000 }
           )
           return
@@ -333,7 +350,8 @@ export default function PostContent({
         const publishOptions = {
           specifiedRelayUrls: isProtectedEvent ? additionalRelayUrls : undefined,
           additionalRelayUrls: isPoll ? pollCreateData.relays : additionalRelayUrls,
-          minPow
+          minPow,
+          minSuccessCount: 1
         }
 
         if (parentEvent) {
@@ -344,12 +362,20 @@ export default function PostContent({
 
           client.addEventToCache(optimisticReply)
           addReplies([optimisticReply])
+
+          console.debug('[PostPublish]', 'composer handing off reply to background publish', {
+            eventId: optimisticReply.id,
+            signAndPrepareDurationMs: roundDurationMs(submissionStartedAt)
+          })
+
           close({ saveLocalDraft: false })
 
           void (async () => {
             try {
               const relays = await client.determineTargetRelays(optimisticReply, publishOptions)
-              await client.publishEvent(relays, optimisticReply)
+              await client.publishEvent(relays, optimisticReply, {
+                minSuccessCount: publishOptions.minSuccessCount
+              })
               clearComposerDraftCache(defaultContent, parentEvent)
               deleteDraftEventCache(draftEvent)
               toast.success(t('Post successful'), { duration: 2000 })
@@ -375,6 +401,8 @@ export default function PostContent({
         deleteDraftEventCache(draftEvent)
         addReplies([newEvent])
         close({ saveLocalDraft: false })
+        toast.success(t('Post successful'), { duration: 2000 })
+        return
       } catch (error) {
         const errors = error instanceof AggregateError ? error.errors : [error]
         errors.forEach((err) => {
@@ -387,9 +415,6 @@ export default function PostContent({
         return
       } finally {
         setPosting(false)
-      }
-      if (!parentEvent) {
-        toast.success(t('Post successful'), { duration: 2000 })
       }
     })
   }
@@ -502,7 +527,9 @@ export default function PostContent({
     (e?: React.MouseEvent) => {
       if (hasDetectedPrivateKey) {
         toast.error(
-          t('Posting blocked: this note includes an nsec private key. Remove it to protect your account.'),
+          t(
+            'Posting blocked: this note includes an nsec private key. Remove it to protect your account.'
+          ),
           { duration: 6000 }
         )
         return
@@ -613,10 +640,6 @@ export default function PostContent({
     setImages((prev) => prev.filter((_, i) => i !== index))
   }, [])
 
-  const handleUpdateImageAlt = useCallback((index: number, alt: string) => {
-    setImages((prev) => prev.map((img, i) => (i === index ? { ...img, alt } : img)))
-  }, [])
-
   const handleViewScheduledQueue = useCallback(() => {
     close()
     window.setTimeout(() => {
@@ -651,13 +674,7 @@ export default function PostContent({
       defaultContent={defaultContent}
       parentEvent={parentEvent}
       onSubmit={() => handlePrimaryAction()}
-      className={
-        isMobileComposer
-          ? 'min-h-[44dvh]'
-          : isPoll
-            ? 'min-h-20'
-            : 'min-h-32'
-      }
+      className={isMobileComposer ? 'min-h-[44dvh]' : isPoll ? 'min-h-20' : 'min-h-32'}
       placeholder={isMobileComposer ? mobilePlaceholder : undefined}
       isMobileComposer={isMobileComposer}
       onUploadStart={handleUploadStart}
@@ -666,7 +683,6 @@ export default function PostContent({
       onImageUploadSuccess={handleImageUploadSuccess}
       images={images}
       onRemoveImage={handleRemoveImage}
-      onUpdateImageAlt={handleUpdateImageAlt}
       localDrafts={localDrafts}
       activeLocalDraftId={activeLocalDraftId}
       onSelectLocalDraft={handleSelectLocalDraft}
@@ -731,8 +747,8 @@ export default function PostContent({
         </Button>
       </Uploader>
       <GifPicker
-        onGifSelect={(url) => {
-          setImages((prev) => [...prev, { url }])
+        onGifSelect={(attachment) => {
+          setImages((prev) => [...prev, attachment])
         }}
       >
         <Button variant="ghost" size="icon" className={toolButtonClass}>
@@ -963,4 +979,16 @@ export default function PostContent({
       />
     </div>
   )
+}
+
+function getNowMs() {
+  if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+    return performance.now()
+  }
+
+  return Date.now()
+}
+
+function roundDurationMs(startedAt: number) {
+  return Math.round((getNowMs() - startedAt) * 10) / 10
 }

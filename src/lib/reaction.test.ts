@@ -3,7 +3,9 @@ import test from 'node:test'
 import { kinds, type Event as NostrEvent } from 'nostr-tools'
 import {
   getReactionBonusCountFromTags,
+  getReactionBoostVisualProgress,
   getWeightedReactionCount,
+  MAX_REACTION_BOOST_VISUAL_BONUS_COUNT,
   summarizeReactions
 } from './reaction.ts'
 
@@ -88,6 +90,15 @@ test('reaction bonus tag parsing clamps invalid values without capping positive 
   assert.equal(getReactionBonusCountFromTags([['reaction_bonus', '-2']]), 0)
   assert.equal(getReactionBonusCountFromTags([['reaction_bonus', '999']]), 999)
   assert.equal(getReactionBonusCountFromTags([['reaction_bonus', 'oops']]), 0)
+})
+
+test('reaction boost visuals ramp up but stop at a safe ceiling', () => {
+  assert.equal(getReactionBoostVisualProgress(-1), 0)
+  assert.equal(getReactionBoostVisualProgress(0), 0)
+  assert.ok(getReactionBoostVisualProgress(1) > 0)
+  assert.ok(getReactionBoostVisualProgress(8) > getReactionBoostVisualProgress(3))
+  assert.equal(getReactionBoostVisualProgress(MAX_REACTION_BOOST_VISUAL_BONUS_COUNT), 1)
+  assert.equal(getReactionBoostVisualProgress(999_999), 1)
 })
 
 test('weighted reaction aggregation sums bonus weight and groups standard likes together', () => {

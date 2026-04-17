@@ -26,7 +26,7 @@ export default function ProfileFeed({
   topSpace?: number
   isInDeckView?: boolean
 }) {
-  const { pubkey: myPubkey, pinListEvent: myPinListEvent } = useNostr()
+  const { pubkey: myPubkey, pinListEvent: myPinListEvent, relayList: myRelayList } = useNostr()
   const { showKinds } = useKindFilter()
   const { hideReadsInProfiles } = useReadsVisibility()
   const { lowBandwidthMode } = useLowBandwidthMode()
@@ -142,7 +142,8 @@ export default function ProfileFeed({
         return
       }
 
-      const relayList = await client.fetchRelayList(pubkey)
+      const relayList =
+        pubkey === myPubkey && myRelayList ? myRelayList : await client.fetchRelayList(pubkey)
       setSubRequests([
         {
           urls: relayList.write.concat(BIG_RELAY_URLS).slice(0, 8),
@@ -153,7 +154,7 @@ export default function ProfileFeed({
       ])
     }
     init()
-  }, [pubkey, listMode, myPubkey])
+  }, [pubkey, listMode, myPubkey, myRelayList])
 
   const handleListModeChange = (mode: TNoteListMode) => {
     setListMode(mode)

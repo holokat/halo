@@ -13,6 +13,10 @@ export default {
     'Live Chat': 'Live Chat',
     'No messages yet. Be the first to chat!': 'No messages yet. Be the first to chat!',
     'Type a message...': 'Type a message...',
+    'Reaction Fountain': 'Reaction Fountain',
+    'Animate incoming reactions in real time while the app is open.':
+      'Animate incoming reactions in real time while the app is open.',
+    'Preview Reaction Fountain': 'Preview Reaction Fountain',
     'Zap to': 'Zap to',
     'Zap n sats': 'Zap {{n}} sats',
     zapComment: 'Comment',
