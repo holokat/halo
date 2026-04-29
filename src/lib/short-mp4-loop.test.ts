@@ -15,7 +15,9 @@ test('short MP4 loop candidates are MP4 URLs only', () => {
 
 test('short MP4 loop duration policy matches GIF-like clips', () => {
   assert.equal(shouldLoopShortMp4Duration(0), false)
-  assert.equal(shouldLoopShortMp4Duration(4.5), true)
+  assert.equal(SHORT_MP4_LOOP_MAX_SECONDS, 4)
+  assert.equal(shouldLoopShortMp4Duration(4), true)
+  assert.equal(shouldLoopShortMp4Duration(4.01), false)
   assert.equal(shouldLoopShortMp4Duration(SHORT_MP4_LOOP_MAX_SECONDS), true)
   assert.equal(shouldLoopShortMp4Duration(SHORT_MP4_LOOP_MAX_SECONDS + 0.1), false)
   assert.equal(shouldLoopShortMp4Duration(Infinity), false)

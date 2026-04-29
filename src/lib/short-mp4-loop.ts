@@ -1,4 +1,4 @@
-export const SHORT_MP4_LOOP_MAX_SECONDS = 15
+export const SHORT_MP4_LOOP_MAX_SECONDS = 4
 
 export function isShortMp4LoopCandidateUrl(src: string): boolean {
   try {

@@ -72,6 +72,8 @@ export default function Profile({
   const [avatarLightboxIndex, setAvatarLightboxIndex] = useState(-1)
   const bannerLightboxId = useMemo(() => `profile-banner-lightbox-${randomString()}`, [])
   const [bannerLightboxIndex, setBannerLightboxIndex] = useState(-1)
+  const bannerBorderRadius = isSmallScreen ? 'var(--media-radius, 14px)' : '0px'
+  const bannerClassName = 'w-full aspect-[12/5]'
 
   useEffect(() => {
     if (!profile?.pubkey) return
@@ -122,17 +124,22 @@ export default function Profile({
     return (
       <>
         <div>
-          <div className="relative bg-cover bg-center mb-2">
-            <Skeleton
-              className="w-full aspect-[3/1]"
-              style={{ borderRadius: isSmallScreen ? 'var(--media-radius, 14px)' : '0px' }}
-            />
+          <div className="relative mb-2">
+            <div
+              className="relative overflow-hidden bg-muted/30"
+              style={{ borderRadius: bannerBorderRadius }}
+            >
+              <Skeleton className={bannerClassName} style={{ borderRadius: bannerBorderRadius }} />
+            </div>
             <Skeleton className="w-24 h-24 absolute bottom-0 left-3 translate-y-1/2 border-4 border-background rounded-full" />
           </div>
         </div>
-        <div className="px-4">
-          <Skeleton className="h-5 w-28 mt-14 mb-1" />
-          <Skeleton className="h-5 w-56 mt-2 my-1 rounded-full" />
+        <div className="relative -mt-10 pt-10">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-transparent via-background/80 to-background" />
+          <div className="relative px-4">
+            <Skeleton className="h-5 w-28 mt-14 mb-1" />
+            <Skeleton className="h-5 w-56 mt-2 my-1 rounded-full" />
+          </div>
         </div>
       </>
     )
@@ -160,18 +167,23 @@ export default function Profile({
   return (
     <>
       <div ref={topContainerRef}>
-        <div className="relative bg-cover bg-center mb-2">
-          <ProfileBanner
-            banner={banner}
-            pubkey={pubkey}
-            className={cn(
-              'w-full aspect-[3/1]',
-              banner && 'cursor-pointer hover:opacity-90 transition-opacity'
-            )}
-            borderRadius={isSmallScreen ? 'var(--media-radius, 14px)' : '0px'}
-            onClick={handleBannerClick}
-            isLCP={true}
-          />
+        <div className="relative mb-2">
+          <div
+            className="relative overflow-hidden bg-muted/30"
+            style={{ borderRadius: bannerBorderRadius }}
+          >
+            <ProfileBanner
+              banner={banner}
+              pubkey={pubkey}
+              className={cn(
+                bannerClassName,
+                banner && 'cursor-pointer hover:opacity-90 transition-opacity'
+              )}
+              borderRadius={bannerBorderRadius}
+              onClick={handleBannerClick}
+              isLCP={true}
+            />
+          </div>
           <Avatar
             className="w-24 h-24 absolute left-3 bottom-0 translate-y-1/2 border-4 border-background cursor-pointer hover:opacity-90 transition-opacity"
             onClick={handleAvatarClick}
@@ -182,89 +194,95 @@ export default function Profile({
             </AvatarFallback>
           </Avatar>
         </div>
-        <div className="px-4">
-          <div className="flex justify-end h-8 gap-2 items-center">
-            {isSelf ? (
-              <>
-                <ProfileOptions pubkey={pubkey} />
-                <NpubQrCode pubkey={pubkey} variant="button" />
-                <Button
-                  className="w-20 min-w-20 rounded-full"
-                  variant="secondary"
-                  onClick={() => push(toProfileEditor())}
-                >
-                  {t('Edit')}
-                </Button>
-              </>
-            ) : (
-              <>
-                {isMutedProfile && (
-                  <div
-                    className="flex size-8 items-center justify-center rounded-full border text-muted-foreground"
-                    title={t('Muted')}
-                    aria-label={t('Muted')}
+        <div className="relative -mt-10 pt-10">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-transparent via-background/80 to-background" />
+          <div className="relative px-4">
+            <div className="flex justify-end h-8 gap-2 items-center">
+              {isSelf ? (
+                <>
+                  <ProfileOptions pubkey={pubkey} />
+                  <NpubQrCode pubkey={pubkey} variant="button" />
+                  <Button
+                    className="w-20 min-w-20 rounded-full"
+                    variant="secondary"
+                    onClick={() => push(toProfileEditor())}
                   >
-                    <BellOff className="size-4" />
-                  </div>
-                )}
-                <ProfileOptions pubkey={pubkey} />
-                {!!lightningAddress && <ProfileZapButton pubkey={pubkey} />}
-                <ProfileMessageButton pubkey={pubkey} />
-                <FollowButton pubkey={pubkey} />
-              </>
-            )}
-          </div>
-          <div className="pt-2">
-            {!isSelf && <PrivateNote pubkey={pubkey} />}
-            <div className="flex gap-2 items-center">
-              <div className="text-xl font-semibold truncate select-text">{username}</div>
-              {isFollowingYou && (
-                <div className="text-muted-foreground rounded-full bg-muted text-xs h-fit px-2 shrink-0">
-                  {t('Follows you')}
-                </div>
+                    {t('Edit')}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  {isMutedProfile && (
+                    <div
+                      className="flex size-8 items-center justify-center rounded-full border text-muted-foreground"
+                      title={t('Muted')}
+                      aria-label={t('Muted')}
+                    >
+                      <BellOff className="size-4" />
+                    </div>
+                  )}
+                  <ProfileOptions pubkey={pubkey} />
+                  {!!lightningAddress && <ProfileZapButton pubkey={pubkey} />}
+                  <ProfileMessageButton pubkey={pubkey} />
+                  <FollowButton pubkey={pubkey} />
+                </>
               )}
             </div>
-            <Nip05 pubkey={pubkey} />
-            <InvitedBy pubkey={pubkey} />
-            {lightningAddress && (
-              <div className="text-sm text-yellow-400 flex gap-1 items-center select-text">
-                <Zap className="size-4 shrink-0" />
-                <div className="flex-1 max-w-fit w-0 truncate">{lightningAddress}</div>
-              </div>
-            )}
-
-            <Collapsible>
-              <ProfileAbout
-                about={about}
-                className="text-wrap break-words whitespace-pre-wrap mt-2 select-text"
-              />
-            </Collapsible>
-            {website && (
-              <div className="flex gap-1 items-center text-primary mt-2 truncate select-text">
-                <Link size={14} className="shrink-0" />
-                <a
-                  href={website}
-                  target="_blank"
-                  className="hover:underline truncate flex-1 max-w-fit w-0"
-                >
-                  {website}
-                </a>
-              </div>
-            )}
-            <div className="flex justify-between items-center mt-2 text-sm">
-              <div className="flex gap-4 items-center">
-                <Followings pubkey={pubkey} />
-                <Relays pubkey={pubkey} />
-                {isSelf && (
-                  <SecondaryPageLink to={toMuteList()} className="flex gap-1 hover:underline w-fit">
-                    {mutePubkeySet.size}
-                    <div className="text-muted-foreground">{t('Muted')}</div>
-                  </SecondaryPageLink>
+            <div className="pt-2">
+              {!isSelf && <PrivateNote pubkey={pubkey} />}
+              <div className="flex gap-2 items-center">
+                <div className="text-xl font-semibold truncate select-text">{username}</div>
+                {isFollowingYou && (
+                  <div className="text-muted-foreground rounded-full bg-muted text-xs h-fit px-2 shrink-0">
+                    {t('Follows you')}
+                  </div>
                 )}
               </div>
-              {!isSelf && <FollowedBy pubkey={pubkey} />}
+              <Nip05 pubkey={pubkey} />
+              <InvitedBy pubkey={pubkey} />
+              {lightningAddress && (
+                <div className="text-sm text-yellow-400 flex gap-1 items-center select-text">
+                  <Zap className="size-4 shrink-0" />
+                  <div className="flex-1 max-w-fit w-0 truncate">{lightningAddress}</div>
+                </div>
+              )}
+
+              <Collapsible>
+                <ProfileAbout
+                  about={about}
+                  className="text-wrap break-words whitespace-pre-wrap mt-2 select-text"
+                />
+              </Collapsible>
+              {website && (
+                <div className="flex gap-1 items-center text-primary mt-2 truncate select-text">
+                  <Link size={14} className="shrink-0" />
+                  <a
+                    href={website}
+                    target="_blank"
+                    className="hover:underline truncate flex-1 max-w-fit w-0"
+                  >
+                    {website}
+                  </a>
+                </div>
+              )}
+              <div className="flex justify-between items-center mt-2 text-sm">
+                <div className="flex gap-4 items-center">
+                  <Followings pubkey={pubkey} />
+                  <Relays pubkey={pubkey} />
+                  {isSelf && (
+                    <SecondaryPageLink
+                      to={toMuteList()}
+                      className="flex gap-1 hover:underline w-fit"
+                    >
+                      {mutePubkeySet.size}
+                      <div className="text-muted-foreground">{t('Muted')}</div>
+                    </SecondaryPageLink>
+                  )}
+                </div>
+                {!isSelf && <FollowedBy pubkey={pubkey} />}
+              </div>
+              <ProfileGallery pubkey={pubkey} gallery={gallery} maxImages={8} />
             </div>
-            <ProfileGallery pubkey={pubkey} gallery={gallery} maxImages={8} />
           </div>
         </div>
       </div>
