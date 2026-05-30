@@ -35,12 +35,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const active = useMemo(() => current === 'notifications', [current])
   const { pubkey, notificationsSeenAt, updateNotificationsSeenAt } = useNostr()
   const { hideUntrustedNotifications, isUserTrusted } = useUserTrust()
-  const { mutePubkeySet, getMutedDomains } = useMuteList()
+  const { mutePubkeySet } = useMuteList()
   const { hideContentMentioningMutedUsers, hideNotificationsFromMutedUsers } = useContentPolicy()
   const { isDistractionFree } = useDistractionFreeMode()
   const [newNotifications, setNewNotifications] = useState<NostrEvent[]>([])
   const [readNotificationIdSet, setReadNotificationIdSet] = useState<Set<string>>(new Set())
-  const mutedDomains = getMutedDomains()
   const filteredNewNotifications = useMemo(() => {
     if (active || notificationsSeenAt < 0) {
       return []
@@ -58,7 +57,6 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           hideNotificationsFromMutedUsers,
           hideUntrustedNotifications,
           isUserTrusted,
-          mutedDomains,
           getProfile: (pubkey: string) => client.getCachedProfile(pubkey)
         })
       ) {
@@ -75,7 +73,6 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     hideNotificationsFromMutedUsers,
     hideUntrustedNotifications,
     isUserTrusted,
-    mutedDomains,
     active
   ])
 
@@ -114,7 +111,6 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                 kinds.ShortTextNote,
                 kinds.Repost,
                 kinds.Reaction,
-                kinds.Zap,
                 ExtendedKind.COMMENT,
                 ExtendedKind.POLL_RESPONSE,
                 ExtendedKind.VOICE_COMMENT,
@@ -200,9 +196,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     // Update title - hide count if in distraction-free mode
     if (newNotificationCount > 0 && !isDistractionFree) {
-      document.title = `(${newNotificationCount >= 10 ? '9+' : newNotificationCount}) x21`
+      document.title = `(${newNotificationCount >= 10 ? '9+' : newNotificationCount}) Halo`
     } else {
-      document.title = 'x21'
+      document.title = 'Halo'
     }
 
     // Update favicons - hide notification badge if in distraction-free mode

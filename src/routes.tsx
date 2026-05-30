@@ -3,7 +3,6 @@ import { lazy, Suspense, isValidElement, ComponentType, forwardRef } from 'react
 import { Skeleton } from './components/ui/skeleton'
 
 // Lazy load all route components for code splitting
-const AIToolsPage = lazy(() => import('./pages/secondary/AIToolsPage'))
 const AppearanceSettingsPage = lazy(() => import('./pages/secondary/AppearanceSettingsPage'))
 const ArticlePage = lazy(() => import('./pages/secondary/ArticlePage'))
 const BackupSettingsPage = lazy(() => import('./pages/secondary/BackupSettingsPage'))
@@ -17,18 +16,13 @@ const NoteListPage = lazy(() => import('./pages/secondary/NoteListPage'))
 const NotePage = lazy(() => import('./pages/secondary/NotePage'))
 const OthersRelaySettingsPage = lazy(() => import('./pages/secondary/OthersRelaySettingsPage'))
 const PostSettingsPage = lazy(() => import('./pages/secondary/PostSettingsPage'))
-const ProfileEditorPage = lazy(() => import('./pages/secondary/ProfileEditorPage'))
 const ProfileListPage = lazy(() => import('./pages/secondary/ProfileListPage'))
 const ProfilePage = lazy(() => import('./pages/secondary/ProfilePage'))
 const RelayPage = lazy(() => import('./pages/secondary/RelayPage'))
 const RelayReviewsPage = lazy(() => import('./pages/secondary/RelayReviewsPage'))
 const RelaySettingsPage = lazy(() => import('./pages/secondary/RelaySettingsPage'))
-const RizfulPage = lazy(() => import('./pages/secondary/RizfulPage'))
 const SearchPage = lazy(() => import('./pages/secondary/SearchPage'))
 const SettingsPage = lazy(() => import('./pages/secondary/SettingsPage'))
-const TranslationPage = lazy(() => import('./pages/secondary/TranslationPage'))
-const VanityAddressPage = lazy(() => import('./pages/secondary/VanityAddressPage'))
-const WalletPage = lazy(() => import('./pages/secondary/WalletPage'))
 const WidgetsSettingsPage = lazy(() => import('./pages/secondary/WidgetsSettingsPage'))
 const ScheduledPostsPage = lazy(() => import('./pages/secondary/ScheduledPostsPage'))
 const ListsIndexPage = lazy(() => import('./pages/secondary/ListsIndexPage'))
@@ -63,7 +57,6 @@ function withSuspense<P extends object>(
 }
 
 // Create suspended versions of all components
-const SuspendedAIToolsPage = withSuspense(AIToolsPage, 'AIToolsPage')
 const SuspendedAppearanceSettingsPage = withSuspense(AppearanceSettingsPage, 'AppearanceSettingsPage')
 const SuspendedArticlePage = withSuspense(ArticlePage, 'ArticlePage')
 const SuspendedBackupSettingsPage = withSuspense(BackupSettingsPage, 'BackupSettingsPage')
@@ -77,18 +70,13 @@ const SuspendedNoteListPage = withSuspense(NoteListPage, 'NoteListPage')
 const SuspendedNotePage = withSuspense(NotePage, 'NotePage')
 const SuspendedOthersRelaySettingsPage = withSuspense(OthersRelaySettingsPage, 'OthersRelaySettingsPage')
 const SuspendedPostSettingsPage = withSuspense(PostSettingsPage, 'PostSettingsPage')
-const SuspendedProfileEditorPage = withSuspense(ProfileEditorPage, 'ProfileEditorPage')
 const SuspendedProfileListPage = withSuspense(ProfileListPage, 'ProfileListPage')
 const SuspendedProfilePage = withSuspense(ProfilePage, 'ProfilePage')
 const SuspendedRelayPage = withSuspense(RelayPage, 'RelayPage')
 const SuspendedRelayReviewsPage = withSuspense(RelayReviewsPage, 'RelayReviewsPage')
 const SuspendedRelaySettingsPage = withSuspense(RelaySettingsPage, 'RelaySettingsPage')
-const SuspendedRizfulPage = withSuspense(RizfulPage, 'RizfulPage')
 const SuspendedSearchPage = withSuspense(SearchPage, 'SearchPage')
 const SuspendedSettingsPage = withSuspense(SettingsPage, 'SettingsPage')
-const SuspendedTranslationPage = withSuspense(TranslationPage, 'TranslationPage')
-const SuspendedVanityAddressPage = withSuspense(VanityAddressPage, 'VanityAddressPage')
-const SuspendedWalletPage = withSuspense(WalletPage, 'WalletPage')
 const SuspendedWidgetsSettingsPage = withSuspense(WidgetsSettingsPage, 'WidgetsSettingsPage')
 const SuspendedScheduledPostsPage = withSuspense(ScheduledPostsPage, 'ScheduledPostsPage')
 const SuspendedListsIndexPage = withSuspense(ListsIndexPage, 'ListsIndexPage')
@@ -109,7 +97,6 @@ const ROUTES = [
   { path: '/search', element: <SuspendedSearchPage /> },
   { path: '/settings', element: <SuspendedSettingsPage /> },
   { path: '/settings/relays', element: <SuspendedRelaySettingsPage /> },
-  { path: '/settings/wallet', element: <SuspendedWalletPage /> },
   { path: '/settings/posts', element: <SuspendedPostSettingsPage /> },
   { path: '/settings/general', element: <SuspendedGeneralSettingsPage /> },
   { path: '/settings/feeds', element: <SuspendedFeedsSettingsPage /> },
@@ -117,14 +104,9 @@ const ROUTES = [
   { path: '/settings/content-privacy', element: <SuspendedContentPrivacySettingsPage /> },
   { path: '/settings/appearance', element: <SuspendedAppearanceSettingsPage /> },
   { path: '/settings/widgets', element: <SuspendedWidgetsSettingsPage /> },
-  { path: '/settings/translation', element: <SuspendedTranslationPage /> },
-  { path: '/settings/vanity-address', element: <SuspendedVanityAddressPage /> },
-  { path: '/settings/ai-tools', element: <SuspendedAIToolsPage /> },
   { path: '/settings/backup', element: <SuspendedBackupSettingsPage /> },
   { path: '/settings/scheduled', element: <SuspendedScheduledPostsPage /> },
-  { path: '/profile-editor', element: <SuspendedProfileEditorPage /> },
   { path: '/mutes', element: <SuspendedMuteListPage /> },
-  { path: '/rizful', element: <SuspendedRizfulPage /> },
   { path: '/lists', element: <SuspendedListsIndexPage /> },
   { path: '/lists/create', element: <SuspendedListEditorPage /> },
   { path: '/lists/:id', element: <SuspendedListPage listId="" /> },

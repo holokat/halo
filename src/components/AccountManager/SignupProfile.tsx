@@ -15,7 +15,6 @@ import { cn } from '@/lib/utils'
 import Uploader from '@/components/PostEditor/Uploader'
 import { generateImageByPubkey } from '@/lib/pubkey'
 import { useNostr } from '@/providers/NostrProvider'
-import vanityAddress from '@/services/vanity-address.service'
 import { TCustomFeed } from '@/types'
 import { getPublicKey, generateSecretKey } from 'nostr-tools'
 import { nsecEncode, npubEncode } from 'nostr-tools/nip19'
@@ -123,10 +122,6 @@ export default function SignupProfile({
         setIsPreparingAccount(true)
         try {
           await nsecLogin(signupKeys.nsec, '', true)
-          await vanityAddress.registerSignupEligibility().catch((error) => {
-            console.warn('Failed to register vanity eligibility during signup:', error)
-          })
-
           signupAccountReadyRef.current = true
 
           // Let context consumers observe the new signer/account before follow-up onboarding work.

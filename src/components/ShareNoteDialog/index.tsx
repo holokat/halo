@@ -212,7 +212,7 @@ export default function ShareNoteDialog({
         id: 'email',
         label: t('Share by email', { defaultValue: 'Share by email' }),
         href: `mailto:?subject=${encodeURIComponent(
-          t('Shared note from x21', { defaultValue: 'Shared note from x21' })
+          t('Shared note from Halo', { defaultValue: 'Shared note from Halo' })
         )}&body=${encodeURIComponent(`${noteText}\n\n${shareUrl}`)}`,
         icon: <Mail className="size-4" />,
         external: false
@@ -237,7 +237,7 @@ export default function ShareNoteDialog({
         ])
         toast.success(t('Image copied to clipboard', { defaultValue: 'Image copied to clipboard' }))
       } else {
-        downloadBlob(imageBlob, `x21-note-${event.id.slice(0, 8)}.png`)
+        downloadBlob(imageBlob, `halo-note-${event.id.slice(0, 8)}.png`)
         toast.success(
           t('Image downloaded instead', {
             defaultValue: 'Image downloaded instead'
@@ -511,7 +511,7 @@ function buildShareCardSvg({
       ${imageMarkup}
 
       <line x1="${bodyX}" y1="${footerLineY}" x2="${CONTENT_X + CONTENT_WIDTH - 44}" y2="${footerLineY}" stroke="rgba(255,255,255,0.10)" stroke-width="2" />
-      <text x="${bodyX}" y="${footerTextY}" fill="rgba(250,250,255,0.46)" font-size="17" font-family="Inter, Arial, sans-serif">x21.social</text>
+      <text x="${bodyX}" y="${footerTextY}" fill="rgba(250,250,255,0.46)" font-size="17" font-family="Inter, Arial, sans-serif">Halo</text>
       <text x="${CONTENT_X + CONTENT_WIDTH - 44}" y="${footerTextY}" text-anchor="end" fill="rgba(250,250,255,0.46)" font-size="17" font-family="Inter, Arial, sans-serif">via Nostr</text>
     </svg>
   `

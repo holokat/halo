@@ -1,23 +1,20 @@
-# x21.social
+# Halo
 
-A customizable Nostr client focused on real-time social feeds, lists, reads, live activity, widgets, and Bitcoin-native interactions.
+A customizable Nostr client focused on real-time social feeds, lists, reads, live activity, and widgets.
 
-Live site: [https://x21.social](https://x21.social)
+Live site: [https://halo.social](https://halo.social)
 
-## What x21 Includes
+## What Halo Includes
 
 - Multi-account Nostr login flows (`nsec`, `npub`, NIP-07 extension, Bunker, and Nostr Connection)
-- Core social surfaces: Home, Explore, Reads, Lists, Notifications, Search, Profile
-- Rich feed switching: following, bookmarks, highlights, one-note-per-person, relay sets, custom feeds
-- List system: create/edit/follow/share lists, list pages, list previews, list stats, list zaps
+- Core social surfaces: Home, Explore, Reads, Notifications, Search, Profile
+- Rich feed switching: following, bookmarks, one-note-per-person, relay sets, custom feeds
+- List system: create/edit/follow/share lists, list pages, and list previews
 - Long-form article support with markdown rendering and Nostr-aware links
-- Live stream support (NIP-53 style flows): discovery, live detail view, chat, and zap interactions
-- Wallet and zap settings with WebLN/Nostr wallet flows (default amount/comment, quick zap, charge zap, zap sounds, receiving settings)
-- Translation system with multiple providers (Jumble, LibreTranslate, OpenRouter) and staggered i18n fallback
-- AI tooling (provider/model configuration for OpenRouter and PPQ.ai)
+- Live stream support (NIP-53 style flows): discovery and live detail view
 - Backup and restore via local JSON export/import and Nostr sync using NIP-78
 - Highly customizable UI (themes, palette, font controls, radii, media style, sidebar/menu controls, widget sidebar controls)
-- Optional widgets including Trending Notes, Bitcoin Ticker, Pinned Note widgets, AI Prompt widget, and Invite widget
+- Optional widgets including Trending Notes, Bitcoin Ticker, Pinned Note widgets, and Invite widget
 - Media and post tooling: image/gallery flows, GIF picker, polls, note expiration, relay targeting, upload service settings
 - PWA setup via `vite-plugin-pwa` and route-level lazy loading for better performance
 
@@ -33,8 +30,8 @@ Live site: [https://x21.social](https://x21.social)
 ### Option 1: Docker (recommended for URL preview/proxy support)
 
 ```bash
-git clone git@github.com:karnagebitcoin/x21.git
-cd x21
+git clone git@github.com:karnagebitcoin/halo.git
+cd halo
 docker compose up -d
 ```
 
@@ -43,8 +40,8 @@ App: `http://localhost:8089`
 ### Option 2: Node only (fastest app iteration)
 
 ```bash
-git clone git@github.com:karnagebitcoin/x21.git
-cd x21
+git clone git@github.com:karnagebitcoin/halo.git
+cd halo
 npm install
 npm run dev
 ```
@@ -56,7 +53,7 @@ docker compose -f docker-compose.dev.yml up -d
 ```
 
 This starts:
-- x21 app (`8089`)
+- Halo app (`8089`)
 - proxy server (`8090`)
 - local `nostr-rs-relay` (`7000`)
 
@@ -84,11 +81,11 @@ We now keep a shared change-safety checklist in [docs/CHANGE_GUARDRAILS.md](docs
 
 ## Acknowledgment
 
-x21.social is forked from Cody Tseng's Jumble project.
+Halo is forked from Cody Tseng's Jumble project.
 
 Huge thanks to Cody Tseng for building and open-sourcing the foundation this project is built on.
 
-Original project: [https://github.com/CodyTseng/x21](https://github.com/CodyTseng/x21)
+Original project: [https://github.com/CodyTseng/halo](https://github.com/CodyTseng/halo)
 
 ## License
 

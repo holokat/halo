@@ -1,9 +1,8 @@
 import { cn } from '@/lib/utils'
 import { useTranslation } from 'react-i18next'
 import { useRef, useEffect, useState } from 'react'
-import { usePaymentsEnabled } from '@/providers/PaymentsEnabledProvider'
 
-export type TTabValue = 'replies' | 'quotes' | 'reactions' | 'reposts' | 'zaps'
+export type TTabValue = 'replies' | 'quotes' | 'reactions' | 'reposts'
 
 export function Tabs({
   selectedTab,
@@ -13,13 +12,11 @@ export function Tabs({
   onTabChange: (tab: TTabValue) => void
 }) {
   const { t } = useTranslation()
-  const { paymentsEnabled } = usePaymentsEnabled()
   const tabRefs = useRef<(HTMLDivElement | null)[]>([])
   const [indicatorStyle, setIndicatorStyle] = useState({ width: 0, left: 0 })
 
   const TABS = [
     { value: 'replies', label: 'Replies' },
-    ...(paymentsEnabled ? [{ value: 'zaps', label: 'Zaps' }] : []),
     { value: 'reposts', label: 'Reposts' },
     { value: 'reactions', label: 'Reactions' },
     { value: 'quotes', label: 'Quotes' }
@@ -38,7 +35,7 @@ export function Tabs({
         })
       }
     }, 20) // ensure tabs are rendered before calculating
-  }, [selectedTab, paymentsEnabled, TABS])
+  }, [selectedTab, TABS])
 
   return (
     <div className="w-fit">

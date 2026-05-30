@@ -1,14 +1,13 @@
 import './i18n'
 import './index.css'
 import './polyfill'
-import './services/lightning.service'
 
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import { ErrorBoundary } from './components/ErrorBoundary.tsx'
 
-const CHUNK_RELOAD_KEY = 'x21:chunk-reload-attempted'
+const CHUNK_RELOAD_KEY = 'halo:chunk-reload-attempted'
 const CHUNK_RELOAD_WINDOW_MS = 60_000
 
 const reloadForChunkFailure = () => {

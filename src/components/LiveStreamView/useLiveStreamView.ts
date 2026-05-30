@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Event as NostrEvent } from 'nostr-tools'
-import { getZapInfoFromEvent } from '@/lib/event-metadata'
 import { useNostr } from '@/providers/NostrProvider'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import { useLiveStreamPopout } from '@/providers/LiveStreamPopoutProvider'
@@ -17,7 +16,6 @@ import {
   getPrimaryStreamRelays,
   getStreamRelays,
   isMatchingLiveAddress,
-  LiveZap,
   formatMediaTime
 } from './live-stream-view.utils'
 
@@ -36,12 +34,10 @@ export function useLiveStreamView({
   const decodedEvent = useMemo(() => decodeLiveNaddr(naddr), [naddr])
   const [liveEvent, setLiveEvent] = useState<NostrEvent | null>(null)
   const [chatMessages, setChatMessages] = useState<NostrEvent[]>([])
-  const [zaps, setZaps] = useState<LiveZap[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showSlowLoading, setShowSlowLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [isSending, setIsSending] = useState(false)
-  const [isStreamZapOpen, setIsStreamZapOpen] = useState(false)
   const [isAboutOpen, setIsAboutOpen] = useState(false)
   const [isVideoPlaying, setIsVideoPlaying] = useState(false)
   const [isVideoMuted, setIsVideoMuted] = useState(false)
@@ -99,7 +95,6 @@ export function useLiveStreamView({
       setShowSlowLoading(false)
       setLiveEvent(null)
       setChatMessages([])
-      setZaps([])
       setCurrentTime(0)
       setDuration(0)
       setIsVideoPlaying(false)
@@ -126,7 +121,6 @@ export function useLiveStreamView({
     setShowSlowLoading(false)
     setLiveEvent(hydratedInitialEvent)
     setChatMessages([])
-    setZaps([])
     setCurrentTime(0)
     setDuration(0)
     setIsVideoPlaying(false)
@@ -194,35 +188,6 @@ export function useLiveStreamView({
       )
       closers.push(chatSub)
 
-      const zapsSub = client.subscribe(
-        targetRelays,
-        {
-          kinds: [9735],
-          '#a': [addressTag],
-          limit: 100
-        },
-        {
-          onevent: (event: NostrEvent) => {
-            const zapInfo = getZapInfoFromEvent(event)
-            if (!zapInfo?.amount || !zapInfo.senderPubkey) return
-            const senderPubkey = zapInfo.senderPubkey
-
-            setZaps((previous) => {
-              if (previous.some((item) => item.id === event.id)) return previous
-
-              const nextZap: LiveZap = {
-                id: event.id,
-                pubkey: senderPubkey,
-                amount: zapInfo.amount,
-                created_at: event.created_at,
-                comment: zapInfo.comment
-              }
-              return [...previous, nextZap].sort((a, b) => b.created_at - a.created_at)
-            })
-          }
-        }
-      )
-      closers.push(zapsSub)
     }
 
     const queryLiveEvent = (targetRelays: string[]) =>
@@ -375,11 +340,6 @@ export function useLiveStreamView({
       setIsSending(false)
     }
   }, [checkLogin, decodedEvent, message, pubkey, publish, scheduleScrollChatToBottom])
-
-  const zapLiveEvent = useCallback(() => {
-    if (!liveEvent) return
-    setIsStreamZapOpen(true)
-  }, [liveEvent])
 
   const toggleVideoPlayback = useCallback(async () => {
     if (isInPopout) return
@@ -671,7 +631,6 @@ export function useLiveStreamView({
     isPinnedToWidget,
     isSending,
     isSmallScreen,
-    isStreamZapOpen,
     isVideoMuted,
     isVideoPlaying,
     liveEvent,
@@ -684,7 +643,6 @@ export function useLiveStreamView({
     handleSeek,
     sendMessage,
     setIsAboutOpen,
-    setIsStreamZapOpen,
     setMessage,
     handleVideoDurationChange,
     handleVideoEnded,
@@ -705,8 +663,6 @@ export function useLiveStreamView({
     toggleVideoMute,
     toggleVideoPlayback,
     videoContainerRef,
-    videoRef,
-    zaps,
-    zapLiveEvent
+    videoRef
   }
 }

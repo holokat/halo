@@ -2,8 +2,6 @@ import { BIG_RELAY_URLS, ExtendedKind } from '@/constants'
 import { isMentioningMutedUsers } from '@/lib/event'
 import { getPollMetadataFromEvent } from '@/lib/event-metadata'
 import client from '@/services/client.service'
-import { type TLegacyZapPollResults, getDefaultLegacyZapPollAmount, getLegacyZapPollResults } from '@/lib/poll'
-import noteStatsService from '@/services/note-stats.service'
 import pollResultsService, { type TPollResults } from '@/services/poll-results.service'
 import { Event, kinds } from 'nostr-tools'
 
@@ -24,7 +22,6 @@ export type PollWidgetItem = {
   event: Event
   poll: PollMetadata
   pollResults: TPollResults | undefined
-  legacyResults?: TLegacyZapPollResults
   votedOptionIds: string[]
   isExpired: boolean
   hasVoted: boolean
@@ -196,18 +193,9 @@ export function getPollStateSnapshot(params: {
     if (!poll) return items
     const pubkey = params.pubkey ?? ''
 
-    const pollResults =
-      poll.format === 'nip88' ? pollResultsService.getPollResults(event.id) : undefined
-    const legacyResults =
-      poll.format === 'legacy_zap'
-        ? getLegacyZapPollResults(poll, noteStatsService.getNoteStats(event.id)?.zaps ?? [])
-        : undefined
+    const pollResults = pollResultsService.getPollResults(event.id)
     const votedOptionIds = pubkey
-      ? poll.format === 'legacy_zap'
-        ? Object.entries(legacyResults?.results ?? {})
-            .filter(([, result]) => result.voters.has(pubkey))
-            .map(([optionId]) => optionId)
-        : Object.entries(pollResults?.results ?? {})
+      ? Object.entries(pollResults?.results ?? {})
             .filter(([, voters]) => voters.has(pubkey))
             .map(([optionId]) => optionId)
       : []
@@ -225,7 +213,6 @@ export function getPollStateSnapshot(params: {
       event,
       poll,
       pollResults,
-      legacyResults,
       votedOptionIds,
       isExpired,
       hasVoted: votedOptionIds.length > 0,

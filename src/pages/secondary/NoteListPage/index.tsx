@@ -1,4 +1,3 @@
-import { Favicon } from '@/components/Favicon'
 import NormalFeed from '@/components/NormalFeed'
 import StockQuoteCard from '@/components/StockQuoteCard'
 import { Button } from '@/components/ui/button'
@@ -13,34 +12,24 @@ import {
 import { Input } from '@/components/ui/input'
 import { BIG_RELAY_URLS, SEARCHABLE_RELAY_URLS } from '@/constants'
 import SecondaryPageLayout from '@/layouts/SecondaryPageLayout'
-import { toProfileList } from '@/lib/link'
 import { randomString } from '@/lib/random'
-import { fetchPubkeysFromDomain, getWellKnownNip05Url } from '@/lib/nip05'
-import { useSecondaryPage } from '@/PageManager'
 import { useCustomFeeds } from '@/providers/CustomFeedsProvider'
 import { useNostr } from '@/providers/NostrProvider'
-import client from '@/services/client.service'
 import { TCustomFeed, TFeedSubRequest } from '@/types'
-import { Plus, UserRound } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import React, { forwardRef, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 const NoteListPage = forwardRef(({ index }: { index?: number }, ref) => {
   const { t } = useTranslation()
-  const { push } = useSecondaryPage()
-  const { relayList, pubkey } = useNostr()
+  const { relayList } = useNostr()
   const { addCustomFeed } = useCustomFeeds()
   const [title, setTitle] = useState<React.ReactNode>(null)
   const [controls, setControls] = useState<React.ReactNode>(null)
   const [data, setData] = useState<
     | {
         type: 'hashtag' | 'search' | 'externalContent'
-        kinds?: number[]
-      }
-    | {
-        type: 'domain'
-        domain: string
         kinds?: number[]
       }
     | null
@@ -137,38 +126,6 @@ const NoteListPage = forwardRef(({ index }: { index?: number }, ref) => {
         ])
         return
       }
-      const domain = searchParams.get('d')
-      if (domain) {
-        setTitle(
-          <div className="flex items-center gap-1">
-            {domain}
-            <Favicon domain={domain} className="w-5 h-5" />
-          </div>
-        )
-        setControls(null)
-        const pubkeys = await fetchPubkeysFromDomain(domain)
-        setData({
-          type: 'domain',
-          domain
-        })
-        setCurrentHashtag(null)
-        setCurrentStockSymbol(null)
-        if (pubkeys.length) {
-          setSubRequests(await client.generateSubRequestsForPubkeys(pubkeys, pubkey))
-          setControls(
-            <Button
-              variant="ghost"
-              className="h-10 [&_svg]:size-3"
-              onClick={() => push(toProfileList({ domain }))}
-            >
-              {pubkeys.length.toLocaleString()} <UserRound />
-            </Button>
-          )
-        } else {
-          setSubRequests([])
-        }
-        return
-      }
     }
     init()
   }, [])
@@ -193,15 +150,7 @@ const NoteListPage = forwardRef(({ index }: { index?: number }, ref) => {
   }
 
   let content: React.ReactNode = null
-  if (data?.type === 'domain' && subRequests.length === 0) {
-    content = (
-      <div className="text-center w-full py-10">
-        <span className="text-muted-foreground">
-          {t('No pubkeys found from {url}', { url: getWellKnownNip05Url(data.domain) })}
-        </span>
-      </div>
-    )
-  } else if (data) {
+  if (data) {
     content = (
       <div className="space-y-4">
         {currentStockSymbol && <StockQuoteCard symbol={currentStockSymbol} />}

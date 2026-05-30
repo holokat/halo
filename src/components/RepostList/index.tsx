@@ -8,7 +8,6 @@ import { Event } from 'nostr-tools'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FormattedTimestamp } from '../FormattedTimestamp'
-import Nip05 from '../Nip05'
 import UserAvatar from '../UserAvatar'
 import Username from '../Username'
 
@@ -60,7 +59,6 @@ export default function RepostList({ event }: { event: Event }) {
               skeletonClassName="h-3"
             />
             <div className="flex items-center gap-1 text-sm text-muted-foreground">
-              <Nip05 pubkey={repost.pubkey} append="·" />
               <FormattedTimestamp
                 timestamp={repost.created_at}
                 className="shrink-0"

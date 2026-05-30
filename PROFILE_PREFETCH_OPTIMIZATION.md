@@ -149,7 +149,6 @@ The prefetch approach gets us the same user experience with minimal changes.
 
 Potential improvements:
 - Prefetch relay lists (kind 10002) for mentioned users
-- Prefetch NIP-05 verification data
 - Adjustable prefetch depth (mentions of mentions?)
 - Smart prefetching based on user scroll patterns
 

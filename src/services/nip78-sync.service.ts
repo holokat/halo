@@ -22,7 +22,7 @@ export interface NostrSigner {
 }
 
 const NIP78_KIND = 30078
-const BACKUP_D_TAG = 'x21/settings-backup'
+const BACKUP_D_TAG = 'halo/settings-backup'
 const SYNC_INTERVAL = 5 * 60 * 1000 // 5 minutes
 
 class Nip78SyncService {
@@ -95,8 +95,8 @@ class Nip78SyncService {
         kind: NIP78_KIND,
         tags: [
           ['d', BACKUP_D_TAG],
-          ['l', 'x21/backup'],
-          ['client', 'x21']
+          ['l', 'halo/backup'],
+          ['client', 'halo']
         ],
         content: encrypted,
         created_at: Math.floor(Date.now() / 1000)

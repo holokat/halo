@@ -93,13 +93,11 @@ function FilteredUserItem({
     const query = searchQuery.toLowerCase()
     const username = profile.username?.toLowerCase() || ''
     const originalUsername = profile.original_username?.toLowerCase() || ''
-    const nip05 = profile.nip05?.toLowerCase() || ''
     const about = profile.about?.toLowerCase() || ''
 
     return (
       username.includes(query) ||
       originalUsername.includes(query) ||
-      nip05.includes(query) ||
       about.includes(query) ||
       pubkey.toLowerCase().includes(query)
     )

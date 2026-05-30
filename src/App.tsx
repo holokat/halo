@@ -2,7 +2,6 @@ import 'yet-another-react-lightbox/styles.css'
 import './index.css'
 
 import { Toaster } from '@/components/ui/sonner'
-import { AIProvider } from '@/providers/AIProvider'
 import { BookmarksProvider } from '@/providers/BookmarksProvider'
 import { ButtonRadiusProvider } from '@/providers/ButtonRadiusProvider'
 import { CardRadiusProvider } from '@/providers/CardRadiusProvider'
@@ -42,14 +41,11 @@ import { ReplyProvider } from '@/providers/ReplyProvider'
 import { ScreenSizeProvider } from '@/providers/ScreenSizeProvider'
 import { ThemeProvider } from '@/providers/ThemeProvider'
 import { ColorPaletteProvider } from '@/providers/ColorPaletteProvider'
-import { TranslationServiceProvider } from '@/providers/TranslationServiceProvider'
 import { TrendingNotesDismissedProvider } from '@/providers/TrendingNotesDismissedProvider'
 import { UserPreferencesProvider } from '@/providers/UserPreferencesProvider'
 import { UserTrustProvider } from '@/providers/UserTrustProvider'
 import { WidgetsProvider } from '@/providers/WidgetsProvider'
 import { WidgetSidebarDismissedProvider } from '@/providers/WidgetSidebarDismissedProvider'
-import { ZapProvider } from '@/providers/ZapProvider'
-import { PaymentsEnabledProvider } from '@/providers/PaymentsEnabledProvider'
 import { RTLProvider } from '@/providers/RTLProvider'
 import { NoteExpirationProvider } from '@/providers/NoteExpirationProvider'
 import { TextOnlyModeProvider } from '@/providers/TextOnlyModeProvider'
@@ -92,18 +88,14 @@ export default function App(): JSX.Element {
                                                     <DeletedEventProvider>
                                                       <NostrProvider>
                                                         <ListsProvider>
-                                                          <ZapProvider>
-                                                            <PaymentsEnabledProvider>
-                                                              <TextOnlyModeProvider>
+                                                          <TextOnlyModeProvider>
                                                                 <LowBandwidthModeProvider>
                                                                   <DisableAvatarAnimationsProvider>
                                                                     <CollapseLongNotesProvider>
                                                                       <AlwaysShowFullMediaProvider>
                                                                         <NoteExpirationProvider>
                                                                           <DefaultReactionEmojisProvider>
-                                                                            <TranslationServiceProvider>
-                                                                              <AIProvider>
-                                                                                <FavoriteRelaysProvider>
+                                                                            <FavoriteRelaysProvider>
                                                                                   <FollowListProvider>
                                                                                     <MuteListProvider>
                                                                                       <UserTrustProvider>
@@ -145,17 +137,13 @@ export default function App(): JSX.Element {
                                                                                     </MuteListProvider>
                                                                                   </FollowListProvider>
                                                                                 </FavoriteRelaysProvider>
-                                                                              </AIProvider>
-                                                                            </TranslationServiceProvider>
                                                                           </DefaultReactionEmojisProvider>
                                                                         </NoteExpirationProvider>
                                                                       </AlwaysShowFullMediaProvider>
                                                                     </CollapseLongNotesProvider>
                                                                   </DisableAvatarAnimationsProvider>
                                                                 </LowBandwidthModeProvider>
-                                                              </TextOnlyModeProvider>
-                                                            </PaymentsEnabledProvider>
-                                                          </ZapProvider>
+                                                          </TextOnlyModeProvider>
                                                         </ListsProvider>
                                                       </NostrProvider>
                                                     </DeletedEventProvider>

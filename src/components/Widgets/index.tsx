@@ -7,12 +7,9 @@ import PollsWidget from '@/components/PollsWidget'
 import BitcoinTickerWidget from '@/components/BitcoinTicker/BitcoinTickerWidget'
 import StockTrackerWidget from '@/components/StockTrackerWidget'
 import PinnedNoteWidget from '@/components/PinnedNoteWidget'
-import AIPromptWidget from '@/components/AIPromptWidget'
-import SidebarAIPromptWidget from '@/components/AIPromptWidget/SidebarAIPromptWidget'
 import InviteWidget from '@/components/InviteWidget'
 import LiveStreamWidget from '@/components/LiveStreamWidget'
 import { cn } from '@/lib/utils'
-import { createPortal } from 'react-dom'
 
 const WIDGET_COMPONENTS: Record<string, React.ComponentType> = {
   'bitcoin-ticker': BitcoinTickerWidget,
@@ -21,12 +18,11 @@ const WIDGET_COMPONENTS: Record<string, React.ComponentType> = {
   polymarket: PolymarketWidget,
   polls: PollsWidget,
   'stock-tracker': StockTrackerWidget,
-  'ai-prompt': SidebarAIPromptWidget,
   'invite': InviteWidget
 }
 
 export default function Widgets() {
-  const { enabledWidgets, pinnedNoteWidgets, liveStreamWidgets, aiPromptWidgets } = useWidgets()
+  const { enabledWidgets, pinnedNoteWidgets, liveStreamWidgets } = useWidgets()
   const { pageTheme } = usePageTheme()
 
   // Use border for pure-black and white themes, shadow for others
@@ -67,16 +63,6 @@ export default function Widgets() {
                     image={liveStream.image}
                   />
                 </div>
-              )
-            }
-
-            // Check if this is a floating AI prompt widget (from "Prompt Note" button)
-            const floatingAIPrompt = aiPromptWidgets.find((w) => w.id === widgetId)
-            if (floatingAIPrompt && widgetId !== 'ai-prompt') {
-              // Render floating AI prompts via portal
-              return createPortal(
-                <AIPromptWidget key={widgetId} widgetId={widgetId} eventId={floatingAIPrompt.eventId} />,
-                document.body
               )
             }
 

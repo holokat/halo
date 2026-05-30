@@ -69,24 +69,18 @@ export const toSettings = () => '/settings'
 export const toRelaySettings = (tag?: 'mailbox' | 'favorite-relays') => {
   return '/settings/relays' + (tag ? '#' + tag : '')
 }
-export const toWallet = () => '/settings/wallet'
 export const toPostSettings = () => '/settings/posts'
 export const toGeneralSettings = () => '/settings/general'
 export const toFeedsSettings = () => '/settings/feeds'
 export const toContentPrivacySettings = () => '/settings/content-privacy'
 export const toAppearanceSettings = () => '/settings/appearance'
 export const toWidgetsSettings = () => '/settings/widgets'
-export const toTranslation = () => '/settings/translation'
-export const toVanityAddressSettings = () => '/settings/vanity-address'
-export const toAITools = () => '/settings/ai-tools'
 export const toBackupSettings = () => '/settings/backup'
 export const toKeysSettings = () => '/settings/keys'
 export const toScheduledPostsSettings = () => '/settings/scheduled'
-export const toProfileEditor = () => '/profile-editor'
 export const toRelay = (url: string) => `/relays/${encodeURIComponent(url)}`
 export const toRelayReviews = (url: string) => `/relays/${encodeURIComponent(url)}/reviews`
 export const toMuteList = () => '/mutes'
-export const toRizful = () => '/rizful'
 export const toListsIndex = () => '/lists'
 export const toList = (id: string) => `/lists/${id}`
 export const toCreateList = () => '/lists/create'

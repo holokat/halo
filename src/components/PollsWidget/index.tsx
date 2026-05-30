@@ -147,7 +147,6 @@ export default function PollsWidget() {
                       key={item.event.id}
                       event={item.event}
                       poll={item.poll}
-                      legacyResults={item.legacyResults}
                       now={now}
                       commentCount={item.commentCount}
                       votedOptionIds={item.votedOptionIds}

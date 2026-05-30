@@ -14,7 +14,6 @@ import { cn } from '@/lib/utils'
 import AccountButton from './AccountButton'
 import RelaysButton from './ExploreButton'
 import HomeButton from './HomeButton'
-import MessagesButton from './MessagesButton'
 import NotificationsButton from './NotificationButton'
 import PostButton from './PostButton'
 import ReadsButton from './ReadsButton'
@@ -62,7 +61,7 @@ export default function PrimaryPageSidebar() {
 
   // Get visible menu items sorted by order
   const visibleMenuItems = menuItems
-    .filter((item) => item.visible && item.canReorder)
+    .filter((item) => item.visible && item.canReorder && item.id !== 'lists' && item.id !== 'livestreams')
     .sort((a, b) => a.order - b.order)
 
   // Get deck toggle visibility
@@ -76,7 +75,6 @@ export default function PrimaryPageSidebar() {
     lists: <ListsButton />,
     explore: <RelaysButton />,
     notifications: <NotificationsButton />,
-    messages: <MessagesButton />,
     livestreams: <LiveStreamsButton />,
     post: <PostButton />
   }

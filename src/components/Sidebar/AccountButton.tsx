@@ -9,13 +9,13 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import useDeferredAction from '@/hooks/useDeferredAction'
-import { toSettings, toWallet } from '@/lib/link'
+import { toSettings } from '@/lib/link'
 import { cn } from '@/lib/utils'
 import { formatPubkey, generateImageByPubkey } from '@/lib/pubkey'
 import { usePrimaryPage, useSecondaryPage } from '@/PageManager'
 import { useCompactSidebar } from '@/providers/CompactSidebarProvider'
 import { useNostr } from '@/providers/NostrProvider'
-import { ArrowDownUp, LogIn, LogOut, Settings, UserRound, Wallet } from 'lucide-react'
+import { ArrowDownUp, LogIn, LogOut, Settings, UserRound } from 'lucide-react'
 import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import LoginDialog from '../LoginDialog'
@@ -111,15 +111,6 @@ function ProfileButton() {
         >
           <Settings />
           {t('Settings')}
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={(e) => {
-            e.preventDefault()
-            navigateFromMenu(() => push(toWallet()))
-          }}
-        >
-          <Wallet />
-          {t('Wallet')}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem

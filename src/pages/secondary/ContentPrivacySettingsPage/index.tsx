@@ -21,7 +21,7 @@ import { useTranslation } from 'react-i18next'
 
 function getInitialTab() {
   const tab = new URLSearchParams(window.location.search).get('tab')
-  if (tab === 'words' || tab === 'hashtags' || tab === 'threads' || tab === 'domains') {
+  if (tab === 'words' || tab === 'hashtags' || tab === 'threads') {
     return tab
   }
   return 'content'
@@ -61,8 +61,7 @@ const ContentPrivacySettingsPage = forwardRef(({ index }: { index?: number }, re
     { value: 'content', label: t('Content') },
     { value: 'words', label: t('Muted Words') },
     { value: 'hashtags', label: t('Muted Hashtags') },
-    { value: 'threads', label: t('Muted Threads') },
-    { value: 'domains', label: t('Muted Domains') }
+    { value: 'threads', label: t('Muted Threads') }
   ]
 
   return (
@@ -334,7 +333,6 @@ const ContentPrivacySettingsPage = forwardRef(({ index }: { index?: number }, re
         {activeTab === 'threads' && <MutedThreadsTab />}
 
         {/* MUTED DOMAINS TAB */}
-        {activeTab === 'domains' && <MutedDomainsTab />}
       </div>
     </SecondaryPageLayout>
   )
@@ -359,7 +357,7 @@ function MutedWordsTab() {
   return (
     <div className="space-y-4 mt-4 px-4">
       <div className="text-sm text-muted-foreground">
-        {t('Muted words are private on x21 by default.')}
+        {t('Muted words are private on Halo by default.')}
       </div>
       <div className="flex gap-2">
         <Input
@@ -386,7 +384,7 @@ function MutedWordsTab() {
             <div className="min-w-0">
               <div className="truncate">{word}</div>
               <div className="text-xs text-muted-foreground">
-                {isMutedWordPublic(word) ? t('May sync across clients') : t('Private on x21')}
+                {isMutedWordPublic(word) ? t('May sync across clients') : t('Private on Halo')}
               </div>
             </div>
             <div className="flex items-center gap-1 shrink-0">
@@ -433,7 +431,7 @@ function MutedHashtagsTab() {
   return (
     <div className="space-y-4 mt-4 px-4">
       <div className="text-sm text-muted-foreground">
-        {t('Muted hashtags are private on x21 by default.')}
+        {t('Muted hashtags are private on Halo by default.')}
       </div>
       <div className="flex gap-2">
         <div className="relative flex-1">
@@ -467,7 +465,7 @@ function MutedHashtagsTab() {
             <div className="min-w-0">
               <div className="truncate">#{tag}</div>
               <div className="text-xs text-muted-foreground">
-                {isMutedTagPublic(tag) ? t('May sync across clients') : t('Private on x21')}
+                {isMutedTagPublic(tag) ? t('May sync across clients') : t('Private on Halo')}
               </div>
             </div>
             <div className="flex items-center gap-1 shrink-0">
@@ -562,76 +560,6 @@ function MutedThreadItem({ eventId, onRemove }: { eventId: string; onRemove: () 
       >
         <X className="size-3" />
       </Button>
-    </div>
-  )
-}
-
-function MutedDomainsTab() {
-  const { t } = useTranslation()
-  const { getMutedDomains, addMutedDomain, removeMutedDomain } = useMuteList()
-  const [newDomain, setNewDomain] = useState('')
-  const mutedDomains = getMutedDomains()
-
-  const handleAddDomain = () => {
-    if (newDomain.trim()) {
-      // Remove any protocol and path, extract just the domain
-      let domain = newDomain.trim().toLowerCase()
-      domain = domain.replace(/^https?:\/\//, '') // Remove http:// or https://
-      domain = domain.replace(/^www\./, '') // Remove www.
-      domain = domain.split('/')[0] // Remove any path
-      domain = domain.split('?')[0] // Remove any query params
-
-      if (domain) {
-        addMutedDomain(domain)
-        setNewDomain('')
-      }
-    }
-  }
-
-  return (
-    <div className="space-y-4 mt-4 px-4">
-      <div className="text-sm text-muted-foreground mb-4">
-        {t('Mute all users with a NIP-05 address from a specific domain (e.g., primal.net)')}
-      </div>
-      <div className="flex gap-2">
-        <Input
-          value={newDomain}
-          onChange={(e) => setNewDomain(e.target.value)}
-          placeholder={t('Add muted domain (e.g., primal.net)...')}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault()
-              handleAddDomain()
-            }
-          }}
-        />
-        <Button onClick={handleAddDomain} size="icon">
-          <Plus />
-        </Button>
-      </div>
-      <div className="space-y-2">
-        {mutedDomains.map((domain, index) => (
-          <div
-            key={index}
-            className="flex items-center justify-between px-4 py-1 rounded-lg border"
-          >
-            <span>{domain}</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => removeMutedDomain(domain)}
-              className="h-7 w-7"
-            >
-              <X className="size-3" />
-            </Button>
-          </div>
-        ))}
-        {mutedDomains.length === 0 && (
-          <div className="text-center text-muted-foreground py-8">
-            {t('No muted domains')}
-          </div>
-        )}
-      </div>
     </div>
   )
 }

@@ -155,10 +155,10 @@ const ScheduledPostsPage = forwardRef(({ index }: { index?: number }, ref) => {
       <div className="space-y-3 px-4 pt-3">
         <div className="rounded-lg border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
           {t(
-            'Scheduled notes are sent from this browser while this account is active. If x21 is closed, notes will send next time it is opened.',
+            'Scheduled notes are sent from this browser while this account is active. If Halo is closed, notes will send next time it is opened.',
             {
               defaultValue:
-                'Scheduled notes are sent from this browser while this account is active. If x21 is closed, notes will send next time it is opened.'
+                'Scheduled notes are sent from this browser while this account is active. If Halo is closed, notes will send next time it is opened.'
             }
           )}
         </div>

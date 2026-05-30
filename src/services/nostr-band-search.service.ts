@@ -92,9 +92,7 @@ class NostrBandSearchService {
     // Look for "by [author]" pattern
     const byMatch = text.match(/\bby:?\s*(\S+)/i)
     if (byMatch && !npubMatch) {
-      // This might be a name - we can't resolve it here, but we can pass it through
-      // The AI should handle resolving names to npubs
-      return null // Let AI handle this case
+      return null
     }
 
     // Extract kind filters
@@ -138,7 +136,6 @@ class NostrBandSearchService {
 
   /**
    * Extracts note IDs from nostr.band search results HTML
-   * Note: This would require the AI to fetch and parse the HTML
    */
   extractNoteIdsFromHtml(html: string): string[] {
     const noteIds: string[] = []

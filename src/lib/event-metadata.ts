@@ -16,6 +16,5 @@ export {
   getPollMetadataFromEvent,
   getPollResponseFromEvent,
   getProfileFromEvent,
-  getStarsFromRelayReviewEvent,
-  getZapInfoFromEvent
+  getStarsFromRelayReviewEvent
 } from './event-metadata/content'

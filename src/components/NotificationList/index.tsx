@@ -59,14 +59,11 @@ const NotificationList = forwardRef(({ isInDeckView = false }: { isInDeckView?: 
         ]
       case 'reactions':
         return [kinds.Reaction, kinds.Repost, ExtendedKind.POLL_RESPONSE]
-      case 'zaps':
-        return [kinds.Zap]
       default:
         return [
           kinds.ShortTextNote,
           kinds.Repost,
           kinds.Reaction,
-          kinds.Zap,
           ExtendedKind.COMMENT,
           ExtendedKind.POLL_RESPONSE,
           ExtendedKind.VOICE_COMMENT,
@@ -274,8 +271,7 @@ const NotificationList = forwardRef(({ isInDeckView = false }: { isInDeckView?: 
         tabs={[
           { value: 'all', label: 'All' },
           { value: 'mentions', label: 'Mentions' },
-          { value: 'reactions', label: 'Reactions' },
-          { value: 'zaps', label: 'Zaps' }
+          { value: 'reactions', label: 'Reactions' }
         ]}
         onTabChange={(type) => {
           setShowCount(SHOW_COUNT)

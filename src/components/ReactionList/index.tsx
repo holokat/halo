@@ -9,7 +9,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import Emoji from '../Emoji'
 import { FormattedTimestamp } from '../FormattedTimestamp'
-import Nip05 from '../Nip05'
 import UserAvatar from '../UserAvatar'
 import Username from '../Username'
 
@@ -71,7 +70,6 @@ export default function ReactionList({ event }: { event: Event }) {
               skeletonClassName="h-3"
             />
             <div className="flex items-center gap-1 text-sm text-muted-foreground">
-              <Nip05 pubkey={like.pubkey} append="·" />
               <FormattedTimestamp
                 timestamp={like.created_at}
                 className="shrink-0"

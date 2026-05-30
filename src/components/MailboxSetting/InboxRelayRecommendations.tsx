@@ -155,7 +155,7 @@ function RecommendationItem({
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           {recommendation.supportsNip17 && (
             <Badge variant="outline" className="rounded-full px-2 py-0 text-[10px]">
-              NIP-17
+              Inbox
             </Badge>
           )}
           {recommendation.supportsAuth && (

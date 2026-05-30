@@ -109,7 +109,7 @@ const NotePage = forwardRef(({ id, index }: { id?: string; index?: number }, ref
             filterMutedNotes={false}
             hideClientTag
           />
-          <NoteStats className="mt-3" event={event} fetchIfNotExisting displayTopZapsAndLikes />
+          <NoteStats className="mt-3" event={event} fetchIfNotExisting displayTopLikes />
         </div>
       </div>
       <Separator className="mt-4" />

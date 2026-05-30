@@ -1,7 +1,7 @@
 # Live Streams Feature Implementation
 
 ## Overview
-Implemented NIP-53 (Live Activities) support for x21, allowing users to discover and participate in live streaming events with real-time chat.
+Implemented NIP-53 (Live Activities) support for halo, allowing users to discover and participate in live streaming events with real-time chat.
 
 ## Features Implemented
 
@@ -58,28 +58,16 @@ Features:
   - Send messages (requires login)
   - Auto-scroll to latest messages
   - User avatars and timestamps
-  - Message actions (zap, react)
-- **Zaps Display**:
-  - Horizontal scrollable list of recent zaps
-  - Shows zapper avatar and amount
   - Parsed from kind:9735 events
-  - Displays top 20 most recent zaps
 - **Stream Actions**:
-  - Zap the stream
   - Chat participation
 
 ### 6. Live Chat Messages (kind:1311)
 - Subscribe to chat messages using 'a' tag reference
 - Display sender avatar, username, timestamp
-- Support for zapping individual messages
 - Support for reacting to messages
 - Real-time updates as messages arrive
 
-### 7. Zaps Integration
-- Subscribe to kind:9735 zap receipts
-- Parse zap amount from bolt11 invoice
-- Display zapper profile and amount
-- Show zaps for both:
   - The live stream event itself
   - Individual chat messages
 
@@ -88,7 +76,6 @@ Features:
 ### Supported Kinds
 - **30311**: Live Event (addressable event)
 - **1311**: Live Chat Message
-- **9735**: Zap Receipt (for displaying zaps)
 
 ### Event Tags Supported
 
@@ -115,11 +102,10 @@ Features:
 - Preserves user's custom menu configuration
 
 ## Styling & UX
-- Follows x21 design aesthetic
+- Follows halo design aesthetic
 - Red "LIVE" badge with pulsing animation
 - Card-based layout with hover effects
 - Responsive design
-- Scrollable zap list with profile images
 - Auto-scrolling chat
 - Smooth transitions and animations
 
@@ -135,8 +121,6 @@ Added English translations for:
 - Started
 - Live Stream
 - Live stream not found
-- Zap Stream
-- Recent Zaps
 - Live Chat
 - No messages yet. Be the first to chat!
 - Type a message...

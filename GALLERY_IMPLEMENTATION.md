@@ -114,7 +114,6 @@ For images with associated links, we can:
    - Fetch and display gallery using new system
    - Keep backward compatibility for old gallery format
 
-2. **Update ProfileEditorPage**
    - Use new gallery manager
    - Publish kind 30001 on save (if gallery changed)
 
@@ -193,6 +192,5 @@ For images with associated links, we can:
 - `src/services/client.service.ts`
 - `src/components/ProfileGallery/index.tsx`
 - `src/components/ProfileGalleryManager/index.tsx`
-- `src/pages/secondary/ProfileEditorPage/index.tsx`
 - `src/providers/NostrProvider/index.tsx`
 - `src/lib/event-metadata.ts`

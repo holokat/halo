@@ -49,10 +49,6 @@ const clients: Record<string, { name: string; getUrl: (id: string) => string }> 
     name: 'Lumilumi',
     getUrl: (id: string) => `https://lumilumi.app/${id}`
   },
-  zapStream: {
-    name: 'zap.stream',
-    getUrl: (id: string) => `https://zap.stream/${id}`
-  },
   yakihonne: {
     name: 'YakiHonne',
     getUrl: (id: string) => `https://yakihonne.com/${id}`
@@ -107,7 +103,7 @@ export default function ClientSelect({
       case kinds.DraftLong:
         return ['yakihonne', 'coracle', 'habla', 'lumilumi', 'pareto', 'njump']
       case kinds.LiveEvent:
-        return ['zapStream', 'nostrudel', 'njump']
+        return ['nostrudel', 'njump']
       case kinds.Date:
       case kinds.Time:
         return ['coracle', 'njump']

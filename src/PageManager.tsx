@@ -16,7 +16,6 @@ import {
 } from 'react'
 import { normalizeUrl } from './lib/url'
 import { NotificationProvider } from './providers/NotificationProvider'
-import { MessagesProvider } from './providers/MessagesProvider'
 import { useScreenSize } from './providers/ScreenSizeProvider'
 import { useWidgetSidebarDismissed } from './providers/WidgetSidebarDismissedProvider'
 import modalManager from './services/modal-manager.service'
@@ -270,19 +269,17 @@ export function PageManager({ maxStackSize = 5 }: { maxStackSize?: number }) {
         >
           <CurrentRelaysProvider>
             <NotificationProvider>
-              <MessagesProvider>
-                <PageManagerShell
-                  isSmallScreen={isSmallScreen}
-                  layoutMode={layoutMode}
-                  deckViewMode={deckViewMode}
-                  pageTheme={pageTheme}
-                  primaryPages={primaryPages}
-                  currentPrimaryPage={currentPrimaryPage}
-                  secondaryStack={secondaryStack}
-                  pinnedColumns={pinnedColumns}
-                  widgetSidebarDismissed={widgetSidebarDismissed}
-                />
-              </MessagesProvider>
+              <PageManagerShell
+                isSmallScreen={isSmallScreen}
+                layoutMode={layoutMode}
+                deckViewMode={deckViewMode}
+                pageTheme={pageTheme}
+                primaryPages={primaryPages}
+                currentPrimaryPage={currentPrimaryPage}
+                secondaryStack={secondaryStack}
+                pinnedColumns={pinnedColumns}
+                widgetSidebarDismissed={widgetSidebarDismissed}
+              />
             </NotificationProvider>
           </CurrentRelaysProvider>
         </SecondaryPageContext.Provider>
@@ -308,19 +305,17 @@ export function PageManager({ maxStackSize = 5 }: { maxStackSize?: number }) {
       >
         <CurrentRelaysProvider>
           <NotificationProvider>
-            <MessagesProvider>
-              <PageManagerShell
-                isSmallScreen={isSmallScreen}
-                layoutMode={layoutMode}
-                deckViewMode={deckViewMode}
-                pageTheme={pageTheme}
-                primaryPages={primaryPages}
-                currentPrimaryPage={currentPrimaryPage}
-                secondaryStack={secondaryStack}
-                pinnedColumns={pinnedColumns}
-                widgetSidebarDismissed={widgetSidebarDismissed}
-              />
-            </MessagesProvider>
+            <PageManagerShell
+              isSmallScreen={isSmallScreen}
+              layoutMode={layoutMode}
+              deckViewMode={deckViewMode}
+              pageTheme={pageTheme}
+              primaryPages={primaryPages}
+              currentPrimaryPage={currentPrimaryPage}
+              secondaryStack={secondaryStack}
+              pinnedColumns={pinnedColumns}
+              widgetSidebarDismissed={widgetSidebarDismissed}
+            />
           </NotificationProvider>
         </CurrentRelaysProvider>
       </SecondaryPageContext.Provider>

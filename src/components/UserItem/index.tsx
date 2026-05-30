@@ -1,5 +1,4 @@
 import FollowButton from '@/components/FollowButton'
-import Nip05 from '@/components/Nip05'
 import UserAvatar from '@/components/UserAvatar'
 import Username from '@/components/Username'
 import { Badge } from '@/components/ui/badge'
@@ -98,9 +97,7 @@ export default function UserItem({
               </TooltipProvider>
             )}
           </div>
-        ) : (
-          <Nip05 pubkey={pubkey} />
-        )}
+        ) : null}
       </div>
       {!hideFollowButton && <FollowButton pubkey={pubkey} size={compactFollowButton ? 'sm' : 'default'} />}
     </div>

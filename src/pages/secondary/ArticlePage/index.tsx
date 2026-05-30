@@ -21,17 +21,16 @@ import { EmbeddedNote } from '@/components/Embedded/EmbeddedNote'
 import { nip19 } from 'nostr-tools'
 import { useMuteList } from '@/providers/MuteListProvider'
 import { useContentPolicy } from '@/providers/ContentPolicyProvider'
-import { isFromMutedDomain, isMentioningMutedUsers } from '@/lib/event'
+import { isMentioningMutedUsers } from '@/lib/event'
 
 const ArticlePage = forwardRef(({ id, index }: { id?: string; index?: number }, ref) => {
   const { t } = useTranslation()
   const { event, isFetching, isSlowLoading, refetch } = useFetchEvent(id)
   const [shouldShowHeaderImage, setShouldShowHeaderImage] = useState(true)
   const [showMuted, setShowMuted] = useState(false)
-  const { mutePubkeySet, getMutedDomains, getMutedWords } = useMuteList()
-  const { profile, isFetching: isProfileFetching } = useFetchProfile(event?.pubkey)
+  const { mutePubkeySet, getMutedWords } = useMuteList()
+  const { profile } = useFetchProfile(event?.pubkey)
   const { hideContentMentioningMutedUsers } = useContentPolicy()
-  const mutedDomains = getMutedDomains()
   const mutedWords = useMemo(() => getMutedWords(), [getMutedWords])
 
   const articleData = useMemo(() => {
@@ -53,13 +52,10 @@ const ArticlePage = forwardRef(({ id, index }: { id?: string; index?: number }, 
 
   // Check if the article should be hidden or shown as muted
   const muteStatus = useMemo(() => {
-    if (!event) return { shouldHide: false, isMutedByPubkey: false, isMutedByDomain: false }
+    if (!event) return { shouldHide: false, isMutedByPubkey: false }
 
     // Check if author is muted by pubkey
     const isMutedByPubkey = mutePubkeySet.has(event.pubkey)
-
-    // Check if author is muted by NIP-05 domain
-    const isMutedByDomain = profile && isFromMutedDomain(profile.nip05, mutedDomains)
 
     // Check if content mentions muted users
     const mentionsMuted = hideContentMentioningMutedUsers && isMentioningMutedUsers(event, mutePubkeySet)
@@ -81,11 +77,10 @@ const ArticlePage = forwardRef(({ id, index }: { id?: string; index?: number }, 
       })
     }
 
-    // Domain-muted and mention-muted content is completely hidden
-    const shouldHide = isMutedByDomain || mentionsMuted || containsMutedWords
+    const shouldHide = mentionsMuted || containsMutedWords
 
-    return { shouldHide, isMutedByPubkey, isMutedByDomain }
-  }, [event, mutePubkeySet, mutedWords, mutedDomains, profile, hideContentMentioningMutedUsers, articleData])
+    return { shouldHide, isMutedByPubkey }
+  }, [event, mutePubkeySet, mutedWords, profile, hideContentMentioningMutedUsers, articleData])
 
   // Check if the header image URL returns an error status
   useEffect(() => {
@@ -150,25 +145,7 @@ const ArticlePage = forwardRef(({ id, index }: { id?: string; index?: number }, 
     )
   }
 
-  // If we have muted domains configured and profile is still loading, wait for profile to load
-  if (mutedDomains.length > 0 && isProfileFetching) {
-    return (
-      <SecondaryPageLayout ref={ref} index={index} title={t('Article')}>
-        <div className="px-4 pt-3 max-w-3xl mx-auto">
-          <Skeleton className="h-12 w-3/4 mb-4" />
-          <div className="flex items-center gap-3 mb-6">
-            <Skeleton className="w-10 h-10 rounded-full" />
-            <div className="flex-1">
-              <Skeleton className="h-4 w-32 mb-2" />
-              <Skeleton className="h-3 w-24" />
-            </div>
-          </div>
-        </div>
-      </SecondaryPageLayout>
-    )
-  }
-
-  // Completely hide articles that are domain-muted, mention-muted, or contain muted words
+  // Completely hide articles that mention muted users or contain muted words
   if (muteStatus.shouldHide) {
     return (
       <SecondaryPageLayout ref={ref} index={index} title={t('Article')} displayScrollToTopButton>
@@ -391,7 +368,7 @@ const ArticlePage = forwardRef(({ id, index }: { id?: string; index?: number }, 
         </div>
 
         <div className="mt-8 pt-8 border-t">
-          <NoteStats event={event} fetchIfNotExisting displayTopZapsAndLikes />
+          <NoteStats event={event} fetchIfNotExisting displayTopLikes />
           <NoteInteractions pageIndex={index} event={event} />
         </div>
       </article>

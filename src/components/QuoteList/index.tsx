@@ -54,7 +54,6 @@ export default function QuoteList({ event, className }: { event: Event; classNam
               ],
               kinds: [
                 kinds.ShortTextNote,
-                kinds.Highlights,
                 kinds.LongFormArticle,
                 ExtendedKind.COMMENT,
                 ExtendedKind.POLL

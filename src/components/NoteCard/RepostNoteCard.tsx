@@ -1,8 +1,7 @@
 import { Separator } from '@/components/ui/separator'
-import { isMentioningMutedUsers, isFromMutedDomain } from '@/lib/event'
+import { isMentioningMutedUsers } from '@/lib/event'
 import { isEventExpired } from '@/lib/event-expiration'
 import { tagNameEquals } from '@/lib/tag'
-import { useFetchProfile } from '@/hooks'
 import { useContentPolicy } from '@/providers/ContentPolicyProvider'
 import { useMuteList } from '@/providers/MuteListProvider'
 import client from '@/services/client.service'
@@ -30,28 +29,15 @@ export default function RepostNoteCard({
   bookmarkId?: string
 }) {
   const { t } = useTranslation()
-  const { mutePubkeySet, getMutedDomains } = useMuteList()
+  const { mutePubkeySet } = useMuteList()
   const { hideContentMentioningMutedUsers, alwaysHideMutedNotes } = useContentPolicy()
   const [targetEvent, setTargetEvent] = useState<Event | null>(null)
-  const { profile, isFetching } = useFetchProfile(targetEvent?.pubkey)
-  const mutedDomains = getMutedDomains()
   const isMutedByPubkey = useMemo(() => {
     return targetEvent && filterMutedNotes && mutePubkeySet.has(targetEvent.pubkey)
   }, [targetEvent, filterMutedNotes, mutePubkeySet])
-  const isMutedByDomain = useMemo(() => {
-    return targetEvent && filterMutedNotes && profile && isFromMutedDomain(profile.nip05, mutedDomains)
-  }, [targetEvent, filterMutedNotes, profile, mutedDomains])
   const shouldHide = useMemo(() => {
     if (!targetEvent) return true
     if (isEventExpired(targetEvent)) return true
-    // If we have muted domains and profile is loading, hide while we check
-    if (filterMutedNotes && mutedDomains.length > 0 && isFetching) {
-      return true
-    }
-    // Always hide domain-muted content
-    if (isMutedByDomain) {
-      return true
-    }
     // Hide pubkey-muted content only if alwaysHideMutedNotes is disabled
     if (isMutedByPubkey && !alwaysHideMutedNotes) {
       return true
@@ -60,7 +46,7 @@ export default function RepostNoteCard({
       return true
     }
     return false
-  }, [targetEvent, isMutedByPubkey, isMutedByDomain, alwaysHideMutedNotes, hideContentMentioningMutedUsers, mutePubkeySet, filterMutedNotes, mutedDomains, isFetching])
+  }, [targetEvent, isMutedByPubkey, alwaysHideMutedNotes, hideContentMentioningMutedUsers, mutePubkeySet])
   useEffect(() => {
     const fetch = async () => {
       try {

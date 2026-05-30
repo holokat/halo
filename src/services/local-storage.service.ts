@@ -25,9 +25,7 @@ import {
   POST_BUTTON_STYLE,
   PRIMARY_COLORS,
   SUPPORTED_KINDS,
-  StorageKey,
-  TZapSound,
-  ZAP_SOUNDS
+  StorageKey
 } from '@/constants'
 import { isSameAccount } from '@/lib/account'
 import { normalizePollCreateData } from '@/lib/poll'
@@ -36,8 +34,6 @@ import { isWebsocketUrl, normalizeUrl } from '@/lib/url'
 import {
   TAccount,
   TAccountPointer,
-  TAIServiceConfig,
-  TAIToolsConfig,
   TCustomFeed,
   TDistractionFreeMode,
   TFeedInfo,
@@ -52,7 +48,6 @@ import {
   TPrimaryColor,
   TRelaySet,
   TThemeSetting,
-  TTranslationServiceConfig,
   TColorPalette,
   TEmoji,
   TLogoStyle
@@ -92,12 +87,6 @@ class LocalStorageService {
   private currentAccount: TAccount | null = null
   private noteListMode: TNoteListMode = 'posts'
   private lastReadNotificationTimeMap: Record<string, number> = {}
-  private lastReadMessageTimeMap: Record<string, number> = {}
-  private messageConversationReadTimeMap: Record<string, Record<string, number>> = {}
-  private dismissedMessageConversationMap: Record<string, Record<string, number>> = {}
-  private defaultZapSats: number = 21
-  private defaultZapComment: string = 'Zap!'
-  private quickZap: boolean = false
   private accountFeedInfoMap: Record<string, TFeedInfo | undefined> = {}
   private mediaUploadService: string = DEFAULT_NIP_96_SERVICE
   private autoplay: boolean = true
@@ -105,10 +94,7 @@ class LocalStorageService {
   private hideUntrustedNotifications: boolean = false
   private hideUntrustedNotes: boolean = false
   private trustLevel: number = 0 // 0: Everyone, 1: Network + Follows, 2: Follows only, 3: You only
-  private translationServiceConfigMap: Record<string, TTranslationServiceConfig> = {}
   private mediaUploadServiceConfigMap: Record<string, TMediaUploadServiceConfig> = {}
-  private aiServiceConfigMap: Record<string, TAIServiceConfig> = {}
-  private aiToolsConfigMap: Record<string, TAIToolsConfig> = {}
   private defaultShowNsfw: boolean = false
   private showKinds: number[] = []
   private mediaOnly: boolean = true
@@ -117,7 +103,6 @@ class LocalStorageService {
   private hideNotificationsFromMutedUsers: boolean = false
   private notificationListStyle: TNotificationStyle = NOTIFICATION_LIST_STYLE.COMPACT
   private mediaAutoLoadPolicy: TMediaAutoLoadPolicy = MEDIA_AUTO_LOAD_POLICY.ALWAYS
-  private shownCreateWalletGuideToastPubkeys: Set<string> = new Set()
   private fontSize: number = DEFAULT_FONT_SIZE
   private titleFontSize: number = DEFAULT_TITLE_FONT_SIZE
   private fontFamily: TFontFamily = DEFAULT_FONT_FAMILY
@@ -128,9 +113,9 @@ class LocalStorageService {
   private mediaRadius: number = DEFAULT_MEDIA_RADIUS
   private pageTheme: TPageTheme = DEFAULT_PAGE_THEME
   private trendingNotesDismissed: boolean = false
-  private compactSidebar: boolean = false
+  private compactSidebar: boolean = true
   private logoStyle: TLogoStyle = 'image'
-  private customLogoText: string = 'x21'
+  private customLogoText: string = 'Halo'
   private customLogoEmoji: string | TEmoji = '⚡'
   private logoFontSize: number = DEFAULT_LOGO_FONT_SIZE
   private widgetSidebarTitle: string = 'Widgets'
@@ -149,7 +134,6 @@ class LocalStorageService {
     title: string
     image?: string
   }[] = []
-  private aiPromptWidgets: { id: string; eventId: string; messages: any[] }[] = []
   private trendingNotesHeight: 'short' | 'medium' | 'tall' | 'remaining' = 'medium'
   private bitcoinTickerAlignment: 'left' | 'center' = 'left'
   private bitcoinTickerTextSize: 'large' | 'small' = 'large'
@@ -158,25 +142,18 @@ class LocalStorageService {
   private stockTrackerSymbols: string[] = []
   private newsWidgetRelays: string[] = DEFAULT_NEWS_WIDGET_RELAYS
   private newsWidgetHashtags: string[] = []
-  private zapSound: TZapSound = ZAP_SOUNDS.NONE
   private customFeedsMap: Record<string, TCustomFeed[]> = {}
   private localPostDraftsMap: Record<string, TLocalPostDraft[]> = {}
-  private chargeZapEnabled: boolean = false
-  private chargeZapLimit: number = 1000
-  private zapOnReactions: boolean = false
-  private onlyZapsMode: boolean = false
   private distractionFreeMode: TDistractionFreeMode = DISTRACTION_FREE_MODE.DRAIN_MY_TIME
   private hideReadsInNavigation: boolean = false
-  private hideReadsInProfiles: boolean = false
+  private hideReadsInProfiles: boolean = true
   private favoriteListsMap: Record<string, string[]> = {}
   private readArticles: Set<string> = new Set()
   private bookmarkTags: Record<string, string[]> = {}
   private pinnedReplies: Record<string, string[]> = {}
-  private paymentsEnabled: boolean = false
   private textOnlyMode: boolean = false
   private lowBandwidthMode: boolean = false
   private disableAvatarAnimations: boolean = false
-  private messageNotificationsEnabled: boolean = true
   private reactionFountainEnabled: boolean = false
   private reactionOptionsEnabled: boolean = false
   private defaultReactionEmojis: string[] = ['👍', '❤️', '😂', '🥲', '👀', '🫡', '🫂']
@@ -227,29 +204,7 @@ class LocalStorageService {
       StorageKey.LAST_READ_NOTIFICATION_TIME_MAP,
       {}
     )
-    this.lastReadMessageTimeMap = readStoredJson<Record<string, number>>(
-      StorageKey.LAST_READ_MESSAGE_TIME_MAP,
-      {}
-    )
-    this.messageConversationReadTimeMap = readStoredJson<Record<string, Record<string, number>>>(
-      StorageKey.MESSAGE_CONVERSATION_READ_TIME_MAP,
-      {}
-    )
-    this.dismissedMessageConversationMap = readStoredJson<Record<string, Record<string, number>>>(
-      StorageKey.DISMISSED_MESSAGE_CONVERSATION_MAP,
-      {}
-    )
     this.relaySets = this.loadRelaySets()
-
-    const defaultZapSatsStr = readStoredStringValue(StorageKey.DEFAULT_ZAP_SATS)
-    if (defaultZapSatsStr) {
-      const num = parseInt(defaultZapSatsStr, 10)
-      if (!isNaN(num)) {
-        this.defaultZapSats = num
-      }
-    }
-    this.defaultZapComment = readStoredString(StorageKey.DEFAULT_ZAP_COMMENT, 'Zap!')
-    this.quickZap = readStoredBoolean(StorageKey.QUICK_ZAP)
     this.accountFeedInfoMap = readStoredJson<Record<string, TFeedInfo | undefined>>(
       StorageKey.ACCOUNT_FEED_INFO_MAP,
       {}
@@ -275,20 +230,8 @@ class LocalStorageService {
     const storedTrustLevel = readStoredStringValue(StorageKey.TRUST_LEVEL)
     this.trustLevel = storedTrustLevel ? parseInt(storedTrustLevel, 10) : 0
 
-    this.translationServiceConfigMap = readStoredJson<Record<string, TTranslationServiceConfig>>(
-      StorageKey.TRANSLATION_SERVICE_CONFIG_MAP,
-      {}
-    )
     this.mediaUploadServiceConfigMap = readStoredJson<Record<string, TMediaUploadServiceConfig>>(
       StorageKey.MEDIA_UPLOAD_SERVICE_CONFIG_MAP,
-      {}
-    )
-    this.aiServiceConfigMap = readStoredJson<Record<string, TAIServiceConfig>>(
-      StorageKey.AI_SERVICE_CONFIG_MAP,
-      {}
-    )
-    this.aiToolsConfigMap = readStoredJson<Record<string, TAIToolsConfig>>(
-      StorageKey.AI_TOOLS_CONFIG_MAP,
       {}
     )
   }
@@ -330,9 +273,6 @@ class LocalStorageService {
       if (showKindsVersion < 1) {
         showKinds.push(ExtendedKind.VIDEO, ExtendedKind.SHORT_VIDEO)
       }
-      if (showKindsVersion < 2 && showKinds.includes(ExtendedKind.POLL)) {
-        showKinds.push(ExtendedKind.LEGACY_ZAP_POLL)
-      }
       this.showKinds = showKinds
     }
     window.localStorage.setItem(StorageKey.SHOW_KINDS, JSON.stringify(this.showKinds))
@@ -362,10 +302,6 @@ class LocalStorageService {
       Object.values(MEDIA_AUTO_LOAD_POLICY) as TMediaAutoLoadPolicy[],
       MEDIA_AUTO_LOAD_POLICY.ALWAYS
     )
-    this.shownCreateWalletGuideToastPubkeys = new Set(
-      readStoredJson<string[]>(StorageKey.SHOWN_CREATE_WALLET_GUIDE_TOAST_PUBKEYS, [])
-    )
-
     const fontSizeStr = readStoredStringValue(StorageKey.FONT_SIZE)
     if (fontSizeStr) {
       const fontSize = parseInt(fontSizeStr, 10)
@@ -432,7 +368,7 @@ class LocalStorageService {
       DEFAULT_PAGE_THEME
     )
     this.trendingNotesDismissed = readStoredBoolean(StorageKey.TRENDING_NOTES_DISMISSED)
-    this.compactSidebar = readStoredBoolean(StorageKey.COMPACT_SIDEBAR)
+    this.compactSidebar = readStoredBoolean(StorageKey.COMPACT_SIDEBAR, true)
     this.logoStyle = readStoredEnum(
       StorageKey.LOGO_STYLE,
       ['image', 'text', 'emoji'] as const,
@@ -519,10 +455,6 @@ class LocalStorageService {
       this.liveStreamWidgets = JSON.parse(liveStreamWidgetsStr)
     }
 
-    // AI Prompt widgets are session-only and should not persist across page reloads.
-    this.aiPromptWidgets = []
-    window.localStorage.removeItem(StorageKey.AI_PROMPT_WIDGETS)
-
     this.trendingNotesHeight = readStoredEnum(
       StorageKey.TRENDING_NOTES_HEIGHT,
       ['short', 'medium', 'tall', 'remaining'] as const,
@@ -572,11 +504,6 @@ class LocalStorageService {
       normalizeWidgetHashtag
     )
 
-    const zapSound = readStoredStringValue(StorageKey.ZAP_SOUND)
-    if (zapSound && Object.values(ZAP_SOUNDS).includes(zapSound as TZapSound)) {
-      this.zapSound = zapSound as TZapSound
-    }
-
     const storedCustomFeeds = readStoredJson<unknown>(StorageKey.CUSTOM_FEEDS, {})
     if (Array.isArray(storedCustomFeeds)) {
       const ownerKey = this.getCustomFeedsOwnerKey(this.currentAccount?.pubkey)
@@ -601,24 +528,9 @@ class LocalStorageService {
       )
     }
 
-    this.chargeZapEnabled = readStoredBoolean(StorageKey.CHARGE_ZAP_ENABLED)
-
-    const chargeZapLimitStr = readStoredStringValue(StorageKey.CHARGE_ZAP_LIMIT)
-    if (chargeZapLimitStr) {
-      const num = parseInt(chargeZapLimitStr, 10)
-      if (!isNaN(num) && num > 0) {
-        this.chargeZapLimit = num
-      }
-    }
-
-    this.zapOnReactions = readStoredBoolean(StorageKey.ZAP_ON_REACTIONS)
-    this.onlyZapsMode = readStoredBoolean(StorageKey.ONLY_ZAPS_MODE)
-    this.paymentsEnabled = readStoredBoolean(StorageKey.PAYMENTS_ENABLED)
     this.textOnlyMode = readStoredBoolean(StorageKey.TEXT_ONLY_MODE)
     this.lowBandwidthMode = readStoredBoolean(StorageKey.LOW_BANDWIDTH_MODE)
     this.disableAvatarAnimations = readStoredBoolean(StorageKey.DISABLE_AVATAR_ANIMATIONS)
-    this.messageNotificationsEnabled =
-      readStoredBooleanValue(StorageKey.MESSAGE_NOTIFICATIONS_ENABLED) ?? true
     this.reactionFountainEnabled = readStoredBoolean(StorageKey.REACTION_FOUNTAIN_ENABLED)
     this.distractionFreeMode = readStoredEnum(
       StorageKey.DISTRACTION_FREE_MODE,
@@ -628,8 +540,8 @@ class LocalStorageService {
   }
 
   private initCollectionState() {
-    this.hideReadsInNavigation = readStoredBoolean(StorageKey.HIDE_READS_IN_NAVIGATION)
-    this.hideReadsInProfiles = readStoredBoolean(StorageKey.HIDE_READS_IN_PROFILES)
+    this.hideReadsInNavigation = readStoredBoolean(StorageKey.HIDE_READS_IN_NAVIGATION, true)
+    this.hideReadsInProfiles = readStoredBoolean(StorageKey.HIDE_READS_IN_PROFILES, true)
 
     const favoriteListsMapStr = readStoredStringValue(StorageKey.FAVORITE_LISTS)
     if (favoriteListsMapStr) {
@@ -803,60 +715,6 @@ class LocalStorageService {
     this.setJson(StorageKey.CURRENT_ACCOUNT, act)
   }
 
-  getDefaultZapSats() {
-    return this.defaultZapSats
-  }
-
-  setDefaultZapSats(sats: number) {
-    this.defaultZapSats = sats
-    this.setNumber(StorageKey.DEFAULT_ZAP_SATS, sats)
-  }
-
-  getDefaultZapComment() {
-    return this.defaultZapComment
-  }
-
-  setDefaultZapComment(comment: string) {
-    this.defaultZapComment = comment
-    this.setString(StorageKey.DEFAULT_ZAP_COMMENT, comment)
-  }
-
-  getQuickZap() {
-    return this.quickZap
-  }
-
-  setQuickZap(quickZap: boolean) {
-    this.quickZap = quickZap
-    this.setBoolean(StorageKey.QUICK_ZAP, quickZap)
-  }
-
-  getChargeZapEnabled() {
-    return this.chargeZapEnabled
-  }
-
-  setChargeZapEnabled(enabled: boolean) {
-    this.chargeZapEnabled = enabled
-    this.setBoolean(StorageKey.CHARGE_ZAP_ENABLED, enabled)
-  }
-
-  getChargeZapLimit() {
-    return this.chargeZapLimit
-  }
-
-  setChargeZapLimit(limit: number) {
-    this.chargeZapLimit = limit
-    this.setNumber(StorageKey.CHARGE_ZAP_LIMIT, limit)
-  }
-
-  getPaymentsEnabled() {
-    return this.paymentsEnabled
-  }
-
-  setPaymentsEnabled(enabled: boolean) {
-    this.paymentsEnabled = enabled
-    this.setBoolean(StorageKey.PAYMENTS_ENABLED, enabled)
-  }
-
   getTextOnlyMode() {
     return this.textOnlyMode
   }
@@ -884,15 +742,6 @@ class LocalStorageService {
     this.setBoolean(StorageKey.DISABLE_AVATAR_ANIMATIONS, enabled)
   }
 
-  getMessageNotificationsEnabled() {
-    return this.messageNotificationsEnabled
-  }
-
-  setMessageNotificationsEnabled(enabled: boolean) {
-    this.messageNotificationsEnabled = enabled
-    this.setBoolean(StorageKey.MESSAGE_NOTIFICATIONS_ENABLED, enabled)
-  }
-
   getReactionFountainEnabled() {
     return this.reactionFountainEnabled
   }
@@ -909,44 +758,6 @@ class LocalStorageService {
   setLastReadNotificationTime(pubkey: string, time: number) {
     this.lastReadNotificationTimeMap[pubkey] = time
     this.setJson(StorageKey.LAST_READ_NOTIFICATION_TIME_MAP, this.lastReadNotificationTimeMap)
-  }
-
-  getLastReadMessageTime(pubkey: string) {
-    return this.lastReadMessageTimeMap[pubkey] ?? 0
-  }
-
-  setLastReadMessageTime(pubkey: string, time: number) {
-    this.lastReadMessageTimeMap[pubkey] = time
-    this.setJson(StorageKey.LAST_READ_MESSAGE_TIME_MAP, this.lastReadMessageTimeMap)
-  }
-
-  getMessageConversationReadTimeMap(pubkey: string) {
-    return { ...(this.messageConversationReadTimeMap[pubkey] ?? {}) }
-  }
-
-  setMessageConversationReadTime(pubkey: string, conversationId: string, time: number) {
-    const nextMap = {
-      ...(this.messageConversationReadTimeMap[pubkey] ?? {}),
-      [conversationId]: time
-    }
-    this.messageConversationReadTimeMap[pubkey] = nextMap
-    this.setJson(StorageKey.MESSAGE_CONVERSATION_READ_TIME_MAP, this.messageConversationReadTimeMap)
-  }
-
-  getDismissedMessageConversationMap(pubkey: string) {
-    return { ...(this.dismissedMessageConversationMap[pubkey] ?? {}) }
-  }
-
-  setDismissedMessageConversationTime(pubkey: string, conversationId: string, time: number) {
-    const nextMap = {
-      ...(this.dismissedMessageConversationMap[pubkey] ?? {}),
-      [conversationId]: time
-    }
-    this.dismissedMessageConversationMap[pubkey] = nextMap
-    this.setJson(
-      StorageKey.DISMISSED_MESSAGE_CONVERSATION_MAP,
-      this.dismissedMessageConversationMap
-    )
   }
 
   getFeedInfo(pubkey: string) {
@@ -1001,15 +812,6 @@ class LocalStorageService {
   setTrustLevel(trustLevel: number) {
     this.trustLevel = trustLevel
     this.setNumber(StorageKey.TRUST_LEVEL, trustLevel)
-  }
-
-  getTranslationServiceConfig(pubkey?: string | null) {
-    return this.translationServiceConfigMap[pubkey ?? '_'] ?? { service: 'jumble' }
-  }
-
-  setTranslationServiceConfig(config: TTranslationServiceConfig, pubkey?: string | null) {
-    this.translationServiceConfigMap[pubkey ?? '_'] = config
-    this.setJson(StorageKey.TRANSLATION_SERVICE_CONFIG_MAP, this.translationServiceConfigMap)
   }
 
   getMediaUploadServiceConfig(pubkey?: string | null): TMediaUploadServiceConfig {
@@ -1126,21 +928,6 @@ class LocalStorageService {
   setDistractionFreeMode(mode: TDistractionFreeMode) {
     this.distractionFreeMode = mode
     this.setString(StorageKey.DISTRACTION_FREE_MODE, mode)
-  }
-
-  hasShownCreateWalletGuideToast(pubkey: string) {
-    return this.shownCreateWalletGuideToastPubkeys.has(pubkey)
-  }
-
-  markCreateWalletGuideToastAsShown(pubkey: string) {
-    if (this.shownCreateWalletGuideToastPubkeys.has(pubkey)) {
-      return
-    }
-    this.shownCreateWalletGuideToastPubkeys.add(pubkey)
-    this.setJson(
-      StorageKey.SHOWN_CREATE_WALLET_GUIDE_TOAST_PUBKEYS,
-      Array.from(this.shownCreateWalletGuideToastPubkeys)
-    )
   }
 
   getFontSize() {
@@ -1513,35 +1300,6 @@ class LocalStorageService {
     this.setJson(StorageKey.LIVE_STREAM_WIDGETS, this.liveStreamWidgets)
   }
 
-  getAIPromptWidgets() {
-    return this.aiPromptWidgets
-  }
-
-  setAIPromptWidgets(widgets: { id: string; eventId: string; messages: any[] }[]) {
-    // AI Prompt widgets are session-only, no localStorage persistence
-    this.aiPromptWidgets = widgets
-  }
-
-  addAIPromptWidget(eventId: string, id?: string) {
-    const widgetId = id ?? `ai-prompt-${Date.now()}`
-    this.aiPromptWidgets.push({ id: widgetId, eventId, messages: [] })
-    // AI Prompt widgets are session-only, no localStorage persistence
-    return widgetId
-  }
-
-  removeAIPromptWidget(id: string) {
-    this.aiPromptWidgets = this.aiPromptWidgets.filter((widget) => widget.id !== id)
-    // AI Prompt widgets are session-only, no localStorage persistence
-  }
-
-  getZapSound() {
-    return this.zapSound
-  }
-
-  setZapSound(sound: TZapSound) {
-    this.zapSound = sound
-    this.setString(StorageKey.ZAP_SOUND, sound)
-  }
 
   private getCustomFeedsOwnerKey(pubkey?: string | null) {
     return pubkey ?? this.currentAccount?.pubkey ?? 'default'
@@ -1671,46 +1429,6 @@ class LocalStorageService {
     const ownerKey = this.getLocalPostDraftsOwnerKey(pubkey)
     const drafts = this.getLocalPostDrafts(pubkey).filter((draft) => draft.id !== id)
     this.persistLocalPostDraftsForKey(ownerKey, drafts)
-  }
-
-  getZapOnReactions() {
-    return this.zapOnReactions
-  }
-
-  setZapOnReactions(enabled: boolean) {
-    this.zapOnReactions = enabled
-    this.setBoolean(StorageKey.ZAP_ON_REACTIONS, enabled)
-  }
-
-  getOnlyZapsMode() {
-    return this.onlyZapsMode
-  }
-
-  setOnlyZapsMode(enabled: boolean) {
-    this.onlyZapsMode = enabled
-    this.setBoolean(StorageKey.ONLY_ZAPS_MODE, enabled)
-  }
-
-  getAIServiceConfig(pubkey?: string | null): TAIServiceConfig {
-    return (
-      this.aiServiceConfigMap[pubkey ?? '_'] ?? {
-        provider: 'openrouter'
-      }
-    )
-  }
-
-  setAIServiceConfig(config: TAIServiceConfig, pubkey?: string | null) {
-    this.aiServiceConfigMap[pubkey ?? '_'] = config
-    this.setJson(StorageKey.AI_SERVICE_CONFIG_MAP, this.aiServiceConfigMap)
-  }
-
-  getAIToolsConfig(pubkey?: string | null): TAIToolsConfig {
-    return this.aiToolsConfigMap[pubkey ?? '_'] ?? { enableSummary: false }
-  }
-
-  setAIToolsConfig(config: TAIToolsConfig, pubkey?: string | null) {
-    this.aiToolsConfigMap[pubkey ?? '_'] = config
-    this.setJson(StorageKey.AI_TOOLS_CONFIG_MAP, this.aiToolsConfigMap)
   }
 
   getHideReadsInNavigation() {

@@ -1,5 +1,4 @@
 import MuteButton from '@/components/MuteButton'
-import Nip05 from '@/components/Nip05'
 import SearchInput from '@/components/SearchInput'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -75,7 +74,7 @@ const MuteListPage = forwardRef(({ index }: { index?: number }, ref) => {
       </div>
       <div className="px-4">
         <div className="mb-4 p-3 bg-muted/50 rounded-lg text-sm text-muted-foreground">
-          {t('Mutes created in x21 are private and encrypted. Public mutes from other clients are also respected.')}
+          {t('Mutes created in Halo are private and encrypted. Public mutes from other clients are also respected.')}
         </div>
         <div className="space-y-2">
           {visibleMutePubkeys.map((pubkey, index) => (
@@ -109,14 +108,12 @@ function FilteredUserItem({ pubkey, searchQuery }: { pubkey: string; searchQuery
     const query = searchQuery.toLowerCase()
     const username = profile.username?.toLowerCase() || ''
     const originalUsername = profile.original_username?.toLowerCase() || ''
-    const nip05 = profile.nip05?.toLowerCase() || ''
     const about = profile.about?.toLowerCase() || ''
     const note = existingNote?.toLowerCase() || ''
 
     return (
       username.includes(query) ||
       originalUsername.includes(query) ||
-      nip05.includes(query) ||
       about.includes(query) ||
       note.includes(query) ||
       pubkey.toLowerCase().includes(query)
@@ -159,7 +156,6 @@ function UserItem({ pubkey }: { pubkey: string }) {
               skeletonClassName="h-4"
             />
           </div>
-          <Nip05 pubkey={pubkey} />
           <div className="truncate text-muted-foreground text-sm">{profile?.about}</div>
         </div>
         <div className="flex gap-2 items-center shrink-0">

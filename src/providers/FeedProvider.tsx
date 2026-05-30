@@ -113,10 +113,6 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         return await switchFeed('bookmarks', { pubkey })
       }
 
-      if (feedInfo.feedType === 'highlights' && pubkey) {
-        return await switchFeed('highlights', { pubkey })
-      }
-
       if (feedInfo.feedType === 'custom') {
         return await switchFeed('custom', { customFeedId: feedInfo.id })
       }
@@ -176,11 +172,6 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
 
       if (nextFeedInfo.feedType === 'bookmarks') {
         void switchFeed('bookmarks', { pubkey })
-        return
-      }
-
-      if (nextFeedInfo.feedType === 'highlights') {
-        void switchFeed('highlights', { pubkey })
         return
       }
 
@@ -297,21 +288,6 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       return
     }
     if (feedType === 'bookmarks') {
-      if (!options.pubkey) {
-        setIsReady(true)
-        return
-      }
-
-      const newFeedInfo = { feedType }
-      setFeedInfo(newFeedInfo)
-      feedInfoRef.current = newFeedInfo
-      storage.setFeedInfo(newFeedInfo, pubkey)
-
-      setRelayUrls([])
-      setIsReady(true)
-      return
-    }
-    if (feedType === 'highlights') {
       if (!options.pubkey) {
         setIsReady(true)
         return

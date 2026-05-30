@@ -10,7 +10,7 @@ import localStorageService from '@/services/local-storage.service'
 import { useTextOnlyMode } from '@/providers/TextOnlyModeProvider'
 import { useMuteList } from '@/providers/MuteListProvider'
 import { useFetchProfile } from '@/hooks'
-import { hasMutedHashtag, isFromMutedDomain, isMentioningMutedUsers } from '@/lib/event'
+import { hasMutedHashtag, isMentioningMutedUsers } from '@/lib/event'
 import { useContentPolicy } from '@/providers/ContentPolicyProvider'
 import { useTranslation } from 'react-i18next'
 
@@ -19,10 +19,9 @@ export default function ArticleCard({ event }: { event: NostrEvent }) {
   const { textOnlyMode } = useTextOnlyMode()
   const [shouldShowImage, setShouldShowImage] = useState(true)
   const [isRead, setIsRead] = useState(false)
-  const { mutePubkeySet, getMutedDomains, getMutedWords, getMutedTags } = useMuteList()
-  const { profile, isFetching } = useFetchProfile(event.pubkey)
+  const { mutePubkeySet, getMutedWords, getMutedTags } = useMuteList()
+  const { profile } = useFetchProfile(event.pubkey)
   const { hideContentMentioningMutedUsers } = useContentPolicy()
-  const mutedDomains = getMutedDomains()
   const mutedWords = useMemo(() => getMutedWords(), [getMutedWords])
   const mutedTags = useMemo(() => getMutedTags(), [getMutedTags])
 
@@ -107,11 +106,6 @@ export default function ArticleCard({ event }: { event: NostrEvent }) {
       return true
     }
 
-    // Check if author is muted by NIP-05 domain
-    if (profile && isFromMutedDomain(profile.nip05, mutedDomains)) {
-      return true
-    }
-
     // Check if content mentions muted users
     if (hideContentMentioningMutedUsers && isMentioningMutedUsers(event, mutePubkeySet)) {
       return true
@@ -140,12 +134,7 @@ export default function ArticleCard({ event }: { event: NostrEvent }) {
     }
 
     return false
-  }, [event, mutePubkeySet, mutedWords, mutedDomains, mutedTags, profile, hideContentMentioningMutedUsers, title, summary])
-
-  // If we have muted domains configured and profile is still loading, wait for profile to load
-  if (mutedDomains.length > 0 && isFetching) {
-    return null
-  }
+  }, [event, mutePubkeySet, mutedWords, mutedTags, profile, hideContentMentioningMutedUsers, title, summary])
 
   // Hide the article if it should be muted
   if (shouldHide) {

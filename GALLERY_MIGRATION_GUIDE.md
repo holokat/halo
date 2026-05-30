@@ -173,7 +173,6 @@ const userImagesFilter = {
 ## Future Enhancements
 
 - **Multiple galleries**: Travel photos, artwork, screenshots, etc.
-- **Reactions on images**: Like/zap individual gallery images
 - **Comments on images**: Thread discussions on specific images
 - **Collaborative galleries**: Allow others to contribute
 - **Private galleries**: NIP-44 encrypted galleries

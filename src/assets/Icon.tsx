@@ -20,7 +20,7 @@ export default function Icon({ className }: { className?: string }) {
     >
       <img
         src={iconSrc}
-        alt="x21"
+        alt="Halo"
         className="w-12 h-12 object-contain"
       />
     </div>

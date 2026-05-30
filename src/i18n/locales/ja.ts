@@ -31,7 +31,6 @@ export default {
     Replies: '返信',
     Posts: '投稿',
     Articles: '記事',
-    Highlights: 'ハイライト',
     Polls: 'アンケート',
     'Voice Posts': '音声投稿',
     'Photo Posts': '写真投稿',
@@ -160,7 +159,7 @@ export default {
 
     // Compose - Client Tag
     'Add client tag': 'クライアントタグを追加',
-    'Show others this was sent via x21': 'x21経由で送信されたことを他の人に表示',
+    'Show others this was sent via Halo': 'Halo経由で送信されたことを他の人に表示',
 
     // Compose - Relays for Post
     'Send only to r': '{{r}}のみに送信',
@@ -240,8 +239,6 @@ export default {
     'Composer Features': 'エディター機能',
     'Use these commands while composing your note:': '投稿を作成する際にこれらのコマンドを使用してください：',
     'Search and insert GIFs': 'GIFを検索して挿入',
-    'Generate AI images (requires AI key)': 'AI画像を生成（AIキーが必要）',
-    'Search the web (requires AI key)': 'ウェブを検索（AIキーが必要）',
     'Insert emojis (including custom emojis)': '絵文字を挿入（カスタム絵文字を含む）',
     'Mention users': 'ユーザーにメンション',
     'More features will be added over time. Start typing these commands to try them out!': '時間の経過とともにさらに機能が追加されます。これらのコマンドを入力して試してみてください！',
@@ -256,13 +253,9 @@ export default {
     'n d': '{{n}}日',
     date: '{{timestamp, date}}',
 
-    // Interactions & Stats - Reactions & Zaps
     Reactions: 'リアクション',
-    Zaps: 'Zap',
     'No more reactions': 'これ以上のリアクションはありません',
     'No reactions yet': 'まだリアクションはありません',
-    'No more zaps': 'これ以上のZapはありません',
-    'No zaps yet': 'まだZapはありません',
     interactions: 'インタラクション',
 
     // Interactions & Stats - Reposts
@@ -314,9 +307,6 @@ export default {
     Website: 'ウェブサイト',
     'Nostr Address': 'Nostrアドレス',
     'Nostr Address Info': 'Nostrアドレスはメールアドレスのようなユーザーネーム（例：user@domain.com）で、あなたのNostrアカウントにリンクされているため、他の人があなたを簡単に見つけて確認できます。',
-    'Invalid NIP-05 address': '無効なNIP-05アドレス',
-
-    // User Profiles - Identity & Keys
     'Copy private key': '秘密鍵をコピー',
 
     // User Profiles - Invite Info
@@ -352,10 +342,6 @@ export default {
     'voted in your poll': 'があなたのアンケートに投票しました',
     'reacted to your note': 'があなたの投稿にリアクションしました',
     'reposted your note': 'があなたの投稿をリポストしました',
-    'zapped your note': 'があなたの投稿をZapしました',
-    'zapped you': 'があなたをZapしました',
-
-    // Notifications - Settings
     'Mark as read': '既読にする',
     'Notification list style': '通知リストスタイル',
     'See extra info for each notification': '各通知の追加情報を表示',
@@ -485,512 +471,17 @@ export default {
     'Get Started': '始める',
 
     // Login / Sign Up / Onboarding - Invites
-    '{{name}} invites you to x21!': '{{name}}があなたをx21に招待しています！',
+    '{{name}} invites you to Halo!': '{{name}}があなたをHaloに招待しています！',
     'Join and follow {{name}}': '参加して{{name}}をフォロー',
     'Also follow {{count}} people they follow': '彼らがフォローしている{{count}}人もフォロー',
     'Welcome! You are now following {{count}} people': 'ようこそ！{{count}}人をフォローしました',
     'Welcome! You are now following {{name}}': 'ようこそ！{{name}}をフォローしました',
     'Failed to follow users. Please try again.': 'ユーザーのフォローに失敗しました。もう一度お試しください。',
-    'Share this link to invite friends to x21': 'このリンクを共有して友達をx21に招待',
+    'Share this link to invite friends to Halo': 'このリンクを共有して友達をHaloに招待',
 
     // Settings - General
 General: '一般',
 'Content & Privacy': 'コンテンツとプライバシー',
 'Backup & Sync': 'バックアップと同期',
-'AI Tools': 'AIツール',
-    // Login / Sign Up / Onboarding - Login
-    Login: 'ログイン',
-    'Using private key login is insecure. It is recommended to use a browser extension for login, such as alby, nostr-keyx or nos2x. If you must use a private key, please set a password for encryption at minimum.': '秘密鍵でのログインは安全ではありません。alby、nostr-keyx、nos2xなどのブラウザ拡張機能を使用してログインすることをお勧めします。秘密鍵を使用する必要がある場合は、最低限暗号化のためのパスワードを設定してください。',
-    'Login with Browser Extension': 'ブラウザ拡張機能でログイン',
-    'Login with Bunker': 'Bunkerでログイン',
-    'Login with Private Key': '秘密鍵でログイン',
-    'Enter the password to decrypt your ncryptsec': 'ncryptsecを復号化するためのパスワードを入力',
-    password: 'パスワード',
-    'Login to set': '設定するにはログイン',
-
-    // Login / Sign Up / Onboarding - Sign Up
-    'Sign up': '登録',
-    'Don\'t have an account yet?': 'まだアカウントをお持ちではありませんか？',
-    'or simply generate a private key': 'または単に秘密鍵を生成',
-    'This is a private key. Do not share it with anyone. Keep it safe and secure. You will not be able to recover it if you lose it.': 'これは秘密鍵です。誰とも共有しないでください。安全に保管してください。紛失すると復元できません。',
-    'optional: encrypt nsec': 'オプション: nsecを暗号化',
-
-    // Login / Sign Up / Onboarding - Tour
-    'Welcome to Nostr': 'Nostrへようこそ',
-    'New to Nostr?': 'Nostrは初めてですか？',
-    'Take a quick tour to learn about decentralized social networking, relays, and how Nostr works.': '分散型ソーシャルネットワーク、リレー、Nostrの仕組みについて学ぶクイックツアーをお試しください。',
-    'Start Tour': 'ツアーを開始',
-    'Skip Tour': 'ツアーをスキップ',
-    'Get Started': '始める',
-
-    // Login / Sign Up / Onboarding - Invites
-    '{{name}} invites you to x21!': '{{name}}があなたをx21に招待しています！',
-    'Join and follow {{name}}': '参加して{{name}}をフォロー',
-    'Also follow {{count}} people they follow': '彼らがフォローしている{{count}}人もフォロー',
-    'Welcome! You are now following {{count}} people': 'ようこそ！{{count}}人をフォローしました',
-    'Welcome! You are now following {{name}}': 'ようこそ！{{name}}をフォローしました',
-    'Failed to follow users. Please try again.': 'ユーザーのフォローに失敗しました。もう一度お試しください。',
-    'Share this link to invite friends to x21': 'このリンクを共有して友達をx21に招待',
-
-    // Settings - General
-    'Enable Payments': '支払いを有効化',
-    'Enable bitcoin lightning payments to zap content and notes.': 'コンテンツや投稿をZapするためにビットコインライトニング支払いを有効にします。',
-    Languages: '言語',
-    'Right-to-left layout': '右から左のレイアウト',
-    Theme: 'テーマ',
-    System: 'システム',
-    Light: 'ライト',
-    Dark: 'ダーク',
-    'switch to light theme': 'ライトテーマに切り替え',
-    'switch to dark theme': 'ダークテーマに切り替え',
-    'switch to system theme': 'システムテーマに切り替え',
-
-    // Settings - Display
-    'Text Only Mode': 'テキストのみモード',
-    'Strip media from notes and profiles to reduce bandwidth usage. Images and videos will be replaced with clickable load links.': '帯域幅の使用を減らすために投稿とプロフィールからメディアを削除します。画像と動画はクリック可能な読み込みリンクに置き換えられます。',
-    'Slow Connection Mode': '低速接続モード',
-    'Connect to only relay.damus.io, hide reactions and zaps. Optimized for slow connections.': 'relay.damus.ioのみに接続し、リアクションとZapを非表示にします。低速接続用に最適化されています。',
-    'Disable Avatar Animations': 'アバターアニメーションを無効化',
-    'Stop animated GIFs in profile avatars. Only affects avatars, not GIFs in notes.': 'プロフィールアバターのアニメーションGIFを停止します。アバターのみに影響し、投稿内のGIFには影響しません。',
-    enabled: '有効',
-    disabled: '無効',
-
-    // Settings - Distraction Free Mode
-    'Distraction-Free Mode': '集中モード',
-    'Drain my time': '時間を浪費',
-    'Focus mode': 'フォーカスモード',
-
-    // Settings - Visibility
-    'Hide reads in navigation': 'ナビゲーションで読み物を非表示',
-    'Hide reads in profiles': 'プロフィールで読み物を非表示',
-    'Hide lists in navigation': 'ナビゲーションでリストを非表示',
-
-    // Appearance Settings
-    Appearance: '外観',
-    'Layout mode': 'レイアウトモード',
-    Boxed: 'ボックス',
-    'Full width': '全幅',
-    'Content is centered with max width': 'コンテンツは最大幅で中央揃え',
-    'Content spans full screen width': 'コンテンツは画面全幅に広がります',
-    'Compact sidebar': 'コンパクトサイドバー',
-    'Show only icons in the sidebar': 'サイドバーにアイコンのみ表示',
-    'Primary color': 'プライマリカラー',
-    'Font family': 'フォントファミリー',
-    'Font size': 'フォントサイズ',
-    'Button radius': 'ボタンの丸み',
-    'Fully rounded': '完全に丸い',
-    'Square corners': '四角い角',
-    Square: '四角',
-    Round: '丸い',
-
-    // Appearance - Media Settings
-    Autoplay: '自動再生',
-    'Enable video autoplay on this device': 'このデバイスで動画の自動再生を有効化',
-    'Collapse long notes': '長い投稿を折りたたむ',
-    'Show "Show more" button for notes taller than 1000px': '1000pxより高い投稿に「もっと見る」ボタンを表示',
-    'Always show full media': 'メディアを常に完全表示',
-    'Never hide media behind "Show more" button, even in long notes': '長い投稿でも「もっと見る」ボタンの後ろにメディアを隠さない',
-    'Auto-load media': 'メディアの自動読み込み',
-    'Auto-load media from': 'メディアを自動読み込みする対象',
-    Always: '常に',
-    'Wi-Fi only': 'Wi-Fiのみ',
-    Never: 'なし',
-    'People in my Web of Trust': '信頼のウェブ内の人',
-    'People I follow': 'フォロー中の人',
-    'Wi-Fi only (everyone)': 'Wi-Fiのみ（すべて）',
-    'No one (click to load)': '誰もなし（クリックして読み込み）',
-    'Media will load automatically from everyone': 'すべてからメディアが自動的に読み込まれます',
-    'Media will load only from people you follow and people they follow': 'フォローしている人とその人がフォローしている人からのみメディアが読み込まれます',
-    'Media will load only from people you directly follow': '直接フォローしている人からのみメディアが読み込まれます',
-    'Media will load automatically only on Wi-Fi or ethernet connections': 'Wi-Fiまたはイーサネット接続でのみメディアが自動的に読み込まれます',
-    'Media will never load automatically - click to load each image/video': 'メディアは自動的に読み込まれません - 各画像/動画をクリックして読み込みます',
-    'Click to load image': 'クリックして画像を読み込む',
-    'Click to load media': 'クリックしてメディアを読み込む',
-    'Click to load YouTube video': 'クリックしてYouTube動画を読み込む',
-
-    // Content & Privacy - Web of Trust
-    'Web of Trust': '信頼のウェブ',
-    'Control who can appear in your feed and notifications based on your social network': 'ソーシャルネットワークに基づいて、フィードと通知に誰が表示されるかを制御',
-    'Hide untrusted notes': '信頼できない投稿を非表示',
-    'Who can appear in your feed?': 'フィードに誰が表示できますか？',
-    Everyone: 'すべて',
-    'Network + Follows': 'ネットワーク + フォロー中',
-    'Follows Only': 'フォロー中のみ',
-    'You Only': 'あなたのみ',
-    Network: 'ネットワーク',
-    Follows: 'フォロー中',
-    You: 'あなた',
-    'Show notes from everyone on Nostr': 'Nostr上のすべての人の投稿を表示',
-    'Show notes from people you follow and people they follow': 'フォローしている人とその人がフォローしている人の投稿を表示',
-    'Show notes only from people you directly follow': '直接フォローしている人の投稿のみ表示',
-    'Show only your own notes': '自分の投稿のみ表示',
-    'Also filter notifications': '通知もフィルター',
-    'Apply the same trust level to your notifications': '通知に同じ信頼レベルを適用',
-
-    // Content & Privacy - Content Filtering
-    'Hide content from untrusted users': '信頼できないユーザーからのコンテンツを非表示',
-    'Only show content from your followed users and the users they follow': 'フォローしているユーザーとその人がフォローしているユーザーからのコンテンツのみ表示',
-    'Show untrusted {type}': '信頼できない{{type}}を表示',
-    'Hide untrusted {type}': '信頼できない{{type}}を非表示',
-    'Currently hiding {type} from untrusted users.': '現在、信頼できないユーザーからの{{type}}を非表示にしています。',
-    'Currently showing all {type}.': '現在、すべての{{type}}を表示しています。',
-    'Click continue to show all {type}.': 'すべての{{type}}を表示するには続行をクリック。',
-    'Click continue to hide {type} from untrusted users.': '信頼できないユーザーからの{{type}}を非表示にするには続行をクリック。',
-    'Trusted users include people you follow and people they follow.': '信頼できるユーザーには、フォローしている人とその人がフォローしている人が含まれます。',
-    Continue: '続行',
-
-    // Content & Privacy - Muted Users
-    'Muted Users': 'ミュート中のユーザー',
-    'Manage how content from muted users appears': 'ミュート中のユーザーからのコンテンツの表示方法を管理',
-    'Always hide muted notes': 'ミュートした投稿を常に非表示',
-    'Completely hide notes from muted users, even in reposts': 'リポストでもミュート中のユーザーからの投稿を完全に非表示',
-    'Hide content mentioning muted users': 'ミュート中のユーザーに言及するコンテンツを非表示',
-    'Hide notifications from muted users': 'ミュート中のユーザーからの通知を非表示',
-    'Successfully updated mute list': 'ミュートリストを更新しました',
-    MuteListNotFoundConfirmation: 'ミュートリストが見つかりません。新しく作成しますか？以前にユーザーをミュートしたことがある場合は、確認しないでください。この操作により以前のミュートリストが失われます。',
-
-    // Content & Privacy - Spam Filters
-    'Spam Filters': 'スパムフィルター',
-    'Automatically hide posts with excessive hashtags or mentions': '過度なハッシュタグやメンションを含む投稿を自動的に非表示',
-    'Hide hashtag spam': 'ハッシュタグスパムを非表示',
-    'No hashtag filtering': 'ハッシュタグフィルタリングなし',
-    'Hide notes with more than {{count}} hashtags': '{{count}}個以上のハッシュタグを含む投稿を非表示',
-    tags: 'タグ',
-
-    // Content & Privacy - NSFW
-    'Show NSFW content by default': 'デフォルトでNSFWコンテンツを表示',
-
-    // Content & Privacy - Media & Content
-    'Media & Content': 'メディアとコンテンツ',
-    'Control how media and sensitive content is displayed': 'メディアとセンシティブなコンテンツの表示方法を制御',
-
-    // Relays - Management
-    'Relay Settings': 'リレー設定',
-    'Relay settings': 'リレー設定',
-    'relay sets': 'リレーセット',
-    'Relay sets': 'リレーセット',
-    'Relay Sets': 'リレーセット',
-    'Choose a relay set': 'リレーセットを選択',
-    Temporary: '一時的',
-
-    // Relays - Actions
-    'Add a new relay': '新しいリレーを追加',
-    'Relay already exists': 'リレーは既に存在します',
-    'invalid relay URL': '無効なリレーURL',
-    'Add to my relays': 'マイリレーに追加',
-    'Adding...': '追加中...',
-    Added: '追加しました',
-    'Relay added successfully': 'リレーを追加しました',
-    'Failed to add relay': 'リレーの追加に失敗しました',
-    'Share something on this Relay': 'このリレーで何かを共有',
-
-    // Relays - Types
-    'Read & Write Relays': '読み取りと書き込みリレー',
-    'R & W': '読 & 書',
-    Read: '読み取り',
-    Write: '書き込み',
-    'Write relays': '書き込みリレー',
-    'n relays': '{{n}}件のリレー',
-    'no more relays': 'これ以上のリレーはありません',
-
-    // Relays - Descriptions
-    'read relays description': 'コンテンツを取得する場所。より良い体験のために高速なリレー（素晴らしい/良い）を優先してください。',
-    'write relays description': '公開する場所。ここでは速度はあまり重要ではありません。',
-    'read & write relays notice': '2〜4個のリレーが理想的です。ヘルスステータスを使用して最も速いリレーを見つけてください。',
-
-    // Relays - Relay Sets
-    'Relay set name': 'リレーセット名',
-    'Add a new relay set': '新しいリレーセットを追加',
-    'Enter a name for the new relay set': '新しいリレーセットの名前を入力',
-    'Save to a new relay set': '新しいリレーセットに保存',
-    'Save to': '保存先',
-    Rename: '名前を変更',
-    'Copy share link': '共有リンクをコピー',
-
-    // Relays - Pull Relay Sets
-    'Pull relay sets': 'リレーセットを取得',
-    'Select the relay sets you want to pull': '取得したいリレーセットを選択',
-    'No relay sets found': 'リレーセットが見つかりません',
-    'Pull n relay sets': '{{n}}件のリレーセットを取得',
-    Pull: '取得',
-
-    // Relays - Append
-    'Append n relays': '{{n}}件のリレーを追加',
-    Append: '追加',
-    'Select relays to append': '追加するリレーを選択',
-
-    // Relays - Optimize
-    'calculating...': '計算中...',
-    'Calculate optimal read relays': '最適な読み取りリレーを計算',
-
-    // Relays - Warnings
-    'Too many read relays': '読み取りリレーが多すぎます',
-    'Too many write relays': '書き込みリレーが多すぎます',
-    'You have {{count}} read relays. Most clients only use 2-4 relays, setting more is unnecessary.': '{{count}}件の読み取りリレーがあります。ほとんどのクライアントは2〜4個のリレーのみを使用するため、それ以上設定する必要はありません。',
-    'You have {{count}} write relays. Most clients only use 2-4 relays, setting more is unnecessary.': '{{count}}件の書き込みリレーがあります。ほとんどのクライアントは2〜4個のリレーのみを使用するため、それ以上設定する必要はありません。',
-    'Optimize Relay Settings': 'リレー設定を最適化',
-    'Your current relay configuration may not be optimal. This could make it difficult for others to find your posts and may result in incomplete notifications.': '現在のリレー設定は最適ではない可能性があります。これにより、他の人があなたの投稿を見つけにくくなり、通知が不完全になる可能性があります。',
-    'Optimize Now': '今すぐ最適化',
-    'Maybe Later': '後で',
-    'Don\'t remind me again': '今後表示しない',
-
-    // Relays - Info
-    Operator: 'オペレーター',
-    Contact: '連絡先',
-    Software: 'ソフトウェア',
-    Version: 'バージョン',
-    'Payment page': '支払いページ',
-    'Supported NIPs': 'サポートされているNIP',
-    relayInfoBadgeAuth: '認証',
-    relayInfoBadgeSearch: '検索',
-    relayInfoBadgePayment: '支払い',
-    'Seen on': '閲覧日',
-
-    // Relays - Health
-    Great: '素晴らしい',
-    Good: '良い',
-    Average: '普通',
-    Poor: '悪い',
-    Offline: 'オフライン',
-    Latency: 'レイテンシ',
-    'Unable to connect': '接続できません',
-    'Relay latency tooltip': 'パフォーマンスはリレーサーバーからの地理的距離によって異なる場合があります。',
-
-    // Relays - Discovery
-    'Random Relays': 'ランダムリレー',
-    randomRelaysRefresh: '更新',
-    'Explore more': 'もっと発見',
-    Recommended: 'おすすめ',
-    'Recommended relays': 'おすすめリレー',
-    'Recommended from follows': 'フォロー中からのおすすめ',
-    'Relays where people you follow publish. Add fast ones as read relays.': 'フォローしている人が公開しているリレー。高速なものを読み取りリレーとして追加してください。',
-    'Finding relays from your follows...': 'フォロー中からリレーを検索中...',
-    'Failed to load recommendations': 'おすすめの読み込みに失敗しました',
-    'n follows use this_one': '{{count}}人のフォロー中がこれを使用',
-    'n follows use this_other': '{{count}}人のフォロー中がこれを使用',
-    'n follows use this': '{{count}}人のフォロー中がこれを使用',
-    'follows relay tooltip': 'このリレーはフォローしている人がコンテンツを公開するために使用しています。読み取りリレーとして追加すると、その投稿を見ることができます。',
-
-    // Relays - Reviews
-    '{{count}} reviews': '{{count}}件のレビュー',
-    'Write a review': 'レビューを書く',
-    'No reviews yet. Be the first to write one!': 'まだレビューはありません。最初のレビューを書きましょう！',
-    'View more reviews': 'さらにレビューを見る',
-    'Failed to review': 'レビューに失敗しました',
-    'Write a review and pick a star rating': 'レビューを書いて星評価を選択',
-    'Reviews for {{relay}}': '{{relay}}のレビュー',
-
-    // Relays - Submit
-    'Submit Relay': 'リレーを送信',
-    Homepage: 'ホームページ',
-    'Proof of Work (difficulty {{minPow}})': 'プルーフオブワーク（難易度{{minPow}}）',
-
-    // Relays - Favorites
-    'Favorite Relays': 'お気に入りリレー',
-    Favorites: 'お気に入り',
-    'Following\'s Favorites': 'フォロー中のお気に入り',
-    'Favorited by': 'お気に入り登録者',
-    Unfavorite: 'お気に入りから削除',
-    FollowListNotFoundConfirmation: 'フォローリストが見つかりません。新しく作成しますか？以前にユーザーをフォローしたことがある場合は、確認しないでください。この操作により以前のフォローリストが失われます。',
-
-    // Wallet
-    Wallet: 'ウォレット',
-    Sats: 'サトシ',
-    sats: 'サトシ',
-    Balance: '残高',
-    'Lightning Address (or LNURL)': 'ライトニングアドレス（またはLNURL）',
-    'Lightning Payment Address': 'ライトニング支払いアドレス',
-    'Lightning Payment Address Info': 'ライトニングアドレスはメールアドレスのように見えます（例：user@domain.com）が、ライトニングネットワーク経由で即座にビットコインを送受信するために使用されます。取得できます',
-    here: 'こちら',
-    'Lightning Invoice': 'ライトニングインボイス',
-    Pay: '支払う',
-
-    // Wallet - Zapping
-    'Zap to': 'Zapを送る',
-    'Zap n sats': '{{n}}サトシをZap',
-    'Zapped n sats': '{{n}}サトシをZapしました',
-    zapComment: 'コメント',
-    'Default zap amount': 'デフォルトのZap金額',
-    'Default zap comment': 'デフォルトのZapコメント',
-    'Quick zap': 'クイックZap',
-    'If enabled, you can zap with a single click. Click and hold for custom amounts': '有効にすると、ワンクリックでZapできます。カスタム金額の場合は長押ししてください',
-
-    // Wallet - Charge Zaps
-    'Enable Charge Zaps': 'チャージZapを有効化',
-    'Press and hold to charge zap amount': '長押ししてZap金額をチャージ',
-    'Quick zaps must be enabled for charge zaps': 'チャージZapにはクイックZapを有効にする必要があります',
-    'Charge Zap Limit (sats)': 'チャージZap上限（サトシ）',
-    'Maximum amount that can be charged. No matter how long you hold, zap won\'t exceed this limit.': 'チャージできる最大金額。どんなに長く押しても、Zapはこの上限を超えません。',
-    'Important: Set a reasonable limit': '重要: 妥当な上限を設定してください',
-    'This prevents accidentally sending large amounts. The zap amount will never exceed this limit.': 'これにより誤って大金を送ることを防ぎます。Zap金額はこの上限を決して超えません。',
-    'Charge Zap': 'チャージZap',
-
-    // Wallet - Zap Sounds
-    'Zap Sound': 'Zapサウンド',
-    None: 'なし',
-    Random: 'ランダム',
-    'Zap Sound 1': 'Zapサウンド1',
-    'Electric Zap': 'エレクトリックZap',
-    'Sending a message': 'メッセージを送信',
-    'No second best': '二番目はない',
-    Freedom: '自由',
-    'Hey Hey Hey': 'ヘイヘイヘイ',
-
-    // Wallet - Connection (Rizful)
-    'Connected to': '接続先',
-    'Disconnect Wallet': 'ウォレットを切断',
-    'Are you absolutely sure?': '本当によろしいですか？',
-    'You will not be able to send zaps to others.': '他の人にZapを送ることができなくなります。',
-    Disconnect: '切断',
-    'Start with a Rizful Vault': 'Rizful Vaultで始める',
-    'or other wallets': 'または他のウォレット',
-    'Rizful Vault': 'Rizful Vault',
-    'Rizful Vault connected!': 'Rizful Vaultに接続しました！',
-    'You can now use your Rizful Vault to zap your favorite notes and creators.': 'Rizful Vaultを使用してお気に入りの投稿やクリエイターにZapできるようになりました。',
-    'Your Lightning Address': 'あなたのライトニングアドレス',
-    'New to Rizful?': 'Rizfulは初めてですか？',
-    'Sign up for Rizful': 'Rizfulに登録',
-    'If you already have a Rizful account, you can skip this step.': 'すでにRizfulアカウントをお持ちの場合は、この手順をスキップできます。',
-    'Get your one-time code': 'ワンタイムコードを取得',
-    'Get code': 'コードを取得',
-    'Connect to your Rizful Vault': 'Rizful Vaultに接続',
-    'Paste your one-time code here': 'ワンタイムコードをここに貼り付け',
-    Connect: '接続',
-    'Set up your wallet to send and receive sats!': 'サトシを送受信するためにウォレットをセットアップ！',
-    'Set up': 'セットアップ',
-
-    // Post Settings
-    'Post settings': '投稿設定',
-    'Media upload service': 'メディアアップロードサービス',
-
-    // Post Settings - Blossom
-    'Blossom server URLs': 'BlossomサーバーURL',
-    'You need to add at least one blossom server in order to upload media files.': 'メディアファイルをアップロードするには、少なくとも1つのblossomサーバーを追加する必要があります。',
-    'Recommended blossom servers': 'おすすめのblossomサーバー',
-    'Enter Blossom server URL': 'BlossomサーバーURLを入力',
-    Preferred: '優先',
-
-    // Post Settings - Note Expiration
-    'Default Note Expiration': 'デフォルトの投稿有効期限',
-    'Set the default expiration time for your notes (NIP-40)': '投稿のデフォルト有効期限を設定（NIP-40）',
-    Expires: '有効期限',
-    Day: '日',
-    Week: '週',
-    Month: '月',
-    Year: '年',
-    '1 Day': '1日',
-    '1 Week': '1週間',
-    '1 Month': '1ヶ月',
-    '1 Year': '1年',
-
-    // Post Settings - Default Reaction Emojis
-    'Default Reaction Emojis': 'デフォルトリアクション絵文字',
-    'Customize the emojis that appear in the quick-reaction bar on notes.': '投稿のクイックリアクションバーに表示される絵文字をカスタマイズします。',
-    'Click an emoji to change it, or click the X to remove it. Maximum 10 emojis.': '絵文字をクリックして変更するか、Xをクリックして削除します。最大10個の絵文字。',
-
-    // Post Settings - Custom Emojis
-    'Custom Emojis': 'カスタム絵文字',
-    'Create and manage custom emoji sets to use in your posts': '投稿で使用するカスタム絵文字セットを作成・管理',
-    'Manage on Emojito': 'Emojitoで管理',
-
-    // Translation
-    Translation: '翻訳',
-    Translate: '翻訳',
-    'Translating...': '翻訳中...',
-    'Show original': '原文を表示',
-    Service: 'サービス',
-    characters: '文字',
-    jumbleTranslateApiKeyDescription: 'このAPIキーはLibreTranslateをサポートする他の場所でも使用できます。サービスURLは{{serviceUrl}}です',
-    'Top up': 'チャージ',
-    'Will receive: {n} characters': '受け取る: {{n}}文字',
-    'Top up {n} sats': '{{n}}サトシをチャージ',
-    'Minimum top up is {n} sats': '最小チャージ額は{{n}}サトシです',
-    'Reset API key': 'APIキーをリセット',
-    'Are you sure you want to reset your API key? This action cannot be undone.': 'APIキーをリセットしてもよろしいですか？この操作は元に戻せません。',
-    Warning: '警告',
-    'Your current API key will become invalid immediately, and any applications using it will stop working until you update them with the new key.': '現在のAPIキーは直ちに無効になり、それを使用しているすべてのアプリケーションは新しいキーで更新するまで動作しなくなります。',
-    'Service address': 'サービスアドレス',
-
-    // Backup & Sync
-    'No pubkeys found from {url}': '{{url}}から公開鍵が見つかりません',
-
-    // About
-    About: '情報',
-    'Platinum Sponsors': 'プラチナスポンサー',
-
-    // Reads (Long-form Articles)
-    'Please login to view reads from people you follow': 'フォロー中の人の読み物を見るにはログインしてください',
-    'Follow some people to see their long-form articles here': '何人かフォローして長文記事をここで見ましょう',
-    'No articles found': '記事が見つかりません',
-    'Load More': 'もっと読み込む',
-    Article: '記事',
-
-    // Explore
-    Community: 'コミュニティ',
-    Group: 'グループ',
-    'Live event': 'ライブイベント',
-    'Suitable Relays': '適切なリレー',
-
-    // Common Actions
-    Add: '追加',
-    edit: '編集',
-    back: '戻る',
-    close: '閉じる',
-    Submit: '送信',
-    All: 'すべて',
-    From: '送信元',
-    Error: 'エラー',
-    Tip: 'ヒント',
-    video: '動画',
-    'Select all': 'すべて選択',
-    Refresh: '更新',
-
-    // Widgets
-    Widgets: 'ウィジェット',
-    'Customize which widgets appear in your sidebar. Drag widgets to reorder them.': 'サイドバーに表示するウィジェットをカスタマイズします。ウィジェットをドラッグして並べ替えます。',
-    'Sidebar Title': 'サイドバータイトル',
-    'Customize the title displayed at the top of your widget sidebar': 'ウィジェットサイドバーの上部に表示されるタイトルをカスタマイズ',
-    'Sidebar Icon': 'サイドバーアイコン',
-    'No icon selected': 'アイコンが選択されていません',
-    'Choose an icon to display next to your sidebar title': 'サイドバータイトルの横に表示するアイコンを選択',
-    'Hide widget titles': 'ウィジェットタイトルを非表示',
-    'Hide Widget Titles': 'ウィジェットタイトルを非表示',
-    'Hide the title text in each widget to make them more compact': '各ウィジェットのタイトルテキストを非表示にしてコンパクトに',
-    'Remove titles from all widgets for a cleaner look': 'すべてのウィジェットからタイトルを削除してすっきりとした外観に',
-    'Widget Height': 'ウィジェットの高さ',
-    'Choose icon': 'アイコンを選択',
-    'Remove icon': 'アイコンを削除',
-    Tall: '高い',
-    Short: '低い',
-    'Remaining space': '残りのスペース',
-    Alignment: '配置',
-    'Text Alignment': 'テキストの配置',
-    Left: '左',
-    Center: '中央',
-    Right: '右',
-    'Text Size': 'テキストサイズ',
-    Small: '小',
-    Medium: '中',
-    Large: '大',
-    'Show block height': 'ブロック高を表示',
-    'Show Block Height': 'ブロック高を表示',
-    'Display current Bitcoin block height': '現在のBitcoinブロック高を表示',
-    'Show sats mode': 'satsモードを表示',
-    'Show Sats per Dollar': 'ドルあたりのSatsを表示',
-    'Display sats per dollar instead of USD price': 'USD価格の代わりにドルあたりのsatsを表示',
-    'Bitcoin Ticker': 'Bitcoinティッカー',
-    'Display real-time Bitcoin price from CoinGecko': 'CoinGeckoからリアルタイムのBitcoin価格を表示',
-    'Trending Notes': 'トレンドノート',
-    'Display trending notes from across Nostr': 'Nostr全体からトレンドノートを表示',
-    'AI Prompt': 'AIプロンプト',
-    'Chat with AI about notes in your sidebar': 'サイドバーのノートについてAIとチャット',
-    'Invite Friends': '友達を招待',
-    'Share your invite link and see who joined through you': '招待リンクを共有して、誰があなたを通じて参加したか確認',
-
-    // Misc UI
-    'Lost in the void': '虚空で迷子',
-    'Carry me home': '家に連れて帰って',
-    'Loading preview...': 'プレビューを読み込み中...',
-    Back: '戻る'
-  }
+}
 }

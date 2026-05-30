@@ -1056,11 +1056,7 @@ class ClientService extends EventTarget {
       const profileObj = JSON.parse(profileEvent.content)
       const text = [
         profileObj.display_name?.trim() ?? '',
-        profileObj.name?.trim() ?? '',
-        profileObj.nip05
-          ?.split('@')
-          .map((s: string) => s.trim())
-          .join(' ') ?? ''
+        profileObj.name?.trim() ?? ''
       ].join(' ')
       if (!text) return
 

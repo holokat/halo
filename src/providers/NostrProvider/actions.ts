@@ -576,11 +576,6 @@ export function createNostrActions({
         authors: [pubkey],
         kinds: [kinds.Reaction, kinds.Repost],
         limit: 100
-      },
-      {
-        '#P': [pubkey],
-        kinds: [kinds.Zap],
-        limit: 100
       }
     ])
     noteStatsService.updateNoteStatsByEvents(events)

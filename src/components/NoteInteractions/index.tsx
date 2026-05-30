@@ -7,7 +7,6 @@ import QuoteList from '../QuoteList'
 import ReactionList from '../ReactionList'
 import ReplyNoteList from '../ReplyNoteList'
 import RepostList from '../RepostList'
-import ZapList from '../ZapList'
 import { Tabs, TTabValue } from './Tabs'
 
 export default function NoteInteractions({
@@ -31,9 +30,6 @@ export default function NoteInteractions({
       break
     case 'reposts':
       list = <RepostList event={event} />
-      break
-    case 'zaps':
-      list = <ZapList event={event} />
       break
     default:
       break

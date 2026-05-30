@@ -1,5 +1,5 @@
-import { kinds, NostrEvent } from 'nostr-tools'
-import { hasMutedHashtag, isMentioningMutedUsers, isFromMutedDomain } from './event'
+import { NostrEvent, kinds } from 'nostr-tools'
+import { hasMutedHashtag, isMentioningMutedUsers } from './event'
 import { tagNameEquals } from './tag'
 import { TProfile } from '@/types'
 
@@ -12,7 +12,6 @@ export function notificationFilter(
     hideNotificationsFromMutedUsers,
     hideUntrustedNotifications,
     isUserTrusted,
-    mutedDomains,
     mutedWords,
     mutedTags,
     getProfile
@@ -23,28 +22,12 @@ export function notificationFilter(
     hideNotificationsFromMutedUsers?: boolean
     hideUntrustedNotifications?: boolean
     isUserTrusted: (pubkey: string) => boolean
-    mutedDomains?: string[]
     mutedWords?: string[]
     mutedTags?: string[]
     getProfile?: (pubkey: string) => TProfile | null | undefined
   }
 ): boolean {
-  // For zap events, the actual sender is in the 'P' tag, not event.pubkey
-  let senderPubkey = event.pubkey
-  if (event.kind === kinds.Zap) {
-    const zapSenderTag = event.tags.find(tagNameEquals('P'))
-    if (zapSenderTag) {
-      senderPubkey = zapSenderTag[1]
-    }
-  }
-
-  // Check if sender is muted by domain
-  if (hideNotificationsFromMutedUsers && mutedDomains && mutedDomains.length > 0 && getProfile) {
-    const profile = getProfile(senderPubkey)
-    if (profile && isFromMutedDomain(profile.nip05, mutedDomains)) {
-      return false
-    }
-  }
+  const senderPubkey = event.pubkey
 
   if (
     (hideNotificationsFromMutedUsers && mutePubkeySet.has(senderPubkey)) ||

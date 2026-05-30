@@ -12,7 +12,6 @@ import {
   ChevronDown,
   ChevronUp,
   Hash,
-  Highlighter,
   Loader2,
   Minus,
   Newspaper,
@@ -31,6 +30,8 @@ import RelayIcon from '../RelayIcon'
 function stripRelayProtocol(value: string) {
   return value.trim().replace(/^(?:wss?|https?):\/\//i, '')
 }
+
+const primaryFeedItemClassName = 'rounded-2xl'
 
 export default function FeedSwitcher({
   close
@@ -54,7 +55,6 @@ export default function FeedSwitcher({
   const isAdvancedFeedActive = useMemo(
     () =>
       feedInfo.feedType === 'bookmarks' ||
-      feedInfo.feedType === 'highlights' ||
       feedInfo.feedType === 'relay',
     [feedInfo]
   )
@@ -70,6 +70,7 @@ export default function FeedSwitcher({
     <div className="space-y-2">
       {pubkey && (
         <FeedSwitcherItem
+          className={primaryFeedItemClassName}
           isActive={feedInfo.feedType === 'following'}
           onClick={() => {
             if (!pubkey) return
@@ -87,6 +88,7 @@ export default function FeedSwitcher({
       )}
 
       <FeedSwitcherItem
+        className={primaryFeedItemClassName}
         isActive={feedInfo.feedType === 'trending'}
         onClick={() => {
           switchFeed('trending')
@@ -102,6 +104,7 @@ export default function FeedSwitcher({
       </FeedSwitcherItem>
 
       <FeedSwitcherItem
+        className={primaryFeedItemClassName}
         isActive={feedInfo.feedType === 'news'}
         onClick={() => {
           switchFeed('news')
@@ -117,6 +120,7 @@ export default function FeedSwitcher({
       </FeedSwitcherItem>
 
       <FeedSwitcherItem
+        className={primaryFeedItemClassName}
         isActive={feedInfo.feedType === 'custom' && feedInfo.id === INTERESTS_FEED_ID}
         onClick={() => {
           if (hasConfiguredInterests && interestsFeed) {
@@ -182,30 +186,6 @@ export default function FeedSwitcher({
 
       {showAdvanced && (
         <div className="space-y-2">
-          {pubkey && (
-            <FeedSwitcherItem
-              isActive={feedInfo.feedType === 'highlights'}
-              onClick={() => {
-                if (!pubkey) return
-                switchFeed('highlights', { pubkey })
-                close?.()
-              }}
-              controls={
-                <PinButton
-                  column={{ type: 'highlights' }}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity"
-                />
-              }
-            >
-              <div className="flex gap-2 items-center">
-                <div className="flex justify-center items-center w-6 h-6 shrink-0">
-                  <Highlighter className="size-4" />
-                </div>
-                <div>{t('Highlights')}</div>
-              </div>
-            </FeedSwitcherItem>
-          )}
-
           {pubkey && (
             <FeedSwitcherItem
               isActive={feedInfo.feedType === 'bookmarks'}
@@ -443,16 +423,18 @@ function FeedSwitcherItem({
   children,
   isActive,
   onClick,
-  controls
+  controls,
+  className = 'rounded-lg'
 }: {
   children: React.ReactNode
   isActive: boolean
   onClick: () => void
   controls?: React.ReactNode
+  className?: string
 }) {
   return (
     <div
-      className={`w-full border rounded-lg py-1 px-3 group ${isActive ? 'border-primary bg-primary/5' : 'clickable'}`}
+      className={`w-full border py-1 px-3 group ${className} ${isActive ? 'border-primary bg-primary/5' : 'clickable'}`}
       onClick={onClick}
       style={{ fontSize: 'var(--font-size, 14px)' }}
     >

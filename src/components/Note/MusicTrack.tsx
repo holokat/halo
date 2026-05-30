@@ -1,24 +1,11 @@
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
-import { useNostr } from '@/providers/NostrProvider'
-import { useZap } from '@/providers/ZapProvider'
-import { usePaymentsEnabled } from '@/providers/PaymentsEnabledProvider'
 import mediaManager from '@/services/media-manager.service'
-import lightning from '@/services/lightning.service'
-import noteStatsService from '@/services/note-stats.service'
 import { Event } from 'nostr-tools'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
-import { Minimize2, Music2, Pause, Play, Zap } from 'lucide-react'
-import { ACTUAL_ZAP_SOUNDS, ZAP_SOUNDS } from '@/constants'
+import { Minimize2, Music2, Pause, Play } from 'lucide-react'
 import ExternalLink from '../ExternalLink'
 import Image from '../Image'
 
@@ -29,22 +16,17 @@ interface MusicTrackProps {
 
 export default function MusicTrack({ event, className }: MusicTrackProps) {
   const { t } = useTranslation()
-  const { pubkey } = useNostr()
-  const { defaultZapSats, defaultZapComment, zapSound, isWalletConnected } = useZap()
-  const { paymentsEnabled } = usePaymentsEnabled()
   const audioRef = useRef<HTMLAudioElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [error, setError] = useState(false)
-  const [zapping, setZapping] = useState(false)
   const seekTimeoutRef = useRef<NodeJS.Timeout>()
   const isSeeking = useRef(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Extract metadata from tags
   const getTag = (name: string) => event.tags.find((tag) => tag[0] === name)?.[1]
-  const getAllTags = (name: string) => event.tags.filter((tag) => tag[0] === name)
 
   const title = getTag('title') || 'Untitled Track'
   const url = getTag('url')
@@ -55,7 +37,6 @@ export default function MusicTrack({ event, className }: MusicTrackProps) {
   const released = getTag('released')
   const durationTag = getTag('duration')
   const format = getTag('format')
-  const zapTags = getAllTags('zap') // Get all zap split tags
 
   useEffect(() => {
     const audio = audioRef.current
@@ -137,49 +118,6 @@ export default function MusicTrack({ event, className }: MusicTrackProps) {
       audio.currentTime = value[0]
       isSeeking.current = false
     }, 300)
-  }
-
-  const handleZap = async () => {
-    try {
-      if (!pubkey) {
-        throw new Error(t('You need to be logged in to zap'))
-      }
-      if (zapping) return
-
-      // Play zap sound IMMEDIATELY when button is pressed (only if wallet is connected)
-      if (isWalletConnected && zapSound !== ZAP_SOUNDS.NONE) {
-        let soundToPlay = zapSound
-        // If random is selected, pick a random sound
-        if (zapSound === ZAP_SOUNDS.RANDOM) {
-          const randomIndex = Math.floor(Math.random() * ACTUAL_ZAP_SOUNDS.length)
-          soundToPlay = ACTUAL_ZAP_SOUNDS[randomIndex]
-        }
-        const audio = new Audio(`/sounds/${soundToPlay}.mp3`)
-        audio.volume = 0.5
-        audio.play().catch(() => {
-          // Ignore errors (e.g., autoplay policy restrictions)
-        })
-      }
-
-      setZapping(true)
-      const zapResult = await lightning.zap(pubkey, event, defaultZapSats, defaultZapComment)
-      // user canceled
-      if (!zapResult) {
-        return
-      }
-      noteStatsService.addZap(
-        pubkey,
-        event.id,
-        zapResult.invoice,
-        defaultZapSats,
-        defaultZapComment
-      )
-      toast.success(t('Zap sent successfully'))
-    } catch (error) {
-      toast.error(`${t('Zap failed')}: ${(error as Error).message}`)
-    } finally {
-      setZapping(false)
-    }
   }
 
   if (!url) {
@@ -272,38 +210,6 @@ export default function MusicTrack({ event, className }: MusicTrackProps) {
             <div className="text-xs font-mono text-muted-foreground shrink-0 whitespace-nowrap">
               {formatTime(currentTime)} / {formatTime(duration)}
             </div>
-
-            {/* Zap Button */}
-            {paymentsEnabled && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className="rounded-full shrink-0 h-10 w-10 hover:bg-orange-500/10 hover:text-orange-500 hover:border-orange-500/50"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleZap()
-                      }}
-                      disabled={zapping || !pubkey}
-                    >
-                      <Zap
-                        className={cn('h-4 w-4', zapping && 'animate-pulse')}
-                        fill={zapping ? 'currentColor' : 'none'}
-                      />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      {zapTags.length > 0
-                        ? t('Zap this track (splits enabled)')
-                        : t('Zap this track')}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
 
             {/* Minimize Button */}
             <Button

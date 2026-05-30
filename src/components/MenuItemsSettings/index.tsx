@@ -9,7 +9,6 @@ import {
   List as ListIcon,
   Search,
   Bell,
-  MessageCircle,
   PencilLine,
   Columns,
   Radio
@@ -24,7 +23,6 @@ const MENU_ITEM_ICONS: Record<TMenuItem, any> = {
   lists: ListIcon,
   explore: Search,
   notifications: Bell,
-  messages: MessageCircle,
   livestreams: Radio,
   post: PencilLine,
   deck: Columns
@@ -37,7 +35,6 @@ const getMenuItemLabel = (t: any, item: TMenuItem): string => {
     lists: t('Lists'),
     explore: t('Search'),
     notifications: t('Notifications'),
-    messages: t('Messages'),
     livestreams: t('Live Streams'),
     post: t('Post'),
     deck: t('Multi-Column')
@@ -53,7 +50,7 @@ export default function MenuItemsSettings() {
 
   // Get reorderable items sorted by order
   const reorderableItems = menuItems
-    .filter((item) => item.canReorder)
+    .filter((item) => item.canReorder && item.id !== 'lists' && item.id !== 'livestreams')
     .sort((a, b) => a.order - b.order)
 
   // Get non-reorderable items (like deck toggle)

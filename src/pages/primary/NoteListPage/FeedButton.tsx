@@ -14,7 +14,6 @@ import {
   Box,
   ChevronDown,
   Hash,
-  Highlighter,
   Newspaper,
   Search,
   TrendingUp,
@@ -91,9 +90,6 @@ const FeedSwitcherTrigger = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEle
       if (feedInfo.feedType === 'bookmarks') {
         return t('Bookmarks')
       }
-      if (feedInfo.feedType === 'highlights') {
-        return t('Highlights')
-      }
       if (feedInfo.feedType === 'polls') {
         return t('Polls')
       }
@@ -129,9 +125,6 @@ const FeedSwitcherTrigger = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEle
       if (feedInfo.feedType === 'bookmarks') {
         return <BookmarkIcon />
       }
-      if (feedInfo.feedType === 'highlights') {
-        return <Highlighter />
-      }
       if (feedInfo.feedType === 'polls') {
         return <BarChart3 />
       }
@@ -152,7 +145,7 @@ const FeedSwitcherTrigger = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEle
 
     return (
       <div
-        className={cn('flex items-center gap-2 clickable px-3 h-full rounded-lg [&_svg]:text-muted-foreground', className)}
+        className={cn('flex items-center gap-2 clickable px-3 h-full rounded-2xl [&_svg]:text-muted-foreground', className)}
         ref={ref}
         {...props}
       >

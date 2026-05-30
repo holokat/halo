@@ -1,5 +1,4 @@
 import BookmarkList from '@/components/BookmarkList'
-import HighlightsList from '@/components/HighlightsList'
 import MobileTopNavMenuButton from '@/components/MobileTopNavMenuButton'
 import NormalFeed from '@/components/NormalFeed'
 import RelayInfo from '@/components/RelayInfo'
@@ -84,18 +83,6 @@ const NoteListPage = forwardRef((_, ref) => {
       )
     } else {
       content = <BookmarkList />
-    }
-  } else if (feedInfo.feedType === 'highlights') {
-    if (!pubkey) {
-      content = (
-        <div className="flex justify-center w-full">
-          <Button size="lg" onClick={() => checkLogin()}>
-            {t('Please login to view highlights')}
-          </Button>
-        </div>
-      )
-    } else {
-      content = <HighlightsList />
     }
   } else if (feedInfo.feedType === 'polls') {
     if (!pubkey) {
@@ -209,8 +196,6 @@ function NoteListPageTitlebar({
 
   if (feedInfo.feedType === 'bookmarks') {
     pinButton = <PinButton column={{ type: 'bookmarks' }} size="titlebar-icon" />
-  } else if (feedInfo.feedType === 'highlights') {
-    pinButton = <PinButton column={{ type: 'highlights' }} size="titlebar-icon" />
   } else if (feedInfo.feedType === 'relay' && feedInfo.id) {
     pinButton = <PinButton column={{ type: 'relay', props: { url: feedInfo.id } }} size="titlebar-icon" />
   } else if (feedInfo.feedType === 'relays' && feedInfo.id) {

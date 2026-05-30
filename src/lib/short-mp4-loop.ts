@@ -2,7 +2,7 @@ export const SHORT_MP4_LOOP_MAX_SECONDS = 4
 
 export function isShortMp4LoopCandidateUrl(src: string): boolean {
   try {
-    const url = new URL(src, 'https://x21.local')
+    const url = new URL(src, 'https://halo.local')
     return url.pathname.trim().toLowerCase().endsWith('.mp4')
   } catch {
     return false

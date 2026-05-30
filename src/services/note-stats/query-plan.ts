@@ -14,7 +14,6 @@ export function buildNoteStatsBatchFilters(
 
   const reactionLimit = Math.min(3000, Math.max(600, ids.length * 80))
   const repostLimit = Math.min(1200, Math.max(200, ids.length * 20))
-  const zapLimit = Math.min(3000, Math.max(600, ids.length * 60))
 
   const filters: Filter[] = []
 
@@ -22,7 +21,6 @@ export function buildNoteStatsBatchFilters(
     filters.push(
       { '#e': ids, kinds: [kinds.Reaction], limit: reactionLimit },
       { '#e': ids, kinds: [kinds.Repost], limit: repostLimit },
-      { '#e': ids, kinds: [kinds.Zap], limit: zapLimit },
       { '#e': ids, kinds: [kinds.EventDeletion], limit: reactionLimit }
     )
   }
@@ -30,8 +28,7 @@ export function buildNoteStatsBatchFilters(
   if (coordinates.length) {
     filters.push(
       { '#a': coordinates, kinds: [kinds.Reaction], limit: reactionLimit },
-      { '#a': coordinates, kinds: [kinds.Repost], limit: repostLimit },
-      { '#a': coordinates, kinds: [kinds.Zap], limit: zapLimit }
+      { '#a': coordinates, kinds: [kinds.Repost], limit: repostLimit }
     )
   }
 

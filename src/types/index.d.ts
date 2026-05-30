@@ -53,12 +53,8 @@ export type TProfile = {
   original_username?: string
   banner?: string
   avatar?: string
-  nip05?: string
   about?: string
   website?: string
-  lud06?: string
-  lud16?: string
-  lightningAddress?: string
   created_at?: number
   gallery?: TGalleryImage[]
   joined_through?: string
@@ -146,7 +142,7 @@ export type TDeckViewMode = 'standard' | 'multi-column'
 
 export type TMediaStyle = 'default' | 'full-width'
 
-export type TPinnedColumnType = 'explore' | 'notifications' | 'profile' | 'search' | 'relay' | 'relays' | 'custom' | 'bookmarks' | 'highlights' | 'reads' | 'lists' | 'list' | 'livestreams'
+export type TPinnedColumnType = 'explore' | 'notifications' | 'profile' | 'search' | 'relay' | 'relays' | 'custom' | 'bookmarks' | 'reads' | 'lists' | 'list' | 'livestreams'
 
 export type TPinnedColumn = {
   id: string
@@ -200,7 +196,6 @@ export type TFeedType =
   | 'relays'
   | 'relay'
   | 'bookmarks'
-  | 'highlights'
   | 'custom'
   | 'one-per-person'
   | 'polls'
@@ -247,9 +242,9 @@ export type TPublishOptions = {
   minSuccessCount?: number
 }
 
-export type TNoteListMode = 'posts' | 'postsAndReplies' | 'you' | 'reads' | 'highlights' | 'media'
+export type TNoteListMode = 'posts' | 'postsAndReplies' | 'you' | 'reads' | 'media'
 
-export type TNotificationType = 'all' | 'mentions' | 'reactions' | 'zaps'
+export type TNotificationType = 'all' | 'mentions' | 'reactions'
 
 export type TPageRef = { scrollToTop: (behavior?: ScrollBehavior) => void }
 
@@ -265,34 +260,6 @@ export type TNoteReaction = {
   emoji: TEmoji | string
   bonusCount: number
 }
-
-export type TTranslationAccount = {
-  pubkey: string
-  api_key: string
-  balance: number
-  purchased_credits?: number
-  spent_credits?: number
-  cached_characters?: number
-  total_sats_paid?: number
-}
-
-export type TTranslationServiceConfig =
-  | {
-      service: 'jumble'
-      auto_translate?: boolean
-    }
-  | {
-      service: 'libre_translate'
-      server?: string
-      api_key?: string
-      auto_translate?: boolean
-    }
-  | {
-      service: 'openrouter'
-      api_key?: string
-      model?: string
-      auto_translate?: boolean
-    }
 
 export type TMediaUploadServiceConfig =
   | {
@@ -354,42 +321,3 @@ export type TMediaAutoLoadPolicy =
 
 export type TDistractionFreeMode =
   (typeof DISTRACTION_FREE_MODE)[keyof typeof DISTRACTION_FREE_MODE]
-
-export type TAIProvider = 'openrouter' | 'ppq'
-
-export type TAIProviderConfig = {
-  apiKey?: string
-  model?: string
-  imageModel?: string
-  webSearchModel?: string
-}
-
-export type TAIServiceConfig = {
-  provider: TAIProvider
-  apiKey?: string
-  model?: string
-  imageModel?: string
-  webSearchModel?: string
-  providerConfigs?: Partial<Record<TAIProvider, TAIProviderConfig>>
-}
-
-export type TAIToolsConfig = {
-  enableSummary: boolean
-}
-
-export type TArticleSummary = {
-  title: string
-  keyTakeaways: string[]
-  summary: string
-}
-
-export type TAIMessage = {
-  role: 'user' | 'assistant' | 'system'
-  content: string
-}
-
-export type TAIPromptWidget = {
-  id: string
-  eventId: string
-  messages: TAIMessage[]
-}

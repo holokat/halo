@@ -1,9 +1,8 @@
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { formatNpub, userIdToPubkey } from '@/lib/pubkey'
+import { formatNpub } from '@/lib/pubkey'
 import { cn } from '@/lib/utils'
 import { SuggestionKeyDownProps } from '@tiptap/suggestion'
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
-import Nip05 from '../../../Nip05'
 import { SimpleUserAvatar } from '../../../UserAvatar'
 import { SimpleUsername } from '../../../Username'
 
@@ -88,7 +87,6 @@ const MentionList = forwardRef<MentionListHandle, MentionListProps>((props, ref)
             <SimpleUserAvatar userId={item} />
             <div className="flex-1 w-0">
               <SimpleUsername userId={item} className="font-semibold truncate" />
-              <Nip05 pubkey={userIdToPubkey(item)} />
             </div>
           </div>
         </button>

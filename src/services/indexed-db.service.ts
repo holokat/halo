@@ -396,51 +396,6 @@ class IndexedDbService {
     )
   }
 
-  async putTranslatedEvent(eventId: string, targetLanguage: string, translatedEvent: Event) {
-    return this.writeRecordValue(
-      StoreNames.TRANSLATED_EVENTS,
-      `${targetLanguage}_${eventId}`,
-      translatedEvent
-    )
-  }
-
-  async getTranslatedEvent(eventId: string, targetLanguage: string): Promise<Event | null> {
-    return this.readRecordValue<Event>(StoreNames.TRANSLATED_EVENTS, `${targetLanguage}_${eventId}`)
-  }
-
-  async getAllTranslatedEvents(): Promise<Map<string, Event>> {
-    const results = await readAllStoredValues<Event>(await this.getDb(), StoreNames.TRANSLATED_EVENTS)
-    const map = new Map<string, Event>()
-    results.forEach((item) => {
-      if (item.value) {
-        map.set(item.key, item.value)
-      }
-    })
-    return map
-  }
-
-  async clearOldTranslatedEvents(maxAgeMs: number = 30 * 24 * 60 * 60 * 1000) {
-    const expirationTimestamp = Date.now() - maxAgeMs
-
-    return this.withStore(StoreNames.TRANSLATED_EVENTS, 'readwrite', async (store) => {
-      const index = store.index('addedAt')
-      const range = IDBKeyRange.upperBound(expirationTimestamp)
-      await new Promise<void>((resolve, reject) => {
-        const request = index.openCursor(range)
-        request.onsuccess = (event) => {
-          const cursor = (event.target as IDBRequest<IDBCursorWithValue | null>).result
-          if (cursor) {
-            cursor.delete()
-            cursor.continue()
-          } else {
-            resolve()
-          }
-        }
-        request.onerror = (event) => reject(event)
-      })
-    })
-  }
-
   async getNoteStats(eventId: string): Promise<Record<string, any> | null> {
     return this.readRecordValue<Record<string, any>>(StoreNames.NOTE_STATS, eventId)
   }

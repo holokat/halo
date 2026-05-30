@@ -1,5 +1,5 @@
 import { Skeleton } from '@/components/ui/skeleton'
-import { hasMutedHashtag, isMentioningMutedUsers, isFromMutedDomain } from '@/lib/event'
+import { hasMutedHashtag, isMentioningMutedUsers } from '@/lib/event'
 import { isEventExpired } from '@/lib/event-expiration'
 import { useContentPolicy } from '@/providers/ContentPolicyProvider'
 import { useMuteList } from '@/providers/MuteListProvider'
@@ -26,29 +26,18 @@ export default function NoteCard({
   onTagsChange?: () => void
   bookmarkId?: string
 }) {
-  const { mutePubkeySet, getMutedWords, getMutedDomains, getMutedTags } = useMuteList()
+  const { mutePubkeySet, getMutedWords, getMutedTags } = useMuteList()
   const { hideContentMentioningMutedUsers } = useContentPolicy()
   const mutedWords = useMemo(() => getMutedWords(), [getMutedWords])
-  const mutedDomains = useMemo(() => getMutedDomains(), [getMutedDomains])
   const mutedTags = useMemo(() => getMutedTags(), [getMutedTags])
-  const { profile, isFetching } = useFetchProfile(event?.pubkey)
+  const { profile } = useFetchProfile(event?.pubkey)
 
   const shouldHide = useMemo(() => {
-    // If we have muted domains configured and profile is still loading, wait for profile to load
-    if (filterMutedNotes && mutedDomains.length > 0 && isFetching) {
-      return true
-    }
-
     if (isEventExpired(event)) {
       return true
     }
 
     if (filterMutedNotes && mutePubkeySet.has(event.pubkey)) {
-      return true
-    }
-
-    // Check if author is muted by NIP-05 domain
-    if (filterMutedNotes && profile && isFromMutedDomain(profile.nip05, mutedDomains)) {
       return true
     }
 
@@ -74,7 +63,7 @@ export default function NoteCard({
     }
 
     return false
-  }, [event, filterMutedNotes, mutePubkeySet, mutedWords, hideContentMentioningMutedUsers, profile, mutedDomains, mutedTags, isFetching])
+  }, [event, filterMutedNotes, mutePubkeySet, mutedWords, hideContentMentioningMutedUsers, profile, mutedTags])
 
   if (shouldHide) return null
 

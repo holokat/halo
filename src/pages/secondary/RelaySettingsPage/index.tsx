@@ -172,7 +172,7 @@ const RelaySettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
                     <CardTitle className="text-sm">{t('Customize')}</CardTitle>
                     <InfoPopoverButton label={t('Customize network')}>
                       {t(
-                        'Only change this if you want to publish your preferences for other apps or choose your own relay sources. x21 can handle the rest automatically.'
+                        'Only change this if you want to publish your preferences for other apps or choose your own relay sources. Halo can handle the rest automatically.'
                       )}
                     </InfoPopoverButton>
                   </div>
@@ -246,9 +246,9 @@ function NetworkOverviewCard({
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-3">
           <CardTitle className="text-sm">{t('Managed automatically')}</CardTitle>
-          <InfoPopoverButton label={t('How x21 manages this')}>
+          <InfoPopoverButton label={t('How Halo manages this')}>
             {t(
-              'x21 automatically picks relay connections for feeds, posting, and discovery while you use the app.'
+              'Halo automatically picks relay connections for feeds, posting, and discovery while you use the app.'
             )}
           </InfoPopoverButton>
         </div>
@@ -266,7 +266,7 @@ function NetworkOverviewCard({
             toneClassName="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
           />
           <NetworkStatusRow
-            title={t('Messages on other apps')}
+            title={t('Inbox relays')}
             statusLabel={inboxRelayCount > 0 ? t('Ready') : t('Optional setup')}
             toneClassName={
               inboxRelayCount > 0

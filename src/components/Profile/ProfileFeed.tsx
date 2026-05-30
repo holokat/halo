@@ -13,9 +13,10 @@ import { useLowBandwidthMode } from '@/providers/LowBandwidthModeProvider'
 import client from '@/services/client.service'
 import storage from '@/services/local-storage.service'
 import { TFeedSubRequest, TNoteListMode } from '@/types'
-import { NostrEvent, kinds } from 'nostr-tools'
+import { NostrEvent } from 'nostr-tools'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { RefreshButton } from '../RefreshButton'
+import { buildProfileFeedTabs } from './profile-feed-tabs'
 
 export default function ProfileFeed({
   pubkey,
@@ -35,44 +36,26 @@ export default function ProfileFeed({
   const [subRequests, setSubRequests] = useState<TFeedSubRequest[]>([])
   const [pinnedEventIds, setPinnedEventIds] = useState<string[]>([])
   const [allEvents, setAllEvents] = useState<NostrEvent[]>([])
-  const tabs = useMemo(() => {
-    const _tabs = [
-      { value: 'posts', label: 'Notes' },
-      { value: 'postsAndReplies', label: 'Replies' }
-    ]
-
-    // Don't show media tab in low bandwidth mode
-    if (!lowBandwidthMode) {
-      _tabs.push({ value: 'media', label: 'Media' })
-    }
-
-    _tabs.push({ value: 'highlights', label: 'Highlights' })
-
-    if (!hideReadsInProfiles) {
-      _tabs.push({ value: 'reads', label: 'Reads' })
-    }
-
-    if (myPubkey && myPubkey !== pubkey) {
-      _tabs.push({ value: 'you', label: 'YouTabName' })
-    }
-
-    return _tabs
-  }, [myPubkey, pubkey, hideReadsInProfiles, lowBandwidthMode])
+  const tabs = useMemo(
+    () =>
+      buildProfileFeedTabs({
+        lowBandwidthMode,
+        myPubkey,
+        pubkey,
+        showReadsInProfiles: !hideReadsInProfiles
+      }),
+    [myPubkey, pubkey, hideReadsInProfiles, lowBandwidthMode]
+  )
   const supportTouch = useMemo(() => isTouchDevice(), [])
   const noteListRef = useRef<TNoteListRef>(null)
   const articleListRef = useRef<TArticleListRef>(null)
   const mediaGridRef = useRef<TMediaGridRef>(null)
 
   useEffect(() => {
-    // If user is on reads tab and it gets hidden, switch to posts
-    if (listMode === 'reads' && hideReadsInProfiles) {
+    if (!tabs.some((tab) => tab.value === listMode)) {
       setListMode('posts')
     }
-    // If user is on media tab and it gets hidden (low bandwidth mode), switch to posts
-    if (listMode === 'media' && lowBandwidthMode) {
-      setListMode('posts')
-    }
-  }, [hideReadsInProfiles, listMode, lowBandwidthMode])
+  }, [listMode, tabs])
 
   useEffect(() => {
     const initPinnedEventIds = async () => {
@@ -179,11 +162,10 @@ export default function ProfileFeed({
         threshold={Math.max(800, topSpace)}
         options={
           <>
-            {!supportTouch && listMode !== 'reads' && listMode !== 'highlights' && listMode !== 'media' && <RefreshButton onClick={() => noteListRef.current?.refresh()} />}
+            {!supportTouch && listMode !== 'reads' && listMode !== 'media' && <RefreshButton onClick={() => noteListRef.current?.refresh()} />}
             {!supportTouch && listMode === 'reads' && <RefreshButton onClick={() => articleListRef.current?.refresh()} />}
-            {!supportTouch && listMode === 'highlights' && <RefreshButton onClick={() => noteListRef.current?.refresh()} />}
             {!supportTouch && listMode === 'media' && <RefreshButton onClick={() => mediaGridRef.current?.refresh()} />}
-            {listMode !== 'reads' && listMode !== 'highlights' && listMode !== 'media' && (
+            {listMode !== 'reads' && listMode !== 'media' && (
               <KindFilter
                 showKinds={temporaryShowKinds}
                 onShowKindsChange={handleShowKindsChange}
@@ -200,22 +182,13 @@ export default function ProfileFeed({
           ref={articleListRef}
           subRequests={subRequests}
         />
-      ) : listMode === 'highlights' ? (
-        <NoteList
-          ref={noteListRef}
-          subRequests={subRequests}
-          showKinds={[kinds.Highlights]}
-          hideReplies={false}
-          filterMutedNotes={false}
-          pinnedEventIds={[]}
-        />
       ) : listMode === 'media' ? (
         <MediaGrid
           ref={mediaGridRef}
           subRequests={subRequests}
         />
       ) : null}
-      {listMode !== 'reads' && listMode !== 'highlights' && listMode !== 'media' && (
+      {listMode !== 'reads' && listMode !== 'media' && (
         <NoteList
           ref={noteListRef}
           subRequests={subRequests}

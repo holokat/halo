@@ -1,19 +1,14 @@
 import { MAX_PINNED_NOTES, POLL_TYPE, ExtendedKind } from '@/constants'
 import type { TEmoji, TPollOption, TPollType } from '@/types'
-import { kinds } from 'nostr-tools'
 import type { Event } from 'nostr-tools'
-import { getAmountFromInvoice, getLightningAddressFromProfile } from '../lightning'
 import { formatPubkey, pubkeyToNpub } from '../pubkey'
-import { generateBech32IdFromETag, tagNameEquals } from '../tag'
+import { tagNameEquals } from '../tag'
 import { normalizeHttpUrl, normalizeUrl } from '../url'
 
 export function getProfileFromEvent(event: Event) {
   try {
     const profileObj = JSON.parse(event.content)
-    const username =
-      profileObj.display_name?.trim() ||
-      profileObj.name?.trim() ||
-      profileObj.nip05?.split('@')[0]?.trim()
+    const username = profileObj.display_name?.trim() || profileObj.name?.trim()
 
     return {
       pubkey: event.pubkey,
@@ -22,12 +17,8 @@ export function getProfileFromEvent(event: Event) {
       avatar: profileObj.picture,
       username: username || formatPubkey(event.pubkey),
       original_username: username,
-      nip05: profileObj.nip05,
       about: profileObj.about,
       website: profileObj.website ? normalizeHttpUrl(profileObj.website) : undefined,
-      lud06: profileObj.lud06,
-      lud16: profileObj.lud16,
-      lightningAddress: getLightningAddressFromProfile(profileObj),
       created_at: event.created_at,
       gallery: profileObj.gallery || undefined,
       joined_through: profileObj.joined_through || undefined,
@@ -40,81 +31,6 @@ export function getProfileFromEvent(event: Event) {
       npub: pubkeyToNpub(event.pubkey) ?? '',
       username: formatPubkey(event.pubkey)
     }
-  }
-}
-
-export function getZapInfoFromEvent(receiptEvent: Event) {
-  if (receiptEvent.kind !== kinds.Zap) return null
-
-  let senderPubkey: string | undefined
-  let recipientPubkey: string | undefined
-  let originalEventId: string | undefined
-  let eventId: string | undefined
-  let invoice: string | undefined
-  let amount: number | undefined
-  let comment: string | undefined
-  let description: string | undefined
-  let preimage: string | undefined
-  let pollOptionId: string | undefined
-  try {
-    receiptEvent.tags.forEach((tag) => {
-      const [tagName, tagValue] = tag
-      switch (tagName) {
-        case 'P':
-          senderPubkey = tagValue
-          break
-        case 'p':
-          recipientPubkey = tagValue
-          break
-        case 'e':
-          originalEventId = tag[1]
-          eventId = generateBech32IdFromETag(tag)
-          break
-        case 'bolt11':
-          invoice = tagValue
-          break
-        case 'description':
-          description = tagValue
-          break
-        case 'preimage':
-          preimage = tagValue
-          break
-      }
-    })
-    if (!recipientPubkey || !invoice) return null
-    amount = invoice ? getAmountFromInvoice(invoice) : 0
-    if (description) {
-      try {
-        const zapRequest = JSON.parse(description)
-        comment = zapRequest.content
-        if (!senderPubkey) {
-          senderPubkey = zapRequest.pubkey
-        }
-        const pollOptionTag = Array.isArray(zapRequest.tags)
-          ? zapRequest.tags.find(
-              (tag: unknown): tag is string[] =>
-                Array.isArray(tag) && tag[0] === 'poll_option' && typeof tag[1] === 'string'
-            )
-          : undefined
-        pollOptionId = pollOptionTag?.[1]
-      } catch {
-        // ignore
-      }
-    }
-
-    return {
-      senderPubkey,
-      recipientPubkey,
-      eventId,
-      originalEventId,
-      invoice,
-      amount,
-      comment,
-      pollOptionId,
-      preimage
-    }
-  } catch {
-    return null
   }
 }
 
@@ -225,13 +141,8 @@ export function getPollMetadataFromEvent(event: Event) {
   const options: TPollOption[] = []
   const optionImageMap = new Map<string, string>()
   const relayUrls: string[] = []
-  const isLegacyZapPoll = event.kind === ExtendedKind.LEGACY_ZAP_POLL
-  const format = isLegacyZapPoll ? 'legacy_zap' : 'nip88'
   let pollType: TPollType = POLL_TYPE.SINGLE_CHOICE
   let endsAt: number | undefined
-  let minZapAmount: number | undefined
-  let maxZapAmount: number | undefined
-  let consensusThreshold: number | undefined
 
   for (const [tagName, ...tagValues] of event.tags) {
     if ((tagName === 'option' || tagName === 'poll_option') && tagValues.length >= 2) {
@@ -252,27 +163,7 @@ export function getPollMetadataFromEvent(event: Event) {
       if (tagValues[0] === POLL_TYPE.MULTIPLE_CHOICE) {
         pollType = POLL_TYPE.MULTIPLE_CHOICE
       }
-    } else if (isLegacyZapPoll && tagName === 'value_minimum' && tagValues[0]) {
-      const valueMinimum = parseInt(tagValues[0])
-      if (!isNaN(valueMinimum) && valueMinimum > 0) {
-        minZapAmount = valueMinimum
-      }
-    } else if (isLegacyZapPoll && tagName === 'value_maximum' && tagValues[0]) {
-      const valueMaximum = parseInt(tagValues[0])
-      if (!isNaN(valueMaximum) && valueMaximum > 0) {
-        maxZapAmount = valueMaximum
-      }
-    } else if (isLegacyZapPoll && tagName === 'consensus_threshold' && tagValues[0]) {
-      const parsedValue = parseInt(tagValues[0])
-      if (!isNaN(parsedValue) && parsedValue >= 0) {
-        consensusThreshold = parsedValue / 100
-      }
     } else if (tagName === 'endsAt' && tagValues[0]) {
-      const timestamp = parseInt(tagValues[0])
-      if (!isNaN(timestamp)) {
-        endsAt = timestamp
-      }
-    } else if (isLegacyZapPoll && tagName === 'closed_at' && tagValues[0]) {
       const timestamp = parseInt(tagValues[0])
       if (!isNaN(timestamp)) {
         endsAt = timestamp
@@ -285,17 +176,14 @@ export function getPollMetadataFromEvent(event: Event) {
   }
 
   return {
-    format,
+    format: 'nip88',
     options: options.map((option) => ({
       ...option,
       image: optionImageMap.get(option.id)
     })),
     pollType,
     relayUrls,
-    endsAt,
-    minZapAmount,
-    maxZapAmount,
-    consensusThreshold
+    endsAt
   }
 }
 

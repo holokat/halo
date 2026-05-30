@@ -196,7 +196,7 @@ git commit -m "feat(i18n): complete sidebar navigation translations"
 
 ```bash
 # Find all .tsx files without useTranslation
-cd /projects/x21
+cd /projects/halo
 grep -r "useTranslation" src --include="*.tsx" -l | sort > /tmp/with-i18n.txt
 find src -name "*.tsx" | sort > /tmp/all-components.txt
 diff /tmp/all-components.txt /tmp/with-i18n.txt | grep "^<" | cut -d' ' -f2 > /tmp/missing-i18n.txt

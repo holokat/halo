@@ -1,30 +1,26 @@
 import Collapsible from '@/components/Collapsible'
 import FollowButton from '@/components/FollowButton'
 import InvitedBy from '@/components/InvitedBy'
-import Nip05 from '@/components/Nip05'
 import NpubQrCode from '@/components/NpubQrCode'
 import PrivateNote from '@/components/PrivateNote'
 import ProfileAbout from '@/components/ProfileAbout'
 import ProfileBanner from '@/components/ProfileBanner'
-import ProfileMessageButton from '@/components/ProfileMessageButton'
 import ProfileOptions from '@/components/ProfileOptions'
-import ProfileZapButton from '@/components/ProfileZapButton'
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useFetchFollowings, useFetchProfile } from '@/hooks'
 import useModalRegistration from '@/hooks/useModalRegistration'
-import { toMuteList, toProfileEditor } from '@/lib/link'
+import { toMuteList } from '@/lib/link'
 import { generateImageByPubkey } from '@/lib/pubkey'
 import { randomString } from '@/lib/random'
 import { cn } from '@/lib/utils'
-import { SecondaryPageLink, useSecondaryPage } from '@/PageManager'
+import { SecondaryPageLink } from '@/PageManager'
 import { useMuteList } from '@/providers/MuteListProvider'
 import { useNostr } from '@/providers/NostrProvider'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import client from '@/services/client.service'
-import { BellOff, Link, Zap } from 'lucide-react'
+import { BellOff, Link } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
@@ -35,7 +31,6 @@ import ProfileGallery from '../ProfileGallery'
 import FollowedBy from './FollowedBy'
 import Followings from './Followings'
 import ProfileFeed from './ProfileFeed'
-import Relays from './Relays'
 
 export default function Profile({
   id,
@@ -45,7 +40,6 @@ export default function Profile({
   isInDeckView?: boolean
 }) {
   const { t } = useTranslation()
-  const { push } = useSecondaryPage()
   const { profile, isFetching } = useFetchProfile(id)
   const { pubkey: accountPubkey } = useNostr()
   const { isSmallScreen } = useScreenSize()
@@ -146,7 +140,7 @@ export default function Profile({
   }
   if (!profile) return <NotFound />
 
-  const { banner, username, about, avatar, pubkey, website, lightningAddress, gallery } = profile
+  const { banner, username, about, avatar, pubkey, website, gallery } = profile
 
   const handleAvatarClick = (event: React.MouseEvent) => {
     event.stopPropagation()
@@ -185,7 +179,7 @@ export default function Profile({
             />
           </div>
           <Avatar
-            className="w-24 h-24 absolute left-3 bottom-0 translate-y-1/2 border-4 border-background cursor-pointer hover:opacity-90 transition-opacity"
+            className="z-20 w-24 h-24 absolute left-3 bottom-0 translate-y-1/2 border-4 border-background cursor-pointer hover:opacity-90 transition-opacity"
             onClick={handleAvatarClick}
           >
             <AvatarImage src={avatar} className="object-cover object-center" />
@@ -195,20 +189,13 @@ export default function Profile({
           </Avatar>
         </div>
         <div className="relative -mt-10 pt-10">
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-transparent via-background/80 to-background" />
-          <div className="relative px-4">
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-20 bg-gradient-to-b from-transparent via-background/80 to-background" />
+          <div className="relative z-10 px-4">
             <div className="flex justify-end h-8 gap-2 items-center">
               {isSelf ? (
                 <>
                   <ProfileOptions pubkey={pubkey} />
                   <NpubQrCode pubkey={pubkey} variant="button" />
-                  <Button
-                    className="w-20 min-w-20 rounded-full"
-                    variant="secondary"
-                    onClick={() => push(toProfileEditor())}
-                  >
-                    {t('Edit')}
-                  </Button>
                 </>
               ) : (
                 <>
@@ -222,8 +209,6 @@ export default function Profile({
                     </div>
                   )}
                   <ProfileOptions pubkey={pubkey} />
-                  {!!lightningAddress && <ProfileZapButton pubkey={pubkey} />}
-                  <ProfileMessageButton pubkey={pubkey} />
                   <FollowButton pubkey={pubkey} />
                 </>
               )}
@@ -238,15 +223,7 @@ export default function Profile({
                   </div>
                 )}
               </div>
-              <Nip05 pubkey={pubkey} />
               <InvitedBy pubkey={pubkey} />
-              {lightningAddress && (
-                <div className="text-sm text-yellow-400 flex gap-1 items-center select-text">
-                  <Zap className="size-4 shrink-0" />
-                  <div className="flex-1 max-w-fit w-0 truncate">{lightningAddress}</div>
-                </div>
-              )}
-
               <Collapsible>
                 <ProfileAbout
                   about={about}
@@ -268,7 +245,6 @@ export default function Profile({
               <div className="flex justify-between items-center mt-2 text-sm">
                 <div className="flex gap-4 items-center">
                   <Followings pubkey={pubkey} />
-                  <Relays pubkey={pubkey} />
                   {isSelf && (
                     <SecondaryPageLink
                       to={toMuteList()}

@@ -31,7 +31,6 @@ export default {
     Replies: 'Respuestas',
     Posts: 'Publicaciones',
     Articles: 'Artículos',
-    Highlights: 'Destacados',
     Polls: 'Encuestas',
     'Voice Posts': 'Publicaciones de voz',
     'Photo Posts': 'Publicaciones con fotos',
@@ -160,7 +159,7 @@ export default {
 
     // Compose - Client Tag
     'Add client tag': 'Añadir etiqueta de cliente',
-    'Show others this was sent via x21': 'Mostrar a otros que fue enviado vía x21',
+    'Show others this was sent via Halo': 'Mostrar a otros que fue enviado vía Halo',
 
     // Compose - Relays for Post
     'Send only to r': 'Enviar solo a {{r}}',
@@ -240,8 +239,6 @@ export default {
     'Composer Features': 'Funciones del editor',
     'Use these commands while composing your note:': 'Usa estos comandos mientras escribes tu publicación:',
     'Search and insert GIFs': 'Buscar e insertar GIFs',
-    'Generate AI images (requires AI key)': 'Generar imágenes con IA (requiere clave de IA)',
-    'Search the web (requires AI key)': 'Buscar en la web (requiere clave de IA)',
     'Insert emojis (including custom emojis)': 'Insertar emojis (incluidos emojis personalizados)',
     'Mention users': 'Mencionar usuarios',
     'More features will be added over time. Start typing these commands to try them out!': '¡Se añadirán más funciones con el tiempo. Empieza a escribir estos comandos para probarlos!',
@@ -256,13 +253,9 @@ export default {
     'n d': '{{n}}d',
     date: '{{timestamp, date}}',
 
-    // Interactions & Stats - Reactions & Zaps
     Reactions: 'Reacciones',
-    Zaps: 'Zaps',
     'No more reactions': 'No hay más reacciones',
     'No reactions yet': 'Aún no hay reacciones',
-    'No more zaps': 'No hay más zaps',
-    'No zaps yet': 'Aún no hay zaps',
     interactions: 'interacciones',
 
     // Interactions & Stats - Reposts
@@ -314,9 +307,6 @@ export default {
     Website: 'Sitio web',
     'Nostr Address': 'Dirección de Nostr',
     'Nostr Address Info': 'Una dirección de Nostr es un nombre de usuario que parece un correo electrónico (ej. usuario@dominio.com) y se vincula a tu cuenta de Nostr para que otros puedan encontrarte y verificarte fácilmente.',
-    'Invalid NIP-05 address': 'Dirección NIP-05 inválida',
-
-    // User Profiles - Identity & Keys
     'Copy private key': 'Copiar clave privada',
 
     // User Profiles - Invite Info
@@ -352,10 +342,6 @@ export default {
     'voted in your poll': 'votó en tu encuesta',
     'reacted to your note': 'reaccionó a tu publicación',
     'reposted your note': 'compartió tu publicación',
-    'zapped your note': 'zappeó tu publicación',
-    'zapped you': 'te zappeó',
-
-    // Notifications - Settings
     'Mark as read': 'Marcar como leída',
     'Notification list style': 'Estilo de lista de notificaciones',
     'See extra info for each notification': 'Ver información adicional para cada notificación',
@@ -485,21 +471,19 @@ export default {
     'Get Started': 'Comenzar',
 
     // Login / Sign Up / Onboarding - Invites
-    '{{name}} invites you to x21!': '¡{{name}} te invita a x21!',
+    '{{name}} invites you to Halo!': '¡{{name}} te invita a Halo!',
     'Join and follow {{name}}': 'Únete y sigue a {{name}}',
     'Also follow {{count}} people they follow': 'También sigue a {{count}} personas que ellos siguen',
     'Welcome! You are now following {{count}} people': '¡Bienvenido! Ahora sigues a {{count}} personas',
     'Welcome! You are now following {{name}}': '¡Bienvenido! Ahora sigues a {{name}}',
     'Failed to follow users. Please try again.': 'Error al seguir usuarios. Por favor intenta de nuevo.',
-    'Share this link to invite friends to x21': 'Comparte este enlace para invitar amigos a x21',
+    'Share this link to invite friends to Halo': 'Comparte este enlace para invitar amigos a Halo',
 
     // Settings - General
     General: 'General',
     'Content & Privacy': 'Contenido y Privacidad',
     'Backup & Sync': 'Respaldo y Sincronización',
-    'AI Tools': 'Herramientas de IA',
     'Enable Payments': 'Habilitar pagos',
-    'Enable bitcoin lightning payments to zap content and notes.': 'Habilita pagos de bitcoin lightning para zappear contenido y publicaciones.',
     Languages: 'Idiomas',
     'Right-to-left layout': 'Diseño de derecha a izquierda',
     Theme: 'Tema',
@@ -514,7 +498,6 @@ export default {
     'Text Only Mode': 'Modo solo texto',
     'Strip media from notes and profiles to reduce bandwidth usage. Images and videos will be replaced with clickable load links.': 'Elimina medios de publicaciones y perfiles para reducir el uso de ancho de banda. Las imágenes y videos serán reemplazados con enlaces de carga.',
     'Slow Connection Mode': 'Modo de conexión lenta',
-    'Connect to only relay.damus.io, hide reactions and zaps. Optimized for slow connections.': 'Conecta solo a relay.damus.io, oculta reacciones y zaps. Optimizado para conexiones lentas.',
     'Disable Avatar Animations': 'Desactivar animaciones de avatar',
     'Stop animated GIFs in profile avatars. Only affects avatars, not GIFs in notes.': 'Detiene GIFs animados en avatares de perfil. Solo afecta avatares, no GIFs en publicaciones.',
     enabled: 'habilitado',
@@ -758,70 +741,27 @@ export default {
     Unfavorite: 'Quitar de favoritos',
     FollowListNotFoundConfirmation: 'Lista de seguidos no encontrada. ¿Quieres crear una nueva? Si has seguido usuarios antes, NO confirmes ya que esta operación hará que pierdas tu lista de seguidos anterior.',
 
-    // Wallet
-    Wallet: 'Billetera',
     Sats: 'Sats',
     sats: 'sats',
     Balance: 'Saldo',
-    'Lightning Address (or LNURL)': 'Dirección Lightning (o LNURL)',
-    'Lightning Payment Address': 'Dirección de pago Lightning',
-    'Lightning Payment Address Info': 'Una dirección Lightning se parece a un correo electrónico (ej. usuario@dominio.com) pero se usa para enviar o recibir Bitcoin instantáneamente a través de la red Lightning. Puedes obtener una',
     here: 'aquí',
-    'Lightning Invoice': 'Factura Lightning',
     Pay: 'Pagar',
 
-    // Wallet - Zapping
-    'Zap to': 'Zappear a',
-    'Zap n sats': 'Zappear {{n}} sats',
-    'Zapped n sats': 'Zappeados {{n}} sats',
-    zapComment: 'Comentario',
-    'Default zap amount': 'Cantidad de zap predeterminada',
-    'Default zap comment': 'Comentario de zap predeterminado',
-    'Quick zap': 'Zap rápido',
-    'If enabled, you can zap with a single click. Click and hold for custom amounts': 'Si está habilitado, puedes zappear con un solo clic. Haz clic y mantén presionado para cantidades personalizadas',
-
-    // Wallet - Charge Zaps
-    'Enable Charge Zaps': 'Habilitar zaps de carga',
-    'Press and hold to charge zap amount': 'Presiona y mantén para cargar cantidad de zap',
-    'Quick zaps must be enabled for charge zaps': 'Los zaps rápidos deben estar habilitados para zaps de carga',
-    'Charge Zap Limit (sats)': 'Límite de zap de carga (sats)',
-    'Maximum amount that can be charged. No matter how long you hold, zap won\'t exceed this limit.': 'Cantidad máxima que se puede cargar. No importa cuánto tiempo mantengas presionado, el zap no excederá este límite.',
     'Important: Set a reasonable limit': 'Importante: Establece un límite razonable',
-    'This prevents accidentally sending large amounts. The zap amount will never exceed this limit.': 'Esto previene el envío accidental de cantidades grandes. La cantidad de zap nunca excederá este límite.',
-    'Charge Zap': 'Zap de carga',
-
-    // Wallet - Zap Sounds
-    'Zap Sound': 'Sonido de zap',
     None: 'Ninguno',
     Random: 'Aleatorio',
-    'Zap Sound 1': 'Sonido de zap 1',
-    'Electric Zap': 'Zap eléctrico',
     'Sending a message': 'Enviando un mensaje',
     'No second best': 'No hay segundo mejor',
     Freedom: 'Libertad',
     'Hey Hey Hey': 'Hey Hey Hey',
 
-    // Wallet - Connection (Rizful)
     'Connected to': 'Conectado a',
-    'Disconnect Wallet': 'Desconectar billetera',
     'Are you absolutely sure?': '¿Estás completamente seguro?',
-    'You will not be able to send zaps to others.': 'No podrás enviar zaps a otros.',
     Disconnect: 'Desconectar',
-    'Start with a Rizful Vault': 'Comenzar con una bóveda Rizful',
-    'or other wallets': 'u otras billeteras',
-    'Rizful Vault': 'Bóveda Rizful',
-    'Rizful Vault connected!': '¡Bóveda Rizful conectada!',
-    'You can now use your Rizful Vault to zap your favorite notes and creators.': 'Ahora puedes usar tu bóveda Rizful para zappear tus publicaciones y creadores favoritos.',
-    'Your Lightning Address': 'Tu dirección Lightning',
-    'New to Rizful?': '¿Nuevo en Rizful?',
-    'Sign up for Rizful': 'Regístrate en Rizful',
-    'If you already have a Rizful account, you can skip this step.': 'Si ya tienes una cuenta Rizful, puedes omitir este paso.',
     'Get your one-time code': 'Obtén tu código de un solo uso',
     'Get code': 'Obtener código',
-    'Connect to your Rizful Vault': 'Conecta a tu bóveda Rizful',
     'Paste your one-time code here': 'Pega tu código de un solo uso aquí',
     Connect: 'Conectar',
-    'Set up your wallet to send and receive sats!': '¡Configura tu billetera para enviar y recibir sats!',
     'Set up': 'Configurar',
 
     // Post Settings
@@ -865,7 +805,6 @@ export default {
     'Show original': 'Mostrar original',
     Service: 'Servicio',
     characters: 'caracteres',
-    jumbleTranslateApiKeyDescription: 'Puedes usar esta clave API en cualquier lugar que soporte LibreTranslate. La URL del servicio es {{serviceUrl}}',
     'Top up': 'Recargar',
     'Will receive: {n} characters': 'Recibirás: {{n}} caracteres',
     'Top up {n} sats': 'Recargar {{n}} sats',
@@ -947,8 +886,6 @@ export default {
     'Display real-time Bitcoin price from CoinGecko': 'Mostrar precio de Bitcoin en tiempo real de CoinGecko',
     'Trending Notes': 'Notas en tendencia',
     'Display trending notes from across Nostr': 'Mostrar notas en tendencia de todo Nostr',
-    'AI Prompt': 'Prompt de IA',
-    'Chat with AI about notes in your sidebar': 'Chatea con IA sobre notas en tu barra lateral',
     'Invite Friends': 'Invitar amigos',
     'Share your invite link and see who joined through you': 'Comparte tu enlace de invitación y ve quién se unió a través de ti',
 

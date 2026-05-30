@@ -31,12 +31,6 @@ import Mention from './Mention'
 import mentionSuggestion from './Mention/suggestion'
 import Gif from './Gif'
 import gifSuggestion from './Gif/suggestion'
-import AICommand from './AICommand'
-import aiCommandSuggestion from './AICommand/suggestion'
-import ImageCommand from './ImageCommand'
-import imageCommandSuggestion from './ImageCommand/suggestion'
-import WebCommand from './WebCommand'
-import webCommandSuggestion from './WebCommand/suggestion'
 import Preview from './Preview'
 import ImagePreview from '../ImagePreview'
 import LocalDrafts from './LocalDrafts'
@@ -122,18 +116,6 @@ const PostTextarea = forwardRef<
         }),
         Gif.configure({
           suggestion: gifSuggestion
-        }),
-        AICommand.configure({
-          suggestion: aiCommandSuggestion,
-          parentEvent
-        }),
-        ImageCommand.configure({
-          suggestion: imageCommandSuggestion,
-          parentEvent
-        }),
-        WebCommand.configure({
-          suggestion: webCommandSuggestion,
-          parentEvent
         }),
         ClipboardAndDropHandler.configure({
           onUploadStart: (file, cancel) => {

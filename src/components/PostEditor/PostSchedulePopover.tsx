@@ -126,7 +126,7 @@ export default function PostSchedulePopover({
           <div className="space-y-4 px-4 pb-[max(env(safe-area-inset-bottom),1rem)] pt-1">
             <p className="text-xs leading-5 text-muted-foreground">
               {t(
-                'Scheduled notes publish locally from this browser when this account is active. If x21 is closed, they send the next time you reopen it.'
+                'Scheduled notes publish locally from this browser when this account is active. If Halo is closed, they send the next time you reopen it.'
               )}
             </p>
 
@@ -223,7 +223,7 @@ export default function PostSchedulePopover({
           <div className="text-sm font-medium">{t('Schedule post')}</div>
           <p className="text-xs leading-5 text-muted-foreground">
             {t(
-              'Scheduled notes publish locally from this browser when this account is active. If x21 is closed, they send the next time you reopen it.'
+              'Scheduled notes publish locally from this browser when this account is active. If Halo is closed, they send the next time you reopen it.'
             )}
           </p>
         </div>

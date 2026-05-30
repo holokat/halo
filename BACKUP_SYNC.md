@@ -2,7 +2,7 @@
 
 ## Overview
 
-x21 now supports backing up and syncing your settings across devices using [NIP-78](https://github.com/nostr-protocol/nips/blob/master/78.md) (Arbitrary custom app data). This allows you to:
+halo now supports backing up and syncing your settings across devices using [NIP-78](https://github.com/nostr-protocol/nips/blob/master/78.md) (Arbitrary custom app data). This allows you to:
 
 - **Backup your settings** to local files or Nostr relays
 - **Restore settings** on any device
@@ -19,7 +19,6 @@ Export and import your settings as JSON files for offline storage or manual back
 - User preferences (theme, layout, fonts, colors)
 - Relay sets and configurations
 - Custom feeds and bookmarks
-- Zap settings
 - Content filters and privacy settings
 - Widget configurations
 - Menu customization
@@ -94,11 +93,9 @@ Sync your settings across devices using Nostr relays with full NIP-44 encryption
 - Layout preferences (compact sidebar, widgets)
 - Relay sets
 - Custom feeds
-- Zap settings (default amount, quick zap)
 - Content filters (kinds shown, media settings)
 - Privacy settings (hide untrusted content)
 - Notification preferences
-- AI and translation service configurations
 - Bookmark tags
 - Pinned replies
 - Menu items customization
@@ -113,7 +110,6 @@ Sync your settings across devices using Nostr relays with full NIP-44 encryption
   - Other temporary data
 
 ### Never Included
-- Session-only data (AI prompt widgets)
 - Browser-specific temporary data
 - Unencrypted private keys
 
@@ -142,9 +138,9 @@ If you choose to include private keys:
 {
   "kind": 30078,
   "tags": [
-    ["d", "x21/settings-backup"],
-    ["l", "x21/backup"],
-    ["client", "x21"]
+    ["d", "halo/settings-backup"],
+    ["l", "halo/backup"],
+    ["client", "halo"]
   ],
   "content": "<encrypted-backup-data>",
   "created_at": 1234567890
@@ -222,9 +218,9 @@ The sync status shows:
 ## Migration Guide
 
 ### From Other Clients
-1. Export settings from x21 as JSON
+1. Export settings from halo as JSON
 2. Manually configure other client
-3. No direct import (x21-specific format)
+3. No direct import (halo-specific format)
 
 ### To New Device
 1. **Method 1: Nostr Sync**
@@ -259,13 +255,12 @@ Potential improvements:
 ## Support
 
 For issues or questions:
-- GitHub Issues: [x21 repository](https://github.com/CodyTseng/x21/issues)
+- GitHub Issues: [halo repository](https://github.com/CodyTseng/halo/issues)
 - Nostr: Contact the developer via Nostr
 
 ## Related NIPs
 
 - [NIP-78](https://github.com/nostr-protocol/nips/blob/master/78.md): Arbitrary custom app data
-- [NIP-44](https://github.com/nostr-protocol/nips/blob/master/44.md): Encrypted Direct Message
 - [NIP-07](https://github.com/nostr-protocol/nips/blob/master/07.md): Browser extension for signing
 
 ---

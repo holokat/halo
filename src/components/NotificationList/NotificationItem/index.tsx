@@ -11,7 +11,6 @@ import { MentionNotification } from './MentionNotification'
 import { PollResponseNotification } from './PollResponseNotification'
 import { ReactionNotification } from './ReactionNotification'
 import { RepostNotification } from './RepostNotification'
-import { ZapNotification } from './ZapNotification'
 
 export function NotificationItem({
   notification,
@@ -21,10 +20,9 @@ export function NotificationItem({
   isNew?: boolean
 }) {
   const { pubkey } = useNostr()
-  const { mutePubkeySet, getMutedDomains, getMutedWords, getMutedTags } = useMuteList()
+  const { mutePubkeySet, getMutedWords, getMutedTags } = useMuteList()
   const { hideContentMentioningMutedUsers, hideNotificationsFromMutedUsers } = useContentPolicy()
   const { hideUntrustedNotifications, isUserTrusted } = useUserTrust()
-  const mutedDomains = getMutedDomains()
   const mutedWords = getMutedWords()
   const mutedTags = getMutedTags()
   const canShow = useMemo(() => {
@@ -35,7 +33,6 @@ export function NotificationItem({
       hideNotificationsFromMutedUsers,
       hideUntrustedNotifications,
       isUserTrusted,
-      mutedDomains,
       mutedWords,
       mutedTags,
       getProfile: (pubkey: string) => client.getCachedProfile(pubkey)
@@ -47,7 +44,6 @@ export function NotificationItem({
     hideNotificationsFromMutedUsers,
     hideUntrustedNotifications,
     isUserTrusted,
-    mutedDomains,
     mutedWords,
     mutedTags
   ])
@@ -66,9 +62,6 @@ export function NotificationItem({
   }
   if (notification.kind === kinds.Repost) {
     return <RepostNotification notification={notification} isNew={isNew} />
-  }
-  if (notification.kind === kinds.Zap) {
-    return <ZapNotification notification={notification} isNew={isNew} />
   }
   if (notification.kind === ExtendedKind.POLL_RESPONSE) {
     return <PollResponseNotification notification={notification} isNew={isNew} />

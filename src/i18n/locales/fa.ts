@@ -31,7 +31,6 @@ export default {
     Replies: 'پاسخ‌ها',
     Posts: 'پست‌ها',
     Articles: 'مقالات',
-    Highlights: 'برجسته‌ها',
     Polls: 'نظرسنجی‌ها',
     'Voice Posts': 'پست‌های صوتی',
     'Photo Posts': 'پست‌های تصویری',
@@ -160,7 +159,7 @@ export default {
 
     // Compose - Client Tag
     'Add client tag': 'افزودن برچسب کلاینت',
-    'Show others this was sent via x21': 'به دیگران نشان بده که از طریق x21 ارسال شده',
+    'Show others this was sent via Halo': 'به دیگران نشان بده که از طریق Halo ارسال شده',
 
     // Compose - Relays for Post
     'Send only to r': 'فقط به {{r}} ارسال شود',
@@ -240,8 +239,6 @@ export default {
     'Composer Features': 'امکانات ویرایشگر',
     'Use these commands while composing your note:': 'هنگام نوشتن پست خود از این دستورات استفاده کنید:',
     'Search and insert GIFs': 'جستجو و درج GIF',
-    'Generate AI images (requires AI key)': 'تولید تصاویر هوش مصنوعی (نیاز به کلید AI)',
-    'Search the web (requires AI key)': 'جستجو در وب (نیاز به کلید AI)',
     'Insert emojis (including custom emojis)': 'درج ایموجی (شامل ایموجی‌های سفارشی)',
     'Mention users': 'اشاره به کاربران',
     'More features will be added over time. Start typing these commands to try them out!': 'امکانات بیشتری به مرور زمان اضافه خواهد شد. شروع به تایپ این دستورات کنید تا آن‌ها را امتحان کنید!',
@@ -256,13 +253,9 @@ export default {
     'n d': '{{n}} ر',
     date: '{{timestamp, date}}',
 
-    // Interactions & Stats - Reactions & Zaps
     Reactions: 'واکنش‌ها',
-    Zaps: 'زپ‌ها',
     'No more reactions': 'واکنش دیگری وجود ندارد',
     'No reactions yet': 'هنوز واکنشی وجود ندارد',
-    'No more zaps': 'زپ دیگری وجود ندارد',
-    'No zaps yet': 'هنوز زپی وجود ندارد',
     interactions: 'تعاملات',
 
     // Interactions & Stats - Reposts
@@ -314,9 +307,6 @@ export default {
     Website: 'وب‌سایت',
     'Nostr Address': 'آدرس Nostr',
     'Nostr Address Info': 'آدرس Nostr یک نام کاربری است که شبیه ایمیل است (مثلاً user@domain.com) و به حساب Nostr شما متصل است تا دیگران بتوانند به راحتی شما را پیدا و تأیید کنند.',
-    'Invalid NIP-05 address': 'آدرس NIP-05 نامعتبر است',
-
-    // User Profiles - Identity & Keys
     'Copy private key': 'کپی کلید خصوصی',
 
     // User Profiles - Invite Info
@@ -352,10 +342,6 @@ export default {
     'voted in your poll': 'در نظرسنجی شما رأی داد',
     'reacted to your note': 'به پست شما واکنش نشان داد',
     'reposted your note': 'پست شما را بازنشر کرد',
-    'zapped your note': 'پست شما را زپ کرد',
-    'zapped you': 'به شما زپ فرستاد',
-
-    // Notifications - Settings
     'Mark as read': 'علامت‌گذاری به عنوان خوانده‌شده',
     'Notification list style': 'سبک لیست اعلان‌ها',
     'See extra info for each notification': 'مشاهده اطلاعات اضافی برای هر اعلان',
@@ -485,18 +471,17 @@ export default {
     'Get Started': 'شروع کنید',
 
     // Login / Sign Up / Onboarding - Invites
-    '{{name}} invites you to x21!': '{{name}} شما را به x21 دعوت می‌کند!',
+    '{{name}} invites you to Halo!': '{{name}} شما را به Halo دعوت می‌کند!',
     'Join and follow {{name}}': 'بپیوندید و {{name}} را دنبال کنید',
     'Also follow {{count}} people they follow': 'همچنین {{count}} نفر که آن‌ها دنبال می‌کنند را دنبال کنید',
     'Welcome! You are now following {{count}} people': 'خوش آمدید! اکنون {{count}} نفر را دنبال می‌کنید',
     'Welcome! You are now following {{name}}': 'خوش آمدید! اکنون {{name}} را دنبال می‌کنید',
     'Failed to follow users. Please try again.': 'دنبال کردن کاربران ناموفق بود. لطفاً دوباره تلاش کنید.',
-    'Share this link to invite friends to x21': 'این لینک را به اشتراک بگذارید تا دوستان را به x21 دعوت کنید',
+    'Share this link to invite friends to Halo': 'این لینک را به اشتراک بگذارید تا دوستان را به Halo دعوت کنید',
 
     // Settings - General
     General: 'عمومی',
     'Enable Payments': 'فعال کردن پرداخت‌ها',
-    'Enable bitcoin lightning payments to zap content and notes.': 'فعال کردن پرداخت‌های بیتکوین لایتنینگ برای زپ کردن محتوا و پست‌ها.',
     Languages: 'زبان‌ها',
     'Right-to-left layout': 'چیدمان راست به چپ',
     Theme: 'تم',
@@ -511,7 +496,6 @@ export default {
     'Text Only Mode': 'حالت فقط متن',
     'Strip media from notes and profiles to reduce bandwidth usage. Images and videos will be replaced with clickable load links.': 'حذف رسانه از پست‌ها و پروفایل‌ها برای کاهش مصرف پهنای باند. تصاویر و ویدیوها با لینک‌های بارگذاری قابل کلیک جایگزین می‌شوند.',
     'Slow Connection Mode': 'حالت اتصال کند',
-    'Connect to only relay.damus.io, hide reactions and zaps. Optimized for slow connections.': 'فقط به relay.damus.io متصل شوید، واکنش‌ها و زپ‌ها را مخفی کنید. بهینه‌شده برای اتصالات کند.',
     'Disable Avatar Animations': 'غیرفعال کردن انیمیشن آواتار',
     'Stop animated GIFs in profile avatars. Only affects avatars, not GIFs in notes.': 'توقف GIFهای متحرک در آواتار پروفایل. فقط روی آواتارها تأثیر می‌گذارد، نه GIFها در پست‌ها.',
     enabled: 'فعال',
@@ -755,70 +739,27 @@ export default {
     Unfavorite: 'حذف از موردعلاقه‌ها',
     FollowListNotFoundConfirmation: 'لیست دنبال‌شده‌ها یافت نشد. آیا می‌خواهید یک لیست جدید ایجاد کنید؟ اگر قبلاً کاربرانی را دنبال کرده‌اید، لطفاً تأیید نکنید زیرا این عملیات باعث از دست دادن لیست دنبال‌شده‌های قبلی شما می‌شود.',
 
-    // Wallet
-    Wallet: 'کیف پول',
     Sats: 'ساتوشی',
     sats: 'ساتوشی',
     Balance: 'موجودی',
-    'Lightning Address (or LNURL)': 'آدرس لایتنینگ (یا LNURL)',
-    'Lightning Payment Address': 'آدرس پرداخت لایتنینگ',
-    'Lightning Payment Address Info': 'آدرس لایتنینگ شبیه ایمیل است (مثلاً user@domain.com) اما برای ارسال یا دریافت فوری بیتکوین از طریق شبکه لایتنینگ استفاده می‌شود. می‌توانید یکی دریافت کنید',
     here: 'اینجا',
-    'Lightning Invoice': 'فاکتور لایتنینگ',
     Pay: 'پرداخت',
 
-    // Wallet - Zapping
-    'Zap to': 'زپ به',
-    'Zap n sats': 'زپ {{n}} ساتوشی',
-    'Zapped n sats': '{{n}} ساتوشی زپ شد',
-    zapComment: 'نظر',
-    'Default zap amount': 'مقدار پیش‌فرض زپ',
-    'Default zap comment': 'نظر پیش‌فرض زپ',
-    'Quick zap': 'زپ سریع',
-    'If enabled, you can zap with a single click. Click and hold for custom amounts': 'اگر فعال باشد، می‌توانید با یک کلیک زپ کنید. برای مقادیر سفارشی کلیک کنید و نگه دارید',
-
-    // Wallet - Charge Zaps
-    'Enable Charge Zaps': 'فعال کردن زپ شارژی',
-    'Press and hold to charge zap amount': 'برای شارژ مقدار زپ فشار دهید و نگه دارید',
-    'Quick zaps must be enabled for charge zaps': 'زپ سریع باید برای زپ شارژی فعال باشد',
-    'Charge Zap Limit (sats)': 'حد زپ شارژی (ساتوشی)',
-    'Maximum amount that can be charged. No matter how long you hold, zap won\'t exceed this limit.': 'حداکثر مقداری که می‌تواند شارژ شود. صرف‌نظر از اینکه چقدر نگه دارید، زپ از این حد تجاوز نمی‌کند.',
     'Important: Set a reasonable limit': 'مهم: حد معقولی تنظیم کنید',
-    'This prevents accidentally sending large amounts. The zap amount will never exceed this limit.': 'این از ارسال تصادفی مقادیر زیاد جلوگیری می‌کند. مقدار زپ هرگز از این حد تجاوز نخواهد کرد.',
-    'Charge Zap': 'زپ شارژی',
-
-    // Wallet - Zap Sounds
-    'Zap Sound': 'صدای زپ',
     None: 'هیچ',
     Random: 'تصادفی',
-    'Zap Sound 1': 'صدای زپ 1',
-    'Electric Zap': 'زپ الکتریکی',
     'Sending a message': 'ارسال پیام',
     'No second best': 'دوم نداریم',
     Freedom: 'آزادی',
     'Hey Hey Hey': 'هی هی هی',
 
-    // Wallet - Connection (Rizful)
     'Connected to': 'متصل به',
-    'Disconnect Wallet': 'قطع اتصال کیف پول',
     'Are you absolutely sure?': 'کاملاً مطمئن هستید؟',
-    'You will not be able to send zaps to others.': 'قادر به ارسال زپ به دیگران نخواهید بود.',
     Disconnect: 'قطع اتصال',
-    'Start with a Rizful Vault': 'شروع با خزانه Rizful',
-    'or other wallets': 'یا کیف پول‌های دیگر',
-    'Rizful Vault': 'خزانه Rizful',
-    'Rizful Vault connected!': 'خزانه Rizful متصل شد!',
-    'You can now use your Rizful Vault to zap your favorite notes and creators.': 'اکنون می‌توانید از خزانه Rizful خود برای زپ کردن پست‌ها و سازندگان موردعلاقه‌تان استفاده کنید.',
-    'Your Lightning Address': 'آدرس لایتنینگ شما',
-    'New to Rizful?': 'تازه‌وارد Rizful؟',
-    'Sign up for Rizful': 'ثبت‌نام در Rizful',
-    'If you already have a Rizful account, you can skip this step.': 'اگر قبلاً حساب Rizful دارید، می‌توانید این مرحله را رد کنید.',
     'Get your one-time code': 'کد یکبار مصرف خود را دریافت کنید',
     'Get code': 'دریافت کد',
-    'Connect to your Rizful Vault': 'اتصال به خزانه Rizful شما',
     'Paste your one-time code here': 'کد یکبار مصرف خود را اینجا وارد کنید',
     Connect: 'اتصال',
-    'Set up your wallet to send and receive sats!': 'کیف پول خود را برای ارسال و دریافت ساتوشی تنظیم کنید!',
     'Set up': 'تنظیم',
 
     // Post Settings
@@ -862,7 +803,6 @@ export default {
     'Show original': 'نمایش اصلی',
     Service: 'سرویس',
     characters: 'کاراکتر',
-    jumbleTranslateApiKeyDescription: 'می‌توانید از این کلید API در هر جایی که LibreTranslate پشتیبانی می‌کند استفاده کنید. آدرس سرویس {{serviceUrl}} است',
     'Top up': 'شارژ',
     'Will receive: {n} characters': 'دریافت خواهید کرد: {{n}} کاراکتر',
     'Top up {n} sats': 'شارژ {{n}} ساتوشی',
@@ -944,8 +884,6 @@ export default {
     'Display real-time Bitcoin price from CoinGecko': 'نمایش قیمت بیت‌کوین در زمان واقعی از CoinGecko',
     'Trending Notes': 'یادداشت‌های پرطرفدار',
     'Display trending notes from across Nostr': 'نمایش یادداشت‌های پرطرفدار از سراسر Nostr',
-    'AI Prompt': 'دستور هوش مصنوعی',
-    'Chat with AI about notes in your sidebar': 'گفتگو با هوش مصنوعی درباره یادداشت‌ها در نوار کناری',
     'Invite Friends': 'دعوت از دوستان',
     'Share your invite link and see who joined through you': 'لینک دعوت خود را به اشتراک بگذارید و ببینید چه کسی از طریق شما پیوسته است',
 

@@ -24,7 +24,7 @@ export default function RelayCountWarning({ relays }: { relays: TMailboxRelay[] 
       content={
         showReadWarning
           ? t(
-              'You are reading from {{count}} relays. Keep this to 2 or fewer so x21 stays fast.',
+              'You are reading from {{count}} relays. Keep this to 2 or fewer so Halo stays fast.',
               { count: readRelayCount }
             )
           : t(

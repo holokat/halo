@@ -7,7 +7,6 @@ type TDiscoveryProfile = {
   pubkey: string
   name?: string | null
   display_name?: string | null
-  nip05?: string | null
   about?: string | null
   picture?: string | null
 }
@@ -76,7 +75,6 @@ function mapDiscoveryProfileToProfile(profile: TDiscoveryProfile): TProfile | nu
     pubkey: profile.pubkey,
     npub,
     avatar: profile.picture ?? undefined,
-    nip05: profile.nip05 ?? undefined,
     about: profile.about ?? undefined
   }
 }

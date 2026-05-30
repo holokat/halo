@@ -13,14 +13,6 @@ export type DecodedLiveAddress = {
   relays?: string[]
 }
 
-export type LiveZap = {
-  id: string
-  pubkey: string
-  amount: number
-  created_at: number
-  comment?: string
-}
-
 export function decodeLiveNaddr(naddr?: string): DecodedLiveAddress | null {
   if (!naddr) return null
 

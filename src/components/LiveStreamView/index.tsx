@@ -7,7 +7,6 @@ import {
   Radio,
   Users,
   Send,
-  Zap as ZapIcon,
   Play,
   Pause,
   Volume2,
@@ -19,7 +18,6 @@ import {
 } from 'lucide-react'
 import UserAvatar from '@/components/UserAvatar'
 import Username from '@/components/Username'
-import ZapDialog from '@/components/ZapDialog'
 import RelayFetchState from '@/components/RelayFetchState'
 import { Event as NostrEvent } from 'nostr-tools'
 import { ChatMessage } from './ChatMessage'
@@ -49,7 +47,6 @@ export default function LiveStreamView({
     isPinnedToWidget,
     isSending,
     isSmallScreen,
-    isStreamZapOpen,
     isVideoMuted,
     isVideoPlaying,
     liveEvent,
@@ -59,7 +56,6 @@ export default function LiveStreamView({
     retry,
     sendMessage,
     setIsAboutOpen,
-    setIsStreamZapOpen,
     setMessage,
     showSlowLoading,
     showTimelineLabels,
@@ -74,8 +70,6 @@ export default function LiveStreamView({
     toggleVideoPlayback,
     videoContainerRef,
     videoRef,
-    zaps,
-    zapLiveEvent,
     handleChatScroll,
     handleSeek,
     handleVideoDurationChange,
@@ -150,9 +144,6 @@ export default function LiveStreamView({
               {t('About')} {isAboutOpen ? '−' : '+'}
             </Button>
           )}
-          <Button onClick={zapLiveEvent} size="icon" className="h-8 w-8 shrink-0" title={t('Zap this stream')}>
-            <ZapIcon className="h-4 w-4" />
-          </Button>
         </div>
         {summary && isAboutOpen && <p className="mt-2 text-sm text-muted-foreground">{summary}</p>}
       </div>
@@ -271,22 +262,6 @@ export default function LiveStreamView({
         </div>
 
         <div className="flex min-h-0 min-w-0 flex-col overflow-x-hidden">
-          {zaps.length > 0 && (
-            <div className="shrink-0 border-b px-2 py-1">
-              <div className="flex gap-1 overflow-x-auto pb-0.5 scrollbar-thin">
-                {zaps.slice(0, 20).map((zap) => (
-                  <div
-                    key={zap.id}
-                    className="flex flex-shrink-0 items-center gap-1 rounded-full border bg-card px-2 py-0.5"
-                  >
-                    <UserAvatar userId={zap.pubkey} size="xSmall" />
-                    <span className="text-xs font-semibold text-yellow-500">{zap.amount}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           <div className="shrink-0 border-b px-2.5 py-1.5 text-sm font-semibold">
             {t('Live Chat')} ({chatMessages.length})
           </div>
@@ -334,10 +309,6 @@ export default function LiveStreamView({
           </div>
         </div>
       </div>
-
-      {liveEvent && (
-        <ZapDialog open={isStreamZapOpen} setOpen={setIsStreamZapOpen} pubkey={liveEvent.pubkey} event={liveEvent} />
-      )}
     </div>
   )
 }

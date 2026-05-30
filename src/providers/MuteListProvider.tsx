@@ -39,9 +39,6 @@ type TMuteListContext = {
   getMutedThreads: () => string[]
   addMutedThread: (eventId: string) => Promise<void>
   removeMutedThread: (eventId: string) => Promise<void>
-  getMutedDomains: () => string[]
-  addMutedDomain: (domain: string) => Promise<void>
-  removeMutedDomain: (domain: string) => Promise<void>
   getMuteNote: (pubkey: string) => string | null
   setMuteNote: (pubkey: string, note: string) => void
 }
@@ -697,85 +694,6 @@ export function MuteListProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const getMutedDomains = useCallback(() => {
-    return allMuteTags.filter(([tagName]) => tagName === 'nip05-domain').map(([, domain]) => domain)
-  }, [allMuteTags])
-
-  const addMutedDomain = async (domain: string) => {
-    if (!accountPubkey || changing) return
-    setChanging(true)
-    try {
-      const latestMuteListEvent = await fetchLatestMuteList()
-      const latestPublicTags = latestMuteListEvent?.tags ?? []
-      const { tags: latestPrivateTags, readable } = latestMuteListEvent
-        ? await getPrivateTags(latestMuteListEvent)
-        : { tags: [], readable: true }
-      if (!readable) {
-        throw new Error(
-          'Unable to read existing private mute list content. Aborting to avoid data loss.'
-        )
-      }
-      const normalizedDomain = domain.toLowerCase()
-
-      if (
-        hasTag(latestPublicTags, 'nip05-domain', normalizedDomain) ||
-        hasTag(latestPrivateTags, 'nip05-domain', normalizedDomain)
-      ) {
-        return
-      }
-
-      const newPrivateTags = [...latestPrivateTags, ['nip05-domain', normalizedDomain]]
-      const newMuteListEvent = await publishNewMuteListEvent(latestPublicTags, newPrivateTags)
-      await updateMuteListEvent(newMuteListEvent, newPrivateTags)
-
-      setPublicTags(latestPublicTags)
-      setPrivateTags(newPrivateTags)
-    } catch (error) {
-      toast.error(t('Failed to add muted domain') + ': ' + (error as Error).message)
-    } finally {
-      setChanging(false)
-    }
-  }
-
-  const removeMutedDomain = async (domain: string) => {
-    if (!accountPubkey || changing) return
-    setChanging(true)
-    try {
-      const latestMuteListEvent = await fetchLatestMuteList()
-      if (!latestMuteListEvent) {
-        return
-      }
-
-      const latestPublicTags = latestMuteListEvent.tags ?? []
-      const { tags: latestPrivateTags, readable } = await getPrivateTags(latestMuteListEvent)
-      if (!readable) {
-        throw new Error(
-          'Unable to read existing private mute list content. Aborting to avoid data loss.'
-        )
-      }
-      const normalizedDomain = domain.toLowerCase()
-      const newPublicTags = removeTag(latestPublicTags, 'nip05-domain', normalizedDomain)
-      const newPrivateTags = removeTag(latestPrivateTags, 'nip05-domain', normalizedDomain)
-
-      if (
-        newPrivateTags.length === latestPrivateTags.length &&
-        newPublicTags.length === latestPublicTags.length
-      ) {
-        return
-      }
-
-      const newMuteListEvent = await publishNewMuteListEvent(newPublicTags, newPrivateTags)
-      await updateMuteListEvent(newMuteListEvent, newPrivateTags)
-
-      setPublicTags(newPublicTags)
-      setPrivateTags(newPrivateTags)
-    } catch (error) {
-      toast.error(t('Failed to remove muted domain') + ': ' + (error as Error).message)
-    } finally {
-      setChanging(false)
-    }
-  }
-
   const getMuteNote = useCallback(
     (pubkey: string) => {
       return muteNotes[pubkey] ?? null
@@ -812,9 +730,6 @@ export function MuteListProvider({ children }: { children: React.ReactNode }) {
         getMutedThreads,
         addMutedThread,
         removeMutedThread,
-        getMutedDomains,
-        addMutedDomain,
-        removeMutedDomain,
         getMuteNote,
         setMuteNote
       }}

@@ -30,7 +30,7 @@ const RELAY_TUTORIAL_SLIDES: TRelayTutorialSlide[] = [
     description:
       'Relays are the servers that carry notes around Nostr. They are run by individuals, communities, and companies rather than one central platform.',
     bullets: [
-      'x21 connects to relays to read posts and send your posts out.',
+      'Halo connects to relays to read posts and send your posts out.',
       'Some relays are huge and busy, others are smaller or regional.',
       'Different relays can feel very different because they carry different slices of the network.'
     ],
@@ -41,7 +41,7 @@ const RELAY_TUTORIAL_SLIDES: TRelayTutorialSlide[] = [
   {
     title: 'Read relays shape what you see',
     description:
-      'Read relays are where x21 fetches notes for your feed. The better your read relays are, the faster and fuller your timeline feels.',
+      'Read relays are where Halo fetches notes for your feed. The better your read relays are, the faster and fuller your timeline feels.',
     bullets: [
       'A good read relay has lots of notes available and responds quickly from your location.',
       'Big relays often have more content. Regional relays can be useful too if you are close to them or want local language content.',
@@ -65,9 +65,9 @@ const RELAY_TUTORIAL_SLIDES: TRelayTutorialSlide[] = [
     accentClassName: 'from-violet-500/20 via-fuchsia-500/10 to-transparent'
   },
   {
-    title: 'A fast x21 setup is simple',
+    title: 'A fast Halo setup is simple',
     description:
-      'If you want x21 to stay snappy, keep your read side tight and only add more complexity when you actually need it.',
+      'If you want Halo to stay snappy, keep your read side tight and only add more complexity when you actually need it.',
     bullets: [
       'Aim for one or two strong read relays.',
       'Use more write relays if you want wider distribution.',
@@ -88,7 +88,7 @@ function RelayTutorialStep({
   readRelayCount: number
   publishRelayCount: number
 }) {
-  const showRelaySummary = slide.title === 'A fast x21 setup is simple'
+  const showRelaySummary = slide.title === 'A fast Halo setup is simple'
   const isReadHealthy = readRelayCount > 0 && readRelayCount <= 2
   const isPublishHealthy = publishRelayCount > 0 && publishRelayCount <= 3
   const readStatus = readRelayCount === 0 ? 'Add 1 or 2' : isReadHealthy ? 'Good shape' : 'Needs trimming'

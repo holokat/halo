@@ -193,7 +193,7 @@ class InboxRelayRecommendationsService {
 
       if (supportsNip17) {
         score += 42
-        reasons.push('Supports NIP-17')
+        reasons.push('Supports private inbox events')
       }
 
       if (supportsAuth) {
@@ -224,7 +224,7 @@ class InboxRelayRecommendationsService {
       }
 
       if (relayInfo?.supported_nips?.includes(17) && !supportsNip17) {
-        reasons.push('Advertises NIP-17 in NIP-11')
+        reasons.push('Advertises private inbox support')
       }
 
       recommendations.push({

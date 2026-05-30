@@ -1,18 +1,15 @@
 import { cn } from '@/lib/utils'
 import PostEditor from '@/components/PostEditor'
-import { usePrimaryPage } from '@/PageManager'
 import { useNostr } from '@/providers/NostrProvider'
 import { Plus } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import BackgroundAudio from '../BackgroundAudio'
 import ExploreButton from './ExploreButton'
 import HomeButton from './HomeButton'
-import MessagesButton from './MessagesButton'
 import NotificationsButton from './NotificationsButton'
 import { Button } from '../ui/button'
 
 export default function BottomNavigationBar() {
-  const { current } = usePrimaryPage()
   const [isVisible, setIsVisible] = useState(true)
   const lastScrollYRef = useRef(0)
   const scrollDirectionRef = useRef<'up' | 'down'>('up')
@@ -57,7 +54,7 @@ export default function BottomNavigationBar() {
 
   return (
     <>
-      {current !== 'messages' && <FloatingComposeButton isNavVisible={isVisible} />}
+      <FloatingComposeButton isNavVisible={isVisible} />
       <nav
         className={cn(
           'fixed bottom-0 left-0 right-0 w-full z-40 bg-background/80 backdrop-blur-xl transition-transform duration-300',
@@ -83,7 +80,6 @@ export default function BottomNavigationBar() {
         <div className="w-full flex justify-around items-center py-1.5 [&_svg]:size-4 [&_svg]:shrink-0">
           <HomeButton />
           <ExploreButton />
-          <MessagesButton />
           <NotificationsButton />
         </div>
       </nav>

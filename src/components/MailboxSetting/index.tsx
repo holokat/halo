@@ -171,7 +171,7 @@ export default function MailboxSetting({
       return
     }
     if (inboxRelays.length === 0) {
-      toast.error(t('Add at least one inbox relay so other apps know where to deliver your messages.'))
+      toast.error(t('Add at least one inbox relay before saving.'))
       return
     }
 
@@ -321,7 +321,7 @@ export default function MailboxSetting({
             <CardTitle className="text-sm">{t('Message delivery')}</CardTitle>
             <InfoPopoverButton label={t('About message delivery')}>
               {t(
-                'These inbox relays are published so other Nostr apps know where to deliver your direct messages.'
+                'These inbox relays are published so other Nostr apps know where to deliver private events.'
               )}
             </InfoPopoverButton>
           </div>

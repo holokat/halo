@@ -1,8 +1,8 @@
 import storage from '@/services/local-storage.service'
 import { TCustomFeed, TFeedInfo } from '@/types'
 
-export const CUSTOM_FEEDS_CHANGED_EVENT = 'x21:custom-feeds-changed'
-export const FEED_INFO_CHANGED_EVENT = 'x21:feed-info-changed'
+export const CUSTOM_FEEDS_CHANGED_EVENT = 'halo:custom-feeds-changed'
+export const FEED_INFO_CHANGED_EVENT = 'halo:feed-info-changed'
 
 export type TFeedInfoChangedDetail = {
   pubkey?: string | null

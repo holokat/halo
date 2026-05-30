@@ -3,13 +3,10 @@ import { RefreshButton } from '@/components/RefreshButton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { BIG_RELAY_URLS, POLL_KINDS, POLL_TYPE } from '@/constants'
 import { getPollMetadataFromEvent } from '@/lib/event-metadata'
-import { getLegacyZapPollResults } from '@/lib/poll'
 import { useFeed } from '@/providers/FeedProvider'
-import { useLowBandwidthMode } from '@/providers/LowBandwidthModeProvider'
 import { useNostr } from '@/providers/NostrProvider'
 import { useUserTrust } from '@/providers/UserTrustProvider'
 import client from '@/services/client.service'
-import noteStatsService from '@/services/note-stats.service'
 import pollResultsService from '@/services/poll-results.service'
 import { TFeedSubRequest } from '@/types'
 import dayjs from 'dayjs'
@@ -28,7 +25,6 @@ export default function PollsFeed() {
   const { pubkey } = useNostr()
   const { feedInfo } = useFeed()
   const { hideUntrustedNotes } = useUserTrust()
-  const { lowBandwidthMode } = useLowBandwidthMode()
   const supportTouch = useMemo(() => 'ontouchstart' in window || navigator.maxTouchPoints > 0, [])
   const noteListRef = useRef<TNoteListRef>(null)
   const [subRequests, setSubRequests] = useState<TFeedSubRequest[]>([])
@@ -36,7 +32,6 @@ export default function PollsFeed() {
   const [activeTab, setActiveTab] = useState<PollFeedTab>('active')
   const [now, setNow] = useState(() => dayjs().unix())
   const [pollResultsVersion, setPollResultsVersion] = useState(0)
-  const [noteStatsVersion, setNoteStatsVersion] = useState(0)
   const pollKinds = useMemo(() => [...POLL_KINDS], [])
 
   useEffect(() => {
@@ -97,18 +92,6 @@ export default function PollsFeed() {
     [loadedEvents, pollMetaById]
   )
 
-  const legacyPollEntries = useMemo(
-    () =>
-      loadedEvents
-        .map((event) => {
-          const poll = pollMetaById.get(event.id)
-          if (!poll || poll.format !== 'legacy_zap') return null
-          return { event, poll }
-        })
-        .filter((entry): entry is { event: Event; poll: PollMetadata } => !!entry),
-    [loadedEvents, pollMetaById]
-  )
-
   useEffect(() => {
     if (!standardPollEntries.length) return
 
@@ -122,20 +105,6 @@ export default function PollsFeed() {
       unsubscribers.forEach((unsubscribe) => unsubscribe())
     }
   }, [standardPollEntries])
-
-  useEffect(() => {
-    if (!legacyPollEntries.length) return
-
-    const unsubscribers = legacyPollEntries.map(({ event }) =>
-      noteStatsService.subscribeNoteStats(event.id, () => {
-        setNoteStatsVersion((prev) => prev + 1)
-      })
-    )
-
-    return () => {
-      unsubscribers.forEach((unsubscribe) => unsubscribe())
-    }
-  }, [legacyPollEntries])
 
   useEffect(() => {
     let cancelled = false
@@ -173,21 +142,6 @@ export default function PollsFeed() {
     }
   }, [standardPollEntries])
 
-  useEffect(() => {
-    if (!legacyPollEntries.length) return
-
-    if (lowBandwidthMode) {
-      return
-    }
-
-    void Promise.allSettled(
-      legacyPollEntries.map(async ({ event, poll }) => {
-        const relays = await ensurePollRelays(event.pubkey, poll)
-        await noteStatsService.fetchNoteStats(event, pubkey, relays)
-      })
-    )
-  }, [legacyPollEntries, lowBandwidthMode, pubkey])
-
   const pollStateById = useMemo(() => {
     const map = new Map<
       string,
@@ -202,14 +156,7 @@ export default function PollsFeed() {
       if (!poll) return
 
       const votedOptionIds = pubkey
-        ? poll.format === 'legacy_zap'
-          ? Object.entries(
-              getLegacyZapPollResults(poll, noteStatsService.getNoteStats(event.id)?.zaps ?? [])
-                .results
-            )
-              .filter(([, result]) => result.voters.has(pubkey))
-              .map(([optionId]) => optionId)
-          : Object.entries(pollResultsService.getPollResults(event.id)?.results ?? {})
+        ? Object.entries(pollResultsService.getPollResults(event.id)?.results ?? {})
               .filter(([, voters]) => voters.has(pubkey))
               .map(([optionId]) => optionId)
         : []
@@ -221,7 +168,7 @@ export default function PollsFeed() {
     })
 
     return map
-  }, [loadedEvents, noteStatsVersion, now, pollMetaById, pollResultsVersion, pubkey])
+  }, [loadedEvents, now, pollMetaById, pollResultsVersion, pubkey])
 
   const pollCounts = useMemo(() => {
     let active = 0

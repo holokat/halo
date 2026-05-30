@@ -8,7 +8,6 @@ import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import CommunityDefinitionPreview from './CommunityDefinitionPreview'
 import GroupMetadataPreview from './GroupMetadataPreview'
-import HighlightPreview from './HighlightPreview'
 import LiveEventPreview from './LiveEventPreview'
 import LongFormArticlePreview from './LongFormArticlePreview'
 import NormalContentPreview from './NormalContentPreview'
@@ -69,11 +68,7 @@ export default function ContentPreview({
     return <NormalContentPreview event={event} className={className} />
   }
 
-  if (event.kind === kinds.Highlights) {
-    return <HighlightPreview event={event} className={className} />
-  }
-
-  if ([ExtendedKind.POLL, ExtendedKind.LEGACY_ZAP_POLL].includes(event.kind)) {
+  if (event.kind === ExtendedKind.POLL) {
     return <PollPreview event={event} className={className} />
   }
 

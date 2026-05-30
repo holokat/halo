@@ -1,7 +1,6 @@
 import localStorageService from '@/services/local-storage.service'
-import { TrendingUp, Bitcoin, LineChart, Newspaper, Sparkles, Users, BarChart3 } from 'lucide-react'
+import { TrendingUp, Bitcoin, LineChart, Newspaper, Users, BarChart3 } from 'lucide-react'
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react'
-import { TAIMessage } from '@/types'
 import { isValidStockSymbol, normalizeStockSymbol } from '@/services/stock-quote.service'
 import { isWebsocketUrl, normalizeUrl } from '@/lib/url'
 
@@ -12,9 +11,8 @@ export type TWidgetId =
   | 'polls'
   | 'bitcoin-ticker'
   | 'stock-tracker'
-  | 'ai-prompt'
   | 'invite'
-  | string // Allow dynamic pinned-note-* and ai-prompt-* IDs
+  | string // Allow dynamic pinned-note-* and live-stream-* IDs
 
 export type TTrendingNotesHeight = 'short' | 'medium' | 'tall' | 'remaining'
 
@@ -40,12 +38,6 @@ export type TLiveStreamWidget = {
   streamingUrl: string
   title: string
   image?: string
-}
-
-export type TAIPromptWidget = {
-  id: string
-  eventId: string
-  messages: TAIMessage[]
 }
 
 export const AVAILABLE_WIDGETS: TWidget[] = [
@@ -90,13 +82,6 @@ export const AVAILABLE_WIDGETS: TWidget[] = [
     description: 'Track a compact watchlist of stock symbols in your sidebar',
     defaultEnabled: false,
     icon: <LineChart className="h-5 w-5" />
-  },
-  {
-    id: 'ai-prompt',
-    name: 'AI Prompt',
-    description: 'Chat with AI about notes in your sidebar',
-    defaultEnabled: false,
-    icon: <Sparkles className="h-5 w-5" />
   },
   {
     id: 'invite',
@@ -149,20 +134,15 @@ type TWidgetsContext = {
   unpinLiveStreamWidget: (widgetId: string) => void
   unpinLiveStreamByNaddr: (naddr: string) => void
   isLiveStreamPinned: (naddr?: string) => boolean
-  aiPromptWidgets: TAIPromptWidget[]
-  openAIPrompt: (eventId: string) => string
-  closeAIPrompt: (widgetId: string) => void
-  closeAIPromptByEventId: (eventId: string) => void
-  isAIPromptOpen: (eventId: string) => boolean
-  updateAIPromptMessages: (widgetId: string, messages: TAIMessage[]) => void
-  getAIPromptWidget: (widgetId: string) => TAIPromptWidget | undefined
 }
 
 const WidgetsContext = createContext<TWidgetsContext | undefined>(undefined)
 
 export function WidgetsProvider({ children }: { children: ReactNode }) {
   const [enabledWidgets, setEnabledWidgets] = useState<TWidgetId[]>(() => {
-    return localStorageService.getEnabledWidgets() as TWidgetId[]
+    return (localStorageService.getEnabledWidgets() as TWidgetId[]).filter(
+      (id) => id !== 'ai-prompt' && !String(id).startsWith('ai-prompt-')
+    )
   })
 
   const [collapsedWidgetIds, setCollapsedWidgetIds] = useState<TWidgetId[]>(() => {
@@ -179,10 +159,6 @@ export function WidgetsProvider({ children }: { children: ReactNode }) {
 
   const [liveStreamWidgets, setLiveStreamWidgets] = useState<TLiveStreamWidget[]>(() => {
     return localStorageService.getLiveStreamWidgets()
-  })
-
-  const [aiPromptWidgets, setAIPromptWidgets] = useState<TAIPromptWidget[]>(() => {
-    return localStorageService.getAIPromptWidgets()
   })
 
   const [trendingNotesHeight, setTrendingNotesHeightState] = useState<TTrendingNotesHeight>(() => {
@@ -240,8 +216,6 @@ export function WidgetsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorageService.setLiveStreamWidgets(liveStreamWidgets)
   }, [liveStreamWidgets])
-
-  // AI Prompt widgets are session-only and don't need to persist to localStorage
 
   useEffect(() => {
     localStorageService.setTrendingNotesHeight(trendingNotesHeight)
@@ -484,58 +458,6 @@ export function WidgetsProvider({ children }: { children: ReactNode }) {
     return liveStreamWidgets.some((widget) => widget.naddr === naddr)
   }
 
-  const openAIPrompt = (eventId: string) => {
-    // Check if there's already an AI prompt widget open
-    const existingWidget = aiPromptWidgets[0]
-
-    if (existingWidget) {
-      // Replace the existing widget with the new one
-      const id = existingWidget.id
-      setAIPromptWidgets([{ id, eventId, messages: [] }])
-      // Update localStorage
-      localStorageService.removeAIPromptWidget(id)
-      localStorageService.addAIPromptWidget(eventId, id)
-      return id
-    } else {
-      // Create new widget if none exists
-      const id = localStorageService.addAIPromptWidget(eventId)
-      setAIPromptWidgets([{ id, eventId, messages: [] }])
-      // Auto-enable the widget
-      if (!enabledWidgets.includes(id)) {
-        setEnabledWidgets((prev) => [...prev, id])
-      }
-      return id
-    }
-  }
-
-  const closeAIPrompt = (widgetId: string) => {
-    localStorageService.removeAIPromptWidget(widgetId)
-    setAIPromptWidgets((prev) => prev.filter((w) => w.id !== widgetId))
-    // Remove from enabled widgets
-    setEnabledWidgets((prev) => prev.filter((id) => id !== widgetId))
-  }
-
-  const closeAIPromptByEventId = (eventId: string) => {
-    const widget = aiPromptWidgets.find((w) => w.eventId === eventId)
-    if (widget) {
-      closeAIPrompt(widget.id)
-    }
-  }
-
-  const isAIPromptOpen = (eventId: string) => {
-    return aiPromptWidgets.some((w) => w.eventId === eventId)
-  }
-
-  const updateAIPromptMessages = (widgetId: string, messages: TAIMessage[]) => {
-    setAIPromptWidgets((prev) =>
-      prev.map((w) => (w.id === widgetId ? { ...w, messages } : w))
-    )
-  }
-
-  const getAIPromptWidget = (widgetId: string) => {
-    return aiPromptWidgets.find((w) => w.id === widgetId)
-  }
-
   return (
     <WidgetsContext.Provider
       value={{
@@ -580,13 +502,6 @@ export function WidgetsProvider({ children }: { children: ReactNode }) {
         unpinLiveStreamWidget,
         unpinLiveStreamByNaddr,
         isLiveStreamPinned,
-        aiPromptWidgets,
-        openAIPrompt,
-        closeAIPrompt,
-        closeAIPromptByEventId,
-        isAIPromptOpen,
-        updateAIPromptMessages,
-        getAIPromptWidget
       }}
     >
       {children}

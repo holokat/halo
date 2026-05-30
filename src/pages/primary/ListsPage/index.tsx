@@ -14,9 +14,6 @@ import { toCreateList, toList, toEditList } from '@/lib/link'
 import UserAvatar from '@/components/UserAvatar'
 import Username from '@/components/Username'
 import PinButton from '@/components/PinButton'
-
-import ListZapButton from '@/components/ListZapButton'
-import listStatsService from '@/services/list-stats.service'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -72,7 +69,7 @@ const ListsPage = forwardRef((_, ref) => {
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set())
   const [followedLists, setFollowedLists] = useState<Set<string>>(new Set())
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
-  const [sortBy, setSortBy] = useState<'recent' | 'zaps'>('recent')
+  const [sortBy, setSortBy] = useState<'recent'>('recent')
 
   useImperativeHandle(ref, () => layoutRef.current)
 
@@ -85,24 +82,6 @@ const ListsPage = forwardRef((_, ref) => {
   useEffect(() => {
     setFavoriteLists(localStorageService.getFavoriteLists(pubkey))
   }, [pubkey])
-
-  // Fetch list stats for all lists
-  useEffect(() => {
-    if (lists && lists.length > 0) {
-      lists.forEach((list) => {
-        listStatsService.fetchListStats(list.event.pubkey, list.id, pubkey)
-      })
-    }
-  }, [lists, pubkey])
-
-  // Fetch list stats for public lists
-  useEffect(() => {
-    if (allPublicLists && allPublicLists.length > 0) {
-      allPublicLists.forEach((list) => {
-        listStatsService.fetchListStats(list.event.pubkey, list.id, pubkey)
-      })
-    }
-  }, [allPublicLists, pubkey])
 
   // Fetch public starter packs from relays on mount
   useEffect(() => {
@@ -207,8 +186,6 @@ const ListsPage = forwardRef((_, ref) => {
 
     if (ownList) {
       setSelectedList(ownList)
-      // Fetch list stats for the selected list
-      listStatsService.fetchListStats(ownList.event.pubkey, ownList.id, pubkey)
       return
     }
 
@@ -228,8 +205,6 @@ const ListsPage = forwardRef((_, ref) => {
         const event = events[0]
         const parsedList = parseStarterPackEvent(event)
         setSelectedList(parsedList)
-        // Fetch list stats for the selected list
-        listStatsService.fetchListStats(parsedList.event.pubkey, parsedList.id, pubkey)
       } else {
         toast.error(t('List not found'))
       }
@@ -316,13 +291,6 @@ const ListsPage = forwardRef((_, ref) => {
   }
 
   const sortLists = (lists: TStarterPack[]) => {
-    if (sortBy === 'zaps') {
-      return [...lists].sort((a, b) => {
-        const aZaps = listStatsService.getTotalZapAmount(a.event.pubkey, a.id)
-        const bZaps = listStatsService.getTotalZapAmount(b.event.pubkey, b.id)
-        return bZaps - aZaps
-      })
-    }
     // Default to recent (by creation time)
     return [...lists].sort((a, b) => b.event.created_at - a.event.created_at)
   }
@@ -480,14 +448,6 @@ const ListsPage = forwardRef((_, ref) => {
                     <Pin className="w-4 h-4" />
                   </Button>
                 )}
-                <div onClick={(e) => e.stopPropagation()}>
-                  <ListZapButton
-                    authorPubkey={list.event.pubkey}
-                    dTag={list.id}
-                    variant="compact"
-                    className="h-8 px-2"
-                  />
-                </div>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -572,12 +532,6 @@ const ListsPage = forwardRef((_, ref) => {
 
             {memberCount > 0 && (
               <div className="flex gap-2">
-                <ListZapButton
-                  authorPubkey={selectedList.event.pubkey}
-                  dTag={selectedList.id}
-                  variant="compact"
-                  className="h-9 px-3"
-                />
                 <Button
                   variant="ghost"
                   size="sm"
@@ -771,15 +725,12 @@ const ListsPage = forwardRef((_, ref) => {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="default">
                   <ArrowUpDown className="w-4 h-4 mr-1" />
-                  {sortBy === 'zaps' ? t('Zaps') : t('Recent')}
+                  {t('Recent')}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => setSortBy('recent')}>
                   {t('Recent')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSortBy('zaps')}>
-                  {t('Zaps')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

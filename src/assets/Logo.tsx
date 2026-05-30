@@ -16,7 +16,7 @@ export default function Logo({ className }: { className?: string }) {
   return (
     <img
       src={logoSrc}
-      alt="x21"
+      alt="Halo"
       className={cn("w-full h-auto max-w-[48px] cursor-pointer", className)}
       onClick={() => navigate('home')}
     />

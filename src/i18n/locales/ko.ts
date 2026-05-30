@@ -31,7 +31,6 @@ export default {
     Replies: '답글',
     Posts: '게시물',
     Articles: '아티클',
-    Highlights: '하이라이트',
     Polls: '투표',
     'Voice Posts': '음성 게시물',
     'Photo Posts': '사진 게시물',
@@ -160,7 +159,7 @@ export default {
 
     // Compose - Client Tag
     'Add client tag': '클라이언트 태그 추가',
-    'Show others this was sent via x21': 'x21을 통해 전송되었음을 다른 사람에게 표시',
+    'Show others this was sent via Halo': 'Halo을 통해 전송되었음을 다른 사람에게 표시',
 
     // Compose - Relays for Post
     'Send only to r': '{{r}}에만 전송',
@@ -240,8 +239,6 @@ export default {
     'Composer Features': '에디터 기능',
     'Use these commands while composing your note:': '게시물을 작성할 때 다음 명령어를 사용하세요:',
     'Search and insert GIFs': 'GIF 검색 및 삽입',
-    'Generate AI images (requires AI key)': 'AI 이미지 생성 (AI 키 필요)',
-    'Search the web (requires AI key)': '웹 검색 (AI 키 필요)',
     'Insert emojis (including custom emojis)': '이모지 삽입 (커스텀 이모지 포함)',
     'Mention users': '유저 멘션',
     'More features will be added over time. Start typing these commands to try them out!': '시간이 지남에 따라 더 많은 기능이 추가됩니다. 이 명령어를 입력하여 사용해 보세요!',
@@ -256,13 +253,9 @@ export default {
     'n d': '{{n}}일',
     date: '{{timestamp, date}}',
 
-    // Interactions & Stats - Reactions & Zaps
     Reactions: '반응',
-    Zaps: 'Zap',
     'No more reactions': '더 이상 반응이 없습니다',
     'No reactions yet': '아직 반응이 없습니다',
-    'No more zaps': '더 이상 Zap이 없습니다',
-    'No zaps yet': '아직 Zap이 없습니다',
     interactions: '상호작용',
 
     // Interactions & Stats - Reposts
@@ -314,9 +307,6 @@ export default {
     Website: '웹사이트',
     'Nostr Address': 'Nostr 주소',
     'Nostr Address Info': 'Nostr 주소는 이메일처럼 보이는 유저네임(예: user@domain.com)으로 Nostr 계정에 연결되어 다른 사람들이 쉽게 찾고 확인할 수 있습니다.',
-    'Invalid NIP-05 address': '유효하지 않은 NIP-05 주소',
-
-    // User Profiles - Identity & Keys
     'Copy private key': '개인 키 복사',
 
     // User Profiles - Invite Info
@@ -352,10 +342,6 @@ export default {
     'voted in your poll': '님이 투표에 참여했습니다',
     'reacted to your note': '님이 게시물에 반응했습니다',
     'reposted your note': '님이 게시물을 리포스트했습니다',
-    'zapped your note': '님이 게시물을 Zap했습니다',
-    'zapped you': '님이 Zap을 보냈습니다',
-
-    // Notifications - Settings
     'Mark as read': '읽음으로 표시',
     'Notification list style': '알림 리스트 스타일',
     'See extra info for each notification': '각 알림의 추가 정보 보기',
@@ -485,18 +471,17 @@ export default {
     'Get Started': '시작하기',
 
     // Login / Sign Up / Onboarding - Invites
-    '{{name}} invites you to x21!': '{{name}}님이 x21에 초대합니다!',
+    '{{name}} invites you to Halo!': '{{name}}님이 Halo에 초대합니다!',
     'Join and follow {{name}}': '가입하고 {{name}}님을 팔로우하세요',
     'Also follow {{count}} people they follow': '그들이 팔로우하는 {{count}}명도 팔로우하세요',
     'Welcome! You are now following {{count}} people': '환영합니다! 이제 {{count}}명을 팔로우하고 있습니다',
     'Welcome! You are now following {{name}}': '환영합니다! 이제 {{name}}님을 팔로우하고 있습니다',
     'Failed to follow users. Please try again.': '유저 팔로우 실패. 다시 시도하세요.',
-    'Share this link to invite friends to x21': '이 링크를 공유하여 친구들을 x21에 초대하세요',
+    'Share this link to invite friends to Halo': '이 링크를 공유하여 친구들을 Halo에 초대하세요',
 
     // Settings - General
     General: '일반',
     'Enable Payments': '결제 활성화',
-    'Enable bitcoin lightning payments to zap content and notes.': '콘텐츠와 게시물을 Zap하기 위해 비트코인 라이트닝 결제를 활성화합니다.',
     Languages: '언어',
     'Right-to-left layout': '오른쪽에서 왼쪽 레이아웃',
     Theme: '테마',
@@ -511,7 +496,6 @@ export default {
     'Text Only Mode': '텍스트 전용 모드',
     'Strip media from notes and profiles to reduce bandwidth usage. Images and videos will be replaced with clickable load links.': '대역폭 사용을 줄이기 위해 게시물과 프로필에서 미디어를 제거합니다. 이미지와 비디오는 클릭 가능한 로드 링크로 대체됩니다.',
     'Slow Connection Mode': '느린 연결 모드',
-    'Connect to only relay.damus.io, hide reactions and zaps. Optimized for slow connections.': 'relay.damus.io에만 연결하고 반응과 Zap을 숨깁니다. 느린 연결에 최적화되어 있습니다.',
     'Disable Avatar Animations': '아바타 애니메이션 비활성화',
     'Stop animated GIFs in profile avatars. Only affects avatars, not GIFs in notes.': '프로필 아바타의 애니메이션 GIF를 중지합니다. 아바타에만 영향을 미치며 게시물의 GIF에는 영향을 미치지 않습니다.',
     enabled: '활성화',
@@ -755,70 +739,27 @@ export default {
     Unfavorite: '즐겨찾기 해제',
     FollowListNotFoundConfirmation: '팔로우 리스트를 찾을 수 없습니다. 새로 만드시겠습니까? 이전에 유저를 팔로우한 적이 있다면 확인하지 마세요. 이 작업으로 이전 팔로우 리스트를 잃게 됩니다.',
 
-    // Wallet
-    Wallet: '지갑',
     Sats: 'Sats',
     sats: 'sats',
     Balance: '잔액',
-    'Lightning Address (or LNURL)': '라이트닝 주소 (또는 LNURL)',
-    'Lightning Payment Address': '라이트닝 결제 주소',
-    'Lightning Payment Address Info': '라이트닝 주소는 이메일처럼 보이지만(예: user@domain.com) 라이트닝 네트워크를 통해 비트코인을 즉시 송수신하는 데 사용됩니다. 여기서 받을 수 있습니다',
     here: '여기',
-    'Lightning Invoice': '라이트닝 인보이스',
     Pay: '결제',
 
-    // Wallet - Zapping
-    'Zap to': 'Zap 보내기',
-    'Zap n sats': '{{n}} sats Zap',
-    'Zapped n sats': '{{n}} sats Zap했습니다',
-    zapComment: '댓글',
-    'Default zap amount': '기본 Zap 금액',
-    'Default zap comment': '기본 Zap 댓글',
-    'Quick zap': '퀵 Zap',
-    'If enabled, you can zap with a single click. Click and hold for custom amounts': '활성화하면 한 번의 클릭으로 Zap할 수 있습니다. 사용자 지정 금액은 클릭 후 길게 누르세요',
-
-    // Wallet - Charge Zaps
-    'Enable Charge Zaps': '차지 Zap 활성화',
-    'Press and hold to charge zap amount': '길게 눌러 Zap 금액 충전',
-    'Quick zaps must be enabled for charge zaps': '차지 Zap을 사용하려면 퀵 Zap이 활성화되어야 합니다',
-    'Charge Zap Limit (sats)': '차지 Zap 한도 (sats)',
-    'Maximum amount that can be charged. No matter how long you hold, zap won\'t exceed this limit.': '충전할 수 있는 최대 금액입니다. 얼마나 오래 누르든 Zap은 이 한도를 초과하지 않습니다.',
     'Important: Set a reasonable limit': '중요: 합리적인 한도를 설정하세요',
-    'This prevents accidentally sending large amounts. The zap amount will never exceed this limit.': '실수로 큰 금액을 보내는 것을 방지합니다. Zap 금액은 이 한도를 절대 초과하지 않습니다.',
-    'Charge Zap': '차지 Zap',
-
-    // Wallet - Zap Sounds
-    'Zap Sound': 'Zap 사운드',
     None: '없음',
     Random: '랜덤',
-    'Zap Sound 1': 'Zap 사운드 1',
-    'Electric Zap': '일렉트릭 Zap',
     'Sending a message': '메시지 전송',
     'No second best': '두 번째는 없다',
     Freedom: '자유',
     'Hey Hey Hey': '헤이 헤이 헤이',
 
-    // Wallet - Connection (Rizful)
     'Connected to': '연결됨',
-    'Disconnect Wallet': '지갑 연결 해제',
     'Are you absolutely sure?': '정말 확실합니까?',
-    'You will not be able to send zaps to others.': '다른 사람에게 Zap을 보낼 수 없게 됩니다.',
     Disconnect: '연결 해제',
-    'Start with a Rizful Vault': 'Rizful Vault로 시작',
-    'or other wallets': '또는 다른 지갑',
-    'Rizful Vault': 'Rizful Vault',
-    'Rizful Vault connected!': 'Rizful Vault가 연결되었습니다!',
-    'You can now use your Rizful Vault to zap your favorite notes and creators.': '이제 Rizful Vault를 사용하여 좋아하는 게시물과 크리에이터에게 Zap할 수 있습니다.',
-    'Your Lightning Address': '내 라이트닝 주소',
-    'New to Rizful?': 'Rizful이 처음이신가요?',
-    'Sign up for Rizful': 'Rizful 가입',
-    'If you already have a Rizful account, you can skip this step.': '이미 Rizful 계정이 있다면 이 단계를 건너뛸 수 있습니다.',
     'Get your one-time code': '일회용 코드 받기',
     'Get code': '코드 받기',
-    'Connect to your Rizful Vault': 'Rizful Vault에 연결',
     'Paste your one-time code here': '일회용 코드를 여기에 붙여넣으세요',
     Connect: '연결',
-    'Set up your wallet to send and receive sats!': 'sats를 송수신하도록 지갑을 설정하세요!',
     'Set up': '설정',
 
     // Post Settings
@@ -862,7 +803,6 @@ export default {
     'Show original': '원문 보기',
     Service: '서비스',
     characters: '문자',
-    jumbleTranslateApiKeyDescription: 'LibreTranslate를 지원하는 다른 곳에서도 이 API 키를 사용할 수 있습니다. 서비스 URL은 {{serviceUrl}}입니다',
     'Top up': '충전',
     'Will receive: {n} characters': '받을 문자: {{n}}자',
     'Top up {n} sats': '{{n}} sats 충전',
@@ -944,8 +884,6 @@ export default {
     'Display real-time Bitcoin price from CoinGecko': 'CoinGecko에서 실시간 Bitcoin 가격 표시',
     'Trending Notes': '인기 노트',
     'Display trending notes from across Nostr': 'Nostr 전체에서 인기 노트 표시',
-    'AI Prompt': 'AI 프롬프트',
-    'Chat with AI about notes in your sidebar': '사이드바의 노트에 대해 AI와 채팅',
     'Invite Friends': '친구 초대',
     'Share your invite link and see who joined through you': '초대 링크를 공유하고 누가 당신을 통해 가입했는지 확인',
 

@@ -32,7 +32,6 @@ export interface BackupOptions {
 
 // Keys that should not be backed up
 const EXCLUDED_STORAGE_KEYS = [
-  StorageKey.AI_PROMPT_WIDGETS, // Session-only
   'version' // Auto-managed
 ]
 
@@ -42,7 +41,6 @@ const SENSITIVE_STORAGE_KEYS = [StorageKey.ACCOUNTS]
 // Keys that are cache/history (only include if user explicitly allows)
 const CACHE_STORAGE_KEYS = [
   StorageKey.READ_ARTICLES,
-  StorageKey.SHOWN_CREATE_WALLET_GUIDE_TOAST_PUBKEYS
 ]
 
 class BackupService {
@@ -172,7 +170,7 @@ class BackupService {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    const filename = `x21-backup-${new Date().toISOString().split('T')[0]}.json`
+    const filename = `halo-backup-${new Date().toISOString().split('T')[0]}.json`
     a.download = filename
     document.body.appendChild(a)
     a.click()

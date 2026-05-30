@@ -136,7 +136,7 @@ Your private key is the only way to access your account. If you lose it, you los
             <Label htmlFor="npub-input">Public Identity (npub)</Label>
             <Input id="npub-input" value={keys.npub} readOnly className="font-mono text-xs" />
             <p className="text-xs text-muted-foreground">
-              Share this publicly - it is your Nostr address.
+              Share this publicly - it is your public identity.
             </p>
           </div>
 

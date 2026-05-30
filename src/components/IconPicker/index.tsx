@@ -41,7 +41,7 @@ const getAllIconNames = (): string[] => {
     'TrendingUp', 'Triangle', 'Truck', 'Tv', 'Twitter', 'Type', 'Umbrella', 'Underline', 'Unlock', 'Upload',
     'UploadCloud', 'User', 'UserCheck', 'UserMinus', 'UserPlus', 'UserX', 'Users', 'Video', 'VideoOff',
     'Voicemail', 'Volume', 'Volume1', 'Volume2', 'VolumeX', 'Watch', 'Wifi', 'WifiOff', 'Wind', 'X',
-    'XCircle', 'XSquare', 'Youtube', 'Zap', 'ZapOff', 'ZoomIn', 'ZoomOut', 'Sparkles', 'Pizza', 'Glasses'
+    'XCircle', 'XSquare', 'Youtube', 'ZoomIn', 'ZoomOut', 'Sparkles', 'Pizza', 'Glasses'
   ].sort()
 }
 
@@ -71,7 +71,6 @@ const POPULAR_ICONS = [
   'Activity',
   'Award',
   'Target',
-  'Zap',
   'Sun',
   'Moon',
   'Cloud',

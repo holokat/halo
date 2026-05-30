@@ -31,7 +31,6 @@ export default {
     Replies: 'जवाब',
     Posts: 'पोस्ट',
     Articles: 'लेख',
-    Highlights: 'हाइलाइट्स',
     Polls: 'पोल',
     'Voice Posts': 'वॉयस पोस्ट',
     'Photo Posts': 'फ़ोटो पोस्ट',
@@ -160,7 +159,7 @@ export default {
 
     // Compose - Client Tag
     'Add client tag': 'क्लाइंट टैग जोड़ें',
-    'Show others this was sent via x21': 'दूसरों को दिखाएं कि यह x21 के ज़रिए भेजा गया था',
+    'Show others this was sent via Halo': 'दूसरों को दिखाएं कि यह Halo के ज़रिए भेजा गया था',
 
     // Compose - Relays for Post
     'Send only to r': 'केवल {{r}} को भेजें',
@@ -240,8 +239,6 @@ export default {
     'Composer Features': 'कंपोज़र फ़ीचर्स',
     'Use these commands while composing your note:': 'अपनी पोस्ट लिखते समय इन कमांड का उपयोग करें:',
     'Search and insert GIFs': 'GIF खोजें और डालें',
-    'Generate AI images (requires AI key)': 'AI इमेज जेनरेट करें (AI की की आवश्यकता है)',
-    'Search the web (requires AI key)': 'वेब खोजें (AI की की आवश्यकता है)',
     'Insert emojis (including custom emojis)': 'इमोजी डालें (कस्टम इमोजी सहित)',
     'Mention users': 'यूज़र्स का उल्लेख करें',
     'More features will be added over time. Start typing these commands to try them out!': 'समय के साथ और फ़ीचर्स जोड़े जाएंगे। इन्हें आज़माने के लिए ये कमांड टाइप करना शुरू करें!',
@@ -256,13 +253,9 @@ export default {
     'n d': '{{n}} दि',
     date: '{{timestamp, date}}',
 
-    // Interactions & Stats - Reactions & Zaps
     Reactions: 'प्रतिक्रियाएं',
-    Zaps: 'ज़ैप',
     'No more reactions': 'और प्रतिक्रियाएं नहीं हैं',
     'No reactions yet': 'अभी तक कोई प्रतिक्रियाएं नहीं',
-    'No more zaps': 'और ज़ैप नहीं हैं',
-    'No zaps yet': 'अभी तक कोई ज़ैप नहीं',
     interactions: 'इंटरैक्शन',
 
     // Interactions & Stats - Reposts
@@ -314,9 +307,6 @@ export default {
     Website: 'वेबसाइट',
     'Nostr Address': 'Nostr पता',
     'Nostr Address Info': 'एक Nostr पता एक यूज़रनेम है जो ईमेल जैसा दिखता है (जैसे user@domain.com) और आपके Nostr अकाउंट से लिंक होता है ताकि दूसरे आपको आसानी से खोज और सत्यापित कर सकें।',
-    'Invalid NIP-05 address': 'अमान्य NIP-05 पता',
-
-    // User Profiles - Identity & Keys
     'Copy private key': 'प्राइवेट की कॉपी करें',
 
     // User Profiles - Invite Info
@@ -352,10 +342,6 @@ export default {
     'voted in your poll': 'ने आपके पोल में वोट किया',
     'reacted to your note': 'ने आपकी पोस्ट पर प्रतिक्रिया दी',
     'reposted your note': 'ने आपकी पोस्ट को रीपोस्ट किया',
-    'zapped your note': 'ने आपकी पोस्ट को ज़ैप किया',
-    'zapped you': 'ने आपको ज़ैप किया',
-
-    // Notifications - Settings
     'Mark as read': 'पढ़े हुए के रूप में चिह्नित करें',
     'Notification list style': 'सूचना सूची शैली',
     'See extra info for each notification': 'प्रत्येक सूचना के लिए अतिरिक्त जानकारी देखें',
@@ -485,18 +471,17 @@ export default {
     'Get Started': 'शुरू करें',
 
     // Login / Sign Up / Onboarding - Invites
-    '{{name}} invites you to x21!': '{{name}} आपको x21 में आमंत्रित करते हैं!',
+    '{{name}} invites you to Halo!': '{{name}} आपको Halo में आमंत्रित करते हैं!',
     'Join and follow {{name}}': 'शामिल हों और {{name}} को फ़ॉलो करें',
     'Also follow {{count}} people they follow': '{{count}} लोगों को भी फ़ॉलो करें जिन्हें वे फ़ॉलो करते हैं',
     'Welcome! You are now following {{count}} people': 'स्वागत है! अब आप {{count}} लोगों को फ़ॉलो कर रहे हैं',
     'Welcome! You are now following {{name}}': 'स्वागत है! अब आप {{name}} को फ़ॉलो कर रहे हैं',
     'Failed to follow users. Please try again.': 'यूज़र्स को फ़ॉलो करना विफल रहा। कृपया फिर से प्रयास करें।',
-    'Share this link to invite friends to x21': 'दोस्तों को x21 में आमंत्रित करने के लिए यह लिंक शेयर करें',
+    'Share this link to invite friends to Halo': 'दोस्तों को Halo में आमंत्रित करने के लिए यह लिंक शेयर करें',
 
     // Settings - General
     General: 'सामान्य',
     'Enable Payments': 'पेमेंट सक्षम करें',
-    'Enable bitcoin lightning payments to zap content and notes.': 'कंटेंट और पोस्ट को ज़ैप करने के लिए बिटकॉइन लाइटनिंग पेमेंट सक्षम करें।',
     Languages: 'भाषाएं',
     'Right-to-left layout': 'दाएं से बाएं लेआउट',
     Theme: 'थीम',
@@ -511,7 +496,6 @@ export default {
     'Text Only Mode': 'केवल टेक्स्ट मोड',
     'Strip media from notes and profiles to reduce bandwidth usage. Images and videos will be replaced with clickable load links.': 'बैंडविड्थ उपयोग को कम करने के लिए पोस्ट और प्रोफ़ाइल से मीडिया हटा दें। इमेज और वीडियो को क्लिक करने योग्य लोड लिंक से बदल दिया जाएगा।',
     'Slow Connection Mode': 'स्लो कनेक्शन मोड',
-    'Connect to only relay.damus.io, hide reactions and zaps. Optimized for slow connections.': 'केवल relay.damus.io से कनेक्ट करें, प्रतिक्रियाएं और ज़ैप छिपाएं। धीमे कनेक्शन के लिए अनुकूलित।',
     'Disable Avatar Animations': 'अवतार एनिमेशन अक्षम करें',
     'Stop animated GIFs in profile avatars. Only affects avatars, not GIFs in notes.': 'प्रोफ़ाइल अवतार में एनिमेटेड GIF बंद करें। केवल अवतार को प्रभावित करता है, पोस्ट में GIF को नहीं।',
     enabled: 'सक्षम',
@@ -755,70 +739,27 @@ export default {
     Unfavorite: 'पसंदीदा से हटाएं',
     FollowListNotFoundConfirmation: 'फ़ॉलो सूची नहीं मिली। क्या आप एक नई बनाना चाहते हैं? यदि आपने पहले यूज़र्स को फ़ॉलो किया है, तो कृपया पुष्टि न करें क्योंकि इस ऑपरेशन से आप अपनी पिछली फ़ॉलो सूची खो देंगे।',
 
-    // Wallet
-    Wallet: 'वॉलेट',
     Sats: 'सैट्स',
     sats: 'सैट्स',
     Balance: 'बैलेंस',
-    'Lightning Address (or LNURL)': 'लाइटनिंग एड्रेस (या LNURL)',
-    'Lightning Payment Address': 'लाइटनिंग पेमेंट एड्रेस',
-    'Lightning Payment Address Info': 'एक लाइटनिंग एड्रेस ईमेल जैसा दिखता है (जैसे user@domain.com) लेकिन लाइटनिंग नेटवर्क के माध्यम से तुरंत बिटकॉइन भेजने या प्राप्त करने के लिए उपयोग किया जाता है। आप एक प्राप्त कर सकते हैं',
     here: 'यहां',
-    'Lightning Invoice': 'लाइटनिंग इनवॉइस',
     Pay: 'भुगतान करें',
 
-    // Wallet - Zapping
-    'Zap to': 'को ज़ैप करें',
-    'Zap n sats': '{{n}} सैट्स ज़ैप करें',
-    'Zapped n sats': '{{n}} सैट्स ज़ैप किए',
-    zapComment: 'कमेंट',
-    'Default zap amount': 'डिफ़ॉल्ट ज़ैप राशि',
-    'Default zap comment': 'डिफ़ॉल्ट ज़ैप कमेंट',
-    'Quick zap': 'त्वरित ज़ैप',
-    'If enabled, you can zap with a single click. Click and hold for custom amounts': 'यदि सक्षम है, तो आप एक क्लिक से ज़ैप कर सकते हैं। कस्टम राशि के लिए क्लिक करें और होल्ड करें',
-
-    // Wallet - Charge Zaps
-    'Enable Charge Zaps': 'चार्ज ज़ैप सक्षम करें',
-    'Press and hold to charge zap amount': 'ज़ैप राशि चार्ज करने के लिए दबाएं और होल्ड करें',
-    'Quick zaps must be enabled for charge zaps': 'चार्ज ज़ैप के लिए त्वरित ज़ैप सक्षम होना चाहिए',
-    'Charge Zap Limit (sats)': 'चार्ज ज़ैप सीमा (सैट्स)',
-    'Maximum amount that can be charged. No matter how long you hold, zap won\'t exceed this limit.': 'अधिकतम राशि जो चार्ज की जा सकती है। चाहे आप कितनी भी देर होल्ड करें, ज़ैप इस सीमा से अधिक नहीं होगा।',
     'Important: Set a reasonable limit': 'महत्वपूर्ण: एक उचित सीमा सेट करें',
-    'This prevents accidentally sending large amounts. The zap amount will never exceed this limit.': 'यह गलती से बड़ी राशि भेजने से रोकता है। ज़ैप राशि कभी भी इस सीमा से अधिक नहीं होगी।',
-    'Charge Zap': 'चार्ज ज़ैप',
-
-    // Wallet - Zap Sounds
-    'Zap Sound': 'ज़ैप साउंड',
     None: 'कोई नहीं',
     Random: 'रैंडम',
-    'Zap Sound 1': 'ज़ैप साउंड 1',
-    'Electric Zap': 'इलेक्ट्रिक ज़ैप',
     'Sending a message': 'मैसेज भेजा जा रहा है',
     'No second best': 'कोई दूसरा सबसे अच्छा नहीं',
     Freedom: 'आज़ादी',
     'Hey Hey Hey': 'हे हे हे',
 
-    // Wallet - Connection (Rizful)
     'Connected to': 'से जुड़े',
-    'Disconnect Wallet': 'वॉलेट डिसकनेक्ट करें',
     'Are you absolutely sure?': 'क्या आप बिल्कुल सुनिश्चित हैं?',
-    'You will not be able to send zaps to others.': 'आप दूसरों को ज़ैप नहीं भेज पाएंगे।',
     Disconnect: 'डिसकनेक्ट करें',
-    'Start with a Rizful Vault': 'Rizful वॉल्ट से शुरू करें',
-    'or other wallets': 'या अन्य वॉलेट',
-    'Rizful Vault': 'Rizful वॉल्ट',
-    'Rizful Vault connected!': 'Rizful वॉल्ट कनेक्ट हो गया!',
-    'You can now use your Rizful Vault to zap your favorite notes and creators.': 'अब आप अपने पसंदीदा पोस्ट और क्रिएटर्स को ज़ैप करने के लिए अपने Rizful वॉल्ट का उपयोग कर सकते हैं।',
-    'Your Lightning Address': 'आपका लाइटनिंग एड्रेस',
-    'New to Rizful?': 'Rizful पर नए हैं?',
-    'Sign up for Rizful': 'Rizful के लिए साइन अप करें',
-    'If you already have a Rizful account, you can skip this step.': 'यदि आपके पास पहले से Rizful अकाउंट है, तो आप यह चरण छोड़ सकते हैं।',
     'Get your one-time code': 'अपना वन-टाइम कोड प्राप्त करें',
     'Get code': 'कोड प्राप्त करें',
-    'Connect to your Rizful Vault': 'अपने Rizful वॉल्ट से कनेक्ट करें',
     'Paste your one-time code here': 'अपना वन-टाइम कोड यहां पेस्ट करें',
     Connect: 'कनेक्ट करें',
-    'Set up your wallet to send and receive sats!': 'सैट्स भेजने और प्राप्त करने के लिए अपना वॉलेट सेट करें!',
     'Set up': 'सेट करें',
 
     // Post Settings
@@ -862,7 +803,6 @@ export default {
     'Show original': 'मूल दिखाएं',
     Service: 'सेवा',
     characters: 'अक्षर',
-    jumbleTranslateApiKeyDescription: 'आप इस API की का उपयोग कहीं भी कर सकते हैं जो LibreTranslate का समर्थन करता है। सेवा URL {{serviceUrl}} है',
     'Top up': 'टॉप अप करें',
     'Will receive: {n} characters': 'प्राप्त होगा: {{n}} अक्षर',
     'Top up {n} sats': '{{n}} सैट्स टॉप अप करें',
@@ -944,8 +884,6 @@ export default {
     'Display real-time Bitcoin price from CoinGecko': 'CoinGecko से वास्तविक समय Bitcoin मूल्य प्रदर्शित करें',
     'Trending Notes': 'ट्रेंडिंग नोट्स',
     'Display trending notes from across Nostr': 'पूरे Nostr से ट्रेंडिंग नोट्स प्रदर्शित करें',
-    'AI Prompt': 'AI प्रॉम्प्ट',
-    'Chat with AI about notes in your sidebar': 'अपने साइडबार में नोट्स के बारे में AI के साथ चैट करें',
     'Invite Friends': 'दोस्तों को आमंत्रित करें',
     'Share your invite link and see who joined through you': 'अपना आमंत्रण लिंक साझा करें और देखें कि आपके माध्यम से कौन शामिल हुआ',
 

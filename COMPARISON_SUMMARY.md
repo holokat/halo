@@ -1,6 +1,6 @@
-# x21-dan vs x21.social - Settings Comparison Summary
+# Halo vs halo.social - Settings Comparison Summary
 
-## What We Have (x21-dan)
+## What We Have (Halo)
 
 ### ✅ Comprehensive Settings Categories
 1. **General** - Interface preferences, language, modes
@@ -9,9 +9,7 @@
 4. **Widgets** - Widget management
 5. **Relays** - Relay configuration
 6. **Backup & Sync** - NIP-78 sync
-7. **AI Tools** - AI features
 8. **Translation** - Translation services
-9. **Wallet** - Lightning/Zap settings
 10. **Post Settings** - Posting preferences
 
 ### 🎨 Notable Strengths
@@ -26,9 +24,9 @@
 
 ---
 
-## Cannot Verify Without Visiting x21.social
+## Cannot Verify Without Visiting halo.social
 
-To complete this comparison, I need to manually visit https://x21.social and:
+To complete this comparison, I need to manually visit https://halo.social and:
 
 1. Navigate to Settings
 2. Go through each settings category
@@ -44,7 +42,6 @@ Based on typical Nostr client features, these MAY be missing (needs verification
 
 ### 🔔 Notifications
 - [ ] Push notification preferences
-- [ ] Notification sound settings (separate from zap sounds)
 - [ ] Notification grouping options
 
 ### 📊 Performance
@@ -90,7 +87,7 @@ Based on typical Nostr client features, these MAY be missing (needs verification
 ## Action Items
 
 ### 1. Manual Review Required
-- Visit x21.social
+- Visit halo.social
 - Systematically check every settings page
 - Document all options found
 
@@ -110,16 +107,14 @@ Rank missing features by:
 
 ## Summary
 
-**Our x21-dan fork appears to have:**
+**Our Halo fork appears to have:**
 - ✅ Extremely comprehensive appearance/theming options
 - ✅ Advanced content filtering (Web of Trust, spam filters)
 - ✅ Flexible layout system
 - ✅ Extensive media control
-- ✅ Wallet/Lightning integration
 - ✅ Multi-language support
-- ✅ AI integration
 
-**Need to verify if x21.social has:**
+**Need to verify if halo.social has:**
 - Notification management beyond what we have
 - Performance/cache controls
 - Developer tools
@@ -127,4 +122,4 @@ Rank missing features by:
 - Any unique features we're missing
 
 **Next Step:**
-Visit https://x21.social, go through all settings, and create a definitive side-by-side comparison.
+Visit https://halo.social, go through all settings, and create a definitive side-by-side comparison.

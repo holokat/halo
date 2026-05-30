@@ -2,7 +2,7 @@
 
 ## Overview
 
-This x21 implementation uses **NIP-94 (File Metadata)** combined with **NIP-51 (Lists)** to create a modern, flexible profile gallery system.
+This halo implementation uses **NIP-94 (File Metadata)** combined with **NIP-51 (Lists)** to create a modern, flexible profile gallery system.
 
 ## Why NIP-94?
 
@@ -404,7 +404,6 @@ The system maintains full backward compatibility:
 
 ### Planned Features
 
-- 🔜 **Reactions on images**: Like/zap individual images
 - 🔜 **Comments on images**: Thread discussions
 - 🔜 **Multiple galleries**: Travel, Art, Work, etc.
 - 🔜 **Private galleries**: NIP-44 encryption
@@ -438,4 +437,4 @@ The system maintains full backward compatibility:
 
 ## License
 
-Same as x21 project (MIT)
+Same as halo project (MIT)

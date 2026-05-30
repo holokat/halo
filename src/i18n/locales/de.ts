@@ -31,7 +31,6 @@ export default {
     Replies: 'Antworten',
     Posts: 'Beiträge',
     Articles: 'Artikel',
-    Highlights: 'Highlights',
     Polls: 'Umfragen',
     'Voice Posts': 'Sprachbeiträge',
     'Photo Posts': 'Fotobeiträge',
@@ -160,7 +159,7 @@ export default {
 
     // Compose - Client Tag
     'Add client tag': 'Client-Tag hinzufügen',
-    'Show others this was sent via x21': 'Anderen zeigen, dass dies über x21 gesendet wurde',
+    'Show others this was sent via Halo': 'Anderen zeigen, dass dies über Halo gesendet wurde',
 
     // Compose - Relays for Post
     'Send only to r': 'Nur an {{r}} senden',
@@ -240,8 +239,6 @@ export default {
     'Composer Features': 'Editor-Funktionen',
     'Use these commands while composing your note:': 'Verwende diese Befehle beim Verfassen deines Beitrags:',
     'Search and insert GIFs': 'GIFs suchen und einfügen',
-    'Generate AI images (requires AI key)': 'KI-Bilder generieren (benötigt KI-Schlüssel)',
-    'Search the web (requires AI key)': 'Im Web suchen (benötigt KI-Schlüssel)',
     'Insert emojis (including custom emojis)': 'Emojis einfügen (einschließlich benutzerdefinierter Emojis)',
     'Mention users': 'Benutzer erwähnen',
     'More features will be added over time. Start typing these commands to try them out!': 'Weitere Funktionen werden im Laufe der Zeit hinzugefügt. Fange an, diese Befehle zu tippen, um sie auszuprobieren!',
@@ -256,13 +253,9 @@ export default {
     'n d': '{{n}}T',
     date: '{{timestamp, date}}',
 
-    // Interactions & Stats - Reactions & Zaps
     Reactions: 'Reaktionen',
-    Zaps: 'Zaps',
     'No more reactions': 'Keine weiteren Reaktionen',
     'No reactions yet': 'Noch keine Reaktionen',
-    'No more zaps': 'Keine weiteren Zaps',
-    'No zaps yet': 'Noch keine Zaps',
     interactions: 'Interaktionen',
 
     // Interactions & Stats - Reposts
@@ -314,9 +307,6 @@ export default {
     Website: 'Webseite',
     'Nostr Address': 'Nostr-Adresse',
     'Nostr Address Info': 'Eine Nostr-Adresse ist ein Benutzername, der wie eine E-Mail aussieht (z.B. user@domain.com) und mit deinem Nostr-Konto verknüpft ist, damit andere dich leicht finden und verifizieren können.',
-    'Invalid NIP-05 address': 'Ungültige NIP-05-Adresse',
-
-    // User Profiles - Identity & Keys
     'Copy private key': 'Privaten Schlüssel kopieren',
 
     // User Profiles - Invite Info
@@ -352,10 +342,6 @@ export default {
     'voted in your poll': 'hat in deiner Umfrage abgestimmt',
     'reacted to your note': 'hat auf deinen Beitrag reagiert',
     'reposted your note': 'hat deinen Beitrag geteilt',
-    'zapped your note': 'hat deinen Beitrag gezappt',
-    'zapped you': 'hat dich gezappt',
-
-    // Notifications - Settings
     'Mark as read': 'Als gelesen markieren',
     'Notification list style': 'Benachrichtigungslisten-Stil',
     'See extra info for each notification': 'Zusätzliche Informationen für jede Benachrichtigung anzeigen',
@@ -485,21 +471,19 @@ export default {
     'Get Started': 'Los geht\'s',
 
     // Login / Sign Up / Onboarding - Invites
-    '{{name}} invites you to x21!': '{{name}} lädt dich zu x21 ein!',
+    '{{name}} invites you to Halo!': '{{name}} lädt dich zu Halo ein!',
     'Join and follow {{name}}': 'Beitritt und {{name}} folgen',
     'Also follow {{count}} people they follow': 'Auch {{count}} Personen folgen, denen sie folgen',
     'Welcome! You are now following {{count}} people': 'Willkommen! Du folgst jetzt {{count}} Personen',
     'Welcome! You are now following {{name}}': 'Willkommen! Du folgst jetzt {{name}}',
     'Failed to follow users. Please try again.': 'Benutzern folgen fehlgeschlagen. Bitte versuche es erneut.',
-    'Share this link to invite friends to x21': 'Teile diesen Link, um Freunde zu x21 einzuladen',
+    'Share this link to invite friends to Halo': 'Teile diesen Link, um Freunde zu Halo einzuladen',
 
     // Settings - General
     General: 'Allgemein',
     'Content & Privacy': 'Inhalt & Datenschutz',
     'Backup & Sync': 'Sicherung & Synchronisation',
-    'AI Tools': 'KI-Tools',
     'Enable Payments': 'Zahlungen aktivieren',
-    'Enable bitcoin lightning payments to zap content and notes.': 'Aktiviere Bitcoin-Lightning-Zahlungen, um Inhalte und Beiträge zu zappen.',
     Languages: 'Sprachen',
     'Right-to-left layout': 'Rechts-nach-links-Layout',
     Theme: 'Design',
@@ -518,7 +502,6 @@ export default {
     'Text Only Mode': 'Nur-Text-Modus',
     'Strip media from notes and profiles to reduce bandwidth usage. Images and videos will be replaced with clickable load links.': 'Entferne Medien aus Beiträgen und Profilen, um die Bandbreitennutzung zu reduzieren. Bilder und Videos werden durch anklickbare Ladelinks ersetzt.',
     'Slow Connection Mode': 'Langsame Verbindung',
-    'Connect to only relay.damus.io, hide reactions and zaps. Optimized for slow connections.': 'Verbinde nur mit relay.damus.io, verberge Reaktionen und Zaps. Optimiert für langsame Verbindungen.',
     'Disable Avatar Animations': 'Avatar-Animationen deaktivieren',
     'Stop animated GIFs in profile avatars. Only affects avatars, not GIFs in notes.': 'Stoppe animierte GIFs in Profil-Avataren. Betrifft nur Avatare, nicht GIFs in Beiträgen.',
     enabled: 'aktiviert',
@@ -560,7 +543,6 @@ export default {
     'Add muted thread (event ID or note...)...': 'Stummgeschalteten Thread hinzufügen (Event-ID oder Beitrag...)...',
     'No muted threads': 'Keine stummgeschalteten Threads',
     'Add muted domain (e.g., primal.net)...': 'Stummgeschaltete Domain hinzufügen (z.B. primal.net)...',
-    'Mute all users with a NIP-05 address from a specific domain (e.g., primal.net)': 'Alle Benutzer mit einer NIP-05-Adresse von einer bestimmten Domain stummschalten (z.B. primal.net)',
     'No muted domains': 'Keine stummgeschalteten Domains',
     'Hide notes with {{count}} or more hashtags': 'Beiträge mit {{count}} oder mehr Hashtags verbergen',
     'No mention filtering': 'Keine Erwähnungsfilterung',
@@ -852,75 +834,30 @@ export default {
     'Display real-time Bitcoin price from CoinGecko': 'Echtzeit-Bitcoin-Preis von CoinGecko anzeigen',
     'Trending Notes': 'Trending-Beiträge',
     'Display trending notes from across Nostr': 'Trending-Beiträge aus ganz Nostr anzeigen',
-    'AI Prompt': 'KI-Eingabe',
-    'Chat with AI about notes in your sidebar': 'Chatte mit KI über Beiträge in deiner Seitenleiste',
     'Invite Friends': 'Freunde einladen',
     'Share your invite link and see who joined through you': 'Teile deinen Einladungslink und sieh, wer durch dich beigetreten ist',
 
-    // Wallet
-    Wallet: 'Wallet',
     Sats: 'Sats',
     sats: 'Sats',
     Balance: 'Guthaben',
-    'Lightning Address (or LNURL)': 'Lightning-Adresse (oder LNURL)',
-    'Lightning Payment Address': 'Lightning-Zahlungsadresse',
-    'Lightning Payment Address Info': 'Eine Lightning-Adresse sieht aus wie eine E-Mail (z.B. user@domain.com), wird aber verwendet, um Bitcoin sofort über das Lightning-Netzwerk zu senden oder zu empfangen. Du kannst eine erhalten',
     here: 'hier',
-    'Lightning Invoice': 'Lightning-Rechnung',
     Pay: 'Bezahlen',
 
-    // Wallet - Zapping
-    'Zap to': 'Zappen an',
-    'Zap n sats': '{{n}} Sats zappen',
-    'Zapped n sats': '{{n}} Sats gezappt',
-    zapComment: 'Kommentar',
-    'Default zap amount': 'Standard-Zap-Betrag',
-    'Default zap comment': 'Standard-Zap-Kommentar',
-    'Quick zap': 'Schnell-Zap',
-    'If enabled, you can zap with a single click. Click and hold for custom amounts': 'Wenn aktiviert, kannst du mit einem Klick zappen. Klicken und halten für benutzerdefinierte Beträge',
-
-    // Wallet - Charge Zaps
-    'Enable Charge Zaps': 'Lade-Zaps aktivieren',
-    'Press and hold to charge zap amount': 'Drücken und halten, um Zap-Betrag aufzuladen',
-    'Quick zaps must be enabled for charge zaps': 'Schnell-Zaps müssen für Lade-Zaps aktiviert sein',
-    'Charge Zap Limit (sats)': 'Lade-Zap-Limit (Sats)',
-    'Maximum amount that can be charged. No matter how long you hold, zap won\'t exceed this limit.': 'Maximaler Betrag, der aufgeladen werden kann. Egal wie lange du hältst, der Zap wird dieses Limit nicht überschreiten.',
     'Important: Set a reasonable limit': 'Wichtig: Setze ein vernünftiges Limit',
-    'This prevents accidentally sending large amounts. The zap amount will never exceed this limit.': 'Dies verhindert versehentliches Senden großer Beträge. Der Zap-Betrag wird dieses Limit niemals überschreiten.',
-    'Charge Zap': 'Lade-Zap',
-
-    // Wallet - Zap Sounds
-    'Zap Sound': 'Zap-Sound',
     None: 'Keiner',
     Random: 'Zufällig',
-    'Zap Sound 1': 'Zap-Sound 1',
-    'Electric Zap': 'Elektrischer Zap',
     'Sending a message': 'Sende eine Nachricht',
     'No second best': 'Kein Zweitbester',
     Freedom: 'Freiheit',
     'Hey Hey Hey': 'Hey Hey Hey',
 
-    // Wallet - Connection (Rizful)
     'Connected to': 'Verbunden mit',
-    'Disconnect Wallet': 'Wallet trennen',
     'Are you absolutely sure?': 'Bist du absolut sicher?',
-    'You will not be able to send zaps to others.': 'Du wirst nicht in der Lage sein, Zaps an andere zu senden.',
     Disconnect: 'Trennen',
-    'Start with a Rizful Vault': 'Mit einem Rizful Vault starten',
-    'or other wallets': 'oder andere Wallets',
-    'Rizful Vault': 'Rizful Vault',
-    'Rizful Vault connected!': 'Rizful Vault verbunden!',
-    'You can now use your Rizful Vault to zap your favorite notes and creators.': 'Du kannst jetzt dein Rizful Vault verwenden, um deine Lieblingsbeiträge und Creator zu zappen.',
-    'Your Lightning Address': 'Deine Lightning-Adresse',
-    'New to Rizful?': 'Neu bei Rizful?',
-    'Sign up for Rizful': 'Bei Rizful registrieren',
-    'If you already have a Rizful account, you can skip this step.': 'Wenn du bereits ein Rizful-Konto hast, kannst du diesen Schritt überspringen.',
     'Get your one-time code': 'Hole deinen Einmal-Code',
     'Get code': 'Code holen',
-    'Connect to your Rizful Vault': 'Verbinde dich mit deinem Rizful Vault',
     'Paste your one-time code here': 'Füge deinen Einmal-Code hier ein',
     Connect: 'Verbinden',
-    'Set up your wallet to send and receive sats!': 'Richte dein Wallet ein, um Sats zu senden und zu empfangen!',
     'Set up': 'Einrichten',
 
     // Post Settings
@@ -957,18 +894,11 @@ export default {
     'Create and manage custom emoji sets to use in your posts': 'Erstelle und verwalte benutzerdefinierte Emoji-Sets zur Verwendung in deinen Beiträgen',
     'Manage on Emojito': 'Auf Emojito verwalten',
 
-    // AI Tools
-    'AI Tools': 'KI-Tools',
-    'AI Settings': 'KI-Einstellungen',
-    'Configure AI services for enhanced features': 'Konfiguriere KI-Dienste für erweiterte Funktionen',
-    'OpenRouter API Key': 'OpenRouter-API-Schlüssel',
     'Get your API key from': 'Hole deinen API-Schlüssel von',
     'API Key': 'API-Schlüssel',
     'Enter your API key': 'Gib deinen API-Schlüssel ein',
     'Save API Key': 'API-Schlüssel speichern',
     'Remove API Key': 'API-Schlüssel entfernen',
-    'AI Model': 'KI-Modell',
-    'Select AI model': 'KI-Modell auswählen',
     'Image Generation': 'Bildgenerierung',
     'Web Search': 'Web-Suche',
     'Text Generation': 'Textgenerierung',
@@ -982,7 +912,6 @@ export default {
     'Show original': 'Original anzeigen',
     Service: 'Dienst',
     characters: 'Zeichen',
-    jumbleTranslateApiKeyDescription: 'Du kannst diesen API-Schlüssel überall verwenden, wo LibreTranslate unterstützt wird. Die Dienst-URL ist {{serviceUrl}}',
     'Top up': 'Aufladen',
     'Will receive: {n} characters': 'Erhältst: {{n}} Zeichen',
     'Top up {n} sats': '{{n}} Sats aufladen',
@@ -1017,10 +946,10 @@ export default {
     // About
     About: 'Über',
     'Platinum Sponsors': 'Platin-Sponsoren',
-    'x21 is a new type of social app that is powered by an open protocol called Nostr. This app is a fork of the Jumble client which was originally created by': 'x21 ist eine neue Art von Social-App, die auf einem offenen Protokoll namens Nostr basiert. Diese App ist eine Abspaltung des Jumble-Clients, der ursprünglich erstellt wurde von',
+    'Halo is a new type of social app that is powered by an open protocol called Nostr. This app is a fork of the Jumble client which was originally created by': 'Halo ist eine neue Art von Social-App, die auf einem offenen Protokoll namens Nostr basiert. Diese App ist eine Abspaltung des Jumble-Clients, der ursprünglich erstellt wurde von',
     'The current build is maintained by': 'Der aktuelle Build wird gewartet von',
-    'Because x21 is built on an open protocol, you can clone it for yourself and modify it any way you see fit. This is very easy to do in Shakespeare - an application for creating your own apps on the Nostr protocol. Shakespeare makes it easy to clone x21 with a single click and modify its features.': 'Da x21 auf einem offenen Protokoll basiert, kannst du es für dich selbst klonen und beliebig anpassen. Dies ist sehr einfach in Shakespeare - einer Anwendung zum Erstellen eigener Apps auf dem Nostr-Protokoll. Shakespeare macht es einfach, x21 mit einem einzigen Klick zu klonen und seine Funktionen zu ändern.',
-    'Clone x21 in Shakespeare': 'x21 in Shakespeare klonen',
+    'Because Halo is built on an open protocol, you can clone it for yourself and modify it any way you see fit. This is very easy to do in Shakespeare - an application for creating your own apps on the Nostr protocol. Shakespeare makes it easy to clone Halo with a single click and modify its features.': 'Da Halo auf einem offenen Protokoll basiert, kannst du es für dich selbst klonen und beliebig anpassen. Dies ist sehr einfach in Shakespeare - einer Anwendung zum Erstellen eigener Apps auf dem Nostr-Protokoll. Shakespeare macht es einfach, Halo mit einem einzigen Klick zu klonen und seine Funktionen zu ändern.',
+    'Clone Halo in Shakespeare': 'Halo in Shakespeare klonen',
     'Source code': 'Quellcode',
 
     // Reads (Long-form Articles)

@@ -7,7 +7,7 @@ const env = (
 ).env
 
 const DEFAULT_APP_API_BASE_URL =
-  typeof window !== 'undefined' ? window.location.origin : 'https://x21.social'
+  typeof window !== 'undefined' ? window.location.origin : 'https://halo.social'
 const DEFAULT_DISCOVERY_API_BASE_URL = 'https://api.nostrarchives.com'
 
 export const APP_API_BASE_URL = env?.VITE_APP_API_BASE_URL || DEFAULT_APP_API_BASE_URL
@@ -18,9 +18,6 @@ export const DISCOVERY_API_BASE_URL =
     ? configuredDiscoveryApiBaseUrl
     : DEFAULT_DISCOVERY_API_BASE_URL
 export const DISCOVERY_API_ENABLED = DISCOVERY_API_BASE_URL.trim().length > 0
-
-export const TRANSLATION_API_BASE_URL =
-  env?.VITE_TRANSLATION_API_BASE_URL || (env?.DEV ? 'https://api.jumble.social' : APP_API_BASE_URL)
 
 export const DEFAULT_FAVORITE_RELAYS = [
   'wss://nostr.wine/',
@@ -52,18 +49,11 @@ export const StorageKey = {
   ADD_CLIENT_TAG: 'addClientTag',
   NOTE_LIST_MODE: 'noteListMode',
   NOTIFICATION_TYPE: 'notificationType',
-  DEFAULT_ZAP_SATS: 'defaultZapSats',
-  DEFAULT_ZAP_COMMENT: 'defaultZapComment',
-  QUICK_ZAP: 'quickZap',
   LAST_READ_NOTIFICATION_TIME_MAP: 'lastReadNotificationTimeMap',
-  LAST_READ_MESSAGE_TIME_MAP: 'lastReadMessageTimeMap',
-  MESSAGE_CONVERSATION_READ_TIME_MAP: 'messageConversationReadTimeMap',
-  DISMISSED_MESSAGE_CONVERSATION_MAP: 'dismissedMessageConversationMap',
   ACCOUNT_FEED_INFO_MAP: 'accountFeedInfoMap',
   AUTOPLAY: 'autoplay',
   HIDE_UNTRUSTED_INTERACTIONS: 'hideUntrustedInteractions',
   HIDE_UNTRUSTED_NOTIFICATIONS: 'hideUntrustedNotifications',
-  TRANSLATION_SERVICE_CONFIG_MAP: 'translationServiceConfigMap',
   MEDIA_UPLOAD_SERVICE_CONFIG_MAP: 'mediaUploadServiceConfigMap',
   HIDE_UNTRUSTED_NOTES: 'hideUntrustedNotes',
   TRUST_LEVEL: 'trustLevel',
@@ -76,7 +66,6 @@ export const StorageKey = {
   HIDE_NOTIFICATIONS_FROM_MUTED_USERS: 'hideNotificationsFromMutedUsers',
   NOTIFICATION_LIST_STYLE: 'notificationListStyle',
   MEDIA_AUTO_LOAD_POLICY: 'mediaAutoLoadPolicy',
-  SHOWN_CREATE_WALLET_GUIDE_TOAST_PUBKEYS: 'shownCreateWalletGuideToastPubkeys',
   FONT_SIZE: 'fontSize',
   TITLE_FONT_SIZE: 'titleFontSize',
   PRIMARY_COLOR: 'primaryColor',
@@ -109,21 +98,12 @@ export const StorageKey = {
   NEWS_WIDGET_HASHTAGS: 'newsWidgetHashtags',
   PINNED_NOTE_WIDGETS: 'pinnedNoteWidgets',
   LIVE_STREAM_WIDGETS: 'liveStreamWidgets',
-  AI_PROMPT_WIDGETS: 'aiPromptWidgets',
-  ZAP_SOUND: 'zapSound',
   FONT_FAMILY: 'fontFamily',
   CUSTOM_FEEDS: 'customFeeds',
   LOCAL_POST_DRAFTS: 'localPostDrafts',
-  CHARGE_ZAP_ENABLED: 'chargeZapEnabled',
-  CHARGE_ZAP_LIMIT: 'chargeZapLimit',
-  ZAP_ON_REACTIONS: 'zapOnReactions',
-  ONLY_ZAPS_MODE: 'onlyZapsMode',
-  PAYMENTS_ENABLED: 'paymentsEnabled',
   DECK_VIEW_MODE: 'deckViewMode',
   PINNED_COLUMNS: 'pinnedColumns',
   DISTRACTION_FREE_MODE: 'distractionFreeMode',
-  AI_SERVICE_CONFIG_MAP: 'aiServiceConfigMap',
-  AI_TOOLS_CONFIG_MAP: 'aiToolsConfigMap',
   HIDE_READS_IN_NAVIGATION: 'hideReadsInNavigation',
   HIDE_READS_IN_PROFILES: 'hideReadsInProfiles',
   HIDE_LISTS_IN_NAVIGATION: 'hideListsInNavigation',
@@ -143,7 +123,6 @@ export const StorageKey = {
   DISABLE_AVATAR_ANIMATIONS: 'disableAvatarAnimations',
   DEFAULT_REACTION_EMOJIS: 'defaultReactionEmojis',
   REACTION_OPTIONS_ENABLED: 'reactionOptionsEnabled',
-  MESSAGE_NOTIFICATIONS_ENABLED: 'messageNotificationsEnabled',
   REACTION_FOUNTAIN_ENABLED: 'reactionFountainEnabled',
   COLLAPSE_LONG_NOTES: 'collapseLongNotes',
   ALWAYS_SHOW_FULL_MEDIA: 'alwaysShowFullMedia',
@@ -183,7 +162,6 @@ export const ExtendedKind = {
   SHORT_VIDEO: 22,
   FILE_METADATA: 1063,
   POLL: 1068,
-  LEGACY_ZAP_POLL: 6969,
   POLL_RESPONSE: 1018,
   COMMENT: 1111,
   VOICE: 1222,
@@ -199,12 +177,11 @@ export const ExtendedKind = {
   STARTER_PACK: 39089
 }
 
-export const POLL_KINDS = [ExtendedKind.POLL, ExtendedKind.LEGACY_ZAP_POLL]
+export const POLL_KINDS = [ExtendedKind.POLL]
 
 export const SUPPORTED_KINDS = [
   kinds.ShortTextNote,
   kinds.Repost,
-  kinds.Highlights,
   ExtendedKind.PICTURE,
   ExtendedKind.VIDEO,
   ExtendedKind.SHORT_VIDEO,
@@ -339,29 +316,6 @@ export const FONT_FAMILIES = {
 } as const
 
 export const DEFAULT_FONT_FAMILY = 'DEFAULT' // Inter
-
-export const ZAP_SOUNDS = {
-  NONE: 'none',
-  RANDOM: 'random',
-  ZAP1: 'zap1',
-  ELECTRIC_ZAP: 'electric_zap',
-  SENDING_A_MESSAGE: 'sending-a-message',
-  NO_SECOND_BEST: 'no-second-best',
-  FREEDOM: 'freedom',
-  HEY_HEY_HEY: 'hey-hey-hey'
-} as const
-
-export type TZapSound = (typeof ZAP_SOUNDS)[keyof typeof ZAP_SOUNDS]
-
-// Array of actual sound files (excluding 'none' and 'random')
-export const ACTUAL_ZAP_SOUNDS = [
-  ZAP_SOUNDS.ZAP1,
-  ZAP_SOUNDS.ELECTRIC_ZAP,
-  ZAP_SOUNDS.SENDING_A_MESSAGE,
-  ZAP_SOUNDS.NO_SECOND_BEST,
-  ZAP_SOUNDS.FREEDOM,
-  ZAP_SOUNDS.HEY_HEY_HEY
-] as const
 
 export const BUTTON_RADIUS_VALUES = [0, 2, 4, 6, 8, 12, 16, 9999] as const
 export const DEFAULT_BUTTON_RADIUS = 9999 // Fully rounded
@@ -511,7 +465,7 @@ export const LAYOUT_MODE = {
   ISLAND: 'island'
 } as const
 
-export const DEFAULT_LAYOUT_MODE = 'island'
+export const DEFAULT_LAYOUT_MODE = 'boxed'
 
 export const DECK_VIEW_MODE = {
   STANDARD: 'standard',

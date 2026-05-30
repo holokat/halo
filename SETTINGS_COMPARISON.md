@@ -1,4 +1,4 @@
-# x21-dan Settings & Options Inventory
+# Halo Settings & Options Inventory
 
 ## Current Settings Structure
 
@@ -9,9 +9,7 @@
 4. **Widgets**
 5. **Relays**
 6. **Backup & Sync**
-7. **AI Tools** (logged-in users only)
 8. **Translation** (logged-in users only)
-9. **Wallet** (logged-in users only)
 10. **Post Settings** (logged-in users only)
 
 ---
@@ -24,7 +22,6 @@
 - ✅ Language Selection (multi-language support)
 - ✅ Right-to-left layout (for RTL languages)
 - ✅ Text Only Mode (strip media)
-- ✅ Slow Connection Mode (minimal relays, hide reactions/zaps)
 - ✅ Distraction-Free Mode (Drain my time / Focus mode)
 
 **Display Tab:**
@@ -56,7 +53,6 @@
 - ✅ Muted Threads list management (add/remove by event ID)
 
 **Domains Tab:**
-- ✅ Muted Domains (NIP-05 domain blocking)
 
 ### 3. Appearance Settings
 **Theme Tab:**
@@ -104,31 +100,13 @@
 - ✅ NIP-78 preferences sync
 - ✅ Backup/restore functionality
 
-### 7. AI Tools (Logged-in only)
-- ✅ AI-powered features
 
 ### 8. Translation (Logged-in only)
 - ✅ Translation service configuration:
-  - LibreTranslate
-  - OpenRouter
   - Jumble Translate
 
-### 9. Wallet (Logged-in only)
-**Wallet Connection:**
 - ✅ Bitcoin Connect integration
-- ✅ Wallet info display (alias, balance)
-- ✅ Disconnect wallet option
 
-**Zap Settings:**
-- ✅ Lightning Address input
-- ✅ Default Zap Amount
-- ✅ Default Zap Comment
-- ✅ Quick Zap (toggle)
-- ✅ Zap on Reactions (toggle)
-- ✅ Only Zaps Mode (toggle)
-- ✅ Charge Zap (toggle)
-- ✅ Charge Zap Limit
-- ✅ Zap Sound Selection
 
 ### 10. Post Settings (Logged-in only)
 - ✅ Collapse Long Notes (toggle)
@@ -145,7 +123,7 @@
 
 ---
 
-## Potential Missing Features (To Verify with x21.social)
+## Potential Missing Features (To Verify with halo.social)
 
 ### Common Nostr Client Features to Check:
 1. **Notification Settings**
@@ -202,9 +180,9 @@
 
 ## Notes for Comparison
 
-**To properly compare with x21.social, we need to:**
+**To properly compare with halo.social, we need to:**
 
-1. Visit https://x21.social and navigate through all settings
+1. Visit https://halo.social and navigate through all settings
 2. Document each setting, toggle, and option available
 3. Compare feature-by-feature with our implementation
 4. Identify gaps or differences in implementation
@@ -217,20 +195,19 @@
 - Multiple layout modes (Boxed, Full Width, Island)
 - Extensive media loading policies
 - Widget system
-- AI integration
 - Multi-language support
 
 **Areas to Investigate:**
-- Whether x21.social has notification management we're missing
+- Whether halo.social has notification management we're missing
 - Developer/debug options
 - Performance tuning options
-- Any unique features specific to the official x21.social
+- Any unique features specific to the official halo.social
 
 ---
 
 ## Next Steps
 
-1. **Manual Comparison Required**: Visit x21.social and systematically go through every settings page
+1. **Manual Comparison Required**: Visit halo.social and systematically go through every settings page
 2. **Create Side-by-Side List**: Document what they have that we don't
 3. **Prioritize Missing Features**: Determine which missing features are important
 4. **Implementation Plan**: Create tasks for implementing any critical missing features

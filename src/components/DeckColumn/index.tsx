@@ -12,7 +12,6 @@ import {
   Search,
   Server,
   Bookmark,
-  Highlighter,
   BookOpen,
   List,
   Users
@@ -25,7 +24,6 @@ import SearchResult from '@/components/SearchResult'
 import Relay from '@/components/Relay'
 import NormalFeed from '@/components/NormalFeed'
 import BookmarkList from '@/components/BookmarkList'
-import HighlightsList from '@/components/HighlightsList'
 import ArticleList from '@/components/ArticleList'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '../ui/button'
@@ -137,14 +135,6 @@ export default function DeckColumn({ column }: { column: TPinnedColumn }) {
       content = (
         <div className="px-4 pt-4">
           <BookmarkList />
-        </div>
-      )
-      break
-    case 'highlights':
-      titlebar = <HighlightsTitlebar onClose={() => unpinColumn(column.id)} />
-      content = (
-        <div className="px-4 pt-4">
-          <HighlightsList />
         </div>
       )
       break
@@ -359,26 +349,6 @@ function BookmarksTitlebar({ onClose }: { onClose: () => void }) {
           style={{ fontSize: `var(--title-font-size, 18px)` }}
         >
           {t('Bookmarks')}
-        </div>
-      </div>
-      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={onClose}>
-        <X className="size-4" />
-      </Button>
-    </div>
-  )
-}
-
-function HighlightsTitlebar({ onClose }: { onClose: () => void }) {
-  const { t } = useTranslation()
-  return (
-    <div className="flex items-center justify-between gap-2 px-3 h-full w-full">
-      <div className="flex items-center gap-2 min-w-0">
-        <Highlighter className="shrink-0" />
-        <div
-          className="text-lg font-semibold truncate"
-          style={{ fontSize: `var(--title-font-size, 18px)` }}
-        >
-          {t('Highlights')}
         </div>
       </div>
       <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={onClose}>

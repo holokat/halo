@@ -22,7 +22,6 @@ export const StoreNames = {
   RELAY_INFOS: 'relayInfos',
   RELAY_INFO_EVENTS: 'relayInfoEvents', // deprecated
   GIF_CACHE: 'gifCache',
-  TRANSLATED_EVENTS: 'translatedEvents',
   NOTE_STATS: 'noteStats',
   NOTE_STATS_INTERACTION_META: 'noteStatsInteractionMeta',
   LAST_ACTIVITY: 'lastActivity',
@@ -63,11 +62,6 @@ const STORE_SCHEMAS: TStoreSchema[] = [
     name: StoreNames.GIF_CACHE,
     keyPath: 'eventId',
     indexes: [{ name: 'createdAt', keyPath: 'createdAt' }]
-  },
-  {
-    name: StoreNames.TRANSLATED_EVENTS,
-    keyPath: 'key',
-    indexes: [{ name: 'addedAt', keyPath: 'addedAt' }]
   },
   {
     name: StoreNames.NOTE_STATS,

@@ -10,12 +10,10 @@ import { cn } from '@/lib/utils'
 import { useDistractionFreeMode } from '@/providers/DistractionFreeModeProvider'
 import { useReadsVisibility } from '@/providers/ReadsVisibilityProvider'
 import { useRTL } from '@/providers/RTLProvider'
-import { usePaymentsEnabled } from '@/providers/PaymentsEnabledProvider'
 import { useTextOnlyMode } from '@/providers/TextOnlyModeProvider'
 import { useLowBandwidthMode } from '@/providers/LowBandwidthModeProvider'
 import { useDisableAvatarAnimations } from '@/providers/DisableAvatarAnimationsProvider'
 import { useLiveReactionFountain } from '@/providers/LiveReactionFountainProvider'
-import { useUserPreferences } from '@/providers/UserPreferencesProvider'
 import { SelectValue } from '@radix-ui/react-select'
 import { Check, BellOff, BellRing } from 'lucide-react'
 import { forwardRef, HTMLProps, useState } from 'react'
@@ -33,11 +31,9 @@ const GeneralSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
   const { distractionFreeMode, setDistractionFreeMode } = useDistractionFreeMode()
   const { hideReadsInProfiles, setHideReadsInProfiles } = useReadsVisibility()
   const { isRTL, toggleRTL, showRTLToggle } = useRTL()
-  const { paymentsEnabled, setPaymentsEnabled } = usePaymentsEnabled()
   const { textOnlyMode, setTextOnlyMode } = useTextOnlyMode()
   const { lowBandwidthMode, setLowBandwidthMode } = useLowBandwidthMode()
   const { disableAvatarAnimations, setDisableAvatarAnimations } = useDisableAvatarAnimations()
-  const { messageNotificationsEnabled, updateMessageNotificationsEnabled } = useUserPreferences()
   const { reactionFountainEnabled, setReactionFountainEnabled, previewReactionFountain } =
     useLiveReactionFountain()
 
@@ -62,21 +58,6 @@ const GeneralSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
         {/* INTERFACE TAB */}
         {activeTab === 'interface' && (
           <div className="space-y-4 mt-4">
-            <SettingItem>
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="payments-enabled" className="text-base font-normal">
-                  {t('Enable Payments')}
-                </Label>
-                <p className="text-sm text-muted-foreground">
-                  {t('Enable bitcoin lightning payments to zap content and notes.')}
-                </p>
-              </div>
-              <Switch
-                id="payments-enabled"
-                checked={paymentsEnabled}
-                onCheckedChange={setPaymentsEnabled}
-              />
-            </SettingItem>
             <SettingItem>
               <Label htmlFor="languages" className="text-base font-normal">
                 {t('Languages')}
@@ -126,7 +107,7 @@ const GeneralSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
                 </Label>
                 <p className="text-sm text-muted-foreground">
                   {t(
-                    'Connect to only relay.damus.io, hide reactions and zaps. Optimized for slow connections.'
+                    'Connect to only relay.damus.io and hide reactions. Optimized for slow connections.'
                   )}
                 </p>
               </div>
@@ -134,21 +115,6 @@ const GeneralSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
                 id="slow-connection-mode"
                 checked={lowBandwidthMode}
                 onCheckedChange={setLowBandwidthMode}
-              />
-            </SettingItem>
-            <SettingItem>
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="message-notifications" className="text-base font-normal">
-                  {t('Message Notifications')}
-                </Label>
-                <p className="text-sm text-muted-foreground">
-                  {t('Show a notification dot when new direct messages arrive.')}
-                </p>
-              </div>
-              <Switch
-                id="message-notifications"
-                checked={messageNotificationsEnabled}
-                onCheckedChange={updateMessageNotificationsEnabled}
               />
             </SettingItem>
             <SettingItem>
@@ -251,13 +217,13 @@ const GeneralSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
         {activeTab === 'display' && (
           <div className="space-y-4 mt-4">
             <SettingItem>
-              <Label htmlFor="hide-reads-in-profiles" className="text-base font-normal">
-                {t('Hide reads in profiles')}
+              <Label htmlFor="show-reads-in-profiles" className="text-base font-normal">
+                {t('Show reads in profiles', { defaultValue: 'Show reads in profiles' })}
               </Label>
               <Switch
-                id="hide-reads-in-profiles"
-                checked={hideReadsInProfiles}
-                onCheckedChange={setHideReadsInProfiles}
+                id="show-reads-in-profiles"
+                checked={!hideReadsInProfiles}
+                onCheckedChange={(checked) => setHideReadsInProfiles(!checked)}
               />
             </SettingItem>
           </div>

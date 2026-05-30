@@ -3,7 +3,6 @@ import {
   EMBEDDED_MENTION_REGEX,
   EMOJI_SHORT_CODE_REGEX,
   HASHTAG_REGEX,
-  LN_INVOICE_REGEX,
   STOCK_SYMBOL_REGEX,
   URL_REGEX,
   WS_URL_REGEX,
@@ -24,7 +23,6 @@ export type TEmbeddedNodeType =
   | 'websocket-url'
   | 'url'
   | 'emoji'
-  | 'invoice'
   | 'youtube'
 
 export type TEmbeddedNode =
@@ -111,11 +109,6 @@ export const EmbeddedWebsocketUrlParser: TContentParser = {
 export const EmbeddedEmojiParser: TContentParser = {
   type: 'emoji',
   regex: EMOJI_SHORT_CODE_REGEX
-}
-
-export const EmbeddedLNInvoiceParser: TContentParser = {
-  type: 'invoice',
-  regex: LN_INVOICE_REGEX
 }
 
 export const EmbeddedUrlParser: TContentParser = (content: string) => {

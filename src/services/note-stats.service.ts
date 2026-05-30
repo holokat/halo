@@ -1,6 +1,5 @@
 import { getReplaceableCoordinateFromEvent, isReplaceableEvent } from '@/lib/event'
 import { getReactionBonusCountFromTags } from '@/lib/reaction'
-import { getZapInfoFromEvent } from '@/lib/event-metadata'
 import { getEmojiInfosFromEmojiTags, tagNameEquals } from '@/lib/tag'
 import client from '@/services/client.service'
 import indexedDb from '@/services/indexed-db.service'
@@ -23,15 +22,6 @@ export type TNoteStats = {
   likes: TNoteReaction[]
   repostPubkeySet: Set<string>
   reposts: { id: string; pubkey: string; created_at: number }[]
-  zapPrSet: Set<string>
-  zaps: {
-    pr: string
-    pubkey: string
-    amount: number
-    created_at: number
-    comment?: string
-    pollOptionId?: string
-  }[]
   updatedAt?: number
 }
 
@@ -44,7 +34,6 @@ type TTrackedNote = {
 type TInteractionMeta =
   | { type: 'reaction'; targetEventId: string; pubkey: string }
   | { type: 'repost'; targetEventId: string; pubkey: string }
-  | { type: 'zap'; targetEventId: string; pr: string }
 
 const NOTE_STATS_FRESH_SECONDS = 15
 const NOTE_STATS_BATCH_DEBOUNCE_MS = 40
@@ -165,31 +154,6 @@ class NoteStatsService {
     return this.noteStatsMap.get(id)
   }
 
-  addZap(
-    pubkey: string,
-    eventId: string,
-    pr: string,
-    amount: number,
-    comment?: string,
-    created_at: number = dayjs().unix(),
-    notify: boolean = true,
-    pollOptionId?: string
-  ) {
-    const old = this.noteStatsMap.get(eventId) || {}
-    const zapPrSet = old.zapPrSet || new Set()
-    const zaps = old.zaps || []
-    if (zapPrSet.has(pr)) return
-
-    zapPrSet.add(pr)
-    zaps.push({ pr, pubkey, amount, comment, created_at, pollOptionId })
-    this.noteStatsMap.set(eventId, { ...old, zapPrSet, zaps })
-    this.schedulePersist(eventId)
-    if (notify) {
-      this.notifyNoteStats(eventId)
-    }
-    return eventId
-  }
-
   updateNoteStatsByEvents(events: Event[]) {
     const updatedEventIdSet = new Set<string>()
     events.forEach((evt) => {
@@ -198,8 +162,6 @@ class NoteStatsService {
         updatedEventId = this.addLikeByEvent(evt)
       } else if (evt.kind === kinds.Repost) {
         updatedEventId = this.addRepostByEvent(evt)
-      } else if (evt.kind === kinds.Zap) {
-        updatedEventId = this.addZapByEvent(evt)
       } else if (evt.kind === kinds.EventDeletion) {
         this.removeInteractionsByDeletionEvent(evt).forEach((id) => updatedEventIdSet.add(id))
       }
@@ -272,28 +234,6 @@ class NoteStatsService {
     this.noteStatsMap.set(eventId, { ...old, repostPubkeySet, reposts })
     this.interactionMetaById.set(evt.id, { type: 'repost', targetEventId: eventId, pubkey: evt.pubkey })
     return eventId
-  }
-
-  private addZapByEvent(evt: Event) {
-    const info = getZapInfoFromEvent(evt)
-    if (!info) return
-    const { originalEventId, senderPubkey, invoice, amount, comment, pollOptionId } = info
-    if (!originalEventId || !senderPubkey) return
-
-    const targetEventId = this.addZap(
-      senderPubkey,
-      originalEventId,
-      invoice,
-      amount,
-      comment,
-      evt.created_at,
-      false,
-      pollOptionId
-    )
-    if (targetEventId) {
-      this.interactionMetaById.set(evt.id, { type: 'zap', targetEventId, pr: invoice })
-    }
-    return targetEventId
   }
 
   private scheduleBatchFetch() {
@@ -438,14 +378,14 @@ class NoteStatsService {
     const filters: Filter[] = []
     filters.push({
       '#e': ids,
-      kinds: [kinds.Reaction, kinds.Repost, kinds.Zap, kinds.EventDeletion],
+      kinds: [kinds.Reaction, kinds.Repost, kinds.EventDeletion],
       since: now
     })
 
     if (coordinates.length) {
       filters.push({
         '#a': coordinates,
-        kinds: [kinds.Reaction, kinds.Repost, kinds.Zap],
+        kinds: [kinds.Reaction, kinds.Repost],
         since: now
       })
     }
@@ -499,13 +439,6 @@ class NoteStatsService {
         repostPubkeySet,
         reposts: nextReposts
       })
-    } else if (interactionMeta.type === 'zap') {
-      const zapPrSet = old.zapPrSet ? new Set(old.zapPrSet) : new Set<string>()
-      const zaps = old.zaps ? [...old.zaps] : []
-
-      zapPrSet.delete(interactionMeta.pr)
-      const nextZaps = zaps.filter((zap) => zap.pr !== interactionMeta.pr)
-      this.noteStatsMap.set(interactionMeta.targetEventId, { ...old, zapPrSet, zaps: nextZaps })
     }
 
     this.interactionMetaById.delete(interactionId)

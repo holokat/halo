@@ -19,7 +19,6 @@ import {
   Home,
   KeyRound,
   List,
-  MessageCircle,
   LogOut,
   QrCode as QrCodeIcon,
   Radio,
@@ -32,10 +31,10 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 type TMobileMenuItem = {
-  id: 'home' | 'reads' | 'lists' | 'explore' | 'notifications' | 'messages' | 'livestreams'
+  id: 'home' | 'reads' | 'lists' | 'explore' | 'notifications' | 'livestreams'
   label: string
   icon: React.ComponentType<{ className?: string }>
-  page: 'home' | 'reads' | 'lists' | 'explore' | 'notifications' | 'messages' | 'livestreams'
+  page: 'home' | 'reads' | 'lists' | 'explore' | 'notifications' | 'livestreams'
   requiresLogin?: boolean
 }
 
@@ -105,13 +104,6 @@ function MobileNavSheet({
     () => ({
       home: { id: 'home', label: t('Home'), icon: Home, page: 'home' },
       explore: { id: 'explore', label: t('Search'), icon: Search, page: 'explore' },
-      messages: {
-        id: 'messages',
-        label: t('Messages'),
-        icon: MessageCircle,
-        page: 'messages',
-        requiresLogin: true
-      },
       notifications: {
         id: 'notifications',
         label: t('Notifications'),
@@ -133,7 +125,7 @@ function MobileNavSheet({
 
   const visibleItems = useMemo(() => {
     return menuItems
-      .filter((item) => item.visible && item.canReorder && item.id !== 'post')
+      .filter((item) => item.visible && item.canReorder && item.id !== 'post' && item.id !== 'lists' && item.id !== 'livestreams')
       .sort((a, b) => a.order - b.order)
       .map((item) => menuDefinitions[item.id as TMobileMenuItem['id']])
       .filter(Boolean)

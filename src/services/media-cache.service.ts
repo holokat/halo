@@ -1,6 +1,6 @@
 import { isImage } from '@/lib/url'
 
-const MEDIA_CACHE_NAME = 'x21-media-cache-v1'
+const MEDIA_CACHE_NAME = 'halo-media-cache-v1'
 
 type TMediaCacheStats = {
   bytes: number

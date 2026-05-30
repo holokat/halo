@@ -12,7 +12,6 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import UserAvatar from '@/components/UserAvatar'
 import Username from '@/components/Username'
-import Nip05 from '@/components/Nip05'
 import { Card, CardContent } from '@/components/ui/card'
 import Uploader from '@/components/PostEditor/Uploader'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -225,7 +224,6 @@ const ListEditorPage = forwardRef<HTMLDivElement, ListEditorPageProps>(
                                 userId={profile.pubkey}
                                 className="font-semibold truncate max-w-full w-fit"
                               />
-                              <Nip05 pubkey={profile.pubkey} />
                             </div>
                             <Button
                               variant={isAdded ? "secondary" : "outline"}
@@ -275,7 +273,6 @@ const ListEditorPage = forwardRef<HTMLDivElement, ListEditorPageProps>(
                             userId={pubkey}
                             className="font-semibold truncate max-w-full w-fit"
                           />
-                          <Nip05 pubkey={pubkey} />
                         </div>
                         <Button
                           variant="ghost"

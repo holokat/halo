@@ -7,9 +7,7 @@ import { useMemo } from 'react'
 import ClientTag from '../ClientTag'
 import ContentPreview from '../ContentPreview'
 import { FormattedTimestamp } from '../FormattedTimestamp'
-import Nip05 from '../Nip05'
 import Stars from '../Stars'
-import TranslateButton from '../TranslateButton'
 import { SimpleUserAvatar } from '../UserAvatar'
 import { SimpleUsername } from '../Username'
 
@@ -41,13 +39,9 @@ export default function RelayReviewCard({
               <ClientTag event={event} />
             </div>
             <div className="flex items-center gap-1 text-sm text-muted-foreground">
-              <Nip05 pubkey={event.pubkey} append="·" />
               <FormattedTimestamp timestamp={event.created_at} className="shrink-0" short />
             </div>
           </div>
-        </div>
-        <div className="flex items-center">
-          <TranslateButton event={event} className="pr-0" />
         </div>
       </div>
       <Stars stars={stars} className="mt-2 gap-0.5 [&_svg]:size-3" />

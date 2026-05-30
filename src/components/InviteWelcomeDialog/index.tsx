@@ -108,7 +108,7 @@ export default function InviteWelcomeDialog({
         <DialogHeader className="text-center space-y-2">
           <DialogTitle className="flex items-center justify-center gap-2 text-center">
             <UserPlus className="h-5 w-5" />
-            {t('Welcome to x21!')}
+            {t('Welcome to Halo!')}
           </DialogTitle>
           <DialogDescription className="text-center">
             {t('You joined through an invite link')}

@@ -29,7 +29,6 @@ import {
   CLOCK_REFRESH_INTERVAL_MS,
   RESULTS_PREFETCH_BATCH_SIZE
 } from './poll-widget.utils'
-import noteStatsService from '@/services/note-stats.service'
 import pollResultsService from '@/services/poll-results.service'
 
 type TQueuedFetchOptions = { showSkeleton?: boolean } | null
@@ -52,7 +51,6 @@ export function usePollWidgetData() {
   const [now, setNow] = useState(() => dayjs().unix())
   const [activeTab, setActiveTab] = useState<PollWidgetTab>('active')
   const [pollResultsVersion, setPollResultsVersion] = useState(0)
-  const [noteStatsVersion, setNoteStatsVersion] = useState(0)
   const isMountedRef = useRef(true)
   const pollSubCloserRef = useRef<{ close: () => void } | null>(null)
   const activitySubCloserRef = useRef<{ close: () => void } | null>(null)
@@ -247,15 +245,6 @@ export function usePollWidgetData() {
     return map
   }, [trackedPollEvents])
 
-  const legacyPollEvents = useMemo(
-    () =>
-      trackedPollEvents.filter((event) => {
-        const poll = pollMetaById.get(event.id)
-        return poll?.format === 'legacy_zap'
-      }),
-    [pollMetaById, trackedPollEvents]
-  )
-
   const standardPollIds = useMemo(
     () =>
       trackedPollEvents
@@ -277,20 +266,6 @@ export function usePollWidgetData() {
       unsubscribers.forEach((unsubscribe) => unsubscribe())
     }
   }, [standardPollIds])
-
-  useEffect(() => {
-    if (!legacyPollEvents.length) return
-
-    const unsubscribers = legacyPollEvents.map((event) =>
-      noteStatsService.subscribeNoteStats(event.id, () => {
-        setNoteStatsVersion((prev) => prev + 1)
-      })
-    )
-
-    return () => {
-      unsubscribers.forEach((unsubscribe) => unsubscribe())
-    }
-  }, [legacyPollEvents])
 
   useEffect(() => {
     let cancelled = false
@@ -335,32 +310,6 @@ export function usePollWidgetData() {
       cancelled = true
     }
   }, [pollMetaById, relayUrlsKey, trackedPollEvents])
-
-  useEffect(() => {
-    if (!legacyPollEvents.length) return
-
-    let cancelled = false
-
-    const prefetchLegacyPollStats = async () => {
-      await Promise.allSettled(
-        legacyPollEvents.map(async (event) => {
-          const poll = pollMetaById.get(event.id)
-          if (!poll) return
-          await noteStatsService.fetchNoteStats(event, pubkey, poll.relayUrls)
-        })
-      )
-
-      if (!cancelled && isMountedRef.current) {
-        setNoteStatsVersion((prev) => prev + 1)
-      }
-    }
-
-    void prefetchLegacyPollStats()
-
-    return () => {
-      cancelled = true
-    }
-  }, [legacyPollEvents, pollMetaById, pubkey, relayUrlsKey])
 
   useEffect(() => {
     activitySubCloserRef.current?.close()
@@ -440,7 +389,6 @@ export function usePollWidgetData() {
     hideUntrustedInteractions,
     isUserTrustedForInteractions,
     mutePubkeySet,
-    noteStatsVersion,
     now,
     pollMetaById,
     pollResultsVersion,

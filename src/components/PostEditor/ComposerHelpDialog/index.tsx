@@ -3,7 +3,7 @@ import { Drawer, DrawerContent, DrawerTrigger } from '@/components/ui/drawer'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Sparkles, Image as ImageIcon, Search, Smile, AtSign } from 'lucide-react'
+import { Sparkles, Smile, AtSign } from 'lucide-react'
 
 export default function ComposerHelpDialog({ children }: { children: React.ReactNode }) {
   const { isSmallScreen } = useScreenSize()
@@ -15,16 +15,6 @@ export default function ComposerHelpDialog({ children }: { children: React.React
       icon: <Sparkles className="h-4 w-4" />,
       command: '/gif',
       description: t('Search and insert GIFs')
-    },
-    {
-      icon: <ImageIcon className="h-4 w-4" />,
-      command: '/image',
-      description: t('Generate AI images (requires AI key)')
-    },
-    {
-      icon: <Search className="h-4 w-4" />,
-      command: '/web',
-      description: t('Search the web (requires AI key)')
     },
     {
       icon: <Smile className="h-4 w-4" />,

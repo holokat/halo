@@ -1,6 +1,6 @@
 # Change Guardrails Checklist
 
-This is the baseline workflow for every new change in `x21`.
+This is the baseline workflow for every new change in `halo`.
 
 ## Non-Negotiables
 

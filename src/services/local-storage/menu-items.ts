@@ -1,9 +1,6 @@
 import { DEFAULT_MENU_ITEMS, TMenuItemConfig } from '@/constants/menu-items'
 
 const DEFAULT_MENU_ITEM_IDS = DEFAULT_MENU_ITEMS.map((item) => item.id)
-const DEFAULT_MENU_ITEM_IDS_WITHOUT_MESSAGES = DEFAULT_MENU_ITEM_IDS.filter(
-  (id) => id !== 'messages'
-)
 
 function sortMenuItems(menuItems: TMenuItemConfig[]) {
   return [...menuItems].sort((a, b) => a.order - b.order)
@@ -58,30 +55,7 @@ export function mergeMenuItemsWithDefaults(storedMenuItems: TMenuItemConfig[]): 
 }
 
 export function migrateLegacyMessagesMenuPosition(menuItems: TMenuItemConfig[]) {
-  const sortedMenuItems = sortMenuItems(menuItems)
-  const menuItemIds = sortedMenuItems.map((item) => item.id)
-  const idsWithoutMessages = menuItemIds.filter((id) => id !== 'messages')
-
-  const hasLegacyAppendedMessagesPosition =
-    menuItemIds[menuItemIds.length - 1] === 'messages' &&
-    idsWithoutMessages.length === DEFAULT_MENU_ITEM_IDS_WITHOUT_MESSAGES.length &&
-    idsWithoutMessages.every((id, index) => id === DEFAULT_MENU_ITEM_IDS_WITHOUT_MESSAGES[index])
-
-  if (!hasLegacyAppendedMessagesPosition) {
-    return sortedMenuItems
-  }
-
-  const messageItem = sortedMenuItems.find((item) => item.id === 'messages')
-  const notificationIndex = sortedMenuItems.findIndex((item) => item.id === 'notifications')
-
-  if (!messageItem || notificationIndex === -1) {
-    return sortedMenuItems
-  }
-
-  const menuItemsWithoutMessages = sortedMenuItems.filter((item) => item.id !== 'messages')
-  menuItemsWithoutMessages.splice(notificationIndex + 1, 0, messageItem)
-
-  return normalizeMenuItemOrders(menuItemsWithoutMessages)
+  return sortMenuItems(menuItems).filter((item) => DEFAULT_MENU_ITEM_IDS.includes(item.id))
 }
 
 export function getDefaultMenuItems(): TMenuItemConfig[] {

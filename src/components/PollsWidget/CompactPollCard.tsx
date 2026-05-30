@@ -1,15 +1,12 @@
 import Image from '@/components/Image'
-import ZapDialog from '@/components/ZapDialog'
 import { SimpleUserAvatar } from '@/components/UserAvatar'
 import { SimpleUsername } from '@/components/Username'
 import { Button } from '@/components/ui/button'
 import { POLL_TYPE } from '@/constants'
 import { cn } from '@/lib/utils'
 import { createPollResponseDraftEvent } from '@/lib/draft-event'
-import { getDefaultLegacyZapPollAmount, getLegacyZapPollResults, type TLegacyZapPollResults } from '@/lib/poll'
 import { useFetchPollResults } from '@/hooks/useFetchPollResults'
 import { useNostr } from '@/providers/NostrProvider'
-import { useZap } from '@/providers/ZapProvider'
 import pollResultsService from '@/services/poll-results.service'
 import { CheckCircle2, Loader2, Trophy } from 'lucide-react'
 import { Event } from 'nostr-tools'
@@ -21,7 +18,6 @@ import { PollMetadata, ensurePollRelays, formatPollStatusLabel, getPollPrompt } 
 export function CompactPollCard({
   event,
   poll,
-  legacyResults,
   now,
   commentCount,
   votedOptionIds,
@@ -30,7 +26,6 @@ export function CompactPollCard({
 }: {
   event: Event
   poll: PollMetadata
-  legacyResults?: TLegacyZapPollResults
   now: number
   commentCount: number
   votedOptionIds: string[]
@@ -39,25 +34,17 @@ export function CompactPollCard({
 }) {
   const { t } = useTranslation()
   const { pubkey, publish, checkLogin } = useNostr()
-  const { defaultZapSats } = useZap()
   const pollResults = useFetchPollResults(event.id)
   const [isVoting, setIsVoting] = useState(false)
   const [isLoadingResults, setIsLoadingResults] = useState(false)
-  const [openZapDialog, setOpenZapDialog] = useState(false)
   const [selectedOptionIds, setSelectedOptionIds] = useState<string[]>([])
 
-  const isLegacyZapPoll = poll.format === 'legacy_zap'
-  const isMultipleChoice = !isLegacyZapPoll && poll.pollType === POLL_TYPE.MULTIPLE_CHOICE
+  const isMultipleChoice = poll.pollType === POLL_TYPE.MULTIPLE_CHOICE
   const hasVoted = votedOptionIds.length > 0
   const canVote = !isExpired && !hasVoted && !isVoting && event.pubkey !== pubkey
   const showResults = isExpired || hasVoted || event.pubkey === pubkey
-  const defaultZapAmount = useMemo(
-    () => getDefaultLegacyZapPollAmount(poll, defaultZapSats),
-    [defaultZapSats, poll]
-  )
-
   const fetchResults = useCallback(async () => {
-    if (isLegacyZapPoll || isLoadingResults) return
+    if (isLoadingResults) return
 
     setIsLoadingResults(true)
     try {
@@ -76,16 +63,15 @@ export function CompactPollCard({
     } finally {
       setIsLoadingResults(false)
     }
-  }, [event.id, event.pubkey, isLegacyZapPoll, isLoadingResults, isMultipleChoice, poll])
+  }, [event.id, event.pubkey, isLoadingResults, isMultipleChoice, poll])
 
   useEffect(() => {
-    if (isLegacyZapPoll || !showResults || pollResults || isLoadingResults) return
+    if (!showResults || pollResults || isLoadingResults) return
     void fetchResults()
-  }, [fetchResults, isLegacyZapPoll, isLoadingResults, pollResults, showResults])
+  }, [fetchResults, isLoadingResults, pollResults, showResults])
 
   const handleVote = useCallback(
     async (optionIds: string[]) => {
-      if (isLegacyZapPoll) return
       if (!optionIds.length) return
 
       await checkLogin(async () => {
@@ -114,16 +100,11 @@ export function CompactPollCard({
         }
       })
     },
-    [checkLogin, event, fetchResults, isLegacyZapPoll, poll, pollResults, pubkey, publish]
+    [checkLogin, event, fetchResults, poll, pollResults, pubkey, publish]
   )
 
   const handleOptionClick = (optionId: string) => {
     if (!canVote) return
-
-    if (isLegacyZapPoll) {
-      setSelectedOptionIds((prev) => (prev.includes(optionId) ? [] : [optionId]))
-      return
-    }
 
     if (isMultipleChoice) {
       setSelectedOptionIds((prev) =>
@@ -136,16 +117,11 @@ export function CompactPollCard({
   }
 
   const optionResults = poll.options.map((option) => {
-    const legacyOptionResult = legacyResults?.results?.[option.id]
-    const votes = isLegacyZapPoll
-      ? legacyOptionResult?.votes ?? 0
-      : pollResults?.results?.[option.id]?.size ?? 0
-    const amount = legacyOptionResult?.amount ?? 0
-    const percentage = isLegacyZapPoll
-      ? legacyOptionResult?.percentage ?? 0
-      : (pollResults?.totalVotes ?? 0) > 0
-        ? (votes / (pollResults?.totalVotes ?? 0)) * 100
-        : 0
+    const votes = pollResults?.results?.[option.id]?.size ?? 0
+    const amount = 0
+    const percentage = (pollResults?.totalVotes ?? 0) > 0
+      ? (votes / (pollResults?.totalVotes ?? 0)) * 100
+      : 0
 
     return {
       ...option,
@@ -155,13 +131,13 @@ export function CompactPollCard({
     }
   })
   const highestVoteCount = optionResults.reduce(
-    (maxVotes, option) => Math.max(maxVotes, isLegacyZapPoll ? option.amount : option.votes),
+    (maxVotes, option) => Math.max(maxVotes, option.votes),
     0
   )
   const winningOptionCount =
     highestVoteCount > 0
       ? optionResults.filter((option) =>
-          (isLegacyZapPoll ? option.amount : option.votes) === highestVoteCount
+          option.votes === highestVoteCount
         ).length
       : 0
 
@@ -219,7 +195,7 @@ export function CompactPollCard({
               const isWinningOption =
                 isExpired &&
                 highestVoteCount > 0 &&
-                (isLegacyZapPoll ? option.amount : option.votes) === highestVoteCount
+                option.votes === highestVoteCount
 
               return (
                 <div
@@ -313,37 +289,6 @@ export function CompactPollCard({
         </Button>
       )}
 
-      {isLegacyZapPoll && canVote && selectedOptionIds.length > 0 && (
-        <>
-          <Button
-            className="mt-2 h-7 w-full text-xs"
-            disabled={isVoting}
-            onClick={(event) => {
-              event.stopPropagation()
-              setOpenZapDialog(true)
-            }}
-          >
-            {t('Zap {{amount}} sats', {
-              amount: defaultZapAmount,
-              defaultValue: 'Zap {{amount}} sats'
-            })}
-          </Button>
-
-          <ZapDialog
-            open={openZapDialog}
-            setOpen={setOpenZapDialog}
-            pubkey={event.pubkey}
-            event={event}
-            defaultAmount={defaultZapAmount}
-            defaultComment=""
-            extraZapRequestTags={[['poll_option', selectedOptionIds[0]]]}
-            pollOptionId={selectedOptionIds[0]}
-            onSuccess={() => {
-              setSelectedOptionIds([])
-            }}
-          />
-        </>
-      )}
 
       <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
         <span>

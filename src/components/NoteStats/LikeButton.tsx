@@ -5,9 +5,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ACTUAL_ZAP_SOUNDS, ZAP_SOUNDS } from '@/constants'
 import { useNoteStatsById } from '@/hooks/useNoteStatsById'
-import { getLightningAddressFromProfile } from '@/lib/lightning'
 import {
   getReactionBoostVisualProgress,
   getWeightedReactionCount,
@@ -18,16 +16,11 @@ import { useNostr } from '@/providers/NostrProvider'
 import { useDefaultReactionEmojis } from '@/providers/DefaultReactionEmojisProvider'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import { useUserTrust } from '@/providers/UserTrustProvider'
-import { useZap } from '@/providers/ZapProvider'
-import client from '@/services/client.service'
-import lightning from '@/services/lightning.service'
-import noteStatsService from '@/services/note-stats.service'
 import { TEmoji, TNoteReaction } from '@/types'
 import { Heart, Loader } from 'lucide-react'
 import { Event } from 'nostr-tools'
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
 import Emoji from '../Emoji'
 import SuggestedEmojis from '../SuggestedEmojis'
 import ReactionBoostTrail from './ReactionBoostTrail'
@@ -81,12 +74,9 @@ export default function LikeButton({ event }: { event: Event }) {
   const { pubkey, signEvent, checkLogin, attemptDelete } = useNostr()
   const { reactionOptionsEnabled } = useDefaultReactionEmojis()
   const { hideUntrustedInteractions, isUserTrustedForInteractions } = useUserTrust()
-  const { zapOnReactions, defaultZapSats, defaultZapComment, zapSound, isWalletConnected } =
-    useZap()
   const [liking, setLiking] = useState(false)
   const [isEmojiReactionsOpen, setIsEmojiReactionsOpen] = useState(false)
   const [isPickerOpen, setIsPickerOpen] = useState(false)
-  const [canZap, setCanZap] = useState(false)
   const [burstVersion, setBurstVersion] = useState(0)
   const [burstIntensity, setBurstIntensity] = useState(0)
   const [isBoostActive, setIsBoostActive] = useState(false)
@@ -118,20 +108,6 @@ export default function LikeButton({ event }: { event: Event }) {
       likeCount: getWeightedReactionCount(likes)
     }
   }, [noteStats, pubkey, hideUntrustedInteractions, isUserTrustedForInteractions])
-
-  useEffect(() => {
-    if (!zapOnReactions || !isWalletConnected) {
-      setCanZap(false)
-      return
-    }
-
-    client.fetchProfile(event.pubkey).then((profile) => {
-      if (!profile) return
-      if (pubkey === profile.pubkey) return
-      const lightningAddress = getLightningAddressFromProfile(profile)
-      if (lightningAddress) setCanZap(true)
-    })
-  }, [event.pubkey, pubkey, zapOnReactions, isWalletConnected])
 
   useEffect(() => {
     return () => {
@@ -213,42 +189,6 @@ export default function LikeButton({ event }: { event: Event }) {
         setLiking(false)
 
         void publishTask
-          .then(() => {
-            if (!zapOnReactions || !canZap) return
-
-            Promise.resolve().then(async () => {
-              try {
-                if (isWalletConnected && zapSound !== ZAP_SOUNDS.NONE) {
-                  let soundToPlay = zapSound
-                  if (zapSound === ZAP_SOUNDS.RANDOM) {
-                    const randomIndex = Math.floor(Math.random() * ACTUAL_ZAP_SOUNDS.length)
-                    soundToPlay = ACTUAL_ZAP_SOUNDS[randomIndex]
-                  }
-                  const audio = new Audio(`/sounds/${soundToPlay}.mp3`)
-                  audio.volume = 0.5
-                  audio.play().catch(() => {})
-                }
-
-                const zapResult = await lightning.zap(
-                  pubkey,
-                  event,
-                  defaultZapSats,
-                  defaultZapComment
-                )
-                if (zapResult) {
-                  noteStatsService.addZap(
-                    pubkey,
-                    event.id,
-                    zapResult.invoice,
-                    defaultZapSats,
-                    defaultZapComment
-                  )
-                }
-              } catch (error) {
-                toast.error(`${t('Zap failed')}: ${(error as Error).message}`)
-              }
-            })
-          })
           .catch((error) => {
             console.error('like failed', error)
           })

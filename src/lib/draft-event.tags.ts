@@ -86,7 +86,7 @@ export function buildResponseTag(value: string) {
 }
 
 export function buildClientTag() {
-  return ['client', 'x21']
+  return ['client', 'halo']
 }
 
 export function buildNsfwTag() {

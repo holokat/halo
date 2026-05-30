@@ -16,11 +16,9 @@ import ClientTag from '../ClientTag'
 import Collapsible from '../Collapsible'
 import Content from '../Content'
 import { FormattedTimestamp } from '../FormattedTimestamp'
-import Nip05 from '../Nip05'
 import NoteOptions from '../NoteOptions'
 import NoteStats from '../NoteStats'
 import ParentNotePreview from '../ParentNotePreview'
-import TranslateButton from '../TranslateButton'
 import UserAvatar from '../UserAvatar'
 import Username from '../Username'
 
@@ -83,7 +81,6 @@ export default function ReplyNote({
                   <ClientTag event={event} />
                 </div>
                 <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <Nip05 pubkey={event.pubkey} append="·" />
                   <FormattedTimestamp
                     timestamp={event.created_at}
                     className="shrink-0"
@@ -92,7 +89,6 @@ export default function ReplyNote({
                 </div>
               </div>
               <div className="flex items-center shrink-0">
-                <TranslateButton event={event} className="py-0" />
                 <NoteOptions event={event} className="shrink-0 [&_svg]:size-5" />
               </div>
             </div>
@@ -123,7 +119,7 @@ export default function ReplyNote({
           </div>
         </div>
       </Collapsible>
-      {show && <NoteStats className={cn(textOnlyMode ? "ml-4" : "ml-14 pl-1", "mr-4 mt-2")} event={event} displayTopZapsAndLikes />}
+      {show && <NoteStats className={cn(textOnlyMode ? "ml-4" : "ml-14 pl-1", "mr-4 mt-2")} event={event} displayTopLikes />}
     </div>
   )
 }

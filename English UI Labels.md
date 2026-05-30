@@ -1,6 +1,6 @@
 # English UI Labels Audit
 
-Complete list of all UI labels in x21, organized by feature area.
+Complete list of all UI labels in Halo, organized by feature area.
 
 ---
 
@@ -38,7 +38,6 @@ Complete list of all UI labels in x21, organized by feature area.
 - `Replies` - "Replies"
 - `Posts` - "Posts"
 - `Articles` - "Articles"
-- `Highlights` - "Highlights"
 - `Polls` - "Polls"
 - `Voice Posts` - "Voice Posts"
 - `Photo Posts` - "Photo Posts"
@@ -185,7 +184,7 @@ Complete list of all UI labels in x21, organized by feature area.
 ### Client Tag
 
 - `Add client tag` - "Add client tag"
-- `Show others this was sent via x21` - "Show others this was sent via x21"
+- `Show others this was sent via Halo` - "Show others this was sent via Halo"
 
 ### Relays for Post
 
@@ -272,8 +271,6 @@ Complete list of all UI labels in x21, organized by feature area.
 - `Composer Features` - "Composer Features"
 - `Use these commands while composing your note:` - "Use these commands while composing your note:"
 - `Search and insert GIFs` - "Search and insert GIFs"
-- `Generate AI images (requires AI key)` - "Generate AI images (requires AI key)"
-- `Search the web (requires AI key)` - "Search the web (requires AI key)"
 - `Insert emojis (including custom emojis)` - "Insert emojis (including custom emojis)"
 - `Mention users` - "Mention users"
 - `More features will be added over time. Start typing these commands to try them out!` - "More features will be added over time. Start typing these commands to try them out!"
@@ -293,14 +290,10 @@ Complete list of all UI labels in x21, organized by feature area.
 - `n d` - "{{n}}d" - **Variable: {{n}}**
 - `date` - "{{timestamp, date}}" - **Variable: {{timestamp}}**
 
-### Reactions & Zaps
 
 - `Reactions` - "Reactions"
-- `Zaps` - "Zaps"
 - `No more reactions` - "No more reactions"
 - `No reactions yet` - "No reactions yet"
-- `No more zaps` - "No more zaps"
-- `No zaps yet` - "No zaps yet"
 - `interactions` - "interactions"
 
 ### Reposts
@@ -359,9 +352,6 @@ Complete list of all UI labels in x21, organized by feature area.
 - `Display Name` - "Display Name"
 - `Bio` - "Bio"
 - `Website` - "Website"
-- `Nostr Address` - "Nostr Address"
-- `Nostr Address Info` - "A Nostr address is a username that looks like an email (e.g., user@domain.com) and links to your Nostr account so others can find and verify you easily."
-- `Invalid NIP-05 address` - "Invalid NIP-05 address"
 
 ### Identity & Keys
 
@@ -411,8 +401,6 @@ Complete list of all UI labels in x21, organized by feature area.
 - `voted in your poll` - "voted in your poll"
 - `reacted to your note` - "reacted to your note"
 - `reposted your note` - "reposted your note"
-- `zapped your note` - "zapped your note"
-- `zapped you` - "zapped you"
 
 ### Notification Settings
 
@@ -572,13 +560,13 @@ Complete list of all UI labels in x21, organized by feature area.
 
 ### Invites
 
-- `{{name}} invites you to x21!` - "{{name}} invites you to x21!" - **Variable: {{name}}**
+- `{{name}} invites you to Halo!` - "{{name}} invites you to Halo!" - **Variable: {{name}}**
 - `Join and follow {{name}}` - "Join and follow {{name}}" - **Variable: {{name}}**
 - `Also follow {{count}} people they follow` - "Also follow {{count}} people they follow" - **Variable: {{count}}**
 - `Welcome! You are now following {{count}} people` - "Welcome! You are now following {{count}} people" - **Variable: {{count}}**
 - `Welcome! You are now following {{name}}` - "Welcome! You are now following {{name}}" - **Variable: {{name}}**
 - `Failed to follow users. Please try again.` - "Failed to follow users. Please try again."
-- `Share this link to invite friends to x21` - "Share this link to invite friends to x21"
+- `Share this link to invite friends to Halo` - "Share this link to invite friends to Halo"
 
 ---
 
@@ -588,7 +576,6 @@ Complete list of all UI labels in x21, organized by feature area.
 
 - `General` - "General"
 - `Enable Payments` - "Enable Payments"
-- `Enable bitcoin lightning payments to zap content and notes.` - "Enable bitcoin lightning payments to zap content and notes."
 - `Languages` - "Languages"
 - `Right-to-left layout` - "Right-to-left layout"
 - `Theme` - "Theme"
@@ -604,7 +591,6 @@ Complete list of all UI labels in x21, organized by feature area.
 - `Text Only Mode` - "Text Only Mode"
 - `Strip media from notes and profiles to reduce bandwidth usage. Images and videos will be replaced with clickable load links.` - "Strip media from notes and profiles to reduce bandwidth usage. Images and videos will be replaced with clickable load links."
 - `Slow Connection Mode` - "Slow Connection Mode"
-- `Connect to only relay.damus.io, hide reactions and zaps. Optimized for slow connections.` - "Connect to only relay.damus.io, hide reactions and zaps. Optimized for slow connections."
 - `Disable Avatar Animations` - "Disable Avatar Animations"
 - `Stop animated GIFs in profile avatars. Only affects avatars, not GIFs in notes.` - "Stop animated GIFs in profile avatars. Only affects avatars, not GIFs in notes."
 - `enabled` - "enabled"
@@ -885,75 +871,34 @@ Complete list of all UI labels in x21, organized by feature area.
 
 ---
 
-## Wallet
 
-- `Wallet` - "Wallet"
 - `Sats` - "Sats"
 - `sats` - "sats"
 - `Balance` - "Balance"
-- `Lightning Address (or LNURL)` - "Lightning Address (or LNURL)"
-- `Lightning Payment Address` - "Lightning Payment Address"
-- `Lightning Payment Address Info` - "A Lightning address looks like an email (e.g., user@domain.com) but is used to send or receive Bitcoin instantly over the Lightning Network. You can get one"
 - `here` - "here"
-- `Lightning Invoice` - "Lightning Invoice"
 - `Pay` - "Pay"
 
-### Zapping
 
-- `Zap to` - "Zap to"
-- `Zap n sats` - "Zap {{n}} sats" - **Variable: {{n}}**
-- `Zapped n sats` - "Zapped {{n}} sats" - **Variable: {{n}}**
-- `zapComment` - "Comment"
-- `Default zap amount` - "Default zap amount"
-- `Default zap comment` - "Default zap comment"
-- `Quick zap` - "Quick zap"
-- `If enabled, you can zap with a single click. Click and hold for custom amounts` - "If enabled, you can zap with a single click. Click and hold for custom amounts"
 
-### Charge Zaps
 
-- `Enable Charge Zaps` - "Enable Charge Zaps"
-- `Press and hold to charge zap amount` - "Press and hold to charge zap amount"
-- `Quick zaps must be enabled for charge zaps` - "Quick zaps must be enabled for charge zaps"
-- `Charge Zap Limit (sats)` - "Charge Zap Limit (sats)"
-- `Maximum amount that can be charged. No matter how long you hold, zap won't exceed this limit.` - "Maximum amount that can be charged. No matter how long you hold, zap won't exceed this limit."
 - `Important: Set a reasonable limit` - "Important: Set a reasonable limit"
-- `This prevents accidentally sending large amounts. The zap amount will never exceed this limit.` - "This prevents accidentally sending large amounts. The zap amount will never exceed this limit."
-- `Charge Zap` - "Charge Zap"
 
-### Zap Sounds
 
-- `Zap Sound` - "Zap Sound"
 - `None` - "None"
 - `Random` - "Random"
-- `Zap Sound 1` - "Zap Sound 1"
-- `Electric Zap` - "Electric Zap"
 - `Sending a message` - "Sending a message"
 - `No second best` - "No second best"
 - `Freedom` - "Freedom"
 - `Hey Hey Hey` - "Hey Hey Hey"
 
-### Wallet Connection (Rizful)
 
 - `Connected to` - "Connected to"
-- `Disconnect Wallet` - "Disconnect Wallet"
 - `Are you absolutely sure?` - "Are you absolutely sure?"
-- `You will not be able to send zaps to others.` - "You will not be able to send zaps to others."
 - `Disconnect` - "Disconnect"
-- `Start with a Rizful Vault` - "Start with a Rizful Vault"
-- `or other wallets` - "or other wallets"
-- `Rizful Vault` - "Rizful Vault"
-- `Rizful Vault connected!` - "Rizful Vault connected!"
-- `You can now use your Rizful Vault to zap your favorite notes and creators.` - "You can now use your Rizful Vault to zap your favorite notes and creators."
-- `Your Lightning Address` - "Your Lightning Address"
-- `New to Rizful?` - "New to Rizful?"
-- `Sign up for Rizful` - "Sign up for Rizful"
-- `If you already have a Rizful account, you can skip this step.` - "If you already have a Rizful account, you can skip this step."
 - `Get your one-time code` - "Get your one-time code"
 - `Get code` - "Get code"
-- `Connect to your Rizful Vault` - "Connect to your Rizful Vault"
 - `Paste your one-time code here` - "Paste your one-time code here"
 - `Connect` - "Connect"
-- `Set up your wallet to send and receive sats!` - "Set up your wallet to send and receive sats!"
 - `Set up` - "Set up"
 
 ---
@@ -1008,7 +953,6 @@ Complete list of all UI labels in x21, organized by feature area.
 - `Show original` - "Show original"
 - `Service` - "Service"
 - `characters` - "characters"
-- `jumbleTranslateApiKeyDescription` - "You can use this API key anywhere else that supports LibreTranslate. The service URL is {{serviceUrl}}" - **Variable: {{serviceUrl}}**
 - `Top up` - "Top up"
 - `Will receive: {n} characters` - "Will receive: {{n}} characters" - **Variable: {{n}}**
 - `Top up {n} sats` - "Top up {{n}} sats" - **Variable: {{n}}**
@@ -1027,7 +971,6 @@ Complete list of all UI labels in x21, organized by feature area.
 
 ---
 
-## AI Tools
 
 (No specific labels found in the translation file)
 

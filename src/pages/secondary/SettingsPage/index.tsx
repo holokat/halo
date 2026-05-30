@@ -1,10 +1,8 @@
 import AboutInfoDialog from '@/components/AboutInfoDialog'
-import PostEditor from '@/components/PostEditor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import SecondaryPageLayout from '@/layouts/SecondaryPageLayout'
 import {
-  toAITools,
   toAppearanceSettings,
   toBackupSettings,
   toContentPrivacySettings,
@@ -14,25 +12,18 @@ import {
   toPostSettings,
   toRelaySettings,
   toScheduledPostsSettings,
-  toTranslation,
-  toVanityAddressSettings,
-  toWallet,
   toWidgetsSettings
 } from '@/lib/link'
 import { cn } from '@/lib/utils'
 import { useSecondaryPage } from '@/PageManager'
 import { useNostr } from '@/providers/NostrProvider'
 import {
-  Bot,
-  Bug,
-  AtSign,
   Hash,
   ChevronRight,
   Cloud,
   Clock3,
   Info,
   KeyRound,
-  Languages,
   LayoutGrid,
   Palette,
   PencilLine,
@@ -40,13 +31,11 @@ import {
   Search,
   Settings2,
   Shield,
-  Loader2,
-  Wallet
+  Loader2
 } from 'lucide-react'
 import { forwardRef, HTMLProps, MouseEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-const BUG_REPORT_TARGET = 'npub1r0rs5q2gk0e3dk3nlc7gnu378ec6cnlenqp8a3cjhyzu6f8k5sgs4sq9ac'
 const SETTINGS_ICON_TONE_CLASSNAME = 'bg-primary/15 text-primary'
 
 type TSettingsSearchItem = {
@@ -78,34 +67,13 @@ function isSearchMatch(item: TSettingsSearchItem, query: string) {
 
 const SettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
   const { t } = useTranslation()
-  const { pubkey, checkLogin } = useNostr()
+  const { pubkey } = useNostr()
   const { push } = useSecondaryPage()
   const [settingsQuery, setSettingsQuery] = useState('')
   const [updateAvailable, setUpdateAvailable] = useState(false)
   const [checkingForUpdate, setCheckingForUpdate] = useState(false)
   const [refreshingForUpdate, setRefreshingForUpdate] = useState(false)
-  const [bugComposerOpen, setBugComposerOpen] = useState(false)
   const normalizedQuery = settingsQuery.trim()
-  const bugReportDraft = useMemo(
-    () =>
-      [
-        t('Bug report', { defaultValue: 'Bug report' }),
-        '',
-        t('What happened?', { defaultValue: 'What happened?' }),
-        '',
-        t('What did you expect?', { defaultValue: 'What did you expect?' }),
-        '',
-        t('Steps to reproduce:', { defaultValue: 'Steps to reproduce:' }),
-        ''
-      ].join('\n'),
-    [t]
-  )
-
-  const openBugReportComposer = useCallback(() => {
-    checkLogin(() => {
-      setBugComposerOpen(true)
-    })
-  }, [checkLogin])
 
   const checkForUpdate = useCallback(async () => {
     if (!('serviceWorker' in navigator)) return
@@ -188,7 +156,7 @@ const SettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
         title: t('Interface'),
         subtitle: t('General'),
         route: `${toGeneralSettings()}?tab=interface`,
-        keywords: ['language', 'payments', 'text only', 'slow connection', 'avatar', 'rtl', 'distraction free']
+        keywords: ['language', 'text only', 'slow connection', 'avatar', 'rtl', 'distraction free']
       },
       {
         id: 'feeds',
@@ -249,15 +217,6 @@ const SettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
         subtitle: t('Content & Privacy'),
         route: `${toContentPrivacySettings()}?tab=threads`,
         keywords: ['mute thread', 'mute conversation']
-      },
-      {
-        id: 'muted-domains',
-        icon: <Shield />,
-        iconToneClassName: SETTINGS_ICON_TONE_CLASSNAME,
-        title: t('Muted Domains'),
-        subtitle: t('Content & Privacy'),
-        route: `${toContentPrivacySettings()}?tab=domains`,
-        keywords: ['nip05 domain', 'domain mute']
       },
       {
         id: 'appearance',
@@ -335,52 +294,11 @@ const SettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
         title: t('Backup & Sync'),
         route: toBackupSettings(),
         keywords: ['backup settings', 'sync settings', 'restore']
-      },
-      {
-        id: 'report-bug',
-        icon: <Bug />,
-        iconToneClassName: SETTINGS_ICON_TONE_CLASSNAME,
-        title: t('Report a Bug', { defaultValue: 'Report a Bug' }),
-        subtitle: '@holokat',
-        action: openBugReportComposer,
-        keywords: ['bug', 'report issue', 'feedback', 'support', 'broken', 'problem']
       }
     ]
 
     if (pubkey) {
       items.push(
-        {
-          id: 'ai-tools',
-          icon: <Bot />,
-          iconToneClassName: SETTINGS_ICON_TONE_CLASSNAME,
-          title: t('AI Tools'),
-          route: toAITools(),
-          keywords: ['ai', 'models', 'image model', 'web search model']
-        },
-        {
-          id: 'translation',
-          icon: <Languages />,
-          iconToneClassName: SETTINGS_ICON_TONE_CLASSNAME,
-          title: t('Translation'),
-          route: toTranslation(),
-          keywords: ['translate', 'language translation']
-        },
-        {
-          id: 'wallet',
-          icon: <Wallet />,
-          iconToneClassName: SETTINGS_ICON_TONE_CLASSNAME,
-          title: t('Wallet'),
-          route: toWallet(),
-          keywords: ['zap', 'lightning', 'payments']
-        },
-        {
-          id: 'vanity-address',
-          icon: <AtSign />,
-          iconToneClassName: SETTINGS_ICON_TONE_CLASSNAME,
-          title: t('Vanity Address', { defaultValue: 'Vanity Address' }),
-          route: toVanityAddressSettings(),
-          keywords: ['nip5', 'nip-5', 'handle', 'address', 'x21.social']
-        },
         {
           id: 'posts',
           icon: <PencilLine />,
@@ -401,7 +319,7 @@ const SettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
     }
 
     return items
-  }, [openBugReportComposer, t, pubkey])
+  }, [t, pubkey])
 
   const searchResults = useMemo(() => {
     if (!normalizedQuery) return []
@@ -488,34 +406,6 @@ const SettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
             <Cloud />
             {t('Backup & Sync')}
           </SettingItem>
-          <SettingItem className="clickable" iconToneClassName={SETTINGS_ICON_TONE_CLASSNAME} onClick={openBugReportComposer}>
-            <Bug />
-            {t('Report a Bug', { defaultValue: 'Report a Bug' })}
-          </SettingItem>
-          {!!pubkey && (
-            <SettingItem className="clickable" iconToneClassName={SETTINGS_ICON_TONE_CLASSNAME} onClick={() => push(toAITools())}>
-              <Bot />
-              {t('AI Tools')}
-            </SettingItem>
-          )}
-          {!!pubkey && (
-            <SettingItem className="clickable" iconToneClassName={SETTINGS_ICON_TONE_CLASSNAME} onClick={() => push(toTranslation())}>
-              <Languages />
-              {t('Translation')}
-            </SettingItem>
-          )}
-          {!!pubkey && (
-            <SettingItem className="clickable" iconToneClassName={SETTINGS_ICON_TONE_CLASSNAME} onClick={() => push(toWallet())}>
-              <Wallet />
-              {t('Wallet')}
-            </SettingItem>
-          )}
-          {!!pubkey && (
-            <SettingItem className="clickable" iconToneClassName={SETTINGS_ICON_TONE_CLASSNAME} onClick={() => push(toVanityAddressSettings())}>
-              <AtSign />
-              {t('Vanity Address', { defaultValue: 'Vanity Address' })}
-            </SettingItem>
-          )}
           {!!pubkey && (
             <SettingItem className="clickable" iconToneClassName={SETTINGS_ICON_TONE_CLASSNAME} onClick={() => push(toPostSettings())}>
               <PencilLine />
@@ -577,12 +467,6 @@ const SettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
           </AboutInfoDialog>
         </>
       )}
-      <PostEditor
-        open={bugComposerOpen}
-        setOpen={setBugComposerOpen}
-        defaultContent={bugReportDraft}
-        initialMentionIds={[BUG_REPORT_TARGET]}
-      />
     </SecondaryPageLayout>
   )
 })

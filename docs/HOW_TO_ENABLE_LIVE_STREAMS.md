@@ -37,7 +37,6 @@ The Live Streams feature is disabled by default. Here's how to enable it:
 - Click on a live event card
 - View the stream (if video URL is provided)
 - See current viewers count
-- View recent zaps to the stream
 
 ### Participating in Live Chat
 - Scroll to the "Live Chat" section
@@ -45,10 +44,6 @@ The Live Streams feature is disabled by default. Here's how to enable it:
 - Press Enter or click Send
 - Your message appears in real-time
 
-### Zapping
-- **Zap the Stream**: Click "Zap Stream" button
-- **Zap a Message**: Hover over a chat message and click the zap icon
-- Zaps appear in the horizontal scrollable list
 
 ## What You'll See
 
@@ -65,7 +60,6 @@ The Live Streams feature is disabled by default. Here's how to enable it:
 - Host information
 - Event description
 - Viewer count
-- Recent zaps (horizontal scroll)
 - Live chat with real-time messages
 - Message input to participate
 

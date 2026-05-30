@@ -1,9 +1,8 @@
 import { useSecondaryPage } from '@/PageManager'
 import { ExtendedKind, SUPPORTED_KINDS } from '@/constants'
-import { getNoteBech32Id, getParentBech32Id, isFromMutedDomain, isNsfwEvent } from '@/lib/event'
+import { getNoteBech32Id, getParentBech32Id, isNsfwEvent } from '@/lib/event'
 import { toNote } from '@/lib/link'
 import { cn } from '@/lib/utils'
-import { useFetchProfile } from '@/hooks'
 import { useContentPolicy } from '@/providers/ContentPolicyProvider'
 import { useMuteList } from '@/providers/MuteListProvider'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
@@ -13,17 +12,14 @@ import AudioPlayer from '../AudioPlayer'
 import ClientTag from '../ClientTag'
 import Content from '../Content'
 import { FormattedTimestamp } from '../FormattedTimestamp'
-import Nip05 from '../Nip05'
 import NoteOptions from '../NoteOptions'
 import ParentNotePreview from '../ParentNotePreview'
-import TranslateButton from '../TranslateButton'
 import UserAvatar from '../UserAvatar'
 import Username from '../Username'
 import { EmbeddedLiveStream } from '../Embedded'
 import LiveStreamPresenceBadge from '../LiveStreamPresenceBadge'
 import CommunityDefinition from './CommunityDefinition'
 import GroupMetadata from './GroupMetadata'
-import Highlight from './Highlight'
 import IValue from './IValue'
 import LiveEvent from './LiveEvent'
 import LongFormArticle from './LongFormArticle'
@@ -68,28 +64,13 @@ export default function Note({
   )
   const { defaultShowNsfw, alwaysHideMutedNotes } = useContentPolicy()
   const [showNsfw, setShowNsfw] = useState(false)
-  const { mutePubkeySet, getMutedDomains } = useMuteList()
+  const { mutePubkeySet } = useMuteList()
   const [showMuted, setShowMuted] = useState(false)
-  const { profile, isFetching } = useFetchProfile(event.pubkey)
-  const mutedDomains = getMutedDomains()
 
   const isMutedByPubkey = mutePubkeySet.has(event.pubkey)
-  const isMutedByDomain = useMemo(() => {
-    return profile && isFromMutedDomain(profile.nip05, mutedDomains)
-  }, [profile, mutedDomains])
 
   // If alwaysHideMutedNotes is enabled AND we're filtering mutes, completely hide pubkey-muted notes
   if (filterMutedNotes && alwaysHideMutedNotes && isMutedByPubkey) {
-    return null
-  }
-
-  // Always completely hide domain-muted notes when filtering is enabled
-  if (filterMutedNotes && isMutedByDomain) {
-    return null
-  }
-
-  // If we have muted domains configured and profile is still loading, wait for profile to load
-  if (filterMutedNotes && mutedDomains.length > 0 && isFetching) {
     return null
   }
 
@@ -107,8 +88,6 @@ export default function Note({
     content = <MutedNote show={() => setShowMuted(true)} />
   } else if (!defaultShowNsfw && isNsfwEvent(event) && !showNsfw) {
     content = <NsfwNote show={() => setShowNsfw(true)} />
-  } else if (event.kind === kinds.Highlights) {
-    content = <Highlight className="mt-2" event={event} />
   } else if (event.kind === kinds.LongFormArticle) {
     content = showFull ? (
       <LongFormArticle className="mt-2" event={event} />
@@ -130,7 +109,7 @@ export default function Note({
     content = <GroupMetadata className="mt-2" event={event} originalNoteId={originalNoteId} />
   } else if (event.kind === kinds.CommunityDefinition) {
     content = <CommunityDefinition className="mt-2" event={event} />
-  } else if ([ExtendedKind.POLL, ExtendedKind.LEGACY_ZAP_POLL].includes(event.kind)) {
+  } else if (event.kind === ExtendedKind.POLL) {
     content = (
       <>
         <Content className="mt-2" event={event} compactMedia={compactMedia} />
@@ -186,7 +165,6 @@ export default function Note({
               {!hideClientTag && <ClientTag event={event} />}
             </div>
             <div className={cn("flex items-center gap-1 text-sm", metadataClassName || "text-muted-foreground")}>
-              <Nip05 pubkey={event.pubkey} append="·" />
               <FormattedTimestamp
                 timestamp={event.created_at}
                 className="shrink-0"
@@ -196,7 +174,6 @@ export default function Note({
           </div>
         </div>
         <div className="flex items-center shrink-0">
-          <TranslateButton event={event} className={size === 'normal' ? '' : 'pr-0'} />
           {size === 'normal' && (
             <NoteOptions event={event} className="py-1 shrink-0 [&_svg]:size-5" />
           )}

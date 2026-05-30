@@ -7,7 +7,7 @@ type TStockQuoteCacheEntry = {
 
 const STOCK_QUOTE_FRESH_TTL_MS = 15 * 60 * 1000
 const STOCK_QUOTE_STALE_TTL_MS = 24 * 60 * 60 * 1000
-const STOCK_QUOTE_STORAGE_KEY = 'x21:stock-quote-cache'
+const STOCK_QUOTE_STORAGE_KEY = 'halo:stock-quote-cache'
 const STOCK_QUOTE_STORAGE_MAX_ENTRIES = 100
 const STOCK_QUOTE_API_PATH = '/v1/stocks/quote'
 const STOCK_QUOTE_TIMEOUT_MS = 8000

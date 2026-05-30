@@ -93,7 +93,7 @@ export default function InviteWidget() {
         <div className="space-y-4 p-4">
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              {t('Share this link to invite friends to x21')}
+              {t('Share this link to invite friends to Halo')}
             </p>
             <div className="flex gap-2">
               <Input

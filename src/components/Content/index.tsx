@@ -1,9 +1,7 @@
-import { useTranslatedEvent } from '@/hooks'
 import {
   EmbeddedEmojiParser,
   EmbeddedEventParser,
   EmbeddedHashtagParser,
-  EmbeddedLNInvoiceParser,
   EmbeddedMentionParser,
   EmbeddedStockSymbolParser,
   EmbeddedUrlParser,
@@ -14,14 +12,13 @@ import {
 import { getImetaInfosFromEvent } from '@/lib/event'
 import { encodeQuoteReference, getRenderableQuoteReferences } from '@/lib/event-references'
 import { getEmojiInfosFromEmojiTags, getImetaInfoFromImetaTag } from '@/lib/tag'
-import { cn, detectLanguage, isSameLanguage } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import mediaUpload from '@/services/media-upload.service'
 import { TImetaInfo } from '@/types'
 import { Event } from 'nostr-tools'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   EmbeddedHashtag,
-  EmbeddedLNInvoice,
   EmbeddedMention,
   EmbeddedNormalUrl,
   EmbeddedNote,
@@ -34,13 +31,8 @@ import MediaPlayer from '../MediaPlayer'
 import RelayPreview from '../RelayPreview'
 import WebPreview from '../WebPreview'
 import YoutubeEmbeddedPlayer from '../YoutubeEmbeddedPlayer'
-import TranslationIndicator from '../TranslationIndicator'
-import ShowTranslatedButton from '../ShowTranslatedButton'
-import { useTranslationService } from '@/providers/TranslationServiceProvider'
 import { useTextOnlyMode } from '@/providers/TextOnlyModeProvider'
 import { useTranslation } from 'react-i18next'
-import { ExtendedKind } from '@/constants'
-import { kinds } from 'nostr-tools'
 
 export default function Content({
   event,
@@ -57,46 +49,11 @@ export default function Content({
 }) {
   const { textOnlyMode } = useTextOnlyMode()
   const [loadedMedia, setLoadedMedia] = useState<Set<string>>(new Set())
-  const translatedEvent = useTranslatedEvent(event?.id)
-  const { autoTranslateEvent, shouldAutoTranslate } = useTranslationService()
-  const { i18n, t } = useTranslation()
+  const { t } = useTranslation()
 
   const handleLoadMedia = (url: string) => {
     setLoadedMedia((prev) => new Set(prev).add(url))
   }
-
-  // Auto-translate effect
-  useEffect(() => {
-    if (!event || !shouldAutoTranslate()) {
-      return
-    }
-
-    // Check if content needs translation
-    const supported = [
-      kinds.ShortTextNote,
-      kinds.Highlights,
-      ExtendedKind.COMMENT,
-      ExtendedKind.PICTURE,
-      ExtendedKind.POLL,
-      ExtendedKind.LEGACY_ZAP_POLL,
-      ExtendedKind.RELAY_REVIEW
-    ].includes(event.kind)
-
-    if (!supported) {
-      return
-    }
-
-    const detected = detectLanguage(event.content)
-    if (!detected) return
-
-    // Don't translate if already in target language
-    if (isSameLanguage(detected, i18n.language)) {
-      return
-    }
-
-    // Trigger auto-translation
-    autoTranslateEvent(event)
-  }, [event, shouldAutoTranslate, autoTranslateEvent, i18n.language])
 
   const {
     nodes,
@@ -108,13 +65,12 @@ export default function Content({
     totalMediaCount,
     fallbackQuotes
   } = useMemo(() => {
-    const _content = translatedEvent?.content ?? event?.content ?? content ?? ''
+    const _content = event?.content ?? content ?? ''
 
     const imetaInfos = event ? getImetaInfosFromEvent(event) : []
     const imetaInfoMap = new Map(imetaInfos.map((info) => [info.url, info]))
     const parsedNodes = parseContent(_content, [
       EmbeddedUrlParser,
-      EmbeddedLNInvoiceParser,
       EmbeddedWebsocketUrlParser,
       EmbeddedEventParser,
       EmbeddedMentionParser,
@@ -205,7 +161,7 @@ export default function Content({
       totalMediaCount,
       fallbackQuotes
     }
-  }, [event, translatedEvent, content])
+  }, [event, content])
 
   if ((!nodes || nodes.length === 0) && (!fallbackQuotes || fallbackQuotes.length === 0)) {
     return null
@@ -219,8 +175,6 @@ export default function Content({
         className
       )}
     >
-      {event && translatedEvent && <TranslationIndicator event={event} className="mb-2" />}
-      {event && !translatedEvent && <ShowTranslatedButton event={event} className="mb-2" />}
       {nodes.map((node, index) => {
         if (node.type === 'text') {
           return node.data
@@ -320,9 +274,6 @@ export default function Content({
         }
         if (node.type === 'url') {
           return <EmbeddedNormalUrl url={node.data} key={index} />
-        }
-        if (node.type === 'invoice') {
-          return <EmbeddedLNInvoice invoice={node.data} key={index} className="mt-2" />
         }
         if (node.type === 'websocket-url') {
           return <EmbeddedWebsocketUrl url={node.data} key={index} />

@@ -31,7 +31,6 @@ export default {
     Replies: 'Réponses',
     Posts: 'Publications',
     Articles: 'Articles',
-    Highlights: 'En vedette',
     Polls: 'Sondages',
     'Voice Posts': 'Publications vocales',
     'Photo Posts': 'Publications avec photos',
@@ -160,7 +159,7 @@ export default {
 
     // Compose - Client Tag
     'Add client tag': 'Ajouter une étiquette client',
-    'Show others this was sent via x21': 'Montrer aux autres que ceci a été envoyé via x21',
+    'Show others this was sent via Halo': 'Montrer aux autres que ceci a été envoyé via Halo',
 
     // Compose - Relays for Post
     'Send only to r': 'Envoyer uniquement à {{r}}',
@@ -240,8 +239,6 @@ export default {
     'Composer Features': 'Fonctionnalités de l\'éditeur',
     'Use these commands while composing your note:': 'Utilisez ces commandes lors de la rédaction de votre publication :',
     'Search and insert GIFs': 'Rechercher et insérer des GIF',
-    'Generate AI images (requires AI key)': 'Générer des images IA (nécessite une clé IA)',
-    'Search the web (requires AI key)': 'Rechercher sur le web (nécessite une clé IA)',
     'Insert emojis (including custom emojis)': 'Insérer des emojis (y compris des emojis personnalisés)',
     'Mention users': 'Mentionner des utilisateurs',
     'More features will be added over time. Start typing these commands to try them out!': 'D\'autres fonctionnalités seront ajoutées au fil du temps. Commencez à taper ces commandes pour les essayer !',
@@ -256,13 +253,9 @@ export default {
     'n d': '{{n}} j',
     date: '{{timestamp, date}}',
 
-    // Interactions & Stats - Reactions & Zaps
     Reactions: 'Réactions',
-    Zaps: 'Zaps',
     'No more reactions': 'Plus de réactions',
     'No reactions yet': 'Aucune réaction pour le moment',
-    'No more zaps': 'Plus de zaps',
-    'No zaps yet': 'Aucun zap pour le moment',
     interactions: 'interactions',
 
     // Interactions & Stats - Reposts
@@ -314,9 +307,6 @@ export default {
     Website: 'Site web',
     'Nostr Address': 'Adresse Nostr',
     'Nostr Address Info': 'Une adresse Nostr est un nom d\'utilisateur qui ressemble à un e-mail (par exemple, user@domain.com) et est lié à votre compte Nostr afin que les autres puissent vous trouver et vous vérifier facilement.',
-    'Invalid NIP-05 address': 'Adresse NIP-05 invalide',
-
-    // User Profiles - Identity & Keys
     'Copy private key': 'Copier la clé privée',
 
     // User Profiles - Invite Info
@@ -352,10 +342,6 @@ export default {
     'voted in your poll': 'a voté dans votre sondage',
     'reacted to your note': 'a réagi à votre publication',
     'reposted your note': 'a repartagé votre publication',
-    'zapped your note': 'a zappé votre publication',
-    'zapped you': 'vous a zappé',
-
-    // Notifications - Settings
     'Mark as read': 'Marquer comme lu',
     'Notification list style': 'Style de liste de notifications',
     'See extra info for each notification': 'Voir les informations supplémentaires pour chaque notification',
@@ -485,21 +471,19 @@ export default {
     'Get Started': 'Commencer',
 
     // Login / Sign Up / Onboarding - Invites
-    '{{name}} invites you to x21!': '{{name}} vous invite sur x21 !',
+    '{{name}} invites you to Halo!': '{{name}} vous invite sur Halo !',
     'Join and follow {{name}}': 'Rejoignez et suivez {{name}}',
     'Also follow {{count}} people they follow': 'Suivez également {{count}} personnes qu\'ils suivent',
     'Welcome! You are now following {{count}} people': 'Bienvenue ! Vous suivez maintenant {{count}} personnes',
     'Welcome! You are now following {{name}}': 'Bienvenue ! Vous suivez maintenant {{name}}',
     'Failed to follow users. Please try again.': 'Échec du suivi des utilisateurs. Veuillez réessayer.',
-    'Share this link to invite friends to x21': 'Partagez ce lien pour inviter des amis sur x21',
+    'Share this link to invite friends to Halo': 'Partagez ce lien pour inviter des amis sur Halo',
 
     // Settings - General
     General: 'Général',
     'Content & Privacy': 'Contenu et Confidentialité',
     'Backup & Sync': 'Sauvegarde et Synchronisation',
-    'AI Tools': 'Outils IA',
     'Enable Payments': 'Activer les paiements',
-    'Enable bitcoin lightning payments to zap content and notes.': 'Activez les paiements Bitcoin Lightning pour zapper du contenu et des publications.',
     Languages: 'Langues',
     'Right-to-left layout': 'Disposition de droite à gauche',
     Theme: 'Thème',
@@ -514,7 +498,6 @@ export default {
     'Text Only Mode': 'Mode texte uniquement',
     'Strip media from notes and profiles to reduce bandwidth usage. Images and videos will be replaced with clickable load links.': 'Supprimez les médias des publications et des profils pour réduire l\'utilisation de la bande passante. Les images et vidéos seront remplacées par des liens de chargement cliquables.',
     'Slow Connection Mode': 'Mode connexion lente',
-    'Connect to only relay.damus.io, hide reactions and zaps. Optimized for slow connections.': 'Connectez-vous uniquement à relay.damus.io, masquez les réactions et les zaps. Optimisé pour les connexions lentes.',
     'Disable Avatar Animations': 'Désactiver les animations d\'avatar',
     'Stop animated GIFs in profile avatars. Only affects avatars, not GIFs in notes.': 'Arrête les GIF animés dans les avatars de profil. N\'affecte que les avatars, pas les GIF dans les publications.',
     enabled: 'activé',
@@ -758,70 +741,27 @@ export default {
     Unfavorite: 'Retirer des favoris',
     FollowListNotFoundConfirmation: 'Liste d\'abonnements introuvable. Voulez-vous en créer une nouvelle ? Si vous avez suivi des utilisateurs auparavant, NE confirmez PAS car cette opération entraînera la perte de votre liste d\'abonnements précédente.',
 
-    // Wallet
-    Wallet: 'Portefeuille',
     Sats: 'Sats',
     sats: 'sats',
     Balance: 'Solde',
-    'Lightning Address (or LNURL)': 'Adresse Lightning (ou LNURL)',
-    'Lightning Payment Address': 'Adresse de paiement Lightning',
-    'Lightning Payment Address Info': 'Une adresse Lightning ressemble à un e-mail (par exemple, user@domain.com) mais est utilisée pour envoyer ou recevoir du Bitcoin instantanément via le réseau Lightning. Vous pouvez en obtenir une',
     here: 'ici',
-    'Lightning Invoice': 'Facture Lightning',
     Pay: 'Payer',
 
-    // Wallet - Zapping
-    'Zap to': 'Zapper vers',
-    'Zap n sats': 'Zapper {{n}} sats',
-    'Zapped n sats': '{{n}} sats zappés',
-    zapComment: 'Commentaire',
-    'Default zap amount': 'Montant de zap par défaut',
-    'Default zap comment': 'Commentaire de zap par défaut',
-    'Quick zap': 'Zap rapide',
-    'If enabled, you can zap with a single click. Click and hold for custom amounts': 'Si activé, vous pouvez zapper d\'un seul clic. Cliquez et maintenez pour des montants personnalisés',
-
-    // Wallet - Charge Zaps
-    'Enable Charge Zaps': 'Activer les zaps chargés',
-    'Press and hold to charge zap amount': 'Appuyez et maintenez pour charger le montant du zap',
-    'Quick zaps must be enabled for charge zaps': 'Les zaps rapides doivent être activés pour les zaps chargés',
-    'Charge Zap Limit (sats)': 'Limite de zap chargé (sats)',
-    'Maximum amount that can be charged. No matter how long you hold, zap won\'t exceed this limit.': 'Montant maximum pouvant être chargé. Peu importe combien de temps vous maintenez, le zap ne dépassera pas cette limite.',
     'Important: Set a reasonable limit': 'Important : Définissez une limite raisonnable',
-    'This prevents accidentally sending large amounts. The zap amount will never exceed this limit.': 'Cela empêche l\'envoi accidentel de montants importants. Le montant du zap ne dépassera jamais cette limite.',
-    'Charge Zap': 'Zap chargé',
-
-    // Wallet - Zap Sounds
-    'Zap Sound': 'Son de zap',
     None: 'Aucun',
     Random: 'Aléatoire',
-    'Zap Sound 1': 'Son de zap 1',
-    'Electric Zap': 'Zap électrique',
     'Sending a message': 'Envoi d\'un message',
     'No second best': 'Pas de second choix',
     Freedom: 'Liberté',
     'Hey Hey Hey': 'Hey Hey Hey',
 
-    // Wallet - Connection (Rizful)
     'Connected to': 'Connecté à',
-    'Disconnect Wallet': 'Déconnecter le portefeuille',
     'Are you absolutely sure?': 'Êtes-vous absolument sûr ?',
-    'You will not be able to send zaps to others.': 'Vous ne pourrez pas envoyer de zaps aux autres.',
     Disconnect: 'Déconnecter',
-    'Start with a Rizful Vault': 'Commencer avec un coffre Rizful',
-    'or other wallets': 'ou d\'autres portefeuilles',
-    'Rizful Vault': 'Coffre Rizful',
-    'Rizful Vault connected!': 'Coffre Rizful connecté !',
-    'You can now use your Rizful Vault to zap your favorite notes and creators.': 'Vous pouvez maintenant utiliser votre coffre Rizful pour zapper vos publications et créateurs préférés.',
-    'Your Lightning Address': 'Votre adresse Lightning',
-    'New to Rizful?': 'Nouveau sur Rizful ?',
-    'Sign up for Rizful': 'S\'inscrire sur Rizful',
-    'If you already have a Rizful account, you can skip this step.': 'Si vous avez déjà un compte Rizful, vous pouvez ignorer cette étape.',
     'Get your one-time code': 'Obtenez votre code à usage unique',
     'Get code': 'Obtenir le code',
-    'Connect to your Rizful Vault': 'Connectez-vous à votre coffre Rizful',
     'Paste your one-time code here': 'Collez votre code à usage unique ici',
     Connect: 'Connecter',
-    'Set up your wallet to send and receive sats!': 'Configurez votre portefeuille pour envoyer et recevoir des sats !',
     'Set up': 'Configurer',
 
     // Post Settings
@@ -865,7 +805,6 @@ export default {
     'Show original': 'Afficher l\'original',
     Service: 'Service',
     characters: 'caractères',
-    jumbleTranslateApiKeyDescription: 'Vous pouvez utiliser cette clé API partout où LibreTranslate est pris en charge. L\'URL du service est {{serviceUrl}}',
     'Top up': 'Recharger',
     'Will receive: {n} characters': 'Recevra : {{n}} caractères',
     'Top up {n} sats': 'Recharger {{n}} sats',
@@ -947,8 +886,6 @@ export default {
     'Display real-time Bitcoin price from CoinGecko': 'Afficher le prix Bitcoin en temps réel depuis CoinGecko',
     'Trending Notes': 'Notes tendance',
     'Display trending notes from across Nostr': 'Afficher les notes tendance de tout Nostr',
-    'AI Prompt': 'Prompt IA',
-    'Chat with AI about notes in your sidebar': 'Discutez avec l\'IA des notes dans votre barre latérale',
     'Invite Friends': 'Inviter des amis',
     'Share your invite link and see who joined through you': 'Partagez votre lien d\'invitation et voyez qui vous a rejoint',
 

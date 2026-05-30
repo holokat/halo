@@ -1,19 +1,13 @@
 import Image from '@/components/Image'
-import ZapDialog from '@/components/ZapDialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { POLL_TYPE } from '@/constants'
-import { useNoteStatsById } from '@/hooks/useNoteStatsById'
-import { useTranslatedEvent } from '@/hooks'
 import { useFetchPollResults } from '@/hooks/useFetchPollResults'
 import { createPollResponseDraftEvent } from '@/lib/draft-event'
 import { getPollMetadataFromEvent } from '@/lib/event-metadata'
-import { getDefaultLegacyZapPollAmount, getLegacyZapPollResults } from '@/lib/poll'
 import { cn, isPartiallyInViewport } from '@/lib/utils'
 import { useNostr } from '@/providers/NostrProvider'
-import { useZap } from '@/providers/ZapProvider'
 import client from '@/services/client.service'
-import noteStatsService from '@/services/note-stats.service'
 import pollResultsService from '@/services/poll-results.service'
 import dayjs from 'dayjs'
 import { CheckCircle2, Loader2 } from 'lucide-react'
@@ -24,56 +18,32 @@ import { toast } from 'sonner'
 
 export default function Poll({ event, className }: { event: Event; className?: string }) {
   const { t } = useTranslation()
-  const translatedEvent = useTranslatedEvent(event.id)
   const { pubkey, publish, startLogin } = useNostr()
-  const { defaultZapSats } = useZap()
   const [isVoting, setIsVoting] = useState(false)
-  const [openZapDialog, setOpenZapDialog] = useState(false)
   const [selectedOptionIds, setSelectedOptionIds] = useState<string[]>([])
   const pollResults = useFetchPollResults(event.id)
-  const noteStats = useNoteStatsById(event.id)
   const [isLoadingResults, setIsLoadingResults] = useState(false)
-  const poll = useMemo(
-    () => getPollMetadataFromEvent(translatedEvent ?? event),
-    [event, translatedEvent]
-  )
-  const isLegacyZapPoll = poll?.format === 'legacy_zap'
+  const poll = useMemo(() => getPollMetadataFromEvent(event), [event])
   const supportsStandardPollInteractions = poll?.format === 'nip88'
-  const legacyResults = useMemo(
-    () => (poll && isLegacyZapPoll ? getLegacyZapPollResults(poll, noteStats?.zaps ?? []) : null),
-    [isLegacyZapPoll, noteStats?.zaps, poll]
-  )
   const votedOptionIds = useMemo(() => {
     if (!pubkey) return []
-    if (isLegacyZapPoll) {
-      return Object.entries(legacyResults?.results ?? {})
-        .filter(([, result]) => result.voters.has(pubkey))
-        .map(([optionId]) => optionId)
-    }
     if (!pollResults) return []
     return Object.entries(pollResults.results)
       .filter(([, voters]) => voters.has(pubkey))
       .map(([optionId]) => optionId)
-  }, [isLegacyZapPoll, legacyResults?.results, pollResults, pubkey])
+  }, [pollResults, pubkey])
   const validPollOptionIds = useMemo(() => poll?.options.map((option) => option.id) || [], [poll])
   const isExpired = useMemo(() => !!poll?.endsAt && dayjs().unix() > poll.endsAt, [poll])
   const isMultipleChoice = useMemo(() => poll?.pollType === POLL_TYPE.MULTIPLE_CHOICE, [poll])
   const hasVoted = votedOptionIds.length > 0
   const canVote = useMemo(
-    () =>
-      isLegacyZapPoll
-        ? !isExpired && event.pubkey !== pubkey && !votedOptionIds.length
-        : supportsStandardPollInteractions && !isExpired && !votedOptionIds.length,
-    [event.pubkey, isExpired, isLegacyZapPoll, pubkey, supportsStandardPollInteractions, votedOptionIds]
+    () => supportsStandardPollInteractions && !isExpired && !votedOptionIds.length,
+    [isExpired, supportsStandardPollInteractions, votedOptionIds]
   )
   const showResults = useMemo(() => {
-    return isLegacyZapPoll || (supportsStandardPollInteractions && (event.pubkey === pubkey || !canVote))
-  }, [isLegacyZapPoll, supportsStandardPollInteractions, event, pubkey, canVote])
+    return supportsStandardPollInteractions && (event.pubkey === pubkey || !canVote)
+  }, [supportsStandardPollInteractions, event, pubkey, canVote])
   const [containerElement, setContainerElement] = useState<HTMLDivElement | null>(null)
-  const legacyDefaultZapAmount = useMemo(() => {
-    if (!poll || !isLegacyZapPoll) return defaultZapSats
-    return getDefaultLegacyZapPollAmount(poll, defaultZapSats)
-  }, [defaultZapSats, isLegacyZapPoll, poll])
 
   useEffect(() => {
     if (!supportsStandardPollInteractions || pollResults || isLoadingResults || !containerElement) {
@@ -99,14 +69,6 @@ export default function Poll({ event, className }: { event: Event; className?: s
       observer.unobserve(containerElement)
     }
   }, [supportsStandardPollInteractions, pollResults, isLoadingResults, containerElement])
-
-  useEffect(() => {
-    if (!poll || !isLegacyZapPoll) return
-
-    noteStatsService.fetchNoteStats(event, pubkey, poll.relayUrls).catch((error) => {
-      console.error('Failed to fetch zap poll stats:', error)
-    })
-  }, [event, isLegacyZapPoll, poll, pubkey])
 
   if (!poll) {
     return null
@@ -134,12 +96,6 @@ export default function Poll({ event, className }: { event: Event; className?: s
 
   const handleOptionClick = (optionId: string) => {
     if (isExpired) return
-
-    if (isLegacyZapPoll) {
-      if (!canVote) return
-      setSelectedOptionIds((prev) => (prev.includes(optionId) ? [] : [optionId]))
-      return
-    }
 
     if (!supportsStandardPollInteractions) return
 
@@ -185,40 +141,6 @@ export default function Poll({ event, className }: { event: Event; className?: s
     }
   }
 
-  const handleOpenZapVote = () => {
-    if (!selectedOptionIds.length) return
-    if (!pubkey) {
-      startLogin()
-      return
-    }
-    setOpenZapDialog(true)
-  }
-
-  const legacyVoteLabel =
-    typeof poll.minZapAmount === 'number' && typeof poll.maxZapAmount === 'number'
-      ? poll.minZapAmount === poll.maxZapAmount
-        ? t('Voting requires a {{amount}} sat zap.', {
-            amount: poll.minZapAmount,
-            defaultValue: 'Voting requires a {{amount}} sat zap.'
-          })
-        : t('Voting requires a zap between {{min}} and {{max}} sats.', {
-            min: poll.minZapAmount,
-            max: poll.maxZapAmount,
-            defaultValue: 'Voting requires a zap between {{min}} and {{max}} sats.'
-          })
-      : typeof poll.minZapAmount === 'number'
-        ? t('Voting requires at least {{amount}} sats.', {
-            amount: poll.minZapAmount,
-            defaultValue: 'Voting requires at least {{amount}} sats.'
-          })
-        : typeof poll.maxZapAmount === 'number'
-          ? t('Voting requires {{amount}} sats or less.', {
-              amount: poll.maxZapAmount,
-              defaultValue: 'Voting requires {{amount}} sats or less.'
-            })
-          : t('Voting requires a zap.', {
-              defaultValue: 'Voting requires a zap.'
-            })
   const statusBadge = isExpired
     ? {
         label: t('Ended', { defaultValue: 'Ended' }),
@@ -246,14 +168,6 @@ export default function Poll({ event, className }: { event: Event; className?: s
               {statusBadge.label}
             </Badge>
           )}
-          {isLegacyZapPoll && (
-            <Badge
-              variant="outline"
-              className="rounded-full px-2 py-0.5 text-[11px] border-orange-500/30 bg-orange-500/15 text-orange-700 dark:text-orange-300"
-            >
-              {t('Zap Poll', { defaultValue: 'Zap Poll' })}
-            </Badge>
-          )}
           {poll.pollType === POLL_TYPE.MULTIPLE_CHOICE && (
             <Badge variant="outline" className="rounded-full px-2 py-0.5 text-[11px] text-muted-foreground">
               {t('Multiple choice', { defaultValue: 'Multiple choice' })}
@@ -263,9 +177,6 @@ export default function Poll({ event, className }: { event: Event; className?: s
 
         <div className="text-sm text-muted-foreground">
           <p>{poll.pollType === POLL_TYPE.MULTIPLE_CHOICE && t('Select one or more options')}</p>
-          <p>
-            {isLegacyZapPoll && legacyVoteLabel}
-          </p>
           <p>
             {!!poll.endsAt &&
               (isExpired
@@ -281,29 +192,17 @@ export default function Poll({ event, className }: { event: Event; className?: s
         {/* Poll Options */}
         <div className="grid gap-1.5">
           {poll.options.map((option) => {
-            const legacyOptionResult = legacyResults?.results?.[option.id]
-            const votes = isLegacyZapPoll
-              ? legacyOptionResult?.votes ?? 0
-              : pollResults?.results?.[option.id]?.size ?? 0
-            const totalVotes = isLegacyZapPoll
-              ? legacyResults?.totalVotes ?? 0
-              : pollResults?.totalVotes ?? 0
+            const votes = pollResults?.results?.[option.id]?.size ?? 0
+            const totalVotes = pollResults?.totalVotes ?? 0
             const percentage = showResults
-              ? isLegacyZapPoll
-                ? legacyOptionResult?.percentage ?? 0
-                : totalVotes > 0
-                  ? (votes / totalVotes) * 100
-                  : 0
+              ? totalVotes > 0
+                ? (votes / totalVotes) * 100
+                : 0
               : 0
             const isMax =
-              isLegacyZapPoll
-                ? !!legacyResults &&
-                  legacyResults.totalAmount > 0 &&
-                  showResults &&
-                  Object.values(legacyResults.results).every((result) => result.amount <= (legacyOptionResult?.amount ?? 0))
-                : pollResults && pollResults.totalVotes > 0 && showResults
-                  ? Object.values(pollResults.results).every((res) => res.size <= votes)
-                  : false
+              pollResults && pollResults.totalVotes > 0 && showResults
+                ? Object.values(pollResults.results).every((res) => res.size <= votes)
+                : false
             const hasSelectedVote = selectedOptionIds.includes(option.id)
 
             return (
@@ -373,11 +272,7 @@ export default function Poll({ event, className }: { event: Event; className?: s
           <div>
             {supportsStandardPollInteractions
               ? t('{{number}} votes', { number: pollResults?.totalVotes ?? 0 })
-              : t('{{sats}} sats across {{count}} zaps', {
-                  sats: legacyResults?.totalAmount ?? 0,
-                  count: legacyResults?.totalVotes ?? 0,
-                  defaultValue: '{{sats}} sats across {{count}} zaps'
-                })}
+              : t('Results unavailable', { defaultValue: 'Results unavailable' })}
           </div>
 
           {isLoadingResults && t('Loading...')}
@@ -409,35 +304,6 @@ export default function Poll({ event, className }: { event: Event; className?: s
           </Button>
         )}
 
-        {isLegacyZapPoll && canVote && !!selectedOptionIds.length && (
-          <>
-            <Button
-              onClick={(e) => {
-                e.stopPropagation()
-                handleOpenZapVote()
-              }}
-              className="w-full"
-            >
-              {t('Vote with Zap', {
-                defaultValue: 'Vote with Zap'
-              })}
-            </Button>
-
-            <ZapDialog
-              open={openZapDialog}
-              setOpen={setOpenZapDialog}
-              pubkey={event.pubkey}
-              event={event}
-              defaultAmount={legacyDefaultZapAmount}
-              defaultComment=""
-              extraZapRequestTags={[['poll_option', selectedOptionIds[0]]]}
-              pollOptionId={selectedOptionIds[0]}
-              onSuccess={() => {
-                setSelectedOptionIds([])
-              }}
-            />
-          </>
-        )}
       </div>
     </div>
   )

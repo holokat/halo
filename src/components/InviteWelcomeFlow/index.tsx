@@ -117,7 +117,7 @@ export default function InviteWelcomeFlow({
               {fetchingProfile ? (
                 <Skeleton className="h-8 w-48 mx-auto" />
               ) : (
-                t('{{name}} invites you to x21!', {
+                t('{{name}} invites you to Halo!', {
                   name: inviterProfile?.original_username || inviterProfile?.username || 'Someone'
                 })
               )}
@@ -321,7 +321,7 @@ Your private key is the only way to access your account. If you lose it, you los
             <Label htmlFor="npub-input">Public Identity (npub)</Label>
             <Input id="npub-input" value={keys.npub} readOnly className="font-mono text-xs" />
             <p className="text-xs text-muted-foreground">
-              Share this publicly - it's your Nostr address
+              Share this publicly - it is your public identity
             </p>
           </div>
 

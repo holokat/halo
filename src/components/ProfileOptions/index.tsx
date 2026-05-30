@@ -1,4 +1,3 @@
-import Nip05 from '@/components/Nip05'
 import PrivateNoteDialog from '@/components/PrivateNoteDialog'
 import PubkeyCopy from '@/components/PubkeyCopy'
 import QrCodeComponent from '@/components/QrCode'
@@ -144,7 +143,6 @@ function NpubQrCodeDialog({
         <UserAvatar size="medium" userId={pubkey} />
         <div className="flex-1 w-0">
           <Username userId={pubkey} className="text-base font-semibold truncate" />
-          <Nip05 pubkey={pubkey} />
         </div>
       </div>
       <QrCodeComponent size={256} value={`nostr:${npub}`} />

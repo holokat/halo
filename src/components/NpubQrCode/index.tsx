@@ -5,7 +5,6 @@ import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import { QrCodeIcon } from 'lucide-react'
 import { nip19 } from 'nostr-tools'
 import { useMemo } from 'react'
-import Nip05 from '../Nip05'
 import PubkeyCopy from '../PubkeyCopy'
 import QrCode from '../QrCode'
 import UserAvatar from '../UserAvatar'
@@ -39,7 +38,6 @@ export default function NpubQrCode({ pubkey, variant = 'small', open, setOpen }:
         <UserAvatar size="medium" userId={pubkey} />
         <div className="flex-1 w-0">
           <Username userId={pubkey} className="text-base font-semibold truncate" />
-          <Nip05 pubkey={pubkey} />
         </div>
       </div>
       <QrCode size={256} value={`nostr:${npub}`} />

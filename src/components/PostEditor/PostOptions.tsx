@@ -56,7 +56,7 @@ export default function PostOptions({
           />
         </div>
         <div className="text-muted-foreground text-xs">
-          {t('Show others this was sent via x21')}
+          {t('Show others this was sent via Halo')}
         </div>
       </div>
 

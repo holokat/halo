@@ -63,24 +63,6 @@ export function isMentioningMutedUsers(event: Event, mutePubkeySet: Set<string>)
   return false
 }
 
-export function isFromMutedDomain(nip05: string | undefined, mutedDomains: string[]): boolean {
-  if (!nip05 || mutedDomains.length === 0) return false
-
-  const domain = nip05.split('@')[1]?.toLowerCase()
-  if (!domain) return false
-
-  // Check for exact match or if the domain ends with any muted domain
-  // This allows partial matching, e.g., "mostr.pub" will match "mastodon-social.mostr.pub"
-  return mutedDomains.some((mutedDomain) => {
-    const normalizedMutedDomain = mutedDomain.toLowerCase()
-    // Exact match
-    if (domain === normalizedMutedDomain) return true
-    // Subdomain match: check if domain ends with .mutedDomain
-    if (domain.endsWith('.' + normalizedMutedDomain)) return true
-    return false
-  })
-}
-
 function normalizeHashtag(value: string): string {
   return value.trim().replace(/^#/, '').toLowerCase()
 }
