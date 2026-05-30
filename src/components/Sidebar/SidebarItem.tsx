@@ -15,10 +15,10 @@ const SidebarItem = forwardRef<
   const button = (
     <Button
       className={cn(
-        'flex shadow-none items-center transition-colors duration-500 bg-transparent w-12 h-12 p-3 m-0 rounded-lg gap-4 font-medium [&_svg]:stroke-[2]',
+        'flex shadow-none items-center transition-colors duration-500 bg-transparent w-12 h-12 p-3 m-0 rounded-lg gap-4 font-medium [&_svg]:size-5 [&_svg]:stroke-[2]',
         compactSidebar
-          ? '[&_svg]:size-full'
-          : 'xl:w-full xl:h-auto xl:py-2 xl:px-3 xl:justify-start [&_svg]:size-full xl:[&_svg]:size-4',
+          ? ''
+          : 'xl:w-full xl:h-auto xl:py-2 xl:px-3 xl:justify-start xl:[&_svg]:size-3',
         !active && 'text-foreground [&_svg]:opacity-80 hover:[&_svg]:opacity-100',
         active && 'text-primary hover:text-primary bg-primary/10 hover:bg-primary/10',
         className

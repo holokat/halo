@@ -20,7 +20,7 @@ export default function ComposeButton() {
         }}
         className="text-primary"
       >
-        <CirclePlus className="!size-8" strokeWidth={1.5} />
+        <CirclePlus className="!size-7" strokeWidth={1.5} />
       </BottomNavigationBarItem>
       <PostEditor open={open} setOpen={setOpen} />
     </>

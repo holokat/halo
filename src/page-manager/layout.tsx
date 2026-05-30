@@ -21,6 +21,9 @@ type TPrimaryPageEntry = {
 type TLayoutMode = (typeof LAYOUT_MODE)[keyof typeof LAYOUT_MODE]
 type TDeckViewMode = (typeof DECK_VIEW_MODE)[keyof typeof DECK_VIEW_MODE]
 
+const STANDARD_LAYOUT_MAX_WIDTH_CLASS = 'max-w-[1204px]'
+const STANDARD_LAYOUT_GRID_CLASS = 'grid-cols-[minmax(0,720px)_minmax(360px,460px)]'
+
 function isVisiblePinnedColumn(column: any) {
   switch (column.type) {
     case 'custom':
@@ -230,9 +233,10 @@ export function PageManagerShell({
       ) : (
         <div
           className={cn(
-            'grid h-full min-h-0 w-full grid-cols-[minmax(0,1fr)_minmax(360px,460px)] gap-2 px-2 py-2',
-            layoutMode === LAYOUT_MODE.BOXED && 'max-w-screen-xl',
-            layoutMode === LAYOUT_MODE.ISLAND && 'max-w-screen-xl ml-16'
+            'grid h-full min-h-0 w-full gap-2 px-2 py-2',
+            STANDARD_LAYOUT_GRID_CLASS,
+            layoutMode === LAYOUT_MODE.BOXED && STANDARD_LAYOUT_MAX_WIDTH_CLASS,
+            layoutMode === LAYOUT_MODE.ISLAND && `${STANDARD_LAYOUT_MAX_WIDTH_CLASS} ml-16`
           )}
         >
           <div
