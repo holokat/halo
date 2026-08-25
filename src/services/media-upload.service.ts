@@ -5,6 +5,7 @@ import { z } from 'zod'
 import client from './client.service'
 import storage from './local-storage.service'
 import imageCompression from 'browser-image-compression'
+import { getPersonalMediaBlossomServers } from '@/lib/personal-media-routing'
 
 type UploadOptions = {
   onProgress?: (progressPercent: number) => void
@@ -99,7 +100,10 @@ class MediaUploadService {
       : await this.convertToWebP(namedFile)
 
     let result: { url: string; tags: string[][] }
-    if (this.serviceConfig.type === 'nip96') {
+    const personalBlossomServers = getPersonalMediaBlossomServers(client.pubkey)
+    if (personalBlossomServers) {
+      result = await this.uploadByBlossom(fileToUpload, options, personalBlossomServers)
+    } else if (this.serviceConfig.type === 'nip96') {
       result = await this.uploadByNip96(this.serviceConfig.service, fileToUpload, options)
     } else {
       result = await this.uploadByBlossom(fileToUpload, options)
@@ -111,7 +115,7 @@ class MediaUploadService {
     return result
   }
 
-  private async uploadByBlossom(file: File, options?: UploadOptions) {
+  private async uploadByBlossom(file: File, options?: UploadOptions, serverOverride?: string[]) {
     const pubkey = client.pubkey
     const signer = async (draft: TDraftEvent) => {
       if (!client.signer) {
@@ -151,7 +155,7 @@ class MediaUploadService {
     }
     startPseudoProgress()
 
-    const servers = await client.fetchBlossomServerList(pubkey)
+    const servers = serverOverride ?? (await client.fetchBlossomServerList(pubkey))
     if (servers.length === 0) {
       throw new Error('No Blossom services available')
     }
