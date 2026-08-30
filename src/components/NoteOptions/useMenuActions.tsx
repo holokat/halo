@@ -1,4 +1,10 @@
-import { getNoteBech32Id, isProtectedEvent, isReplyNoteEvent, getParentEventHexId, getRootEventHexId } from '@/lib/event'
+import {
+  getNoteBech32Id,
+  isProtectedEvent,
+  isReplyNoteEvent,
+  getParentEventHexId,
+  getRootEventHexId
+} from '@/lib/event'
 import { toNlink } from '@/lib/link'
 import { pubkeyToNpub } from '@/lib/pubkey'
 import { simplifyUrl } from '@/lib/url'
@@ -9,6 +15,7 @@ import { useNostr } from '@/providers/NostrProvider'
 import { usePinList } from '@/providers/PinListProvider'
 import { useWidgets } from '@/providers/WidgetsProvider'
 import { usePinnedReplies } from '@/providers/PinnedRepliesProvider'
+import { useSpamFilter } from '@/providers/SpamFilterProvider'
 import client from '@/services/client.service'
 import {
   Bell,
@@ -23,6 +30,8 @@ import {
   Trash2,
   TriangleAlert,
   PanelRightClose,
+  ShieldAlert,
+  ShieldCheck
 } from 'lucide-react'
 import { Event, kinds } from 'nostr-tools'
 import { useMemo } from 'react'
@@ -76,7 +85,12 @@ export function useMenuActions({
   const { pinnedEventHexIdSet, pin, unpin } = usePinList()
   const { pinNoteWidget, unpinNoteByEventId, isPinned: isWidgetPinned } = useWidgets()
   const { isReplyPinned, pinReply, unpinReply } = usePinnedReplies()
+  const { markedPubkeys, markSpam, removeSpamMark } = useSpamFilter()
   const isMuted = useMemo(() => mutePubkeySet.has(event.pubkey), [mutePubkeySet, event])
+  const isMarkedSpam = useMemo(
+    () => markedPubkeys.has(event.pubkey.trim().toLowerCase()),
+    [markedPubkeys, event.pubkey]
+  )
   const isPinnedToSidebar = useMemo(() => isWidgetPinned(event.id), [isWidgetPinned, event.id])
 
   // Check if this is a reply and get the thread ID
@@ -314,6 +328,26 @@ export function useMenuActions({
       })
     }
 
+    if (pubkey && event.pubkey !== pubkey) {
+      actions.push({
+        icon: isMarkedSpam ? ShieldCheck : ShieldAlert,
+        label: isMarkedSpam
+          ? t('Remove spam mark', { defaultValue: 'Remove spam mark' })
+          : t('Mark as spam', { defaultValue: 'Mark as spam' }),
+        onClick: () => {
+          closeDrawer()
+          if (isMarkedSpam) {
+            removeSpamMark(event.pubkey)
+            toast.success(t('Spam mark removed', { defaultValue: 'Spam mark removed' }))
+          } else {
+            markSpam(event.pubkey)
+            toast.success(t('Author marked as spam', { defaultValue: 'Author marked as spam' }))
+          }
+        },
+        separator: true
+      })
+    }
+
     actions.push({
       icon: TriangleAlert,
       label: t('Report'),
@@ -374,6 +408,7 @@ export function useMenuActions({
     event,
     pubkey,
     isMuted,
+    isMarkedSpam,
     isSmallScreen,
     broadcastSubMenu,
     pinnedEventHexIdSet,
@@ -382,7 +417,9 @@ export function useMenuActions({
     setIsRawEventDialogOpen,
     checkLogin,
     mutePubkey,
-    unmutePubkey
+    unmutePubkey,
+    markSpam,
+    removeSpamMark
   ])
 
   return menuActions

@@ -59,6 +59,7 @@ import {
 import { AbstractRelay } from 'nostr-tools/abstract-relay'
 import indexedDb from './indexed-db.service'
 import discoveryService from './discovery.service'
+import { ingestNSpamEvents } from './nspam.service'
 const REPLACEABLE_EVENT_CACHE_MAX = 4000
 const EVENT_PROMISE_CACHE_MAX = 4000
 const LIVE_STREAM_CACHE_MAX = 256
@@ -785,6 +786,7 @@ class ClientService extends EventTarget {
       return
     }
 
+    ingestNSpamEvents([event])
     this.eventDataLoader.prime(event.id, Promise.resolve(event))
     if (isReplaceableEvent(event.kind)) {
       const coordinate = getReplaceableCoordinateFromEvent(event)

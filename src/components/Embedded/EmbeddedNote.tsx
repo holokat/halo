@@ -1,6 +1,7 @@
 import { Skeleton } from '@/components/ui/skeleton'
 import { useFetchEvent } from '@/hooks'
 import { cn } from '@/lib/utils'
+import { useSpamFilter } from '@/providers/SpamFilterProvider'
 import { kinds } from 'nostr-tools'
 import { useTranslation } from 'react-i18next'
 import ClientSelect from '../ClientSelect'
@@ -8,6 +9,8 @@ import MainNoteCard from '../NoteCard/MainNoteCard'
 import { EmbeddedLiveStream } from './EmbeddedLiveStream'
 
 export function EmbeddedNote({ noteId, className }: { noteId: string; className?: string }) {
+  const { t } = useTranslation()
+  const { markedPubkeys } = useSpamFilter()
   const { event, isFetching } = useFetchEvent(noteId)
 
   if (isFetching) {
@@ -16,6 +19,19 @@ export function EmbeddedNote({ noteId, className }: { noteId: string; className?
 
   if (!event) {
     return <EmbeddedNoteNotFound className={className} noteId={noteId} />
+  }
+
+  if (markedPubkeys.has(event.pubkey.trim().toLowerCase())) {
+    return (
+      <div
+        className={cn(
+          'pointer-events-none rounded-lg border p-3 text-left text-sm text-muted-foreground',
+          className
+        )}
+      >
+        [{t('This user is marked as spam', { defaultValue: 'This user is marked as spam' })}]
+      </div>
+    )
   }
 
   if (event.kind === kinds.LiveEvent) {

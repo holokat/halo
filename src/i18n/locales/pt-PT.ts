@@ -332,6 +332,41 @@ export default {
     MuteListNotFoundConfirmation:
       'Lista de silenciados não encontrada. Deseja criar uma nova? Se silenciou utilizadores anteriormente, por favor NÃO confirme, pois esta operação fará com que perca a sua lista de silenciados anterior.',
     'Show NSFW content by default': 'Mostrar conteúdo NSFW por padrão',
+    'Hide likely spam replies and posts with excessive hashtags or mentions':
+      'Ocultar respostas provavelmente spam e publicações com hashtags ou menções excessivas',
+    'Hide likely spam replies': 'Ocultar respostas provavelmente spam',
+    'Score replies on this device and keep likely spam collapsed. Authors you mark as spam stay hidden when this is off.':
+      'Avalie as respostas neste dispositivo e mantenha recolhidas as que provavelmente são spam. Os autores que marcar como spam permanecem ocultos quando esta opção está desativada.',
+    'Marked spam authors': 'Autores marcados como spam',
+    'Choose an author to show their posts and replies again.':
+      'Escolha um autor para voltar a mostrar as suas publicações e respostas.',
+    'Show author {{author}} again': 'Voltar a mostrar {{author}}',
+    'Remove spam mark': 'Remover marcação de spam',
+    'Mark as spam': 'Marcar como spam',
+    'Spam mark removed': 'Marcação de spam removida',
+    'Author marked as spam': 'Autor marcado como spam',
+    'Report sent and author marked as spam': 'Denúncia enviada e autor marcado como spam',
+    'The report was published. Content from this author is now hidden.':
+      'A denúncia foi publicada. O conteúdo deste autor está agora oculto.',
+    'Spam check unavailable': 'Verificação de spam indisponível',
+    'Checking replies': 'A verificar respostas',
+    '1 reply remains hidden until the check succeeds.':
+      '1 resposta permanece oculta até a verificação ser bem-sucedida.',
+    '{{count}} replies remain hidden until the check succeeds.':
+      '{{count}} respostas permanecem ocultas até a verificação ser bem-sucedida.',
+    'Checking 1 reply before showing it.': 'A verificar 1 resposta antes de a mostrar.',
+    'Checking {{count}} replies before showing them.':
+      'A verificar {{count}} respostas antes de as mostrar.',
+    Retry: 'Tentar novamente',
+    'Might be spam': 'Pode ser spam',
+    '{{count}} hidden reply from a likely spam account':
+      '{{count}} resposta oculta de uma conta provavelmente spam',
+    '{{count}} hidden replies from likely spam accounts':
+      '{{count}} respostas ocultas de contas provavelmente spam',
+    Hide: 'Ocultar',
+    Show: 'Mostrar',
+    'Not spam': 'Não é spam',
+    'This user is marked as spam': 'Este utilizador está marcado como spam',
     'Custom emoji management': 'Gestão de emojis personalizados',
     'After changing emojis, you may need to refresh the page':
       'Após alterar os emojis, poderá ser necessário actualizar a página',

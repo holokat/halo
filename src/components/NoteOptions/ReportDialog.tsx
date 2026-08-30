@@ -16,6 +16,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
+import { applyLocalSpamMarkForReport } from '@/lib/report-spam'
 import {
   createReportDraftEvent,
   NIP56_REPORT_TYPES,
@@ -23,6 +24,7 @@ import {
 } from '@/lib/draft-event'
 import { useNostr } from '@/providers/NostrProvider'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
+import { useSpamFilter } from '@/providers/SpamFilterProvider'
 import {
   Bug,
   CheckCircle2,
@@ -147,7 +149,12 @@ export default function ReportDialog({
             })}
           </DialogDescription>
         </DialogHeader>
-        <ReportContent event={event} closeDialog={closeDialog} isOpen={isOpen} className="px-6 pb-6" />
+        <ReportContent
+          event={event}
+          closeDialog={closeDialog}
+          isOpen={isOpen}
+          className="px-6 pb-6"
+        />
       </DialogContent>
     </Dialog>
   )
@@ -166,10 +173,12 @@ function ReportContent({
 }) {
   const { t } = useTranslation()
   const { pubkey, publish } = useNostr()
+  const { markSpam } = useSpamFilter()
   const [reason, setReason] = useState<TNip56ReportType | null>(null)
   const [details, setDetails] = useState('')
   const [reporting, setReporting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const [didMarkSpam, setDidMarkSpam] = useState(false)
 
   const availableReasons = useMemo(() => {
     if (event.kind !== kinds.Metadata) return REPORT_REASON_OPTIONS
@@ -192,6 +201,7 @@ function ReportContent({
     setDetails('')
     setReporting(false)
     setIsSubmitted(false)
+    setDidMarkSpam(false)
   }, [isOpen])
 
   const handleReport = async () => {
@@ -201,8 +211,17 @@ function ReportContent({
       setReporting(true)
       const draftEvent = createReportDraftEvent(event, reason, details)
       await publish(draftEvent)
+      const didMark =
+        event.pubkey !== pubkey && applyLocalSpamMarkForReport(reason, event.pubkey, markSpam)
+      setDidMarkSpam(didMark)
       setIsSubmitted(true)
-      toast.success(t('Report sent', { defaultValue: 'Report sent' }))
+      toast.success(
+        didMark
+          ? t('Report sent and author marked as spam', {
+              defaultValue: 'Report sent and author marked as spam'
+            })
+          : t('Report sent', { defaultValue: 'Report sent' })
+      )
     } catch (error) {
       toast.error(
         t('Failed to send report', { defaultValue: 'Failed to send report' }) +
@@ -223,13 +242,18 @@ function ReportContent({
             {t('Report sent', { defaultValue: 'Report sent' })}
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            {t('Thanks. Your moderation report has been published as kind 1984.', {
-              defaultValue: 'Thanks. Your moderation report has been published as kind 1984.'
-            })}
+            {didMarkSpam
+              ? t('The report was published. Content from this author is now hidden.', {
+                  defaultValue: 'The report was published. Content from this author is now hidden.'
+                })
+              : t('Your moderation report has been published as kind 1984.', {
+                  defaultValue: 'Your moderation report has been published as kind 1984.'
+                })}
           </p>
           {selectedReason && (
             <p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">
-              {t('Reason', { defaultValue: 'Reason' })}: {t(selectedReason.title, { defaultValue: selectedReason.title })}
+              {t('Reason', { defaultValue: 'Reason' })}:{' '}
+              {t(selectedReason.title, { defaultValue: selectedReason.title })}
             </p>
           )}
         </div>
@@ -254,7 +278,8 @@ function ReportContent({
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
           {t('Reports are public moderation signals. Include only details needed for review.', {
-            defaultValue: 'Reports are public moderation signals. Include only details needed for review.'
+            defaultValue:
+              'Reports are public moderation signals. Include only details needed for review.'
           })}
         </p>
       </div>
@@ -287,7 +312,9 @@ function ReportContent({
                   <div
                     className={cn(
                       'mt-0.5 rounded-full p-2',
-                      selected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                      selected
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground'
                     )}
                   >
                     <Icon className="size-4" />

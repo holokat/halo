@@ -5,6 +5,7 @@ import { FormattedTimestamp } from '@/components/FormattedTimestamp'
 import NoteInteractions from '@/components/NoteInteractions'
 import NoteStats from '@/components/NoteStats'
 import ArticleOptions from '@/components/ArticleOptions'
+import SpamMarkedNotice from '@/components/SpamMarkedNotice'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import RelayFetchState from '@/components/RelayFetchState'
@@ -22,9 +23,12 @@ import { nip19 } from 'nostr-tools'
 import { useMuteList } from '@/providers/MuteListProvider'
 import { useContentPolicy } from '@/providers/ContentPolicyProvider'
 import { isMentioningMutedUsers } from '@/lib/event'
+import { isSpamMarkedPubkey } from '@/lib/spam-filter'
+import { useSpamFilter } from '@/providers/SpamFilterProvider'
 
 const ArticlePage = forwardRef(({ id, index }: { id?: string; index?: number }, ref) => {
   const { t } = useTranslation()
+  const { markedPubkeys } = useSpamFilter()
   const { event, isFetching, isSlowLoading, refetch } = useFetchEvent(id)
   const [shouldShowHeaderImage, setShouldShowHeaderImage] = useState(true)
   const [showMuted, setShowMuted] = useState(false)
@@ -141,6 +145,14 @@ const ArticlePage = forwardRef(({ id, index }: { id?: string; index?: number }, 
     return (
       <SecondaryPageLayout ref={ref} index={index} title={t('Article')} displayScrollToTopButton>
         <RelayFetchState mode="not-found" relayCount={4} onRetry={refetch} className="h-64" />
+      </SecondaryPageLayout>
+    )
+  }
+
+  if (isSpamMarkedPubkey(event.pubkey, markedPubkeys)) {
+    return (
+      <SecondaryPageLayout ref={ref} index={index} title={t('Article')} displayScrollToTopButton>
+        <SpamMarkedNotice pubkey={event.pubkey} className="mt-8" />
       </SecondaryPageLayout>
     )
   }

@@ -11,9 +11,11 @@ import { BIG_RELAY_URLS, ExtendedKind } from '@/constants'
 import { compareEvents } from '@/lib/event'
 import { getStarsFromRelayReviewEvent } from '@/lib/event-metadata'
 import { toRelayReviews } from '@/lib/link'
+import { isSpamMarkedPubkey } from '@/lib/spam-filter'
 import { cn, isTouchDevice } from '@/lib/utils'
 import { useMuteList } from '@/providers/MuteListProvider'
 import { useNostr } from '@/providers/NostrProvider'
+import { useSpamFilter } from '@/providers/SpamFilterProvider'
 import { useUserTrust } from '@/providers/UserTrustProvider'
 import client from '@/services/client.service'
 import { WheelGesturesPlugin } from 'embla-carousel-wheel-gestures'
@@ -28,6 +30,7 @@ export default function RelayReviewsPreview({ relayUrl }: { relayUrl: string }) 
   const { t } = useTranslation()
   const { push } = useSecondaryPage()
   const { pubkey, checkLogin } = useNostr()
+  const { markedPubkeys } = useSpamFilter()
   const { hideUntrustedNotes, isUserTrusted } = useUserTrust()
   const { mutePubkeySet } = useMuteList()
   const [showEditor, setShowEditor] = useState(false)
@@ -52,6 +55,8 @@ export default function RelayReviewsPreview({ relayUrl }: { relayUrl: string }) 
   }, [myReview, reviews])
 
   useEffect(() => {
+    let cancelled = false
+
     const init = async () => {
       const filters: Filter[] = [
         { kinds: [ExtendedKind.RELAY_REVIEW], '#d': [relayUrl], limit: 100 }
@@ -62,6 +67,7 @@ export default function RelayReviewsPreview({ relayUrl }: { relayUrl: string }) 
       const events = await client.fetchEvents([relayUrl, ...BIG_RELAY_URLS], filters, {
         cache: true
       })
+      if (cancelled) return
 
       const pubkeySet = new Set<string>()
       const reviews: NostrEvent[] = []
@@ -70,6 +76,7 @@ export default function RelayReviewsPreview({ relayUrl }: { relayUrl: string }) 
       events.sort((a, b) => compareEvents(b, a))
       for (const evt of events) {
         if (
+          isSpamMarkedPubkey(evt.pubkey, markedPubkeys) ||
           mutePubkeySet.has(evt.pubkey) ||
           pubkeySet.has(evt.pubkey) ||
           (hideUntrustedNotes && !isUserTrusted(evt.pubkey))
@@ -93,8 +100,19 @@ export default function RelayReviewsPreview({ relayUrl }: { relayUrl: string }) 
       setReviews(reviews)
       setInitialized(true)
     }
-    init()
-  }, [relayUrl, pubkey, mutePubkeySet, hideUntrustedNotes, isUserTrusted])
+    void init()
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    relayUrl,
+    pubkey,
+    markedPubkeys,
+    mutePubkeySet,
+    hideUntrustedNotes,
+    isUserTrusted
+  ])
 
   const handleReviewed = (evt: NostrEvent) => {
     setMyReview(evt)

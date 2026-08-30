@@ -27,6 +27,7 @@ export type TNoteListVisibilityOptions = {
   mutedTags: string[]
   mutedWordsLower: string[]
   pinnedEventHexIdSet: Set<string>
+  spamMarkedPubkeySet: ReadonlySet<string>
 }
 
 type TVisibilityFilterOptions = {
@@ -70,11 +71,13 @@ function shouldHideEvent(
     mutePubkeySet,
     mutedTags,
     mutedWordsLower,
-    pinnedEventHexIdSet
+    pinnedEventHexIdSet,
+    spamMarkedPubkeySet
   } = options
   const { ignoreHashtagLimit = false, ignoreMediaOnly = false } = visibilityOptions
 
   if (isEventExpired(evt)) return true
+  if (spamMarkedPubkeySet.has(evt.pubkey.trim().toLowerCase())) return true
   if (pinnedEventHexIdSet.has(evt.id)) return true
   if (isEventDeleted(evt)) return true
   if (hideReplies && isReplyNoteEvent(evt)) return true

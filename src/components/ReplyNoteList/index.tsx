@@ -1,4 +1,5 @@
 import { BIG_RELAY_URLS, ExtendedKind } from '@/constants'
+import { Button } from '@/components/ui/button'
 import {
   getParentETag,
   getReplaceableCoordinateFromEvent,
@@ -11,15 +12,21 @@ import {
   isReplaceableEvent,
   isReplyNoteEvent
 } from '@/lib/event'
+import { partitionReplySpam, reconcileSpamRepliesExpansionScope } from '@/lib/reply-spam'
 import { toNote } from '@/lib/link'
 import { generateBech32IdFromETag, tagNameEquals } from '@/lib/tag'
 import { useSecondaryPage } from '@/PageManager'
 import { useContentPolicy } from '@/providers/ContentPolicyProvider'
+import { useFollowList } from '@/providers/FollowListProvider'
 import { useMuteList } from '@/providers/MuteListProvider'
+import { useNostr } from '@/providers/NostrProvider'
 import { useReply } from '@/providers/ReplyProvider'
+import { useSpamFilter } from '@/providers/SpamFilterProvider'
 import { useUserTrust } from '@/providers/UserTrustProvider'
 import { usePinnedReplies } from '@/providers/PinnedRepliesProvider'
 import client from '@/services/client.service'
+import nspamService from '@/services/nspam.service'
+import { ChevronDown, ChevronUp, Loader2, RefreshCw, ShieldAlert } from 'lucide-react'
 import { Filter, Event as NEvent, kinds } from 'nostr-tools'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -38,11 +45,24 @@ export default function ReplyNoteList({ index, event }: { index?: number; event:
   const { t } = useTranslation()
   const { push, currentIndex } = useSecondaryPage()
   const { hideUntrustedInteractions, isUserTrustedForInteractions } = useUserTrust()
+  const { pubkey } = useNostr()
+  const { followings } = useFollowList()
+  const {
+    enabled: spamFilterEnabled,
+    markedPubkeys,
+    safelistedPubkeys,
+    personalizationSignature,
+    markNotSpam
+  } = useSpamFilter()
   const { mutePubkeySet } = useMuteList()
   const { hideContentMentioningMutedUsers, maxHashtags, maxMentions } = useContentPolicy()
   const [rootInfo, setRootInfo] = useState<TRootInfo | undefined>(undefined)
   const { repliesMap, addReplies } = useReply()
   const { getPinnedReplies } = usePinnedReplies()
+  const followedPubkeys = useMemo(
+    () => new Set(followings.map((following) => following.trim().toLowerCase())),
+    [followings]
+  )
   const replies = useMemo(() => {
     const replyIdSet = new Set<string>()
     const replyEvents: NEvent[] = []
@@ -65,7 +85,14 @@ export default function ReplyNoteList({ index, event }: { index?: number; event:
       parentEventKeys = events.map((evt) => evt.id)
     }
     return replyEvents.sort((a, b) => a.created_at - b.created_at)
-  }, [event.id, repliesMap, mutePubkeySet, hideContentMentioningMutedUsers, maxHashtags, maxMentions])
+  }, [
+    event.id,
+    repliesMap,
+    mutePubkeySet,
+    hideContentMentioningMutedUsers,
+    maxHashtags,
+    maxMentions
+  ])
 
   // Separate pinned and unpinned replies
   const isVisibleReply = useCallback(
@@ -83,6 +110,98 @@ export default function ReplyNoteList({ index, event }: { index?: number; event:
     [hideUntrustedInteractions, isUserTrustedForInteractions, repliesMap]
   )
 
+  const trustVisibleReplies = useMemo(
+    () => replies.filter(isVisibleReply),
+    [replies, isVisibleReply]
+  )
+  const [spamScoreRevision, setSpamScoreRevision] = useState(0)
+  const spamPartition = useMemo(() => {
+    void spamScoreRevision
+    return partitionReplySpam(trustVisibleReplies, {
+      currentPubkey: pubkey,
+      enabled: spamFilterEnabled,
+      followedPubkeys,
+      markedPubkeys,
+      safelistedPubkeys,
+      signature: personalizationSignature,
+      cachedScore: (authorPubkey, signature) => nspamService.cachedScore(authorPubkey, signature)
+    })
+  }, [
+    trustVisibleReplies,
+    pubkey,
+    spamFilterEnabled,
+    followedPubkeys,
+    markedPubkeys,
+    safelistedPubkeys,
+    personalizationSignature,
+    spamScoreRevision
+  ])
+  const pendingSpamWorkKey = spamPartition.pendingPubkeys
+    .map((authorPubkey) => `${authorPubkey}:${nspamService.noteRevision(authorPubkey)}`)
+    .join('|')
+  const spamScoringGenerationRef = useRef(0)
+  const spamRetryAttemptRef = useRef(0)
+  const [spamRetryNonce, setSpamRetryNonce] = useState(0)
+  const [spamScoringError, setSpamScoringError] = useState(false)
+
+  useEffect(() => {
+    spamRetryAttemptRef.current = 0
+    setSpamScoringError(false)
+  }, [pendingSpamWorkKey, personalizationSignature])
+
+  useEffect(() => {
+    const generation = ++spamScoringGenerationRef.current
+    if (spamPartition.pendingPubkeys.length === 0) return
+
+    const controller = new AbortController()
+    let retryTimer: number | undefined
+    setSpamScoringError(false)
+    const personalization = {
+      markedPubkeys,
+      safelistedPubkeys,
+      signature: personalizationSignature
+    }
+    void Promise.allSettled(
+      spamPartition.pendingPubkeys.map((authorPubkey) =>
+        nspamService.scoreAuthor(authorPubkey, personalization, controller.signal)
+      )
+    ).then((results) => {
+      if (controller.signal.aborted || spamScoringGenerationRef.current !== generation) return
+      setSpamScoreRevision((revision) => revision + 1)
+
+      const failed = results.some(
+        (result) =>
+          result.status === 'rejected' &&
+          (result.reason as Error | undefined)?.name !== 'AbortError'
+      )
+      if (!failed) {
+        spamRetryAttemptRef.current = 0
+        setSpamScoringError(false)
+        return
+      }
+
+      setSpamScoringError(true)
+      if (spamRetryAttemptRef.current < 2) {
+        const retryDelay = 1_000 * 2 ** spamRetryAttemptRef.current
+        spamRetryAttemptRef.current += 1
+        retryTimer = window.setTimeout(() => {
+          setSpamRetryNonce((nonce) => nonce + 1)
+        }, retryDelay)
+      }
+    })
+
+    return () => {
+      controller.abort()
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer)
+    }
+  }, [
+    pendingSpamWorkKey,
+    personalizationSignature,
+    markedPubkeys,
+    safelistedPubkeys,
+    spamRetryNonce
+  ])
+
   const { pinnedReplies, unpinnedReplies } = useMemo(() => {
     const threadId = event.id // Use the current event as the thread ID
     const pinnedIds = new Set(getPinnedReplies(threadId))
@@ -90,10 +209,7 @@ export default function ReplyNoteList({ index, event }: { index?: number; event:
     const pinned: NEvent[] = []
     const unpinned: NEvent[] = []
 
-    replies.forEach((reply) => {
-      if (!isVisibleReply(reply)) {
-        return
-      }
+    spamPartition.visible.forEach((reply) => {
       if (pinnedIds.has(reply.id)) {
         pinned.push(reply)
       } else {
@@ -102,7 +218,20 @@ export default function ReplyNoteList({ index, event }: { index?: number; event:
     })
 
     return { pinnedReplies: pinned, unpinnedReplies: unpinned }
-  }, [replies, event.id, getPinnedReplies, isVisibleReply])
+  }, [spamPartition.visible, event.id, getPinnedReplies])
+  const spamRepliesExpansionScope = `${event.id}\u001d${pubkey ?? ''}\u001d${personalizationSignature}`
+  const [expandedSpamRepliesScope, setExpandedSpamRepliesScope] = useState<string>()
+  const isSpamRepliesExpanded = expandedSpamRepliesScope === spamRepliesExpansionScope
+
+  useEffect(() => {
+    setExpandedSpamRepliesScope((expandedScope) =>
+      reconcileSpamRepliesExpansionScope(
+        expandedScope,
+        spamRepliesExpansionScope,
+        spamPartition.hidden.length
+      )
+    )
+  }, [spamPartition.hidden.length, spamRepliesExpansionScope])
   const [timelineKey, setTimelineKey] = useState<string | undefined>(undefined)
   const [until, setUntil] = useState<number | undefined>(undefined)
   const [loading, setLoading] = useState<boolean>(false)
@@ -196,7 +325,7 @@ export default function ReplyNoteList({ index, event }: { index?: number; event:
             authorRelayLimit: 6,
             maxRelayCount: 10,
             relayHintsByPubkey: new Map([
-              [((rootInfo as { pubkey?: string }).pubkey ?? event.pubkey), seenOn]
+              [(rootInfo as { pubkey?: string }).pubkey ?? event.pubkey, seenOn]
             ])
           }
         )
@@ -402,6 +531,162 @@ export default function ReplyNoteList({ index, event }: { index?: number; event:
             </div>
           )
         })}
+
+        {spamPartition.pending.length > 0 && (
+          <section
+            className="flex items-center gap-3 border-b bg-muted/10 px-4 py-3"
+            aria-live="polite"
+          >
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              {spamScoringError ? (
+                <ShieldAlert className="size-4" aria-hidden="true" />
+              ) : (
+                <Loader2
+                  className="size-4 animate-spin motion-reduce:animate-none"
+                  aria-hidden="true"
+                />
+              )}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium">
+                {spamScoringError
+                  ? t('Spam check unavailable', { defaultValue: 'Spam check unavailable' })
+                  : t('Checking replies', { defaultValue: 'Checking replies' })}
+              </span>
+              <span className="block text-xs text-muted-foreground">
+                {spamScoringError
+                  ? spamPartition.pending.length === 1
+                    ? t('1 reply remains hidden until the check succeeds.', {
+                        defaultValue: '1 reply remains hidden until the check succeeds.'
+                      })
+                    : t('{{count}} replies remain hidden until the check succeeds.', {
+                        count: spamPartition.pending.length,
+                        defaultValue: '{{count}} replies remain hidden until the check succeeds.'
+                      })
+                  : spamPartition.pending.length === 1
+                    ? t('Checking 1 reply before showing it.', {
+                        defaultValue: 'Checking 1 reply before showing it.'
+                      })
+                    : t('Checking {{count}} replies before showing them.', {
+                        count: spamPartition.pending.length,
+                        defaultValue: 'Checking {{count}} replies before showing them.'
+                      })}
+              </span>
+            </span>
+            {spamScoringError && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="min-h-10 shrink-0 text-muted-foreground hover:text-foreground"
+                onClick={() => {
+                  spamRetryAttemptRef.current = 0
+                  setSpamScoringError(false)
+                  setSpamRetryNonce((nonce) => nonce + 1)
+                }}
+              >
+                <RefreshCw className="size-3.5" aria-hidden="true" />
+                {t('Retry', { defaultValue: 'Retry' })}
+              </Button>
+            )}
+          </section>
+        )}
+
+        {spamPartition.hidden.length > 0 && (
+          <section className="border-b bg-muted/20" aria-label={t('Might be spam')}>
+            <button
+              type="button"
+              className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
+              onClick={() =>
+                setExpandedSpamRepliesScope((expandedScope) =>
+                  expandedScope === spamRepliesExpansionScope
+                    ? undefined
+                    : spamRepliesExpansionScope
+                )
+              }
+              aria-expanded={isSpamRepliesExpanded}
+            >
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                <ShieldAlert className="size-4" aria-hidden="true" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold">
+                  {t('Might be spam', { defaultValue: 'Might be spam' })}
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  {spamPartition.hidden.length === 1
+                    ? t('{{count}} hidden reply from a likely spam account', {
+                        count: spamPartition.hidden.length,
+                        defaultValue: '{{count}} hidden reply from a likely spam account'
+                      })
+                    : t('{{count}} hidden replies from likely spam accounts', {
+                        count: spamPartition.hidden.length,
+                        defaultValue: '{{count}} hidden replies from likely spam accounts'
+                      })}
+                </span>
+              </span>
+              <span className="text-xs font-medium text-muted-foreground">
+                {isSpamRepliesExpanded
+                  ? t('Hide', { defaultValue: 'Hide' })
+                  : t('Show', { defaultValue: 'Show' })}
+              </span>
+              {isSpamRepliesExpanded ? (
+                <ChevronUp className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              ) : (
+                <ChevronDown className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              )}
+            </button>
+
+            {isSpamRepliesExpanded && (
+              <div className="border-t bg-background">
+                {spamPartition.hidden.map((reply) => {
+                  const parentETag = getParentETag(reply)
+                  const parentEventHexId = parentETag?.[1]
+                  const parentEventId = parentETag
+                    ? generateBech32IdFromETag(parentETag)
+                    : undefined
+                  return (
+                    <div key={reply.id} className="border-b last:border-b-0">
+                      <div
+                        ref={(el) => (replyRefs.current[reply.id] = el)}
+                        className="scroll-mt-12"
+                      >
+                        <ReplyNote
+                          event={reply}
+                          parentEventId={event.id !== parentEventHexId ? parentEventId : undefined}
+                          onClickParent={() => {
+                            if (!parentEventHexId) return
+                            if (replies.every((candidate) => candidate.id !== parentEventHexId)) {
+                              push(toNote(parentEventId ?? parentEventHexId))
+                              return
+                            }
+                            highlightReply(parentEventHexId)
+                          }}
+                          highlight={highlightReplyId === reply.id}
+                          isPinned={false}
+                        />
+                      </div>
+                      <div className="flex justify-end px-4 py-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="min-h-10 text-muted-foreground hover:text-foreground"
+                          onClick={(clickEvent) => {
+                            clickEvent.stopPropagation()
+                            markNotSpam(reply.pubkey)
+                          }}
+                        >
+                          {t('Not spam', { defaultValue: 'Not spam' })}
+                        </Button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+        )}
       </div>
       {!loading && (
         <div className="text-sm mt-2 mb-3 text-center text-muted-foreground">

@@ -5,11 +5,13 @@ import Image from '@/components/Image'
 import { Skeleton } from '@/components/ui/skeleton'
 import { URL_REGEX } from '@/constants'
 import { toNote } from '@/lib/link'
+import { isSpamMarkedPubkey } from '@/lib/spam-filter'
 import { cn } from '@/lib/utils'
 import { SecondaryPageLink } from '@/PageManager'
 import { useContentPolicy } from '@/providers/ContentPolicyProvider'
 import { useDeletedEvent } from '@/providers/DeletedEventProvider'
 import { useMuteList } from '@/providers/MuteListProvider'
+import { useSpamFilter } from '@/providers/SpamFilterProvider'
 import { AVAILABLE_WIDGETS, useWidgets } from '@/providers/WidgetsProvider'
 import client from '@/services/client.service'
 import localStorageService from '@/services/local-storage.service'
@@ -30,6 +32,7 @@ export default function NewsWidget() {
   const { shouldAutoLoadMedia } = useContentPolicy()
   const { isEventDeleted } = useDeletedEvent()
   const { mutePubkeySet } = useMuteList()
+  const { markedPubkeys } = useSpamFilter()
   const {
     toggleWidget,
     hideWidgetTitles,
@@ -124,6 +127,7 @@ export default function NewsWidget() {
 
     return events.filter((event) => {
       if (isEventDeleted(event)) return false
+      if (isSpamMarkedPubkey(event.pubkey, markedPubkeys)) return false
       if (mutePubkeySet.has(event.pubkey)) return false
       if (idSet.has(event.id)) return false
       idSet.add(event.id)
@@ -138,7 +142,7 @@ export default function NewsWidget() {
 
       return true
     })
-  }, [events, isEventDeleted, mutePubkeySet])
+  }, [events, isEventDeleted, markedPubkeys, mutePubkeySet])
 
   const displayedEvents = useMemo(() => {
     return visibleEvents.slice(0, DISPLAY_COUNT)

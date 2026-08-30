@@ -3,6 +3,7 @@ import ContentPreview from '@/components/ContentPreview'
 import Note from '@/components/Note'
 import NoteInteractions from '@/components/NoteInteractions'
 import NoteStats from '@/components/NoteStats'
+import SpamMarkedNotice from '@/components/SpamMarkedNotice'
 import UserAvatar from '@/components/UserAvatar'
 import { Card } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
@@ -13,8 +14,10 @@ import { useFetchEvent } from '@/hooks'
 import SecondaryPageLayout from '@/layouts/SecondaryPageLayout'
 import { getParentBech32Id, getParentETag, getRootBech32Id } from '@/lib/event'
 import { toNote, toNoteList } from '@/lib/link'
+import { isSpamMarkedPubkey } from '@/lib/spam-filter'
 import { tagNameEquals } from '@/lib/tag'
 import { cn } from '@/lib/utils'
+import { useSpamFilter } from '@/providers/SpamFilterProvider'
 import { Ellipsis } from 'lucide-react'
 import { Event } from 'nostr-tools'
 import { forwardRef, useMemo } from 'react'
@@ -23,6 +26,7 @@ import NotFound from './NotFound'
 
 const NotePage = forwardRef(({ id, index }: { id?: string; index?: number }, ref) => {
   const { t } = useTranslation()
+  const { markedPubkeys } = useSpamFilter()
   const { event, isFetching, isSlowLoading, refetch } = useFetchEvent(id)
   const parentEventId = useMemo(() => getParentBech32Id(event), [event])
   const rootEventId = useMemo(() => getRootBech32Id(event), [event])
@@ -73,6 +77,14 @@ const NotePage = forwardRef(({ id, index }: { id?: string; index?: number }, ref
       <SecondaryPageLayout ref={ref} index={index} title={t('Note')} displayScrollToTopButton>
         <RelayFetchState mode="not-found" relayCount={4} onRetry={refetch} className="pb-0" />
         <NotFound bech32Id={id} />
+      </SecondaryPageLayout>
+    )
+  }
+
+  if (isSpamMarkedPubkey(event.pubkey, markedPubkeys)) {
+    return (
+      <SecondaryPageLayout ref={ref} index={index} title={t('Note')} displayScrollToTopButton>
+        <SpamMarkedNotice pubkey={event.pubkey} className="mt-8" />
       </SecondaryPageLayout>
     )
   }

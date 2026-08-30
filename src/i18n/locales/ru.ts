@@ -333,6 +333,41 @@ export default {
     MuteListNotFoundConfirmation:
       'Список заблокированных не найден. Хотите создать новый? Если вы уже блокировали пользователей ранее, пожалуйста, НЕ подтверждайте, так как эта операция приведет к потере вашего предыдущего списка заблокированных.',
     'Show NSFW content by default': 'Показывать контент NSFW по умолчанию',
+    'Hide likely spam replies and posts with excessive hashtags or mentions':
+      'Скрывать вероятный спам в ответах и посты с чрезмерным числом хэштегов или упоминаний',
+    'Hide likely spam replies': 'Скрывать ответы, вероятно являющиеся спамом',
+    'Score replies on this device and keep likely spam collapsed. Authors you mark as spam stay hidden when this is off.':
+      'Проверяйте ответы на этом устройстве и сворачивайте те, что, вероятно, являются спамом. Авторы, которых вы отметили как спам, остаются скрытыми, когда эта опция выключена.',
+    'Marked spam authors': 'Авторы, отмеченные как спам',
+    'Choose an author to show their posts and replies again.':
+      'Выберите автора, чтобы снова показывать его посты и ответы.',
+    'Show author {{author}} again': 'Снова показывать автора {{author}}',
+    'Remove spam mark': 'Снять отметку спама',
+    'Mark as spam': 'Отметить как спам',
+    'Spam mark removed': 'Отметка спама снята',
+    'Author marked as spam': 'Автор отмечен как спам',
+    'Report sent and author marked as spam': 'Жалоба отправлена, автор отмечен как спам',
+    'The report was published. Content from this author is now hidden.':
+      'Жалоба опубликована. Контент этого автора теперь скрыт.',
+    'Spam check unavailable': 'Проверка на спам недоступна',
+    'Checking replies': 'Проверяем ответы',
+    '1 reply remains hidden until the check succeeds.':
+      '1 ответ остаётся скрытым, пока проверка не завершится успешно.',
+    '{{count}} replies remain hidden until the check succeeds.':
+      '{{count}} ответов остаются скрытыми, пока проверка не завершится успешно.',
+    'Checking 1 reply before showing it.': 'Проверяем 1 ответ перед показом.',
+    'Checking {{count}} replies before showing them.':
+      'Проверяем {{count}} ответов перед показом.',
+    Retry: 'Повторить',
+    'Might be spam': 'Возможно, спам',
+    '{{count}} hidden reply from a likely spam account':
+      '{{count}} скрытый ответ от аккаунта, вероятно рассылающего спам',
+    '{{count}} hidden replies from likely spam accounts':
+      '{{count}} скрытых ответов от аккаунтов, вероятно рассылающих спам',
+    Hide: 'Скрыть',
+    Show: 'Показать',
+    'Not spam': 'Не спам',
+    'This user is marked as spam': 'Этот пользователь отмечен как спам',
     'Custom emoji management': 'Управление пользовательскими эмодзи',
     'After changing emojis, you may need to refresh the page':
       'После изменения эмодзи может потребоваться обновить страницу',

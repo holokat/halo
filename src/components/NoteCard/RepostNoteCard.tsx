@@ -4,6 +4,7 @@ import { isEventExpired } from '@/lib/event-expiration'
 import { tagNameEquals } from '@/lib/tag'
 import { useContentPolicy } from '@/providers/ContentPolicyProvider'
 import { useMuteList } from '@/providers/MuteListProvider'
+import { useSpamFilter } from '@/providers/SpamFilterProvider'
 import client from '@/services/client.service'
 import { Event, kinds, nip19, verifyEvent } from 'nostr-tools'
 import { useEffect, useMemo, useState } from 'react'
@@ -31,6 +32,7 @@ export default function RepostNoteCard({
   const { t } = useTranslation()
   const { mutePubkeySet } = useMuteList()
   const { hideContentMentioningMutedUsers, alwaysHideMutedNotes } = useContentPolicy()
+  const { markedPubkeys } = useSpamFilter()
   const [targetEvent, setTargetEvent] = useState<Event | null>(null)
   const isMutedByPubkey = useMemo(() => {
     return targetEvent && filterMutedNotes && mutePubkeySet.has(targetEvent.pubkey)
@@ -38,6 +40,7 @@ export default function RepostNoteCard({
   const shouldHide = useMemo(() => {
     if (!targetEvent) return true
     if (isEventExpired(targetEvent)) return true
+    if (markedPubkeys.has(targetEvent.pubkey.trim().toLowerCase())) return true
     // Hide pubkey-muted content only if alwaysHideMutedNotes is disabled
     if (isMutedByPubkey && !alwaysHideMutedNotes) {
       return true
@@ -46,7 +49,14 @@ export default function RepostNoteCard({
       return true
     }
     return false
-  }, [targetEvent, isMutedByPubkey, alwaysHideMutedNotes, hideContentMentioningMutedUsers, mutePubkeySet])
+  }, [
+    targetEvent,
+    isMutedByPubkey,
+    alwaysHideMutedNotes,
+    hideContentMentioningMutedUsers,
+    mutePubkeySet,
+    markedPubkeys
+  ])
   useEffect(() => {
     const fetch = async () => {
       try {

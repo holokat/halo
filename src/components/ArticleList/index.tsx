@@ -9,8 +9,10 @@ import ArticleCard from '../ArticleCard'
 import { isTouchDevice } from '@/lib/utils'
 import PullToRefresh from 'react-simple-pull-to-refresh'
 import { getReplaceableCoordinateFromEvent, isReplaceableEvent } from '@/lib/event'
+import { isSpamMarkedPubkey } from '@/lib/spam-filter'
 import dayjs from 'dayjs'
 import { useNostr } from '@/providers/NostrProvider'
+import { useSpamFilter } from '@/providers/SpamFilterProvider'
 
 const LIMIT = 50
 const SHOW_COUNT = 10
@@ -31,6 +33,7 @@ const ArticleList = forwardRef(
   ) => {
     const { t } = useTranslation()
     const { startLogin } = useNostr()
+    const { markedPubkeys } = useSpamFilter()
     const [articles, setArticles] = useState<Event[]>([])
     const [loading, setLoading] = useState(true)
     const [hasMore, setHasMore] = useState<boolean>(true)
@@ -176,6 +179,8 @@ const ArticleList = forwardRef(
 
       return Array.from(uniqueArticles.values())
         .filter((event) => {
+          if (isSpamMarkedPubkey(event.pubkey, markedPubkeys)) return false
+
           // Filter out articles with exact titles we want to exclude
           const titleTag = event.tags.find((tag) => tag[0] === 'title')
           const title = titleTag?.[1] || t('Untitled')
@@ -188,7 +193,7 @@ const ArticleList = forwardRef(
           return bPublishedAt - aPublishedAt
         })
         .slice(0, showCount)
-    }, [articles, showCount])
+    }, [articles, markedPubkeys, showCount])
 
     const handleRefresh = async () => {
       refresh()

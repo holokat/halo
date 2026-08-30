@@ -1,11 +1,13 @@
 import { BIG_RELAY_URLS, ExtendedKind, POLL_TYPE } from '@/constants'
 import { getPollMetadataFromEvent, getPollResponseFromEvent } from '@/lib/event-metadata'
+import { isSpamMarkedPubkey } from '@/lib/spam-filter'
 import { useContentPolicy } from '@/providers/ContentPolicyProvider'
 import { useDeletedEvent } from '@/providers/DeletedEventProvider'
 import { useFollowList } from '@/providers/FollowListProvider'
 import { useMuteList } from '@/providers/MuteListProvider'
 import { useNostr } from '@/providers/NostrProvider'
 import { useReply } from '@/providers/ReplyProvider'
+import { useSpamFilter } from '@/providers/SpamFilterProvider'
 import { useUserTrust } from '@/providers/UserTrustProvider'
 import { AVAILABLE_WIDGETS, useWidgets } from '@/providers/WidgetsProvider'
 import client from '@/services/client.service'
@@ -39,6 +41,7 @@ export function usePollWidgetData() {
   const { followings } = useFollowList()
   const { isEventDeleted } = useDeletedEvent()
   const { mutePubkeySet } = useMuteList()
+  const { markedPubkeys } = useSpamFilter()
   const { hideContentMentioningMutedUsers } = useContentPolicy()
   const { repliesMap, addReplies } = useReply()
   const { hideUntrustedInteractions, isUserTrustedForInteractions } = useUserTrust()
@@ -220,6 +223,7 @@ export function usePollWidgetData() {
     return events
       .filter((event) => {
         if (isEventDeleted(event)) return false
+        if (isSpamMarkedPubkey(event.pubkey, markedPubkeys)) return false
         if (mutePubkeySet.has(event.pubkey)) return false
         if (!followings.includes(event.pubkey)) return false
         if (!event.tags.length) return false
@@ -228,7 +232,7 @@ export function usePollWidgetData() {
         return true
       })
       .sort((a, b) => b.created_at - a.created_at)
-  }, [events, followings, isEventDeleted, mutePubkeySet])
+  }, [events, followings, isEventDeleted, markedPubkeys, mutePubkeySet])
 
   const trackedPollIds = useMemo(() => trackedPollEvents.map((event) => event.id), [trackedPollEvents])
   const trackedPollIdsKey = useMemo(() => trackedPollIds.join('|'), [trackedPollIds])

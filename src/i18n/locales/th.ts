@@ -326,6 +326,41 @@ export default {
     MuteListNotFoundConfirmation:
       'ไม่พบรายการปิดเสียง คุณต้องการสร้างรายการใหม่หรือไม่? หากคุณเคยปิดเสียงผู้ใช้มาก่อน กรุณาอย่ายืนยัน เพราะการดำเนินการนี้จะทำให้คุณสูญเสียรายการปิดเสียงก่อนหน้านี้',
     'Show NSFW content by default': 'แสดงเนื้อหา NSFW โดยค่าเริ่มต้น',
+    'Hide likely spam replies and posts with excessive hashtags or mentions':
+      'ซ่อนการตอบกลับที่อาจเป็นสแปมและโพสต์ที่มีแฮชแท็กหรือการกล่าวถึงมากเกินไป',
+    'Hide likely spam replies': 'ซ่อนการตอบกลับที่อาจเป็นสแปม',
+    'Score replies on this device and keep likely spam collapsed. Authors you mark as spam stay hidden when this is off.':
+      'ตรวจสอบการตอบกลับบนอุปกรณ์นี้และยุบการตอบกลับที่น่าจะเป็นสแปม ผู้เขียนที่คุณทำเครื่องหมายว่าเป็นสแปมจะยังคงถูกซ่อนเมื่อปิดตัวเลือกนี้',
+    'Marked spam authors': 'ผู้เขียนที่ทำเครื่องหมายว่าเป็นสแปม',
+    'Choose an author to show their posts and replies again.':
+      'เลือกผู้เขียนเพื่อแสดงโพสต์และการตอบกลับของเขาอีกครั้ง',
+    'Show author {{author}} again': 'แสดง {{author}} อีกครั้ง',
+    'Remove spam mark': 'ลบเครื่องหมายสแปม',
+    'Mark as spam': 'ทำเครื่องหมายว่าเป็นสแปม',
+    'Spam mark removed': 'ลบเครื่องหมายสแปมแล้ว',
+    'Author marked as spam': 'ทำเครื่องหมายผู้เขียนว่าเป็นสแปมแล้ว',
+    'Report sent and author marked as spam': 'ส่งรายงานแล้วและทำเครื่องหมายผู้เขียนว่าเป็นสแปมแล้ว',
+    'The report was published. Content from this author is now hidden.':
+      'เผยแพร่รายงานแล้ว เนื้อหาจากผู้เขียนรายนี้ถูกซ่อนแล้ว',
+    'Spam check unavailable': 'ไม่สามารถตรวจสอบสแปมได้',
+    'Checking replies': 'กำลังตรวจสอบการตอบกลับ',
+    '1 reply remains hidden until the check succeeds.':
+      'การตอบกลับ 1 รายการจะยังคงถูกซ่อนไว้จนกว่าการตรวจสอบจะสำเร็จ',
+    '{{count}} replies remain hidden until the check succeeds.':
+      'การตอบกลับ {{count}} รายการจะยังคงถูกซ่อนไว้จนกว่าการตรวจสอบจะสำเร็จ',
+    'Checking 1 reply before showing it.': 'กำลังตรวจสอบการตอบกลับ 1 รายการก่อนแสดง',
+    'Checking {{count}} replies before showing them.':
+      'กำลังตรวจสอบการตอบกลับ {{count}} รายการก่อนแสดง',
+    Retry: 'ลองอีกครั้ง',
+    'Might be spam': 'อาจเป็นสแปม',
+    '{{count}} hidden reply from a likely spam account':
+      'การตอบกลับที่ซ่อนอยู่ {{count}} รายการจากบัญชีที่อาจเป็นสแปม',
+    '{{count}} hidden replies from likely spam accounts':
+      'การตอบกลับที่ซ่อนอยู่ {{count}} รายการจากบัญชีที่อาจเป็นสแปม',
+    Hide: 'ซ่อน',
+    Show: 'แสดง',
+    'Not spam': 'ไม่ใช่สแปม',
+    'This user is marked as spam': 'ผู้ใช้รายนี้ถูกทำเครื่องหมายว่าเป็นสแปม',
     'Custom emoji management': 'จัดการอีโมจิที่กำหนดเอง',
     'After changing emojis, you may need to refresh the page':
       'หลังจากเปลี่ยนอีโมจิแล้ว คุณอาจต้องรีเฟรชหน้า',

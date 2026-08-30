@@ -16,8 +16,10 @@ import Zoom from 'yet-another-react-lightbox/plugins/zoom'
 import Video from 'yet-another-react-lightbox/plugins/video'
 import { createPortal } from 'react-dom'
 import { randomString } from '@/lib/random'
+import { filterSpamMarkedEvents } from '@/lib/spam-filter'
 import { TFeedSubRequest } from '@/types'
 import client from '@/services/client.service'
+import { useSpamFilter } from '@/providers/SpamFilterProvider'
 
 interface MediaItem {
   url: string
@@ -35,6 +37,7 @@ export type TMediaGridRef = {
 
 const MediaGrid = forwardRef(({ subRequests }: { subRequests?: TFeedSubRequest[] }, ref) => {
   const { t } = useTranslation()
+  const { markedPubkeys } = useSpamFilter()
   const [events, setEvents] = useState<Event[]>([])
   const [lightboxIndex, setLightboxIndex] = useState(-1)
   const lightboxId = useMemo(() => `media-grid-lightbox-${randomString()}`, [])
@@ -46,7 +49,9 @@ const MediaGrid = forwardRef(({ subRequests }: { subRequests?: TFeedSubRequest[]
     const urlSet = new Set<string>()
 
     // Sort events by created_at descending
-    const sortedEvents = [...events].sort((a, b) => b.created_at - a.created_at)
+    const sortedEvents = filterSpamMarkedEvents(events, markedPubkeys).sort(
+      (a, b) => b.created_at - a.created_at
+    )
 
     sortedEvents.forEach((evt) => {
       const { images, videos } = extractMediaUrls(evt)
@@ -77,7 +82,7 @@ const MediaGrid = forwardRef(({ subRequests }: { subRequests?: TFeedSubRequest[]
     })
 
     return items
-  }, [events])
+  }, [events, markedPubkeys])
 
   const lightboxSlides = useMemo(() => {
     return mediaItems.map((item) => {

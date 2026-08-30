@@ -7,6 +7,7 @@ import { useDistractionFreeMode } from '@/providers/DistractionFreeModeProvider'
 import { useLowBandwidthMode } from '@/providers/LowBandwidthModeProvider'
 import { useMuteList } from '@/providers/MuteListProvider'
 import { useNostr } from '@/providers/NostrProvider'
+import { useSpamFilter } from '@/providers/SpamFilterProvider'
 import { useTextOnlyMode } from '@/providers/TextOnlyModeProvider'
 import { useUserTrust } from '@/providers/UserTrustProvider'
 import client from '@/services/client.service'
@@ -74,13 +75,17 @@ const NoteList = forwardRef(
   ) => {
     const { t } = useTranslation()
     const { startLogin, pubkey } = useNostr()
+    const { markedPubkeys: spamMarkedPubkeySet } = useSpamFilter()
     const { lowBandwidthMode } = useLowBandwidthMode()
     const { isUserTrusted } = useUserTrust()
     const { textOnlyMode } = useTextOnlyMode()
     const { mutePubkeySet, getMutedWords, getMutedTags } = useMuteList()
     const { hideContentMentioningMutedUsers, maxHashtags, maxMentions } = useContentPolicy()
     const mutedWords = useMemo(() => getMutedWords(), [getMutedWords])
-    const mutedWordsLower = useMemo(() => mutedWords.map((word) => word.toLowerCase()), [mutedWords])
+    const mutedWordsLower = useMemo(
+      () => mutedWords.map((word) => word.toLowerCase()),
+      [mutedWords]
+    )
     const mutedTags = useMemo(() => getMutedTags(), [getMutedTags])
     const { isEventDeleted } = useDeletedEvent()
     const { isDistractionFree } = useDistractionFreeMode()
@@ -99,26 +104,31 @@ const NoteList = forwardRef(
     const filteredOutAutoLoadCountRef = useRef(0)
     const subRequestsKey = JSON.stringify(subRequests)
     const showKindsKey = JSON.stringify(showKinds)
-    const { filteredNewEvents, hashtagLimitFilteredOutAll, mediaOnlyFilteredOutAll, visibleEvents } =
-      useVisibleNoteEvents({
-        additionalFilter,
-        events,
-        filterMutedNotes,
-        hideContentMentioningMutedUsers: !!hideContentMentioningMutedUsers,
-        hideReplies,
-        hideUntrustedNotes,
-        ignoreHashtagLimit,
-        isEventDeleted,
-        isUserTrusted,
-        mediaOnly,
-        maxHashtags,
-        maxMentions,
-        mutePubkeySet,
-        mutedTags,
-        mutedWordsLower,
-        newEvents,
-        pinnedEventIds
-      })
+    const {
+      filteredNewEvents,
+      hashtagLimitFilteredOutAll,
+      mediaOnlyFilteredOutAll,
+      visibleEvents
+    } = useVisibleNoteEvents({
+      additionalFilter,
+      events,
+      filterMutedNotes,
+      hideContentMentioningMutedUsers: !!hideContentMentioningMutedUsers,
+      hideReplies,
+      hideUntrustedNotes,
+      ignoreHashtagLimit,
+      isEventDeleted,
+      isUserTrusted,
+      mediaOnly,
+      maxHashtags,
+      maxMentions,
+      mutePubkeySet,
+      mutedTags,
+      mutedWordsLower,
+      newEvents,
+      pinnedEventIds,
+      spamMarkedPubkeySet
+    })
     const showFilteredOutState = !loading && events.length > 0 && visibleEvents.length === 0
     const filteredOutMessage = mediaOnlyFilteredOutAll
       ? t('This relay is returning posts, but the media-only filter is hiding them.')
@@ -126,7 +136,10 @@ const NoteList = forwardRef(
         ? t('This feed is returning posts, but the hashtag filter is hiding them.')
         : additionalFilteredOutMessage || t('No notes match the current filters.')
 
-    const filteredEvents = useMemo(() => visibleEvents.slice(0, showCount), [visibleEvents, showCount])
+    const filteredEvents = useMemo(
+      () => visibleEvents.slice(0, showCount),
+      [visibleEvents, showCount]
+    )
 
     const scrollToTop = (behavior: ScrollBehavior = 'instant') => {
       setTimeout(() => {
@@ -246,7 +259,14 @@ const NoteList = forwardRef(
       return () => {
         promise.then((closer) => closer())
       }
-    }, [subRequestsKey, refreshCount, showKindsKey, isMainFeed, areAlgoRelays, initialEoseThreshold])
+    }, [
+      subRequestsKey,
+      refreshCount,
+      showKindsKey,
+      isMainFeed,
+      areAlgoRelays,
+      initialEoseThreshold
+    ])
 
     useEffect(() => {
       if (!pubkey || !subRequests.length || showKinds.length === 0) {
@@ -302,7 +322,10 @@ const NoteList = forwardRef(
         0,
         Math.min(events.length, Math.max(showCount + 60, showCountIncrement * 12))
       )
-      const relayUrls = Array.from(new Set(subRequests.flatMap((request) => request.urls))).slice(0, 20)
+      const relayUrls = Array.from(new Set(subRequests.flatMap((request) => request.urls))).slice(
+        0,
+        20
+      )
       noteStatsService.prefetchNoteStats(notesToPrefetch, pubkey, undefined, relayUrls)
     }, [events, showCount, showCountIncrement, pubkey, lowBandwidthMode, subRequests])
 
@@ -402,11 +425,7 @@ const NoteList = forwardRef(
           ))}
           {filteredEvents.map((event) => (
             <li key={event.id}>
-              <NoteCard
-                className="w-full"
-                event={event}
-                filterMutedNotes={filterMutedNotes}
-              />
+              <NoteCard className="w-full" event={event} filterMutedNotes={filterMutedNotes} />
             </li>
           ))}
         </ul>
@@ -431,7 +450,13 @@ const NoteList = forwardRef(
             <NoteCardLoadingSkeleton />
           </div>
         ) : events.length ? (
-          <div role="status" aria-live="polite" className="text-center text-sm text-muted-foreground mt-2">{t('no more notes')}</div>
+          <div
+            role="status"
+            aria-live="polite"
+            className="text-center text-sm text-muted-foreground mt-2"
+          >
+            {t('no more notes')}
+          </div>
         ) : emptyStateMessage ? (
           <div className="text-center text-sm text-muted-foreground mt-4 px-4">
             {emptyStateMessage}

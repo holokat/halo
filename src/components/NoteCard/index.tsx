@@ -3,6 +3,7 @@ import { hasMutedHashtag, isMentioningMutedUsers } from '@/lib/event'
 import { isEventExpired } from '@/lib/event-expiration'
 import { useContentPolicy } from '@/providers/ContentPolicyProvider'
 import { useMuteList } from '@/providers/MuteListProvider'
+import { useSpamFilter } from '@/providers/SpamFilterProvider'
 import { useFetchProfile } from '@/hooks'
 import { Event, kinds } from 'nostr-tools'
 import { useMemo } from 'react'
@@ -28,12 +29,17 @@ export default function NoteCard({
 }) {
   const { mutePubkeySet, getMutedWords, getMutedTags } = useMuteList()
   const { hideContentMentioningMutedUsers } = useContentPolicy()
+  const { markedPubkeys } = useSpamFilter()
   const mutedWords = useMemo(() => getMutedWords(), [getMutedWords])
   const mutedTags = useMemo(() => getMutedTags(), [getMutedTags])
   const { profile } = useFetchProfile(event?.pubkey)
 
   const shouldHide = useMemo(() => {
     if (isEventExpired(event)) {
+      return true
+    }
+
+    if (markedPubkeys.has(event.pubkey.trim().toLowerCase())) {
       return true
     }
 
@@ -54,16 +60,27 @@ export default function NoteCard({
       const content = event.content.toLowerCase()
       const username = profile?.username?.toLowerCase() || ''
 
-      if (mutedWords.some(word => {
-        const lowerWord = word.toLowerCase()
-        return content.includes(lowerWord) || username.includes(lowerWord)
-      })) {
+      if (
+        mutedWords.some((word) => {
+          const lowerWord = word.toLowerCase()
+          return content.includes(lowerWord) || username.includes(lowerWord)
+        })
+      ) {
         return true
       }
     }
 
     return false
-  }, [event, filterMutedNotes, mutePubkeySet, mutedWords, hideContentMentioningMutedUsers, profile, mutedTags])
+  }, [
+    event,
+    filterMutedNotes,
+    mutePubkeySet,
+    mutedWords,
+    hideContentMentioningMutedUsers,
+    profile,
+    mutedTags,
+    markedPubkeys
+  ])
 
   if (shouldHide) return null
 
@@ -80,7 +97,17 @@ export default function NoteCard({
       />
     )
   }
-  return <MainNoteCard event={event} className={className} pinned={pinned} hideSeparator={hideSeparator} onTagsChange={onTagsChange} bookmarkId={bookmarkId} filterMutedNotes={filterMutedNotes} />
+  return (
+    <MainNoteCard
+      event={event}
+      className={className}
+      pinned={pinned}
+      hideSeparator={hideSeparator}
+      onTagsChange={onTagsChange}
+      bookmarkId={bookmarkId}
+      filterMutedNotes={filterMutedNotes}
+    />
+  )
 }
 
 export function NoteCardLoadingSkeleton() {

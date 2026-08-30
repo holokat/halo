@@ -3,10 +3,12 @@ import { SimpleUsername } from '@/components/Username'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getReplaceableCoordinateFromEvent, isReplaceableEvent } from '@/lib/event'
 import { toNote } from '@/lib/link'
+import { isSpamMarkedPubkey } from '@/lib/spam-filter'
 import { cn } from '@/lib/utils'
 import { useSecondaryPage } from '@/PageManager'
 import { useDeletedEvent } from '@/providers/DeletedEventProvider'
 import { useMuteList } from '@/providers/MuteListProvider'
+import { useSpamFilter } from '@/providers/SpamFilterProvider'
 import { useUserTrust } from '@/providers/UserTrustProvider'
 import client from '@/services/client.service'
 import { NostrEvent } from 'nostr-tools'
@@ -17,6 +19,7 @@ const DISPLAY_COUNT = 16
 export default function CompactTrendingNotes() {
   const { isEventDeleted } = useDeletedEvent()
   const { mutePubkeySet } = useMuteList()
+  const { markedPubkeys } = useSpamFilter()
   const { hideUntrustedNotes, isUserTrusted } = useUserTrust()
   const { push } = useSecondaryPage()
   const [trendingNotes, setTrendingNotes] = useState<NostrEvent[]>([])
@@ -27,6 +30,7 @@ export default function CompactTrendingNotes() {
 
     return trendingNotes.filter((evt) => {
       if (isEventDeleted(evt)) return false
+      if (isSpamMarkedPubkey(evt.pubkey, markedPubkeys)) return false
       if (mutePubkeySet.has(evt.pubkey)) return false
       if (hideUntrustedNotes && !isUserTrusted(evt.pubkey)) return false
 
@@ -37,7 +41,14 @@ export default function CompactTrendingNotes() {
       idSet.add(id)
       return true
     })
-  }, [trendingNotes, hideUntrustedNotes, isEventDeleted, isUserTrusted, mutePubkeySet])
+  }, [
+    trendingNotes,
+    hideUntrustedNotes,
+    isEventDeleted,
+    isUserTrusted,
+    markedPubkeys,
+    mutePubkeySet
+  ])
   const filteredEvents = useMemo(
     () => visibleEvents.slice(0, DISPLAY_COUNT),
     [visibleEvents]

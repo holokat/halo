@@ -326,6 +326,40 @@ export default {
     MuteListNotFoundConfirmation:
       '未找到屏蔽列表。你想创建一个新的吗？如果你之前已经屏蔽了用户，请不要确认，因为此操作会导致你丢失之前的屏蔽列表。',
     'Show NSFW content by default': '默认显示 NSFW 内容',
+    'Hide likely spam replies and posts with excessive hashtags or mentions':
+      '隐藏疑似垃圾回复以及含有过多标签或提及的帖子',
+    'Hide likely spam replies': '隐藏疑似垃圾回复',
+    'Score replies on this device and keep likely spam collapsed. Authors you mark as spam stay hidden when this is off.':
+      '在此设备上评估回复，并折叠疑似垃圾回复。即使关闭此选项，您标记为垃圾信息的作者仍会被隐藏。',
+    'Marked spam authors': '已标记为垃圾信息的作者',
+    'Choose an author to show their posts and replies again.':
+      '选择一位作者，重新显示其帖子和回复。',
+    'Show author {{author}} again': '再次显示作者 {{author}}',
+    'Remove spam mark': '移除垃圾信息标记',
+    'Mark as spam': '标记为垃圾信息',
+    'Spam mark removed': '已移除垃圾信息标记',
+    'Author marked as spam': '已将作者标记为垃圾信息',
+    'Report sent and author marked as spam': '举报已发送，作者已标记为垃圾信息',
+    'The report was published. Content from this author is now hidden.':
+      '举报已发布。该作者的内容现已隐藏。',
+    'Spam check unavailable': '垃圾信息检查不可用',
+    'Checking replies': '正在检查回复',
+    '1 reply remains hidden until the check succeeds.': '1 条回复会保持隐藏，直到检查成功。',
+    '{{count}} replies remain hidden until the check succeeds.':
+      '{{count}} 条回复会保持隐藏，直到检查成功。',
+    'Checking 1 reply before showing it.': '正在检查 1 条回复后再显示。',
+    'Checking {{count}} replies before showing them.':
+      '正在检查 {{count}} 条回复后再显示。',
+    Retry: '重试',
+    'Might be spam': '可能是垃圾信息',
+    '{{count}} hidden reply from a likely spam account':
+      '来自疑似垃圾账号的 {{count}} 条隐藏回复',
+    '{{count}} hidden replies from likely spam accounts':
+      '来自疑似垃圾账号的 {{count}} 条隐藏回复',
+    Hide: '隐藏',
+    Show: '显示',
+    'Not spam': '不是垃圾信息',
+    'This user is marked as spam': '该用户已标记为垃圾信息',
     'Custom emoji management': '自定义表情符号管理',
     'After changing emojis, you may need to refresh the page': '更改表情符号后，您可能需要刷新页面',
     'Too many read relays': '读取中继过多',

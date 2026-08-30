@@ -602,6 +602,41 @@ export default {
     'No hashtag filtering': 'Sem filtragem de hashtag',
     'Hide notes with more than {{count}} hashtags': 'Ocultar publicações com mais de {{count}} hashtags',
     tags: 'tags',
+    'Hide likely spam replies and posts with excessive hashtags or mentions':
+      'Ocultar respostas possivelmente spam e publicações com hashtags ou menções em excesso',
+    'Hide likely spam replies': 'Ocultar respostas possivelmente spam',
+    'Score replies on this device and keep likely spam collapsed. Authors you mark as spam stay hidden when this is off.':
+      'Classifique as respostas neste dispositivo e mantenha recolhidas as provavelmente spam. Autores que você marcar como spam permanecem ocultos quando esta opção está desativada.',
+    'Marked spam authors': 'Autores marcados como spam',
+    'Choose an author to show their posts and replies again.':
+      'Escolha um autor para mostrar suas publicações e respostas novamente.',
+    'Show author {{author}} again': 'Mostrar {{author}} novamente',
+    'Remove spam mark': 'Remover marcação de spam',
+    'Mark as spam': 'Marcar como spam',
+    'Spam mark removed': 'Marcação de spam removida',
+    'Author marked as spam': 'Autor marcado como spam',
+    'Report sent and author marked as spam': 'Denúncia enviada e autor marcado como spam',
+    'The report was published. Content from this author is now hidden.':
+      'A denúncia foi publicada. O conteúdo deste autor agora está oculto.',
+    'Spam check unavailable': 'Verificação de spam indisponível',
+    'Checking replies': 'Verificando respostas',
+    '1 reply remains hidden until the check succeeds.':
+      '1 resposta permanece oculta até a verificação ser concluída com sucesso.',
+    '{{count}} replies remain hidden until the check succeeds.':
+      '{{count}} respostas permanecem ocultas até a verificação ser concluída com sucesso.',
+    'Checking 1 reply before showing it.': 'Verificando 1 resposta antes de exibi-la.',
+    'Checking {{count}} replies before showing them.':
+      'Verificando {{count}} respostas antes de exibi-las.',
+    Retry: 'Tentar novamente',
+    'Might be spam': 'Pode ser spam',
+    '{{count}} hidden reply from a likely spam account':
+      '{{count}} resposta oculta de uma conta provavelmente spam',
+    '{{count}} hidden replies from likely spam accounts':
+      '{{count}} respostas ocultas de contas provavelmente spam',
+    Hide: 'Ocultar',
+    Show: 'Mostrar',
+    'Not spam': 'Não é spam',
+    'This user is marked as spam': 'Este usuário está marcado como spam',
 
     // Content & Privacy - NSFW
     'Show NSFW content by default': 'Mostrar conteúdo NSFW por padrão',

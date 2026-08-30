@@ -56,6 +56,7 @@ import { CollapseLongNotesProvider } from '@/providers/CollapseLongNotesProvider
 import { AlwaysShowFullMediaProvider } from '@/providers/AlwaysShowFullMediaProvider'
 import { LiveStreamPopoutProvider } from '@/providers/LiveStreamPopoutProvider'
 import { LiveReactionFountainProvider } from '@/providers/LiveReactionFountainProvider'
+import { SpamFilterProvider } from '@/providers/SpamFilterProvider'
 
 import { AppWithListPreview } from './components/AppWithListPreview'
 
@@ -89,60 +90,62 @@ export default function App(): JSX.Element {
                                                       <NostrProvider>
                                                         <ListsProvider>
                                                           <TextOnlyModeProvider>
-                                                                <LowBandwidthModeProvider>
-                                                                  <DisableAvatarAnimationsProvider>
-                                                                    <CollapseLongNotesProvider>
-                                                                      <AlwaysShowFullMediaProvider>
-                                                                        <NoteExpirationProvider>
-                                                                          <DefaultReactionEmojisProvider>
-                                                                            <FavoriteRelaysProvider>
-                                                                                  <FollowListProvider>
-                                                                                    <MuteListProvider>
-                                                                                      <UserTrustProvider>
-                                                                                        <ContentPolicyProvider>
-                                                                                          <BookmarksProvider>
-                                                                                            <PinListProvider>
-                                                                                              <PinnedRepliesProvider>
-                                                                                                <CustomFeedsProvider>
-                                                                                                  <FeedProvider>
-                                                                                                    <ReplyProvider>
-                                                                                                      <MediaUploadServiceProvider>
-                                                                                                        <KindFilterProvider>
-                                                                                                          <MediaOnlyProvider>
-                                                                                                            <UserPreferencesProvider>
-                                                                                                              <TrendingNotesDismissedProvider>
-                                                                                                                <WidgetsProvider>
-                                                                                                                  <WidgetSidebarDismissedProvider>
-                                                                                                                    <LiveStreamPopoutProvider>
-                                                                                                                      <LiveReactionFountainProvider>
-                                                                                                                        <AppWithListPreview />
-                                                                                                                        <Toaster />
-                                                                                                                      </LiveReactionFountainProvider>
-                                                                                                                    </LiveStreamPopoutProvider>
-                                                                                                                  </WidgetSidebarDismissedProvider>
-                                                                                                                </WidgetsProvider>
-                                                                                                              </TrendingNotesDismissedProvider>
-                                                                                                            </UserPreferencesProvider>
-                                                                                                          </MediaOnlyProvider>
-                                                                                                        </KindFilterProvider>
-                                                                                                      </MediaUploadServiceProvider>
-                                                                                                    </ReplyProvider>
-                                                                                                  </FeedProvider>
-                                                                                                </CustomFeedsProvider>
-                                                                                              </PinnedRepliesProvider>
-                                                                                            </PinListProvider>
-                                                                                          </BookmarksProvider>
-                                                                                        </ContentPolicyProvider>
-                                                                                      </UserTrustProvider>
-                                                                                    </MuteListProvider>
-                                                                                  </FollowListProvider>
-                                                                                </FavoriteRelaysProvider>
-                                                                          </DefaultReactionEmojisProvider>
-                                                                        </NoteExpirationProvider>
-                                                                      </AlwaysShowFullMediaProvider>
-                                                                    </CollapseLongNotesProvider>
-                                                                  </DisableAvatarAnimationsProvider>
-                                                                </LowBandwidthModeProvider>
+                                                            <LowBandwidthModeProvider>
+                                                              <DisableAvatarAnimationsProvider>
+                                                                <CollapseLongNotesProvider>
+                                                                  <AlwaysShowFullMediaProvider>
+                                                                    <NoteExpirationProvider>
+                                                                      <DefaultReactionEmojisProvider>
+                                                                        <FavoriteRelaysProvider>
+                                                                          <FollowListProvider>
+                                                                            <SpamFilterProvider>
+                                                                              <MuteListProvider>
+                                                                                <UserTrustProvider>
+                                                                                  <ContentPolicyProvider>
+                                                                                    <BookmarksProvider>
+                                                                                      <PinListProvider>
+                                                                                        <PinnedRepliesProvider>
+                                                                                          <CustomFeedsProvider>
+                                                                                            <FeedProvider>
+                                                                                              <ReplyProvider>
+                                                                                                <MediaUploadServiceProvider>
+                                                                                                  <KindFilterProvider>
+                                                                                                    <MediaOnlyProvider>
+                                                                                                      <UserPreferencesProvider>
+                                                                                                        <TrendingNotesDismissedProvider>
+                                                                                                          <WidgetsProvider>
+                                                                                                            <WidgetSidebarDismissedProvider>
+                                                                                                              <LiveStreamPopoutProvider>
+                                                                                                                <LiveReactionFountainProvider>
+                                                                                                                  <AppWithListPreview />
+                                                                                                                  <Toaster />
+                                                                                                                </LiveReactionFountainProvider>
+                                                                                                              </LiveStreamPopoutProvider>
+                                                                                                            </WidgetSidebarDismissedProvider>
+                                                                                                          </WidgetsProvider>
+                                                                                                        </TrendingNotesDismissedProvider>
+                                                                                                      </UserPreferencesProvider>
+                                                                                                    </MediaOnlyProvider>
+                                                                                                  </KindFilterProvider>
+                                                                                                </MediaUploadServiceProvider>
+                                                                                              </ReplyProvider>
+                                                                                            </FeedProvider>
+                                                                                          </CustomFeedsProvider>
+                                                                                        </PinnedRepliesProvider>
+                                                                                      </PinListProvider>
+                                                                                    </BookmarksProvider>
+                                                                                  </ContentPolicyProvider>
+                                                                                </UserTrustProvider>
+                                                                              </MuteListProvider>
+                                                                            </SpamFilterProvider>
+                                                                          </FollowListProvider>
+                                                                        </FavoriteRelaysProvider>
+                                                                      </DefaultReactionEmojisProvider>
+                                                                    </NoteExpirationProvider>
+                                                                  </AlwaysShowFullMediaProvider>
+                                                                </CollapseLongNotesProvider>
+                                                              </DisableAvatarAnimationsProvider>
+                                                            </LowBandwidthModeProvider>
                                                           </TextOnlyModeProvider>
                                                         </ListsProvider>
                                                       </NostrProvider>

@@ -660,6 +660,43 @@ export default {
     'Hide notes with more than {{count}} hashtags': 'Beiträge mit mehr als {{count}} Hashtags verbergen',
     tags: 'Tags',
 
+    // NSpam and spam-filter UI
+    'Hide likely spam replies and posts with excessive hashtags or mentions':
+      'Verdächtige Spam-Antworten und Beiträge mit übermäßig vielen Hashtags oder Erwähnungen ausblenden',
+    'Hide likely spam replies': 'Verdächtige Spam-Antworten ausblenden',
+    'Score replies on this device and keep likely spam collapsed. Authors you mark as spam stay hidden when this is off.':
+      'Antworten auf diesem Gerät bewerten und mutmaßlichen Spam eingeklappt lassen. Als Spam markierte Autoren bleiben auch dann ausgeblendet, wenn diese Option deaktiviert ist.',
+    'Marked spam authors': 'Als Spam markierte Autoren',
+    'Choose an author to show their posts and replies again.':
+      'Wähle einen Autor aus, um seine Beiträge und Antworten wieder anzuzeigen.',
+    'Show author {{author}} again': 'Autor {{author}} wieder anzeigen',
+    'Remove spam mark': 'Spam-Markierung entfernen',
+    'Mark as spam': 'Als Spam markieren',
+    'Spam mark removed': 'Spam-Markierung entfernt',
+    'Author marked as spam': 'Autor als Spam markiert',
+    'Report sent and author marked as spam': 'Meldung gesendet und Autor als Spam markiert',
+    'The report was published. Content from this author is now hidden.':
+      'Die Meldung wurde veröffentlicht. Inhalte dieses Autors werden jetzt ausgeblendet.',
+    'Spam check unavailable': 'Spam-Prüfung nicht verfügbar',
+    'Checking replies': 'Antworten werden geprüft',
+    '1 reply remains hidden until the check succeeds.':
+      '1 Antwort bleibt ausgeblendet, bis die Prüfung erfolgreich ist.',
+    '{{count}} replies remain hidden until the check succeeds.':
+      '{{count}} Antworten bleiben ausgeblendet, bis die Prüfung erfolgreich ist.',
+    'Checking 1 reply before showing it.': '1 Antwort wird vor der Anzeige geprüft.',
+    'Checking {{count}} replies before showing them.':
+      '{{count}} Antworten werden vor der Anzeige geprüft.',
+    Retry: 'Erneut versuchen',
+    'Might be spam': 'Möglicherweise Spam',
+    '{{count}} hidden reply from a likely spam account':
+      '{{count}} ausgeblendete Antwort von einem mutmaßlichen Spam-Konto',
+    '{{count}} hidden replies from likely spam accounts':
+      '{{count}} ausgeblendete Antworten von mutmaßlichen Spam-Konten',
+    Hide: 'Ausblenden',
+    Show: 'Anzeigen',
+    'Not spam': 'Kein Spam',
+    'This user is marked as spam': 'Dieser Benutzer ist als Spam markiert',
+
     // Content & Privacy - NSFW
     'Show NSFW content by default': 'NSFW-Inhalte standardmäßig anzeigen',
 

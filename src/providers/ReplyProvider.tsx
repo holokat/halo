@@ -1,4 +1,5 @@
 import { getParentATag, getParentETag, getRootATag, getRootETag } from '@/lib/event'
+import { ingestNSpamEvents } from '@/services/nspam.service'
 import { Event } from 'nostr-tools'
 import { createContext, useCallback, useContext, useState } from 'react'
 
@@ -24,6 +25,7 @@ export function ReplyProvider({ children }: { children: React.ReactNode }) {
   >(new Map())
 
   const addReplies = useCallback((replies: Event[]) => {
+    ingestNSpamEvents(replies)
     const newReplyIdSet = new Set<string>()
     const newReplyEventMap = new Map<string, Event[]>()
     replies.forEach((reply) => {

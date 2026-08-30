@@ -3,6 +3,7 @@ import { isMentioningMutedUsers } from '@/lib/event'
 import { cn } from '@/lib/utils'
 import { useContentPolicy } from '@/providers/ContentPolicyProvider'
 import { useMuteList } from '@/providers/MuteListProvider'
+import { useSpamFilter } from '@/providers/SpamFilterProvider'
 import { Event, kinds } from 'nostr-tools'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -26,6 +27,11 @@ export default function ContentPreview({
   const { t } = useTranslation()
   const { mutePubkeySet } = useMuteList()
   const { hideContentMentioningMutedUsers } = useContentPolicy()
+  const { markedPubkeys } = useSpamFilter()
+  const isMarkedSpam = useMemo(
+    () => (event ? markedPubkeys.has(event.pubkey.trim().toLowerCase()) : false),
+    [event, markedPubkeys]
+  )
   const isMuted = useMemo(
     () => (event ? mutePubkeySet.has(event.pubkey) : false),
     [mutePubkeySet, event]
@@ -45,6 +51,14 @@ export default function ContentPreview({
   if (isMuted) {
     return (
       <div className={cn('pointer-events-none', className)}>[{t('This user has been muted')}]</div>
+    )
+  }
+
+  if (isMarkedSpam) {
+    return (
+      <div className={cn('pointer-events-none', className)}>
+        [{t('This user is marked as spam', { defaultValue: 'This user is marked as spam' })}]
+      </div>
     )
   }
 

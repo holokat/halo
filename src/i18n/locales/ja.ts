@@ -483,5 +483,42 @@ export default {
 General: '一般',
 'Content & Privacy': 'コンテンツとプライバシー',
 'Backup & Sync': 'バックアップと同期',
+
+    // NSpam and spam-filter UI
+    'Hide likely spam replies and posts with excessive hashtags or mentions':
+      'スパムの可能性がある返信と、ハッシュタグやメンションが過剰な投稿を非表示にする',
+    'Hide likely spam replies': 'スパムの可能性がある返信を非表示にする',
+    'Score replies on this device and keep likely spam collapsed. Authors you mark as spam stay hidden when this is off.':
+      'このデバイスで返信を判定し、スパムの可能性が高いものを折りたたみます。この設定をオフにしても、スパムとしてマークした投稿者の返信は非表示のままです。',
+    'Marked spam authors': 'スパムとしてマークした投稿者',
+    'Choose an author to show their posts and replies again.':
+      '投稿と返信を再び表示する投稿者を選択してください。',
+    'Show author {{author}} again': '{{author}}を再び表示',
+    'Remove spam mark': 'スパムのマークを解除',
+    'Mark as spam': 'スパムとしてマーク',
+    'Spam mark removed': 'スパムのマークを解除しました',
+    'Author marked as spam': '投稿者をスパムとしてマークしました',
+    'Report sent and author marked as spam': '報告を送信し、投稿者をスパムとしてマークしました',
+    'The report was published. Content from this author is now hidden.':
+      '報告を公開しました。この投稿者のコンテンツは非表示になりました。',
+    'Spam check unavailable': 'スパムチェックは利用できません',
+    'Checking replies': '返信を確認中',
+    '1 reply remains hidden until the check succeeds.':
+      'チェックが成功するまで、1件の返信は非表示のままです。',
+    '{{count}} replies remain hidden until the check succeeds.':
+      'チェックが成功するまで、{{count}}件の返信は非表示のままです。',
+    'Checking 1 reply before showing it.': '表示する前に1件の返信を確認しています。',
+    'Checking {{count}} replies before showing them.':
+      '表示する前に{{count}}件の返信を確認しています。',
+    Retry: '再試行',
+    'Might be spam': 'スパムの可能性があります',
+    '{{count}} hidden reply from a likely spam account':
+      'スパムの可能性が高いアカウントからの非表示の返信 {{count}}件',
+    '{{count}} hidden replies from likely spam accounts':
+      'スパムの可能性が高いアカウントからの非表示の返信 {{count}}件',
+    Hide: '隠す',
+    Show: '表示',
+    'Not spam': 'スパムではない',
+    'This user is marked as spam': 'このユーザーはスパムとしてマークされています',
 }
 }

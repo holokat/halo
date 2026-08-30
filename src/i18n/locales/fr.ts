@@ -605,6 +605,44 @@ export default {
     'Hide notes with more than {{count}} hashtags': 'Masquer les publications avec plus de {{count}} hashtags',
     tags: 'étiquettes',
 
+    // NSpam and spam-filter UI
+    'Hide likely spam replies and posts with excessive hashtags or mentions':
+      'Masquer les réponses probablement indésirables et les publications contenant trop de hashtags ou de mentions',
+    'Hide likely spam replies': 'Masquer les réponses probablement indésirables',
+    'Score replies on this device and keep likely spam collapsed. Authors you mark as spam stay hidden when this is off.':
+      'Évaluez les réponses sur cet appareil et laissez le contenu probablement indésirable replié. Les auteurs que vous marquez comme indésirables restent masqués lorsque cette option est désactivée.',
+    'Marked spam authors': 'Auteurs marqués comme indésirables',
+    'Choose an author to show their posts and replies again.':
+      'Choisissez un auteur pour afficher de nouveau ses publications et ses réponses.',
+    'Show author {{author}} again': 'Afficher de nouveau l’auteur {{author}}',
+    'Remove spam mark': 'Retirer le marquage comme indésirable',
+    'Mark as spam': 'Marquer comme indésirable',
+    'Spam mark removed': 'Marquage comme indésirable retiré',
+    'Author marked as spam': 'Auteur marqué comme indésirable',
+    'Report sent and author marked as spam':
+      'Signalement envoyé et auteur marqué comme indésirable',
+    'The report was published. Content from this author is now hidden.':
+      'Le signalement a été publié. Le contenu de cet auteur est maintenant masqué.',
+    'Spam check unavailable': 'Vérification du spam indisponible',
+    'Checking replies': 'Vérification des réponses',
+    '1 reply remains hidden until the check succeeds.':
+      '1 réponse reste masquée jusqu’à ce que la vérification aboutisse.',
+    '{{count}} replies remain hidden until the check succeeds.':
+      '{{count}} réponses restent masquées jusqu’à ce que la vérification aboutisse.',
+    'Checking 1 reply before showing it.': 'Vérification de 1 réponse avant de l’afficher.',
+    'Checking {{count}} replies before showing them.':
+      'Vérification de {{count}} réponses avant de les afficher.',
+    Retry: 'Réessayer',
+    'Might be spam': 'Contenu potentiellement indésirable',
+    '{{count}} hidden reply from a likely spam account':
+      '{{count}} réponse masquée provenant d’un compte probablement indésirable',
+    '{{count}} hidden replies from likely spam accounts':
+      '{{count}} réponses masquées provenant de comptes probablement indésirables',
+    Hide: 'Masquer',
+    Show: 'Afficher',
+    'Not spam': 'Pas indésirable',
+    'This user is marked as spam': 'Cet utilisateur est marqué comme indésirable',
+
     // Content & Privacy - NSFW
     'Show NSFW content by default': 'Afficher le contenu NSFW par défaut',
 

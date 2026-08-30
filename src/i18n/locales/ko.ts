@@ -602,6 +602,41 @@ export default {
     'No hashtag filtering': '해시태그 필터링 없음',
     'Hide notes with more than {{count}} hashtags': '{{count}}개 이상의 해시태그가 있는 게시물 숨기기',
     tags: '태그',
+    'Hide likely spam replies and posts with excessive hashtags or mentions':
+      '스팸일 가능성이 높은 답글과 해시태그 또는 멘션이 과도한 게시물 숨기기',
+    'Hide likely spam replies': '스팸일 가능성이 높은 답글 숨기기',
+    'Score replies on this device and keep likely spam collapsed. Authors you mark as spam stay hidden when this is off.':
+      '이 기기에서 답글을 평가하고 스팸일 가능성이 높은 답글을 접어 둡니다. 이 기능을 꺼도 스팸으로 표시한 작성자의 답글은 계속 숨겨집니다.',
+    'Marked spam authors': '스팸으로 표시한 작성자',
+    'Choose an author to show their posts and replies again.':
+      '게시물과 답글을 다시 표시할 작성자를 선택하세요.',
+    'Show author {{author}} again': '{{author}} 다시 표시',
+    'Remove spam mark': '스팸 표시 해제',
+    'Mark as spam': '스팸으로 표시',
+    'Spam mark removed': '스팸 표시가 해제되었습니다',
+    'Author marked as spam': '작성자를 스팸으로 표시했습니다',
+    'Report sent and author marked as spam': '신고를 보내고 작성자를 스팸으로 표시했습니다',
+    'The report was published. Content from this author is now hidden.':
+      '신고가 게시되었습니다. 이 작성자의 콘텐츠는 이제 숨겨집니다.',
+    'Spam check unavailable': '스팸 검사를 사용할 수 없습니다',
+    'Checking replies': '답글 확인 중',
+    '1 reply remains hidden until the check succeeds.':
+      '검사가 성공할 때까지 답글 1개가 숨겨진 상태로 유지됩니다.',
+    '{{count}} replies remain hidden until the check succeeds.':
+      '검사가 성공할 때까지 답글 {{count}}개가 숨겨진 상태로 유지됩니다.',
+    'Checking 1 reply before showing it.': '답글 1개를 표시하기 전에 확인하고 있습니다.',
+    'Checking {{count}} replies before showing them.':
+      '답글 {{count}}개를 표시하기 전에 확인하고 있습니다.',
+    Retry: '다시 시도',
+    'Might be spam': '스팸일 수 있음',
+    '{{count}} hidden reply from a likely spam account':
+      '스팸일 가능성이 높은 계정의 숨겨진 답글 {{count}}개',
+    '{{count}} hidden replies from likely spam accounts':
+      '스팸일 가능성이 높은 계정들의 숨겨진 답글 {{count}}개',
+    Hide: '숨기기',
+    Show: '표시',
+    'Not spam': '스팸 아님',
+    'This user is marked as spam': '이 사용자는 스팸으로 표시되었습니다',
 
     // Content & Privacy - NSFW
     'Show NSFW content by default': '기본적으로 NSFW 콘텐츠 표시',

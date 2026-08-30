@@ -2,10 +2,12 @@ import { useSecondaryPage } from '@/PageManager'
 import { ExtendedKind, SUPPORTED_KINDS } from '@/constants'
 import { getNoteBech32Id, getParentBech32Id, isNsfwEvent } from '@/lib/event'
 import { toNote } from '@/lib/link'
+import { isSpamMarkedPubkey } from '@/lib/spam-filter'
 import { cn } from '@/lib/utils'
 import { useContentPolicy } from '@/providers/ContentPolicyProvider'
 import { useMuteList } from '@/providers/MuteListProvider'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
+import { useSpamFilter } from '@/providers/SpamFilterProvider'
 import { Event, kinds } from 'nostr-tools'
 import { useMemo, useState } from 'react'
 import AudioPlayer from '../AudioPlayer'
@@ -65,9 +67,14 @@ export default function Note({
   const { defaultShowNsfw, alwaysHideMutedNotes } = useContentPolicy()
   const [showNsfw, setShowNsfw] = useState(false)
   const { mutePubkeySet } = useMuteList()
+  const { markedPubkeys } = useSpamFilter()
   const [showMuted, setShowMuted] = useState(false)
 
   const isMutedByPubkey = mutePubkeySet.has(event.pubkey)
+
+  if (isSpamMarkedPubkey(event.pubkey, markedPubkeys)) {
+    return null
+  }
 
   // If alwaysHideMutedNotes is enabled AND we're filtering mutes, completely hide pubkey-muted notes
   if (filterMutedNotes && alwaysHideMutedNotes && isMutedByPubkey) {

@@ -1,8 +1,10 @@
 import { ExtendedKind } from '@/constants'
 import { notificationFilter } from '@/lib/notification'
+import { isSpamMarkedPubkey } from '@/lib/spam-filter'
 import { useContentPolicy } from '@/providers/ContentPolicyProvider'
 import { useMuteList } from '@/providers/MuteListProvider'
 import { useNostr } from '@/providers/NostrProvider'
+import { useSpamFilter } from '@/providers/SpamFilterProvider'
 import { useUserTrust } from '@/providers/UserTrustProvider'
 import client from '@/services/client.service'
 import { Event, kinds } from 'nostr-tools'
@@ -20,12 +22,15 @@ export function NotificationItem({
   isNew?: boolean
 }) {
   const { pubkey } = useNostr()
+  const { markedPubkeys } = useSpamFilter()
   const { mutePubkeySet, getMutedWords, getMutedTags } = useMuteList()
   const { hideContentMentioningMutedUsers, hideNotificationsFromMutedUsers } = useContentPolicy()
   const { hideUntrustedNotifications, isUserTrusted } = useUserTrust()
   const mutedWords = getMutedWords()
   const mutedTags = getMutedTags()
   const canShow = useMemo(() => {
+    if (isSpamMarkedPubkey(notification.pubkey, markedPubkeys)) return false
+
     return notificationFilter(notification, {
       pubkey,
       mutePubkeySet,
@@ -39,6 +44,7 @@ export function NotificationItem({
     })
   }, [
     notification,
+    markedPubkeys,
     mutePubkeySet,
     hideContentMentioningMutedUsers,
     hideNotificationsFromMutedUsers,

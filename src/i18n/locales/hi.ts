@@ -603,6 +603,43 @@ export default {
     'Hide notes with more than {{count}} hashtags': '{{count}} से अधिक हैशटैग वाली पोस्ट छिपाएं',
     tags: 'टैग',
 
+    // NSpam and spam-filter UI
+    'Hide likely spam replies and posts with excessive hashtags or mentions':
+      'अत्यधिक हैशटैग या मेंशन वाली पोस्ट और संभावित स्पैम जवाब छिपाएं',
+    'Hide likely spam replies': 'संभावित स्पैम जवाब छिपाएं',
+    'Score replies on this device and keep likely spam collapsed. Authors you mark as spam stay hidden when this is off.':
+      'इस डिवाइस पर जवाबों को स्कोर करें और संभावित स्पैम को संक्षिप्त रखें। जिन लेखकों को आप स्पैम के रूप में चिह्नित करते हैं, वे इस विकल्प के बंद होने पर भी छिपे रहेंगे।',
+    'Marked spam authors': 'स्पैम के रूप में चिह्नित लेखक',
+    'Choose an author to show their posts and replies again.':
+      'किसी लेखक की पोस्ट और जवाब फिर से दिखाने के लिए उसे चुनें।',
+    'Show author {{author}} again': 'लेखक {{author}} को फिर से दिखाएं',
+    'Remove spam mark': 'स्पैम चिह्न हटाएं',
+    'Mark as spam': 'स्पैम के रूप में चिह्नित करें',
+    'Spam mark removed': 'स्पैम चिह्न हटा दिया गया',
+    'Author marked as spam': 'लेखक को स्पैम के रूप में चिह्नित किया गया',
+    'Report sent and author marked as spam':
+      'रिपोर्ट भेजी गई और लेखक को स्पैम के रूप में चिह्नित किया गया',
+    'The report was published. Content from this author is now hidden.':
+      'रिपोर्ट प्रकाशित हो गई। इस लेखक का कंटेंट अब छिपा हुआ है।',
+    'Spam check unavailable': 'स्पैम जांच उपलब्ध नहीं है',
+    'Checking replies': 'जवाबों की जांच हो रही है',
+    '1 reply remains hidden until the check succeeds.': 'जांच सफल होने तक 1 जवाब छिपा रहेगा।',
+    '{{count}} replies remain hidden until the check succeeds.':
+      'जांच सफल होने तक {{count}} जवाब छिपे रहेंगे।',
+    'Checking 1 reply before showing it.': 'दिखाने से पहले 1 जवाब की जांच हो रही है।',
+    'Checking {{count}} replies before showing them.':
+      'दिखाने से पहले {{count}} जवाबों की जांच हो रही है।',
+    Retry: 'फिर से कोशिश करें',
+    'Might be spam': 'स्पैम हो सकता है',
+    '{{count}} hidden reply from a likely spam account':
+      'संभावित स्पैम खाते का {{count}} छिपा हुआ जवाब',
+    '{{count}} hidden replies from likely spam accounts':
+      'संभावित स्पैम खातों के {{count}} छिपे हुए जवाब',
+    Hide: 'छिपाएं',
+    Show: 'दिखाएं',
+    'Not spam': 'स्पैम नहीं है',
+    'This user is marked as spam': 'यह उपयोगकर्ता स्पैम के रूप में चिह्नित है',
+
     // Content & Privacy - NSFW
     'Show NSFW content by default': 'डिफ़ॉल्ट रूप से NSFW कंटेंट दिखाएं',
 

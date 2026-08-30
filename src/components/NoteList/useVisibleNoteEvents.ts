@@ -47,7 +47,8 @@ export function useVisibleNoteEvents({
       visibilityOptions.maxMentions,
       visibilityOptions.mutePubkeySet,
       visibilityOptions.mutedTags,
-      visibilityOptions.mutedWordsLower
+      visibilityOptions.mutedWordsLower,
+      visibilityOptions.spamMarkedPubkeySet
     ]
   )
 

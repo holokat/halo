@@ -603,6 +603,41 @@ export default {
     'Hide notes with more than {{count}} hashtags': 'إخفاء المنشورات التي تحتوي على أكثر من {{count}} علامة',
     tags: 'علامات',
 
+    'Hide likely spam replies and posts with excessive hashtags or mentions':
+      'إخفاء الردود التي يُحتمل أن تكون مزعجة والمنشورات التي تحتوي على عدد مفرط من الوسوم أو الإشارات',
+    'Hide likely spam replies': 'إخفاء الردود التي يُحتمل أن تكون مزعجة',
+    'Score replies on this device and keep likely spam collapsed. Authors you mark as spam stay hidden when this is off.':
+      'تقييم الردود على هذا الجهاز وإبقاء الردود التي يُحتمل أن تكون مزعجة مطوية. يظل المؤلفون الذين تضع عليهم علامة مزعج مخفيين عند إيقاف هذا الخيار.',
+    'Marked spam authors': 'المؤلفون المعلَّم عليهم كمزعجين',
+    'Choose an author to show their posts and replies again.':
+      'اختر مؤلفًا لعرض منشوراته وردوده مرة أخرى.',
+    'Show author {{author}} again': 'إظهار المؤلف {{author}} مرة أخرى',
+    'Remove spam mark': 'إزالة علامة البريد المزعج',
+    'Mark as spam': 'وضع علامة كمزعج',
+    'Spam mark removed': 'تمت إزالة علامة البريد المزعج',
+    'Author marked as spam': 'تم وضع علامة على المؤلف كمزعج',
+    'Report sent and author marked as spam': 'تم إرسال البلاغ ووضع علامة على المؤلف كمزعج',
+    'The report was published. Content from this author is now hidden.':
+      'تم نشر البلاغ. محتوى هذا المؤلف مخفي الآن.',
+    'Spam check unavailable': 'تعذّر التحقق من البريد المزعج',
+    'Checking replies': 'جارٍ التحقق من الردود',
+    '1 reply remains hidden until the check succeeds.': 'يظل رد واحد مخفيًا حتى ينجح التحقق.',
+    '{{count}} replies remain hidden until the check succeeds.':
+      'يظل {{count}} من الردود مخفيًا حتى ينجح التحقق.',
+    'Checking 1 reply before showing it.': 'جارٍ التحقق من رد واحد قبل عرضه.',
+    'Checking {{count}} replies before showing them.':
+      'جارٍ التحقق من {{count}} من الردود قبل عرضها.',
+    Retry: 'إعادة المحاولة',
+    'Might be spam': 'قد يكون مزعجًا',
+    '{{count}} hidden reply from a likely spam account':
+      '{{count}} رد مخفي من حساب يُحتمل أنه مزعج',
+    '{{count}} hidden replies from likely spam accounts':
+      '{{count}} من الردود المخفية من حسابات يُحتمل أنها مزعجة',
+    Hide: 'إخفاء',
+    Show: 'إظهار',
+    'Not spam': 'ليس مزعجًا',
+    'This user is marked as spam': 'تم وضع علامة على هذا المستخدم كمزعج',
+
     // Content & Privacy - NSFW
     'Show NSFW content by default': 'عرض المحتوى الحساس افتراضياً',
 

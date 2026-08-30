@@ -603,6 +603,44 @@ export default {
     'Hide notes with more than {{count}} hashtags': 'مخفی کردن پست‌هایی با بیش از {{count}} هشتگ',
     tags: 'برچسب‌ها',
 
+    // NSpam and spam-filter UI
+    'Hide likely spam replies and posts with excessive hashtags or mentions':
+      'پنهان کردن پاسخ‌های احتمالاً هرزنامه و پست‌های دارای هشتگ یا اشاره بیش از حد',
+    'Hide likely spam replies': 'پنهان کردن پاسخ‌های احتمالاً هرزنامه',
+    'Score replies on this device and keep likely spam collapsed. Authors you mark as spam stay hidden when this is off.':
+      'پاسخ‌ها را در این دستگاه امتیازدهی کنید و موارد احتمالاً هرزنامه را بسته نگه دارید. نویسندگانی که به‌عنوان هرزنامه علامت می‌زنید، با خاموش بودن این گزینه نیز پنهان می‌مانند.',
+    'Marked spam authors': 'نویسندگان علامت‌گذاری‌شده به‌عنوان هرزنامه',
+    'Choose an author to show their posts and replies again.':
+      'یک نویسنده را انتخاب کنید تا پست‌ها و پاسخ‌های او دوباره نمایش داده شوند.',
+    'Show author {{author}} again': 'نمایش دوباره نویسنده {{author}}',
+    'Remove spam mark': 'برداشتن علامت هرزنامه',
+    'Mark as spam': 'علامت‌گذاری به‌عنوان هرزنامه',
+    'Spam mark removed': 'علامت هرزنامه برداشته شد',
+    'Author marked as spam': 'نویسنده به‌عنوان هرزنامه علامت‌گذاری شد',
+    'Report sent and author marked as spam':
+      'گزارش ارسال شد و نویسنده به‌عنوان هرزنامه علامت‌گذاری شد',
+    'The report was published. Content from this author is now hidden.':
+      'گزارش منتشر شد. محتوای این نویسنده اکنون پنهان است.',
+    'Spam check unavailable': 'بررسی هرزنامه در دسترس نیست',
+    'Checking replies': 'در حال بررسی پاسخ‌ها',
+    '1 reply remains hidden until the check succeeds.':
+      '۱ پاسخ تا زمان موفقیت بررسی پنهان می‌ماند.',
+    '{{count}} replies remain hidden until the check succeeds.':
+      '{{count}} پاسخ تا زمان موفقیت بررسی پنهان می‌مانند.',
+    'Checking 1 reply before showing it.': 'در حال بررسی ۱ پاسخ پیش از نمایش آن.',
+    'Checking {{count}} replies before showing them.':
+      'در حال بررسی {{count}} پاسخ پیش از نمایش آن‌ها.',
+    Retry: 'تلاش دوباره',
+    'Might be spam': 'ممکن است هرزنامه باشد',
+    '{{count}} hidden reply from a likely spam account':
+      '{{count}} پاسخ پنهان از حسابی که احتمالاً هرزنامه است',
+    '{{count}} hidden replies from likely spam accounts':
+      '{{count}} پاسخ پنهان از حساب‌هایی که احتمالاً هرزنامه هستند',
+    Hide: 'پنهان کردن',
+    Show: 'نمایش',
+    'Not spam': 'هرزنامه نیست',
+    'This user is marked as spam': 'این کاربر به‌عنوان هرزنامه علامت‌گذاری شده است',
+
     // Content & Privacy - NSFW
     'Show NSFW content by default': 'نمایش محتوای NSFW به طور پیش‌فرض',
 

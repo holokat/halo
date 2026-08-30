@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input'
 import { Slider } from '@/components/ui/slider'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import Tabs from '@/components/Tabs'
+import UserAvatar from '@/components/UserAvatar'
+import Username from '@/components/Username'
 import { MEDIA_AUTO_LOAD_POLICY } from '@/constants'
 import { useFetchEvent } from '@/hooks'
 import SecondaryPageLayout from '@/layouts/SecondaryPageLayout'
@@ -13,6 +15,7 @@ import { cn, isSupportCheckConnectionType } from '@/lib/utils'
 import { useContentPolicy } from '@/providers/ContentPolicyProvider'
 import { useUserTrust } from '@/providers/UserTrustProvider'
 import { useMuteList } from '@/providers/MuteListProvider'
+import { useSpamFilter } from '@/providers/SpamFilterProvider'
 import { TMediaAutoLoadPolicy } from '@/types'
 import { SelectValue } from '@radix-ui/react-select'
 import { Plus, X } from 'lucide-react'
@@ -56,6 +59,12 @@ const ContentPrivacySettingsPage = forwardRef(({ index }: { index?: number }, re
     hideUntrustedNotifications,
     updateHideUntrustedNotifications
   } = useUserTrust()
+  const {
+    enabled: spamReplyFilterEnabled,
+    markedPubkeys: spamMarkedPubkeys,
+    markNotSpam,
+    setEnabled: setSpamReplyFilterEnabled
+  } = useSpamFilter()
 
   const tabDefinitions = [
     { value: 'content', label: t('Content') },
@@ -67,12 +76,7 @@ const ContentPrivacySettingsPage = forwardRef(({ index }: { index?: number }, re
   return (
     <SecondaryPageLayout ref={ref} index={index} title={t('Content & Privacy')}>
       <div className="mt-3">
-        <Tabs
-          tabs={tabDefinitions}
-          value={activeTab}
-          onTabChange={setActiveTab}
-          threshold={0}
-        />
+        <Tabs tabs={tabDefinitions} value={activeTab} onTabChange={setActiveTab} threshold={0} />
 
         {/* CONTENT TAB */}
         {activeTab === 'content' && (
@@ -82,7 +86,9 @@ const ContentPrivacySettingsPage = forwardRef(({ index }: { index?: number }, re
               <CardHeader>
                 <CardTitle>{t('Web of Trust')}</CardTitle>
                 <CardDescription>
-                  {t('Control who can appear in your feed and notifications based on your social network')}
+                  {t(
+                    'Control who can appear in your feed and notifications based on your social network'
+                  )}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -100,7 +106,8 @@ const ContentPrivacySettingsPage = forwardRef(({ index }: { index?: number }, re
                   </div>
                   <div className="text-sm text-muted-foreground">
                     {trustLevel === 0 && t('Show notes from everyone on Nostr')}
-                    {trustLevel === 1 && t('Show notes from people you follow and people they follow')}
+                    {trustLevel === 1 &&
+                      t('Show notes from people you follow and people they follow')}
                     {trustLevel === 2 && t('Show notes only from people you directly follow')}
                     {trustLevel === 3 && t('Show only your own notes')}
                   </div>
@@ -114,10 +121,18 @@ const ContentPrivacySettingsPage = forwardRef(({ index }: { index?: number }, re
                     className="w-full"
                   />
                   <div className="flex justify-between text-xs text-muted-foreground pt-1">
-                    <span className={cn(trustLevel === 0 && 'text-primary font-medium')}>{t('Everyone')}</span>
-                    <span className={cn(trustLevel === 1 && 'text-primary font-medium')}>{t('Network')}</span>
-                    <span className={cn(trustLevel === 2 && 'text-primary font-medium')}>{t('Follows')}</span>
-                    <span className={cn(trustLevel === 3 && 'text-primary font-medium')}>{t('You')}</span>
+                    <span className={cn(trustLevel === 0 && 'text-primary font-medium')}>
+                      {t('Everyone')}
+                    </span>
+                    <span className={cn(trustLevel === 1 && 'text-primary font-medium')}>
+                      {t('Network')}
+                    </span>
+                    <span className={cn(trustLevel === 2 && 'text-primary font-medium')}>
+                      {t('Follows')}
+                    </span>
+                    <span className={cn(trustLevel === 3 && 'text-primary font-medium')}>
+                      {t('You')}
+                    </span>
                   </div>
                 </div>
 
@@ -125,7 +140,10 @@ const ContentPrivacySettingsPage = forwardRef(({ index }: { index?: number }, re
                 {trustLevel > 0 && (
                   <div className="pt-4 border-t">
                     <SettingItem className="px-0">
-                      <Label htmlFor="hide-untrusted-notifications" className="text-base font-normal">
+                      <Label
+                        htmlFor="hide-untrusted-notifications"
+                        className="text-base font-normal"
+                      >
                         <div>{t('Also filter notifications')}</div>
                         <div className="text-sm text-muted-foreground font-normal">
                           {t('Apply the same trust level to your notifications')}
@@ -152,7 +170,10 @@ const ContentPrivacySettingsPage = forwardRef(({ index }: { index?: number }, re
               </CardHeader>
               <CardContent className="space-y-4">
                 <SettingItem className="px-0">
-                  <Label htmlFor="hide-content-mentioning-muted-users" className="text-base font-normal">
+                  <Label
+                    htmlFor="hide-content-mentioning-muted-users"
+                    className="text-base font-normal"
+                  >
                     {t('Hide content mentioning muted users')}
                   </Label>
                   <Switch
@@ -175,7 +196,10 @@ const ContentPrivacySettingsPage = forwardRef(({ index }: { index?: number }, re
                   />
                 </SettingItem>
                 <SettingItem className="px-0">
-                  <Label htmlFor="hide-notifications-from-muted-users" className="text-base font-normal">
+                  <Label
+                    htmlFor="hide-notifications-from-muted-users"
+                    className="text-base font-normal"
+                  >
                     {t('Hide notifications from muted users')}
                   </Label>
                   <Switch
@@ -192,10 +216,76 @@ const ContentPrivacySettingsPage = forwardRef(({ index }: { index?: number }, re
               <CardHeader>
                 <CardTitle>{t('Spam Filters')}</CardTitle>
                 <CardDescription>
-                  {t('Automatically hide posts with excessive hashtags or mentions')}
+                  {t('Hide likely spam replies and posts with excessive hashtags or mentions')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                <SettingItem className="px-0">
+                  <Label htmlFor="hide-likely-spam-replies" className="text-base font-normal">
+                    <div>{t('Hide likely spam replies')}</div>
+                    <div className="text-sm text-muted-foreground font-normal">
+                      {t(
+                        'Score replies on this device and keep likely spam collapsed. Authors you mark as spam stay hidden when this is off.'
+                      )}
+                    </div>
+                  </Label>
+                  <Switch
+                    id="hide-likely-spam-replies"
+                    checked={spamReplyFilterEnabled}
+                    onCheckedChange={setSpamReplyFilterEnabled}
+                  />
+                </SettingItem>
+
+                <div className="border-t" />
+
+                {spamMarkedPubkeys.size > 0 && (
+                  <div className="space-y-3">
+                    <div>
+                      <div className="text-sm font-medium">
+                        {t('Marked spam authors', { defaultValue: 'Marked spam authors' })}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {t('Choose an author to show their posts and replies again.', {
+                          defaultValue: 'Choose an author to show their posts and replies again.'
+                        })}
+                      </div>
+                    </div>
+                    <div className="max-h-52 space-y-1 overflow-y-auto rounded-lg border p-1">
+                      {[...spamMarkedPubkeys].map((markedPubkey) => {
+                        const usernameId = `spam-author-${markedPubkey}`
+                        const actionId = `show-spam-author-${markedPubkey}`
+
+                        return (
+                          <div
+                            key={markedPubkey}
+                            className="flex items-center gap-2 rounded-md px-2 py-2 hover:bg-muted/50"
+                          >
+                            <UserAvatar userId={markedPubkey} size="small" className="shrink-0" />
+                            <span id={usernameId} className="min-w-0 flex-1 truncate">
+                              <Username userId={markedPubkey} />
+                            </span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="size-11 shrink-0 text-muted-foreground hover:text-foreground"
+                              onClick={() => markNotSpam(markedPubkey)}
+                              aria-labelledby={`${actionId} ${usernameId}`}
+                            >
+                              <span id={actionId} className="sr-only">
+                                {t('Show', { defaultValue: 'Show' })}
+                              </span>
+                              <X className="size-4" aria-hidden="true" />
+                            </Button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {spamMarkedPubkeys.size > 0 && <div className="border-t" />}
+
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <Label htmlFor="max-hashtags" className="text-base font-normal">
@@ -292,15 +382,22 @@ const ContentPrivacySettingsPage = forwardRef(({ index }: { index?: number }, re
                           {t('Wi-Fi only (everyone)')}
                         </SelectItem>
                       )}
-                      <SelectItem value={MEDIA_AUTO_LOAD_POLICY.NEVER}>{t('No one (click to load)')}</SelectItem>
+                      <SelectItem value={MEDIA_AUTO_LOAD_POLICY.NEVER}>
+                        {t('No one (click to load)')}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-sm text-muted-foreground">
-                    {mediaAutoLoadPolicy === MEDIA_AUTO_LOAD_POLICY.ALWAYS && t('Media will load automatically from everyone')}
-                    {mediaAutoLoadPolicy === MEDIA_AUTO_LOAD_POLICY.WEB_OF_TRUST && t('Media will load only from people you follow and people they follow')}
-                    {mediaAutoLoadPolicy === MEDIA_AUTO_LOAD_POLICY.FOLLOWS_ONLY && t('Media will load only from people you directly follow')}
-                    {mediaAutoLoadPolicy === MEDIA_AUTO_LOAD_POLICY.WIFI_ONLY && t('Media will load automatically only on Wi-Fi or ethernet connections')}
-                    {mediaAutoLoadPolicy === MEDIA_AUTO_LOAD_POLICY.NEVER && t('Media will never load automatically - click to load each image/video')}
+                    {mediaAutoLoadPolicy === MEDIA_AUTO_LOAD_POLICY.ALWAYS &&
+                      t('Media will load automatically from everyone')}
+                    {mediaAutoLoadPolicy === MEDIA_AUTO_LOAD_POLICY.WEB_OF_TRUST &&
+                      t('Media will load only from people you follow and people they follow')}
+                    {mediaAutoLoadPolicy === MEDIA_AUTO_LOAD_POLICY.FOLLOWS_ONLY &&
+                      t('Media will load only from people you directly follow')}
+                    {mediaAutoLoadPolicy === MEDIA_AUTO_LOAD_POLICY.WIFI_ONLY &&
+                      t('Media will load automatically only on Wi-Fi or ethernet connections')}
+                    {mediaAutoLoadPolicy === MEDIA_AUTO_LOAD_POLICY.NEVER &&
+                      t('Media will never load automatically - click to load each image/video')}
                   </p>
                 </div>
                 <SettingItem className="px-0">
@@ -316,7 +413,11 @@ const ContentPrivacySettingsPage = forwardRef(({ index }: { index?: number }, re
                   <Label htmlFor="show-nsfw" className="text-base font-normal">
                     {t('Show NSFW content by default')}
                   </Label>
-                  <Switch id="show-nsfw" checked={defaultShowNsfw} onCheckedChange={setDefaultShowNsfw} />
+                  <Switch
+                    id="show-nsfw"
+                    checked={defaultShowNsfw}
+                    onCheckedChange={setDefaultShowNsfw}
+                  />
                 </SettingItem>
               </CardContent>
             </Card>
@@ -405,9 +506,7 @@ function MutedWordsTab() {
           </div>
         ))}
         {mutedWords.length === 0 && (
-          <div className="text-center text-muted-foreground py-8">
-            {t('No muted words')}
-          </div>
+          <div className="text-center text-muted-foreground py-8">{t('No muted words')}</div>
         )}
       </div>
     </div>
@@ -486,16 +585,12 @@ function MutedHashtagsTab() {
           </div>
         ))}
         {mutedTags.length === 0 && (
-          <div className="text-center text-muted-foreground py-8">
-            {t('No muted hashtags')}
-          </div>
+          <div className="text-center text-muted-foreground py-8">{t('No muted hashtags')}</div>
         )}
       </div>
     </div>
   )
 }
-
-
 
 function MutedThreadsTab() {
   const { t } = useTranslation()
@@ -530,12 +625,14 @@ function MutedThreadsTab() {
       </div>
       <div className="space-y-2">
         {mutedThreads.map((thread, index) => (
-          <MutedThreadItem key={index} eventId={thread} onRemove={() => removeMutedThread(thread)} />
+          <MutedThreadItem
+            key={index}
+            eventId={thread}
+            onRemove={() => removeMutedThread(thread)}
+          />
         ))}
         {mutedThreads.length === 0 && (
-          <div className="text-center text-muted-foreground py-8">
-            {t('No muted threads')}
-          </div>
+          <div className="text-center text-muted-foreground py-8">{t('No muted threads')}</div>
         )}
       </div>
     </div>
@@ -545,19 +642,12 @@ function MutedThreadsTab() {
 function MutedThreadItem({ eventId, onRemove }: { eventId: string; onRemove: () => void }) {
   const { event } = useFetchEvent(eventId)
 
-  const displayText = event?.content
-    ? event.content.replace(/\n/g, ' ').trim()
-    : eventId
+  const displayText = event?.content ? event.content.replace(/\n/g, ' ').trim() : eventId
 
   return (
     <div className="flex items-center justify-between px-4 py-1 rounded-lg border gap-2">
       <span className="truncate text-sm flex-1">{displayText}</span>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onRemove}
-        className="h-7 w-7 shrink-0"
-      >
+      <Button variant="ghost" size="icon" onClick={onRemove} className="h-7 w-7 shrink-0">
         <X className="size-3" />
       </Button>
     </div>
