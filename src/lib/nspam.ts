@@ -1,3 +1,5 @@
+import { unicodeCasefold } from './unicode-casefold'
+
 export interface NSpamNoteInput {
   content: string
   tags: readonly (readonly string[])[]
@@ -41,9 +43,38 @@ export interface NSpamModelLoadOptions {
   signal?: AbortSignal
 }
 
-export interface NSpamWeights {
-  coef: Float32Array
-  intercept: number
+export interface NSpamModelConfig {
+  schema_version: number
+  model_version: string
+  model_type: string
+  n_features_char: number
+  n_features_word: number
+  char_ngram_range: readonly number[]
+  word_ngram_range: readonly number[]
+  word_analyzer: string
+  char_analyzer: string
+  structural_names: readonly string[]
+  group_feature_names: readonly string[]
+  unicode_normalization: string
+  casefold: boolean
+  hashing: {
+    algorithm: string
+    alternate_sign: boolean
+  }
+}
+
+export interface NSpamLightGBMTree {
+  splitFeature: Int32Array
+  threshold: Float64Array
+  decisionType: Uint8Array
+  leftChild: Int32Array
+  rightChild: Int32Array
+  leafValue: Float64Array
+}
+
+export interface NSpamLightGBMModel {
+  config: NSpamModelConfig
+  trees: readonly NSpamLightGBMTree[]
   calibX: Float32Array
   calibY: Float32Array
 }
@@ -55,6 +86,7 @@ export interface NpyFloat32 {
 
 export const NSPAM_THRESHOLD = 0.85
 export const NSPAM_MAX_NOTES = 10
+export const NSPAM_MODEL_VERSION = 'v2.4'
 
 export const NSPAM_FEATURE_COUNTS = Object.freeze({
   char: 131_072,
@@ -65,11 +97,17 @@ export const NSPAM_FEATURE_COUNTS = Object.freeze({
 })
 
 export const NSPAM_MODEL_FILES = Object.freeze({
-  coef: 'effective_coef.npy',
-  intercept: 'intercept.npy',
+  config: 'config.json',
+  model: 'model.txt',
   calibX: 'calib_x.npy',
   calibY: 'calib_y.npy'
 })
+
+const NSPAM_CALIBRATION_X = new Float32Array([
+  2.738_783_866_362_837_2e-9, 0.000_733_944_063_540_548_1, 0.089_570_365_846_157_07,
+  0.999_999_940_395_355_2
+])
+const NSPAM_CALIBRATION_Y = new Float32Array([0, 0, 1, 1])
 
 const INVISIBLE_CHARACTERS = /[\u180e\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff]/gu
 const URL_WITH_OPTIONAL_PATH = /https?:\/\/([^\s/]+)(\/\S*)?/giu
@@ -80,7 +118,7 @@ const HASHTAG = /#[\p{L}\p{M}\p{N}_]+/gu
 const NON_WHITESPACE_TOKEN = /\S+/gu
 const DIGIT = /\p{N}/gu
 const PUNCTUATION = /\p{P}/gu
-const EMOJI = /[\p{Emoji_Presentation}\p{Emoji_Modifier_Base}]/gu
+const EMOJI = /[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu
 const LETTER = /\p{L}/u
 const TOKEN = /\p{L}[\p{L}\p{M}\p{N}_]*|\p{N}+|https?:\/\/\S+|[#@][\p{L}\p{M}\p{N}_]+/gu
 
@@ -182,13 +220,14 @@ function prefixCharacters(text: string, limit: number): string {
 
 export function preprocessNSpamText(text: string): PreparedText {
   const rawText = text.normalize('NFKC')
-  const normalized = removeInvisibleCharacters(rawText)
-    .replace(URL_WITH_OPTIONAL_PATH, (_match, host: string) => `http://${host.toLowerCase()}`)
-    .toLowerCase()
-    .replace(/\s+/gu, ' ')
-    .trim()
+  const normalized = removeInvisibleCharacters(rawText).replace(
+    URL_WITH_OPTIONAL_PATH,
+    (_match, host: string) => `http://${host.toLowerCase()}`
+  )
+  const casefolded = unicodeCasefold(normalized)
+  const preparedText = casefolded.replace(/\s+/gu, ' ').trim()
 
-  return { text: normalized, rawText }
+  return { text: preparedText, rawText }
 }
 
 export function murmurHash3(value: string | Uint8Array, seed = 0): number {
@@ -260,11 +299,16 @@ function hashInto(
 function hashCharWbNgrams(text: string, features: Float32Array): void {
   const normalized = text.replace(/\s+/gu, ' ')
   for (const word of normalized.split(' ').filter(Boolean)) {
-    const padded = ` ${word} `
+    const padded = Array.from(` ${word} `)
     for (let length = 3; length <= 5; length += 1) {
       if (padded.length < length) continue
       for (let start = 0; start <= padded.length - length; start += 1) {
-        hashInto(features, padded.slice(start, start + length), 0, NSPAM_FEATURE_COUNTS.char)
+        hashInto(
+          features,
+          padded.slice(start, start + length).join(''),
+          0,
+          NSPAM_FEATURE_COUNTS.char
+        )
       }
     }
   }
@@ -313,7 +357,9 @@ function structuralFeatures(note: NSpamNoteInput): number[] {
     }
   }
 
-  const length = raw.length
+  // Python's source pipeline counts Unicode code points. JS string length is
+  // UTF-16 code units, which would inflate every non-BMP character.
+  const length = Array.from(raw).length
   const emojiCount = countMatches(raw, EMOJI)
   const alphaCharacters = Array.from(raw).filter((character) => LETTER.test(character))
   const capsCount = alphaCharacters.filter(
@@ -379,7 +425,7 @@ export function extractNSpamFeatures(notes: readonly NSpamNoteInput[]): Float32A
     for (let index = 0; index < structural.length; index += 1) {
       structuralSums[index] += structural[index]
     }
-    charLengths.push(raw.length)
+    charLengths.push(Array.from(raw).length)
   }
 
   const structuralOffset = NSPAM_FEATURE_COUNTS.char + NSPAM_FEATURE_COUNTS.word
@@ -433,6 +479,14 @@ export function extractNSpamFeatures(notes: readonly NSpamNoteInput[]): Float32A
     }
   }
 
+  return features
+}
+
+/** Exposes the raw hashing contract used by the upstream hash fixtures. */
+export function extractNSpamHashFeatures(text: string): Float32Array {
+  const features = new Float32Array(NSPAM_FEATURE_COUNTS.total)
+  hashCharWbNgrams(text, features)
+  hashWordNgrams(text, features)
   return features
 }
 
@@ -493,12 +547,179 @@ function joinModelUrl(baseUrl: string, fileName: string): string {
   return `${baseUrl.replace(/\/+$/u, '')}/${fileName}`
 }
 
-export async function loadNSpamWeights(options: NSpamModelLoadOptions = {}): Promise<NSpamWeights> {
+function parseNumberList(value: string | undefined, field: string): number[] {
+  if (value === undefined) throw new Error(`Missing LightGBM ${field}`)
+  const values = value.trim().split(/\s+/u).filter(Boolean).map(Number)
+  if (values.some((item) => !Number.isFinite(item))) {
+    throw new Error(`Invalid LightGBM ${field}`)
+  }
+  return values
+}
+
+function parseIntegerList(value: string | undefined, field: string): Int32Array {
+  const values = parseNumberList(value, field)
+  if (values.some((item) => !Number.isSafeInteger(item))) {
+    throw new Error(`Invalid LightGBM integer ${field}`)
+  }
+  return Int32Array.from(values)
+}
+
+function parseLightGBMTree(fields: ReadonlyMap<string, string>): NSpamLightGBMTree {
+  const leafValue = Float64Array.from(parseNumberList(fields.get('leaf_value'), 'leaf_value'))
+  const splitFeature = parseIntegerList(fields.get('split_feature'), 'split_feature')
+  const threshold = Float64Array.from(parseNumberList(fields.get('threshold'), 'threshold'))
+  const decisionType = Uint8Array.from(
+    parseNumberList(fields.get('decision_type'), 'decision_type')
+  )
+  const leftChild = parseIntegerList(fields.get('left_child'), 'left_child')
+  const rightChild = parseIntegerList(fields.get('right_child'), 'right_child')
+  const internalNodeCount = splitFeature.length
+
+  if (
+    leafValue.length === 0 ||
+    threshold.length !== internalNodeCount ||
+    decisionType.length !== internalNodeCount ||
+    leftChild.length !== internalNodeCount ||
+    rightChild.length !== internalNodeCount
+  ) {
+    throw new Error('Invalid LightGBM tree shape')
+  }
+
+  if (Array.from(decisionType).some((decision) => decision !== 2)) {
+    throw new Error('Unsupported LightGBM decision type')
+  }
+
+  return { splitFeature, threshold, decisionType, leftChild, rightChild, leafValue }
+}
+
+/** Parses the numerical-split subset used by the pinned NSpam v2.4 LightGBM model. */
+export function parseNSpamLightGBMModel(
+  source: string,
+  config: NSpamModelConfig
+): readonly NSpamLightGBMTree[] {
+  const expectedFeatureCount =
+    config.n_features_char +
+    config.n_features_word +
+    config.structural_names.length +
+    config.group_feature_names.length
+  if (
+    config.model_version !== NSPAM_MODEL_VERSION ||
+    config.model_type !== 'lightgbm' ||
+    config.n_features_char !== NSPAM_FEATURE_COUNTS.char ||
+    config.n_features_word !== NSPAM_FEATURE_COUNTS.word ||
+    expectedFeatureCount !== NSPAM_FEATURE_COUNTS.total
+  ) {
+    throw new Error('Unsupported NSpam model configuration')
+  }
+
+  const header = new Map<string, string>()
+  const trees: NSpamLightGBMTree[] = []
+  let fields: Map<string, string> | undefined
+
+  const finishTree = () => {
+    if (!fields) return
+    trees.push(parseLightGBMTree(fields))
+    fields = undefined
+  }
+
+  for (const line of source.split(/\r?\n/u)) {
+    if (!line) continue
+    if (/^Tree=\d+$/u.test(line)) {
+      finishTree()
+      fields = new Map()
+      continue
+    }
+
+    const separator = line.indexOf('=')
+    if (separator < 1) continue
+    const key = line.slice(0, separator)
+    const value = line.slice(separator + 1)
+    if (fields) {
+      fields.set(key, value)
+    } else {
+      header.set(key, value)
+    }
+  }
+  finishTree()
+
+  const maxFeatureIndex = Number.parseInt(header.get('max_feature_idx') ?? '', 10)
+  if (
+    maxFeatureIndex + 1 !== expectedFeatureCount ||
+    header.get('objective') !== 'binary sigmoid:1'
+  ) {
+    throw new Error('Unexpected LightGBM model metadata')
+  }
+  if (trees.length === 0) throw new Error('LightGBM model has no trees')
+
+  for (const tree of trees) {
+    if (Array.from(tree.splitFeature).some((index) => index < 0 || index >= expectedFeatureCount)) {
+      throw new Error('LightGBM tree references an invalid feature')
+    }
+  }
+
+  return trees
+}
+
+function parseNSpamModelConfig(source: string): NSpamModelConfig {
+  let value: unknown
+  try {
+    value = JSON.parse(source)
+  } catch {
+    throw new Error('Invalid NSpam model configuration JSON')
+  }
+
+  if (!value || typeof value !== 'object') throw new Error('Invalid NSpam model configuration')
+  const config = value as Partial<NSpamModelConfig>
+  if (
+    config.schema_version !== 2 ||
+    config.model_version !== NSPAM_MODEL_VERSION ||
+    config.model_type !== 'lightgbm' ||
+    typeof config.n_features_char !== 'number' ||
+    !Number.isSafeInteger(config.n_features_char) ||
+    typeof config.n_features_word !== 'number' ||
+    !Number.isSafeInteger(config.n_features_word) ||
+    !Array.isArray(config.char_ngram_range) ||
+    config.char_ngram_range.join(',') !== '3,5' ||
+    !Array.isArray(config.word_ngram_range) ||
+    config.word_ngram_range.join(',') !== '1,2' ||
+    config.word_analyzer !== 'word' ||
+    config.char_analyzer !== 'char_wb' ||
+    !Array.isArray(config.structural_names) ||
+    !Array.isArray(config.group_feature_names) ||
+    config.unicode_normalization !== 'NFKC' ||
+    config.casefold !== true ||
+    config.hashing?.algorithm !== 'MurmurHash3 x86 32-bit (seed=0)' ||
+    config.hashing.alternate_sign !== true
+  ) {
+    throw new Error('Unsupported NSpam model configuration')
+  }
+
+  return {
+    schema_version: config.schema_version,
+    model_version: config.model_version,
+    model_type: config.model_type,
+    n_features_char: config.n_features_char,
+    n_features_word: config.n_features_word,
+    char_ngram_range: config.char_ngram_range,
+    word_ngram_range: config.word_ngram_range,
+    word_analyzer: config.word_analyzer,
+    char_analyzer: config.char_analyzer,
+    structural_names: config.structural_names,
+    group_feature_names: config.group_feature_names,
+    unicode_normalization: config.unicode_normalization,
+    casefold: config.casefold,
+    hashing: config.hashing
+  }
+}
+
+export async function loadNSpamModel(
+  options: NSpamModelLoadOptions = {}
+): Promise<NSpamLightGBMModel> {
   const baseUrl = options.baseUrl ?? '/nspam'
   const fetcher = options.fetcher ?? globalThis.fetch
   if (!fetcher) throw new Error('Fetch is unavailable')
 
-  const load = async (fileName: string): Promise<NpyFloat32> => {
+  const loadNpy = async (fileName: string): Promise<NpyFloat32> => {
     const response = await fetcher(joinModelUrl(baseUrl, fileName), { signal: options.signal })
     if (!response.ok) {
       throw new Error(`Could not load NSpam model asset ${fileName}: ${response.status}`)
@@ -506,24 +727,35 @@ export async function loadNSpamWeights(options: NSpamModelLoadOptions = {}): Pro
     return parseNpyFloat32(await response.arrayBuffer())
   }
 
-  const [coef, intercept, calibX, calibY] = await Promise.all([
-    load(NSPAM_MODEL_FILES.coef),
-    load(NSPAM_MODEL_FILES.intercept),
-    load(NSPAM_MODEL_FILES.calibX),
-    load(NSPAM_MODEL_FILES.calibY)
+  const loadText = async (fileName: string) => {
+    const response = await fetcher(joinModelUrl(baseUrl, fileName), { signal: options.signal })
+    if (!response.ok) {
+      throw new Error(`Could not load NSpam model asset ${fileName}: ${response.status}`)
+    }
+    return await response.text()
+  }
+
+  const [configSource, modelSource, calibX, calibY] = await Promise.all([
+    loadText(NSPAM_MODEL_FILES.config),
+    loadText(NSPAM_MODEL_FILES.model),
+    loadNpy(NSPAM_MODEL_FILES.calibX),
+    loadNpy(NSPAM_MODEL_FILES.calibY)
   ])
 
-  if (coef.values.length !== NSPAM_FEATURE_COUNTS.total) {
-    throw new Error(`Unexpected NSpam coefficient count: ${coef.values.length}`)
-  }
-  if (intercept.values.length !== 1) throw new Error('Unexpected NSpam intercept shape')
-  if (calibX.values.length === 0 || calibX.values.length !== calibY.values.length) {
+  if (
+    calibX.shape.length !== 1 ||
+    calibY.shape.length !== 1 ||
+    calibX.shape[0] !== NSPAM_CALIBRATION_X.length ||
+    calibY.shape[0] !== NSPAM_CALIBRATION_Y.length ||
+    !hasPinnedCalibration(calibX.values, calibY.values)
+  ) {
     throw new Error('Unexpected NSpam calibration shape')
   }
 
+  const config = parseNSpamModelConfig(configSource)
   return {
-    coef: coef.values,
-    intercept: intercept.values[0],
+    config,
+    trees: parseNSpamLightGBMModel(modelSource, config),
     calibX: calibX.values,
     calibY: calibY.values
   }
@@ -547,34 +779,62 @@ function calibratedScore(raw: number, calibX: Float32Array, calibY: Float32Array
   return calibY[lastIndex]
 }
 
-export class NSpamClassifier implements NSpamScoringModel {
-  readonly weights: NSpamWeights
+function hasPinnedCalibration(calibX: Float32Array, calibY: Float32Array): boolean {
+  return (
+    calibX.length === NSPAM_CALIBRATION_X.length &&
+    calibY.length === NSPAM_CALIBRATION_Y.length &&
+    calibX.every((value, index) => value === NSPAM_CALIBRATION_X[index]) &&
+    calibY.every((value, index) => value === NSPAM_CALIBRATION_Y[index])
+  )
+}
 
-  constructor(weights: NSpamWeights) {
-    if (weights.coef.length !== NSPAM_FEATURE_COUNTS.total) {
-      throw new Error(`Unexpected NSpam coefficient count: ${weights.coef.length}`)
+export class NSpamClassifier implements NSpamScoringModel {
+  readonly model: NSpamLightGBMModel
+
+  constructor(model: NSpamLightGBMModel) {
+    if (
+      model.config.model_version !== NSPAM_MODEL_VERSION ||
+      model.trees.length === 0 ||
+      !hasPinnedCalibration(model.calibX, model.calibY)
+    ) {
+      throw new Error('Unsupported NSpam LightGBM model')
     }
-    this.weights = weights
+    this.model = model
   }
 
   static async load(options: NSpamModelLoadOptions = {}): Promise<NSpamClassifier> {
-    return new NSpamClassifier(await loadNSpamWeights(options))
+    return new NSpamClassifier(await loadNSpamModel(options))
   }
 
-  score(notes: readonly NSpamNoteInput[]): number | null {
+  rawScore(notes: readonly NSpamNoteInput[]): number | null {
     if (notes.length === 0) return null
     const cappedNotes =
       notes.length > NSPAM_MAX_NOTES
         ? [...notes].sort((lhs, rhs) => rhs.createdAt - lhs.createdAt).slice(0, NSPAM_MAX_NOTES)
         : notes
     const features = extractNSpamFeatures(cappedNotes)
-    let sum = 0
-    for (let index = 0; index < features.length; index += 1) {
-      sum += features[index] * this.weights.coef[index]
+    let score = 0
+
+    for (const tree of this.model.trees) {
+      let node = 0
+      while (node >= 0) {
+        const featureValue = features[tree.splitFeature[node]]
+        const goesLeft = Number.isNaN(featureValue)
+          ? (tree.decisionType[node] & 2) !== 0
+          : featureValue <= tree.threshold[node]
+        node = goesLeft ? tree.leftChild[node] : tree.rightChild[node]
+      }
+      score += tree.leafValue[-node - 1]
     }
-    const linearScore = Math.fround(sum + this.weights.intercept)
-    const rawScore = Math.fround(1 / (1 + Math.exp(-linearScore)))
-    return calibratedScore(rawScore, this.weights.calibX, this.weights.calibY)
+
+    return score >= 0 ? 1 / (1 + Math.exp(-score)) : Math.exp(score) / (1 + Math.exp(score))
+  }
+
+  score(notes: readonly NSpamNoteInput[]): number | null {
+    const rawScore = this.rawScore(notes)
+    return rawScore === null
+      ? null
+      : calibratedScore(rawScore, this.model.calibX, this.model.calibY)
   }
 }
 

@@ -1,32 +1,50 @@
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import {
   adjustNSpamScore,
+  extractNSpamFeatures,
+  extractNSpamHashFeatures,
   isNSpamScore,
   murmurHash3,
   NSpamAuthorScorer,
   NSpamClassifier,
   NSPAM_FEATURE_COUNTS,
+  NSPAM_MODEL_VERSION,
   NSPAM_THRESHOLD,
+  parseNSpamLightGBMModel,
   parseNpyFloat32,
   preprocessNSpamText,
   type NSpamNoteInput,
   type NSpamScoringModel,
-  type NSpamWeights
+  type NSpamLightGBMModel,
+  type NSpamModelConfig
 } from './nspam.ts'
 
 function asset(name: string): Uint8Array {
   return readFileSync(new URL(`../../public/nspam/${name}`, import.meta.url))
 }
 
-function realWeights(): NSpamWeights {
+function fixture(name: string): string {
+  return readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8')
+}
+
+function realModel(): NSpamLightGBMModel {
+  const config = JSON.parse(asset('config.json').toString()) as NSpamModelConfig
   return {
-    coef: parseNpyFloat32(asset('effective_coef.npy')).values,
-    intercept: parseNpyFloat32(asset('intercept.npy')).values[0],
+    config,
+    trees: parseNSpamLightGBMModel(asset('model.txt').toString(), config),
     calibX: parseNpyFloat32(asset('calib_x.npy')).values,
     calibY: parseNpyFloat32(asset('calib_y.npy')).values
   }
+}
+
+let realClassifier: NSpamClassifier | undefined
+
+function classifier() {
+  realClassifier ??= new NSpamClassifier(realModel())
+  return realClassifier
 }
 
 function note(content: string, createdAt = 1): NSpamNoteInput {
@@ -52,18 +70,54 @@ function contentModel(scores: Record<string, number>): NSpamScoringModel {
   }
 }
 
-test('NPY model assets have the expected shapes and coefficient count', () => {
-  const coef = parseNpyFloat32(asset('effective_coef.npy'))
-  const intercept = parseNpyFloat32(asset('intercept.npy'))
+test('pinned LightGBM assets have the expected version, hash, and calibration shape', () => {
+  const configBytes = asset('config.json')
+  const config = JSON.parse(configBytes.toString()) as NSpamModelConfig
+  const modelText = asset('model.txt')
   const calibX = parseNpyFloat32(asset('calib_x.npy'))
   const calibY = parseNpyFloat32(asset('calib_y.npy'))
 
-  assert.deepEqual(coef.shape, [NSPAM_FEATURE_COUNTS.total])
-  assert.equal(coef.values.length, 262_167)
-  assert.deepEqual(intercept.shape, [])
-  assert.equal(intercept.values.length, 1)
-  assert.deepEqual(calibX.shape, [6])
-  assert.deepEqual(calibY.shape, [6])
+  assert.equal(config.model_version, NSPAM_MODEL_VERSION)
+  assert.equal(config.model_type, 'lightgbm')
+  assert.equal(
+    createHash('sha256').update(configBytes).digest('hex'),
+    '4c1d0412748e63f105892a4301bbf7979f8a864756582b1af2426b566edbb847'
+  )
+  assert.equal(
+    createHash('sha256').update(modelText).digest('hex'),
+    '0c6e63604b78a668b8bd282d5bc5ad07e54331dd27a6c3f5c06113b8b2c84960'
+  )
+  assert.equal(
+    createHash('sha256').update(asset('calib_x.npy')).digest('hex'),
+    'a914043ed129952a904e8d2f647322d20bb5b4cd381a620d646b601b4562c1d6'
+  )
+  assert.equal(
+    createHash('sha256').update(asset('calib_y.npy')).digest('hex'),
+    '668bba20635dddd64f643ff17db416acc7af5d457dac21a83b3b35993c717224'
+  )
+  assert.equal(parseNSpamLightGBMModel(modelText.toString(), config).length, 500)
+  assert.deepEqual(calibX.shape, [4])
+  assert.deepEqual(calibY.shape, [4])
+})
+
+test('classifier rejects stale or modified calibration assets', () => {
+  const model = realModel()
+  assert.throws(
+    () =>
+      new NSpamClassifier({
+        ...model,
+        calibX: new Float32Array(6),
+        calibY: new Float32Array(6)
+      }),
+    /Unsupported NSpam LightGBM model/u
+  )
+
+  const modifiedCalibX = new Float32Array(model.calibX)
+  modifiedCalibX[1] = 0.5
+  assert.throws(
+    () => new NSpamClassifier({ ...model, calibX: modifiedCalibX }),
+    /Unsupported NSpam LightGBM model/u
+  )
 })
 
 test('preprocessing and MurmurHash3 match the native feature contract', () => {
@@ -71,11 +125,16 @@ test('preprocessing and MurmurHash3 match the native feature contract', () => {
 
   assert.equal(prepared.rawText, ' HELLO\u200b  HTTPS://Example.COM/path?q=1 ')
   assert.equal(prepared.text, 'hello http://example.com')
+  assert.equal(preprocessNSpamText('Straße ΟΣ Ꭰ ꭰ ᲀ').text, 'strasse οσ Ꭰ Ꭰ в')
+  assert.equal(
+    preprocessNSpamText('\u{1C89} \u{A7CB} \u{10D50} \u{10D65}').text,
+    '\u{1C8A} \u{264} \u{10D70} \u{10D85}'
+  )
   assert.equal(murmurHash3('foo'), -156_908_512)
 })
 
 test('real model scores are finite and stay in the probability range', () => {
-  const classifier = new NSpamClassifier(realWeights())
+  const model = classifier()
   const samples: NSpamNoteInput[][] = [
     [note('Hello Nostr, this is a normal conversation.')],
     [
@@ -87,7 +146,7 @@ test('real model scores are finite and stay in the probability range', () => {
   ]
 
   for (const notes of samples) {
-    const score = classifier.score(notes)
+    const score = model.score(notes)
     assert.notEqual(score, null)
     assert.equal(Number.isFinite(score), true)
     assert.equal(score! >= 0 && score! <= 1, true)
@@ -95,6 +154,68 @@ test('real model scores are finite and stay in the probability range', () => {
   assert.equal(NSPAM_THRESHOLD, 0.85)
   assert.equal(isNSpamScore(0.849_999), false)
   assert.equal(isNSpamScore(0.85), true)
+})
+
+test('all upstream v2.4 hash fixtures match the feature contract', () => {
+  const fixtures = fixture('nspam-v2.4-hash-fixtures.jsonl')
+    .trim()
+    .split(/\r?\n/u)
+    .map(
+      (line) =>
+        JSON.parse(line) as {
+          token: string
+          word_buckets: { index: number; value: number }[]
+          char_wb_buckets: { index: number; value: number }[]
+        }
+    )
+
+  for (const item of fixtures) {
+    const features = extractNSpamHashFeatures(item.token)
+    const buckets = (offset: number, count: number) =>
+      Array.from(features.slice(offset, offset + count).entries())
+        .filter(([, value]) => value !== 0)
+        .map(([index, value]) => ({ index, value }))
+    const assertFixtureBuckets = (
+      actual: { index: number; value: number }[],
+      expected: { index: number; value: number }[]
+    ) => assert.deepEqual(expected.length === 32 ? actual.slice(0, 32) : actual, expected)
+
+    assertFixtureBuckets(
+      buckets(NSPAM_FEATURE_COUNTS.char, NSPAM_FEATURE_COUNTS.word),
+      item.word_buckets
+    )
+    assertFixtureBuckets(buckets(0, NSPAM_FEATURE_COUNTS.char), item.char_wb_buckets)
+  }
+})
+
+test('all upstream v2.4 parity fixtures score within model tolerance', () => {
+  const fixtures = fixture('nspam-v2.4-parity-fixtures.jsonl')
+    .trim()
+    .split(/\r?\n/u)
+    .map(
+      (line) =>
+        JSON.parse(line) as {
+          notes: { content: string; tags: string[][]; created_at: number }[]
+          expected_raw_score: number
+          expected_calibrated_score: number
+        }
+    )
+  const model = classifier()
+
+  for (const item of fixtures) {
+    const notes = item.notes.map(({ content, tags, created_at }) => ({
+      content,
+      tags,
+      createdAt: created_at
+    }))
+    const rawScore = model.rawScore(notes)
+    const calibrated = model.score(notes)
+
+    assert.notEqual(rawScore, null)
+    assert.notEqual(calibrated, null)
+    assert.ok(Math.abs(rawScore! - item.expected_raw_score) <= 1e-6)
+    assert.ok(Math.abs(calibrated! - item.expected_calibrated_score) <= 1e-6)
+  }
 })
 
 test('cache invalidates when available notes cross from fewer than five to five', async () => {

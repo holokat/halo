@@ -72,9 +72,9 @@ export default defineConfig({
       workbox: {
         skipWaiting: true,
         clientsClaim: true,
-        globPatterns: ['**/*.{js,css,html,png,jpg,svg,npy}'],
+        globPatterns: ['**/*.{js,css,html,png,jpg,svg,npy,txt,json}'],
         globDirectory: 'dist/',
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
         cleanupOutdatedCaches: true
       },
       devOptions: {
