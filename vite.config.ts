@@ -57,10 +57,10 @@ export default defineConfig({
           ],
           // Heavy components that should be separate chunks
           'emoji-picker': ['emoji-picker-react'],
-          'lightbox': ['yet-another-react-lightbox'],
-          'editor': ['@tiptap/react', '@tiptap/starter-kit'],
-          'qr': ['qr-code-styling', 'qr-scanner'],
-          'markdown': ['react-markdown', 'remark-gfm', 'rehype-raw', 'rehype-sanitize']
+          lightbox: ['yet-another-react-lightbox'],
+          editor: ['@tiptap/react', '@tiptap/starter-kit'],
+          qr: ['qr-code-styling', 'qr-scanner'],
+          markdown: ['react-markdown', 'remark-gfm', 'rehype-raw', 'rehype-sanitize']
         }
       }
     }
@@ -81,38 +81,32 @@ export default defineConfig({
         enabled: true
       },
       manifest: {
-        name: 'JumbleKat',
-        short_name: 'JumbleKat',
+        name: 'Halo',
+        short_name: 'Halo',
         icons: [
           {
-            src: '/pwa-512x512.png?v=2',
+            src: '/pwa-512x512.png?v=4',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any'
           },
           {
-            src: '/pwa-192x192.png?v=2',
+            src: '/pwa-192x192.png?v=4',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any'
           },
           {
-            src: '/pwa-512x512.png?v=2',
+            src: '/pwa-512x512.png?v=4',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable'
           },
           {
-            src: '/pwa-192x192.png?v=2',
+            src: '/pwa-192x192.png?v=4',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'maskable'
-          },
-          {
-            src: '/pwa-monochrome.svg?v=2',
-            sizes: '512x512',
-            type: 'image/svg+xml',
-            purpose: 'monochrome'
           }
         ],
         start_url: '/',

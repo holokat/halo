@@ -1,24 +1,21 @@
-import { useTheme } from '@/providers/ThemeProvider'
-import { usePageTheme } from '@/providers/PageThemeProvider'
+import HaloMark from '@/components/HaloMark'
 import { usePrimaryPage } from '@/PageManager'
 import { cn } from '@/lib/utils'
 
 export default function Logo({ className }: { className?: string }) {
-  const { theme } = useTheme()
-  const { pageTheme } = usePageTheme()
   const { navigate } = usePrimaryPage()
 
-  // logo-dark.svg = white logo (for dark backgrounds)
-  // logo-light.svg = black logo (for light backgrounds)
-  const isDarkBackground = theme === 'dark' || pageTheme === 'pure-black'
-  const logoSrc = isDarkBackground ? '/logo-dark.svg' : '/logo-light.svg'
-
   return (
-    <img
-      src={logoSrc}
-      alt="Halo"
-      className={cn("w-full h-auto max-w-[48px] cursor-pointer", className)}
+    <button
+      type="button"
+      aria-label="Halo"
+      className={cn(
+        'flex size-12 shrink-0 cursor-pointer items-center justify-center border-0 bg-transparent p-0 transition-transform duration-150 active:scale-[0.96]',
+        className
+      )}
       onClick={() => navigate('home')}
-    />
+    >
+      <HaloMark className="size-full" />
+    </button>
   )
 }

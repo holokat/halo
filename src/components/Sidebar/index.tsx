@@ -92,9 +92,8 @@ export default function PrimaryPageSidebar() {
       >
         <div
           className={cn(
-            'mb-6 w-full transition-all duration-300',
-            compactSidebar ? '' : 'xl:px-4',
-            'opacity-50 hover:opacity-100 transition-opacity duration-300'
+            'mb-6 w-full transition-[padding] duration-300',
+            compactSidebar ? '' : 'xl:px-4'
           )}
         >
           {logoStyle === 'emoji' ? (

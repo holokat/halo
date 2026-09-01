@@ -3,34 +3,28 @@
   "short_name": "Halo",
   "icons": [
     {
-      "src": "/pwa-512x512.png?v=3",
+      "src": "/pwa-512x512.png?v=4",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/pwa-192x192.png?v=3",
+      "src": "/pwa-192x192.png?v=4",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/pwa-512x512.png?v=3",
+      "src": "/pwa-512x512.png?v=4",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/pwa-192x192.png?v=3",
+      "src": "/pwa-192x192.png?v=4",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
-    },
-    {
-      "src": "/pwa-monochrome.svg?v=3",
-      "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "monochrome"
     }
   ],
   "start_url": "/",
