@@ -1,0 +1,38 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "haloapp-fyi",
+  "main": "./workers/index.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": true,
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/v1", "/v1/*", "/.well-known", "/.well-known/*"]
+  },
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 0.05
+    }
+  },
+  "env": {
+    "staging": {
+      "name": "haloapp-fyi-staging",
+      "workers_dev": true,
+      "preview_urls": true
+    },
+    "production": {
+      "name": "haloapp-fyi-production",
+      "workers_dev": true,
+      "preview_urls": false
+    }
+  }
+}

@@ -23,6 +23,11 @@
     "audit:maintainability": "bash ./scripts/maintainability-audit.sh",
     "format": "prettier --write .",
     "preview": "vite preview",
+    "worker:types": "wrangler types worker-configuration.d.ts",
+    "worker:typecheck": "tsc -p workers/tsconfig.json --pretty false",
+    "worker:check": "npm run build && npm run worker:types && npm run worker:typecheck && wrangler deploy --dry-run --env staging",
+    "deploy:cloudflare:staging": "npm run build && wrangler deploy --env staging",
+    "deploy:cloudflare:production": "npm run build && wrangler deploy --env production",
     "prepare": "npm run guardrails:install-hooks"
   },
   "dependencies": {
@@ -125,6 +130,7 @@
     "typescript": "~5.6.2",
     "typescript-eslint": "^8.18.1",
     "vite": "^6.0.3",
-    "vite-plugin-pwa": "^0.21.1"
+    "vite-plugin-pwa": "^0.21.1",
+    "wrangler": "^4.127.1"
   }
 }

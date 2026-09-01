@@ -1,13 +1,11 @@
-const ALPHAVANTAGE_API_KEY = process.env.ALPHAVANTAGE_API_KEY || ''
-const STOCK_QUOTE_TTL_MS = 15 * 60 * 1000
-const STOCK_QUOTE_CACHE_MAX = 200
 const STOCK_QUOTE_CACHE_CONTROL = 'public, max-age=60, stale-while-revalidate=300'
 
-const POLYMARKET_EVENTS_TTL_MS = 2 * 60 * 1000
 const POLYMARKET_EVENTS_FETCH_LIMIT = 160
 const POLYMARKET_RECENT_EVENTS_FETCH_LIMIT = 80
 const POLYMARKET_MARKETS_MAX = 160
 const POLYMARKET_CACHE_CONTROL = 'public, max-age=60, stale-while-revalidate=300'
+const NO_STORE_CACHE_CONTROL = 'no-store'
+const UPSTREAM_TIMEOUT_MS = 6 * 1000
 const POLYMARKET_CATEGORY_PRIORITY = [
   ['politics', 'Politics'],
   ['sports', 'Sports'],
@@ -27,11 +25,7 @@ const POLYMARKET_IGNORED_CATEGORY_SLUGS = new Set([
   'hide-from-new',
   'recurring'
 ])
-const POLYMARKET_EXCLUDED_MARKET_TAG_SLUGS = new Set([
-  'up-or-down',
-  'crypto-prices',
-  'recurring'
-])
+const POLYMARKET_EXCLUDED_MARKET_TAG_SLUGS = new Set(['up-or-down', 'crypto-prices', 'recurring'])
 const POLYMARKET_CATEGORY_ALIASES = new Map([
   [
     'politics',
@@ -112,30 +106,24 @@ const POLYMARKET_CATEGORY_ALIASES = new Map([
   ['science', new Set(['science', 'aliens', 'space'])]
 ])
 
-const stockQuoteCache = new Map()
-const stockQuoteInflight = new Map()
-let polymarketMarketsCache = {
-  fetchedAt: 0,
-  data: null
-}
-let polymarketMarketsInflight = null
-
 const headers = {
-  'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS'
+  'Content-Type': 'application/json'
 }
 
-export default async (request) => {
+export async function handleApiRequest(request, env = {}) {
+  let route = '/'
+
   try {
     if (request.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers })
+      return new Response(null, {
+        status: 204,
+        headers: { ...headers, 'Cache-Control': NO_STORE_CACHE_CONTROL }
+      })
     }
 
-    const route = extractRoute(request.url)
+    route = extractRoute(request.url)
     if (request.method === 'GET' && route === '/v1/stocks/quote') {
-      return await getStockQuote(request)
+      return await getStockQuote(request, env)
     }
 
     if (request.method === 'GET' && route === '/v1/polymarket/markets') {
@@ -144,15 +132,22 @@ export default async (request) => {
 
     return json(404, { error: 'Not found' })
   } catch (error) {
-    console.error('api error', error)
-    return json(error?.statusCode || 500, {
-      error: error?.message || 'Internal server error'
-    })
+    const status = getHttpErrorStatus(error)
+    logApiError(request, route, status, error)
+    return json(status, { error: getHttpErrorMessage(error) })
   }
 }
 
-async function getStockQuote(request) {
-  if (!ALPHAVANTAGE_API_KEY) {
+export default async function netlifyApiHandler(request) {
+  return handleApiRequest(request, {
+    ALPHAVANTAGE_API_KEY: process.env.ALPHAVANTAGE_API_KEY || ''
+  })
+}
+
+async function getStockQuote(request, env) {
+  const apiKey =
+    typeof env?.ALPHAVANTAGE_API_KEY === 'string' ? env.ALPHAVANTAGE_API_KEY.trim() : ''
+  if (!apiKey) {
     return json(503, { error: 'Alpha Vantage API key is not configured' })
   }
 
@@ -162,7 +157,7 @@ async function getStockQuote(request) {
     return json(400, { error: 'A valid stock symbol is required' })
   }
 
-  const quote = await getAlphaVantageStockQuote(symbol)
+  const quote = await getAlphaVantageStockQuote(symbol, apiKey)
   return json(200, quote, { 'Cache-Control': STOCK_QUOTE_CACHE_CONTROL })
 }
 
@@ -171,117 +166,86 @@ async function getPolymarketMarkets() {
   return json(200, payload, { 'Cache-Control': POLYMARKET_CACHE_CONTROL })
 }
 
-async function getAlphaVantageStockQuote(symbol) {
-  const cached = stockQuoteCache.get(symbol)
-  if (cached && Date.now() - cached.fetchedAt < STOCK_QUOTE_TTL_MS) {
-    return cached.data
+async function getAlphaVantageStockQuote(symbol, apiKey) {
+  const url = new URL('https://www.alphavantage.co/query')
+  url.searchParams.set('function', 'GLOBAL_QUOTE')
+  url.searchParams.set('symbol', symbol)
+  url.searchParams.set('apikey', apiKey)
+
+  const response = await fetchUpstream(
+    url.toString(),
+    { headers: { Accept: 'application/json' } },
+    {
+      failureMessage: 'Stock quote provider request failed',
+      failureCode: 'STOCK_PROVIDER_REQUEST_FAILED',
+      timeoutMessage: 'Stock quote provider request timed out',
+      timeoutCode: 'STOCK_PROVIDER_TIMEOUT'
+    }
+  )
+
+  if (!response.ok) {
+    throw createHttpError(502, 'Stock quote provider request failed', 'STOCK_PROVIDER_BAD_STATUS')
   }
 
-  const inflight = stockQuoteInflight.get(symbol)
-  if (inflight) {
-    return inflight
+  const payload = await parseUpstreamJson(
+    response,
+    'Stock quote provider returned an invalid response',
+    'STOCK_PROVIDER_INVALID_JSON'
+  )
+  const rateLimitMessage =
+    (typeof payload?.Note === 'string' && payload.Note.trim()) ||
+    (typeof payload?.Information === 'string' && payload.Information.trim()) ||
+    ''
+
+  if (rateLimitMessage) {
+    throw createHttpError(
+      429,
+      'Stock quote service rate limit reached',
+      'STOCK_PROVIDER_RATE_LIMIT'
+    )
   }
 
-  const request = (async () => {
-    const url = new URL('https://www.alphavantage.co/query')
-    url.searchParams.set('function', 'GLOBAL_QUOTE')
-    url.searchParams.set('symbol', symbol)
-    url.searchParams.set('apikey', ALPHAVANTAGE_API_KEY)
+  if (typeof payload?.['Error Message'] === 'string' && payload['Error Message'].trim()) {
+    throw createHttpError(404, `No stock quote found for ${symbol}`, 'STOCK_QUOTE_NOT_FOUND')
+  }
 
-    const response = await fetch(url.toString(), {
-      headers: { Accept: 'application/json' }
-    })
+  const quote = payload?.['Global Quote']
+  if (!quote || typeof quote !== 'object' || !String(quote['01. symbol'] || '').trim()) {
+    throw createHttpError(404, `No stock quote found for ${symbol}`, 'STOCK_QUOTE_NOT_FOUND')
+  }
 
-    if (!response.ok) {
-      throw createHttpError(502, `Alpha Vantage request failed (${response.status})`)
-    }
-
-    const payload = await response.json()
-    const rateLimitMessage =
-      (typeof payload?.Note === 'string' && payload.Note.trim()) ||
-      (typeof payload?.Information === 'string' && payload.Information.trim()) ||
-      ''
-
-    if (rateLimitMessage) {
-      throw createHttpError(429, rateLimitMessage)
-    }
-
-    if (typeof payload?.['Error Message'] === 'string' && payload['Error Message'].trim()) {
-      throw createHttpError(404, payload['Error Message'].trim())
-    }
-
-    const quote = payload?.['Global Quote']
-    if (!quote || typeof quote !== 'object' || !String(quote['01. symbol'] || '').trim()) {
-      throw createHttpError(404, `No stock quote found for ${symbol}`)
-    }
-
-    const normalizedQuote = {
-      symbol: String(quote['01. symbol'] || symbol).trim().toUpperCase(),
-      price: parseAlphaVantageNumber(quote['05. price']),
-      change: parseAlphaVantageNumber(quote['09. change']),
-      changePercent: parseAlphaVantageNumber(quote['10. change percent']),
-      open: parseAlphaVantageNumber(quote['02. open']),
-      high: parseAlphaVantageNumber(quote['03. high']),
-      low: parseAlphaVantageNumber(quote['04. low']),
-      previousClose: parseAlphaVantageNumber(quote['08. previous close']),
-      volume: parseAlphaVantageNumber(quote['06. volume']),
-      latestTradingDay:
-        typeof quote['07. latest trading day'] === 'string' && quote['07. latest trading day'].trim()
-          ? quote['07. latest trading day'].trim()
-          : null
-    }
-
-    stockQuoteCache.set(symbol, {
-      fetchedAt: Date.now(),
-      data: normalizedQuote
-    })
-    trimMapToMaxEntries(stockQuoteCache, STOCK_QUOTE_CACHE_MAX)
-
-    return normalizedQuote
-  })().finally(() => {
-    stockQuoteInflight.delete(symbol)
-  })
-
-  stockQuoteInflight.set(symbol, request)
-  return request
+  return {
+    symbol: String(quote['01. symbol'] || symbol)
+      .trim()
+      .toUpperCase(),
+    price: parseAlphaVantageNumber(quote['05. price']),
+    change: parseAlphaVantageNumber(quote['09. change']),
+    changePercent: parseAlphaVantageNumber(quote['10. change percent']),
+    open: parseAlphaVantageNumber(quote['02. open']),
+    high: parseAlphaVantageNumber(quote['03. high']),
+    low: parseAlphaVantageNumber(quote['04. low']),
+    previousClose: parseAlphaVantageNumber(quote['08. previous close']),
+    volume: parseAlphaVantageNumber(quote['06. volume']),
+    latestTradingDay:
+      typeof quote['07. latest trading day'] === 'string' && quote['07. latest trading day'].trim()
+        ? quote['07. latest trading day'].trim()
+        : null
+  }
 }
 
 async function fetchPolymarketWidgetData() {
-  if (
-    polymarketMarketsCache.data &&
-    Date.now() - polymarketMarketsCache.fetchedAt < POLYMARKET_EVENTS_TTL_MS
-  ) {
-    return polymarketMarketsCache.data
-  }
+  const [topVolumeEvents, recentEvents] = await Promise.all([
+    fetchPolymarketEvents({
+      limit: POLYMARKET_EVENTS_FETCH_LIMIT,
+      order: 'volume24hr'
+    }),
+    fetchPolymarketEvents({
+      limit: POLYMARKET_RECENT_EVENTS_FETCH_LIMIT,
+      order: 'createdAt'
+    })
+  ])
 
-  if (polymarketMarketsInflight) {
-    return polymarketMarketsInflight
-  }
-
-  const request = (async () => {
-    const [topVolumeEvents, recentEvents] = await Promise.all([
-      fetchPolymarketEvents({
-        limit: POLYMARKET_EVENTS_FETCH_LIMIT,
-        order: 'volume24hr'
-      }),
-      fetchPolymarketEvents({
-        limit: POLYMARKET_RECENT_EVENTS_FETCH_LIMIT,
-        order: 'createdAt'
-      })
-    ])
-
-    const normalized = normalizePolymarketWidgetData([topVolumeEvents, recentEvents])
-    polymarketMarketsCache = {
-      fetchedAt: Date.now(),
-      data: normalized
-    }
-    return normalized
-  })().finally(() => {
-    polymarketMarketsInflight = null
-  })
-
-  polymarketMarketsInflight = request
-  return request
+  return normalizePolymarketWidgetData([topVolumeEvents, recentEvents])
 }
 
 async function fetchPolymarketEvents({ limit, order }) {
@@ -292,17 +256,28 @@ async function fetchPolymarketEvents({ limit, order }) {
   url.searchParams.set('order', order)
   url.searchParams.set('ascending', 'false')
 
-  const response = await fetch(url.toString(), {
-    headers: { Accept: 'application/json' }
-  })
+  const response = await fetchUpstream(
+    url.toString(),
+    { headers: { Accept: 'application/json' } },
+    {
+      failureMessage: 'Polymarket request failed',
+      failureCode: 'POLYMARKET_REQUEST_FAILED',
+      timeoutMessage: 'Polymarket request timed out',
+      timeoutCode: 'POLYMARKET_TIMEOUT'
+    }
+  )
 
   if (!response.ok) {
-    throw createHttpError(502, `Polymarket request failed (${response.status})`)
+    throw createHttpError(502, 'Polymarket request failed', 'POLYMARKET_BAD_STATUS')
   }
 
-  const payload = await response.json()
+  const payload = await parseUpstreamJson(
+    response,
+    'Invalid Polymarket payload',
+    'POLYMARKET_INVALID_JSON'
+  )
   if (!Array.isArray(payload)) {
-    throw createHttpError(502, 'Invalid Polymarket payload')
+    throw createHttpError(502, 'Invalid Polymarket payload', 'POLYMARKET_INVALID_PAYLOAD')
   }
 
   return payload
@@ -623,9 +598,7 @@ function getLeadingPolymarketOutcome(outcomesValue, outcomePricesValue) {
 
 function parsePolymarketStringArray(value) {
   const parsed = parsePolymarketArrayValue(value)
-  return parsed
-    .map((item) => (typeof item === 'string' ? item.trim() : ''))
-    .filter(Boolean)
+  return parsed.map((item) => (typeof item === 'string' ? item.trim() : '')).filter(Boolean)
 }
 
 function parsePolymarketNumberArray(value) {
@@ -716,16 +689,6 @@ function toTimestamp(value) {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
-function trimMapToMaxEntries(map, max) {
-  while (map.size > max) {
-    const oldestKey = map.keys().next().value
-    if (!oldestKey) {
-      break
-    }
-    map.delete(oldestKey)
-  }
-}
-
 function extractRoute(rawUrl) {
   const url = new URL(rawUrl)
   const marker = '/v1/'
@@ -736,15 +699,73 @@ function extractRoute(rawUrl) {
   return url.pathname
 }
 
-function createHttpError(statusCode, message) {
-  const err = new Error(message)
+async function fetchUpstream(url, init, errorDetails) {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS)
+
+  try {
+    return await fetch(url, { ...init, signal: controller.signal })
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw createHttpError(504, errorDetails.timeoutMessage, errorDetails.timeoutCode)
+    }
+    throw createHttpError(502, errorDetails.failureMessage, errorDetails.failureCode)
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
+async function parseUpstreamJson(response, message, errorCode) {
+  try {
+    return await response.json()
+  } catch {
+    throw createHttpError(502, message, errorCode)
+  }
+}
+
+function createHttpError(statusCode, publicMessage, errorCode) {
+  const err = new Error(errorCode)
   err.statusCode = statusCode
+  err.publicMessage = publicMessage
+  err.errorCode = errorCode
   return err
 }
 
+function getHttpErrorStatus(error) {
+  const status = Number(error?.statusCode)
+  return Number.isInteger(status) && status >= 400 && status <= 599 ? status : 500
+}
+
+function getHttpErrorMessage(error) {
+  return typeof error?.publicMessage === 'string' && error.publicMessage.trim()
+    ? error.publicMessage
+    : 'Internal server error'
+}
+
+function logApiError(request, route, status, error) {
+  const payload = {
+    event: 'api_request_error',
+    method: request.method,
+    route,
+    status,
+    code:
+      typeof error?.errorCode === 'string' && error.errorCode.trim()
+        ? error.errorCode
+        : 'UNEXPECTED_ERROR',
+    rayId: request.headers.get('cf-ray') || undefined
+  }
+
+  console.error(JSON.stringify(payload))
+}
+
 function json(status, payload, extraHeaders = {}) {
+  const responseHeaders = { ...headers, ...extraHeaders }
+  if (status >= 400 && !responseHeaders['Cache-Control']) {
+    responseHeaders['Cache-Control'] = NO_STORE_CACHE_CONTROL
+  }
+
   return new Response(JSON.stringify(payload), {
     status,
-    headers: { ...headers, ...extraHeaders }
+    headers: responseHeaders
   })
 }

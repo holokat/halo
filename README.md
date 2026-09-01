@@ -2,7 +2,7 @@
 
 A customizable Nostr client focused on real-time social feeds, lists, reads, live activity, and widgets.
 
-Live site: [https://halo.social](https://halo.social)
+Live site: [https://haloapp.fyi](https://haloapp.fyi)
 
 ## What Halo Includes
 

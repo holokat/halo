@@ -7,7 +7,7 @@ const env = (
 ).env
 
 const DEFAULT_APP_API_BASE_URL =
-  typeof window !== 'undefined' ? window.location.origin : 'https://halo.social'
+  typeof window !== 'undefined' ? window.location.origin : 'https://haloapp.fyi'
 const DEFAULT_DISCOVERY_API_BASE_URL = 'https://api.nostrarchives.com'
 
 export const APP_API_BASE_URL = env?.VITE_APP_API_BASE_URL || DEFAULT_APP_API_BASE_URL
