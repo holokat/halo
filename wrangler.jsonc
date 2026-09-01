@@ -32,7 +32,17 @@
     "production": {
       "name": "haloapp-fyi-production",
       "workers_dev": true,
-      "preview_urls": false
+      "preview_urls": false,
+      "routes": [
+        {
+          "pattern": "haloapp.fyi",
+          "custom_domain": true
+        },
+        {
+          "pattern": "www.haloapp.fyi",
+          "custom_domain": true
+        }
+      ]
     }
   }
 }
