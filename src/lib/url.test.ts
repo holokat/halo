@@ -11,14 +11,17 @@ test('upgrades remote relay connections on HTTPS pages', () => {
   )
 })
 
-test('preserves secure relay connections and skips insecure loopback relays on HTTPS pages', () => {
+test('preserves secure relay connections and upgrades loopback relays on HTTPS pages', () => {
   assert.equal(
     normalizeRelayConnectionUrl('wss://relay.damus.io', 'https:'),
     'wss://relay.damus.io/'
   )
-  assert.equal(normalizeRelayConnectionUrl('ws://localhost:4869', 'https:'), '')
-  assert.equal(normalizeRelayConnectionUrl('ws://127.0.0.1:4869', 'https:'), '')
-  assert.equal(normalizeRelayConnectionUrl('ws://[::1]:4869', 'https:'), '')
+  assert.equal(normalizeRelayConnectionUrl('ws://localhost:4869', 'https:'), 'wss://localhost:4869/')
+  assert.equal(
+    normalizeRelayConnectionUrl('ws://127.0.0.1:4869', 'https:'),
+    'wss://127.0.0.1:4869/'
+  )
+  assert.equal(normalizeRelayConnectionUrl('ws://[::1]:4869', 'https:'), 'wss://[::1]:4869/')
 })
 
 test('preserves insecure WebSocket relays outside HTTPS pages', () => {

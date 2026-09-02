@@ -41,16 +41,9 @@ export function normalizeRelayConnectionUrl(
     return normalizedUrl
   }
 
-  const hostname = new URL(normalizedUrl).hostname.toLowerCase()
-  const isLoopback =
-    hostname === 'localhost' ||
-    hostname.endsWith('.localhost') ||
-    hostname.startsWith('127.') ||
-    hostname === '[::1]'
-
-  // Chromium marks an HTTPS page as insecure when it opens an insecure WebSocket,
-  // including a loopback relay. Local relays remain available when Halo runs over HTTP.
-  return isLoopback ? '' : normalizedUrl.replace(/^ws:/, 'wss:')
+  // HTTPS pages must never open insecure WebSockets. Local ws:// relays remain
+  // available when Halo itself runs over HTTP.
+  return normalizedUrl.replace(/^ws:/, 'wss:')
 }
 
 export function normalizeHttpUrl(url: string): string {

@@ -1,9 +1,11 @@
+import { SmartPool } from '@/lib/smart-pool'
 import { ISigner, TDraftEvent } from '@/types'
 import { bytesToHex } from '@noble/hashes/utils'
 import { BunkerSigner as NBunkerSigner, toBunkerURL } from 'nostr-tools/nip46'
 
 export class NostrConnectionSigner implements ISigner {
   signer: NBunkerSigner | null = null
+  private relayPool = new SmartPool()
   private clientSecretKey: Uint8Array
   private pubkey: string | null = null
   private connectionString: string
@@ -23,6 +25,7 @@ export class NostrConnectionSigner implements ISigner {
     }
 
     this.signer = await NBunkerSigner.fromURI(this.clientSecretKey, this.connectionString, {
+      pool: this.relayPool,
       onauth: (url) => {
         window.open(url, '_blank')
       }
