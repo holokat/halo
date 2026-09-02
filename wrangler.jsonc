@@ -10,7 +10,7 @@
     "directory": "./dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/v1", "/v1/*", "/.well-known", "/.well-known/*"]
+    "run_worker_first": true
   },
   "observability": {
     "enabled": true,
@@ -35,12 +35,12 @@
       "preview_urls": false,
       "routes": [
         {
-          "pattern": "haloapp.fyi",
-          "custom_domain": true
+          "pattern": "haloapp.fyi/*",
+          "zone_name": "haloapp.fyi"
         },
         {
-          "pattern": "www.haloapp.fyi",
-          "custom_domain": true
+          "pattern": "www.haloapp.fyi/*",
+          "zone_name": "haloapp.fyi"
         }
       ]
     }

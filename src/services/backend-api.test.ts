@@ -296,6 +296,12 @@ test('Worker routes backend paths, serves assets, and caches only successful API
         ctx
       )
       assert.equal(await assetResponse.text(), 'asset response')
+      assert.equal(assetResponse.headers.get('strict-transport-security'), 'max-age=31536000')
+      assert.equal(assetResponse.headers.get('x-content-type-options'), 'nosniff')
+      assert.equal(
+        assetResponse.headers.get('referrer-policy'),
+        'strict-origin-when-cross-origin'
+      )
       assert.deepEqual(assetRequests, ['https://haloapp.fyi/settings'])
     })
   })
@@ -334,6 +340,7 @@ test('Worker keeps the production site on HTTPS and redirects www to the apex do
   )
   assert.equal(wwwResponse.status, 308)
   assert.equal(wwwResponse.headers.get('location'), 'https://haloapp.fyi/search?q=nostr')
+  assert.equal(wwwResponse.headers.get('strict-transport-security'), 'max-age=31536000')
 })
 
 test('Worker does not write API failures to cache', async () => {

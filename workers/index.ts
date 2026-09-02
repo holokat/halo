@@ -3,6 +3,7 @@ import { handleApiRequest } from '../netlify/functions/api.mjs'
 const CLIENT_API_CACHE_CONTROL = 'public, max-age=60, stale-while-revalidate=300'
 const STOCK_EDGE_CACHE_TTL_SECONDS = 15 * 60
 const CANONICAL_HOSTNAME = 'haloapp.fyi'
+const HSTS_HEADER_VALUE = 'max-age=31536000'
 
 type ApiCachePolicy = {
   edgeTtlSeconds: number
@@ -13,16 +14,15 @@ export default {
     const url = new URL(request.url)
     const canonicalRedirect = getCanonicalRedirect(url)
     if (canonicalRedirect) {
-      return canonicalRedirect
+      return withProductionSecurityHeaders(canonicalRedirect, url.hostname)
     }
 
     const pathname = url.pathname
+    const response = isBackendRoute(pathname)
+      ? await handleWorkerApiRequest(request, env, ctx)
+      : await env.ASSETS.fetch(request)
 
-    if (isBackendRoute(pathname)) {
-      return handleWorkerApiRequest(request, env, ctx)
-    }
-
-    return env.ASSETS.fetch(request)
+    return withProductionSecurityHeaders(response, url.hostname)
   }
 } satisfies ExportedHandler<Env>
 
@@ -40,6 +40,23 @@ function getCanonicalRedirect(url: URL) {
   url.protocol = 'https:'
   url.hostname = CANONICAL_HOSTNAME
   return Response.redirect(url.toString(), 308)
+}
+
+function withProductionSecurityHeaders(response: Response, hostname: string) {
+  if (hostname !== CANONICAL_HOSTNAME && hostname !== `www.${CANONICAL_HOSTNAME}`) {
+    return response
+  }
+
+  const headers = new Headers(response.headers)
+  headers.set('Strict-Transport-Security', HSTS_HEADER_VALUE)
+  headers.set('X-Content-Type-Options', 'nosniff')
+  headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers
+  })
 }
 
 async function handleWorkerApiRequest(
