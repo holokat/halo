@@ -35,12 +35,12 @@
       "preview_urls": false,
       "routes": [
         {
-          "pattern": "haloapp.fyi/*",
-          "zone_name": "haloapp.fyi"
+          "pattern": "haloapp.fyi",
+          "custom_domain": true
         },
         {
-          "pattern": "www.haloapp.fyi/*",
-          "zone_name": "haloapp.fyi"
+          "pattern": "www.haloapp.fyi",
+          "custom_domain": true
         }
       ]
     }
