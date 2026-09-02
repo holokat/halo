@@ -32,6 +32,25 @@ export function normalizeUrl(url: string): string {
   }
 }
 
+export function normalizeRelayConnectionUrl(
+  url: string,
+  pageProtocol = typeof window === 'undefined' ? undefined : window.location.protocol
+): string {
+  const normalizedUrl = normalizeUrl(url)
+  if (!normalizedUrl || pageProtocol !== 'https:' || !normalizedUrl.startsWith('ws://')) {
+    return normalizedUrl
+  }
+
+  const hostname = new URL(normalizedUrl).hostname.toLowerCase()
+  const isLoopback =
+    hostname === 'localhost' ||
+    hostname.endsWith('.localhost') ||
+    hostname.startsWith('127.') ||
+    hostname === '[::1]'
+
+  return isLoopback ? normalizedUrl : normalizedUrl.replace(/^ws:/, 'wss:')
+}
+
 export function normalizeHttpUrl(url: string): string {
   try {
     if (url.indexOf('://') === -1) url = 'https://' + url

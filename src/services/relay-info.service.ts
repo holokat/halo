@@ -1,4 +1,4 @@
-import { simplifyUrl } from '@/lib/url'
+import { normalizeHttpUrl, normalizeRelayConnectionUrl, simplifyUrl } from '@/lib/url'
 import indexDb from '@/services/indexed-db.service'
 import { TAwesomeRelayCollection, TRelayInfo } from '@/types'
 import DataLoader from 'dataloader'
@@ -132,7 +132,8 @@ class RelayInfoService {
 
   private async fetchRelayNip11(url: string) {
     try {
-      const res = await fetch(url.replace('ws://', 'http://').replace('wss://', 'https://'), {
+      const connectionUrl = normalizeRelayConnectionUrl(url)
+      const res = await fetch(normalizeHttpUrl(connectionUrl), {
         headers: { Accept: 'application/nostr+json' }
       })
       return res.json() as Omit<TRelayInfo, 'url' | 'shortUrl'>

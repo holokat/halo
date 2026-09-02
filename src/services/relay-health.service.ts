@@ -1,3 +1,5 @@
+import { normalizeRelayConnectionUrl } from '@/lib/url'
+
 export type TRelayHealthStatus = 'checking' | 'great' | 'good' | 'average' | 'poor' | 'unreachable'
 
 export type TRelayHealthResult = {
@@ -40,6 +42,11 @@ class RelayHealthService {
       return cached
     }
 
+    const connectionUrl = normalizeRelayConnectionUrl(url)
+    if (!connectionUrl) {
+      return { url, status: 'unreachable' }
+    }
+
     const startTime = performance.now()
 
     return new Promise((resolve) => {
@@ -77,7 +84,7 @@ class RelayHealthService {
       }, CONNECTION_TIMEOUT)
 
       try {
-        ws = new WebSocket(url)
+        ws = new WebSocket(connectionUrl)
 
         ws.onopen = () => {
           clearTimeout(timeout)

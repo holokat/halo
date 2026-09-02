@@ -1,5 +1,6 @@
 import { SimplePool } from 'nostr-tools'
 import { AbstractRelay } from 'nostr-tools/abstract-relay'
+import { normalizeRelayConnectionUrl } from '@/lib/url'
 
 const DEFAULT_CONNECTION_TIMEOUT = 5_000
 const CLEANUP_THRESHOLD = 15
@@ -18,11 +19,28 @@ export class SmartPool extends SimplePool {
   }
 
   ensureRelay(url: string): Promise<AbstractRelay> {
-    if (!this.relayIdleTracker.has(url) && this.relayIdleTracker.size > CLEANUP_THRESHOLD) {
+    const connectionUrl = normalizeRelayConnectionUrl(url)
+    if (!connectionUrl) {
+      return Promise.reject(new Error('Invalid relay URL'))
+    }
+
+    if (
+      !this.relayIdleTracker.has(connectionUrl) &&
+      this.relayIdleTracker.size > CLEANUP_THRESHOLD
+    ) {
       this.cleanIdleRelays()
     }
-    this.relayIdleTracker.set(url, Date.now())
-    return super.ensureRelay(url, { connectionTimeout: DEFAULT_CONNECTION_TIMEOUT })
+    this.relayIdleTracker.set(connectionUrl, Date.now())
+    return super.ensureRelay(connectionUrl, { connectionTimeout: DEFAULT_CONNECTION_TIMEOUT })
+  }
+
+  close(relayUrls: string[]) {
+    const connectionUrls = relayUrls
+      .map((url) => normalizeRelayConnectionUrl(url))
+      .filter((url): url is string => Boolean(url))
+
+    connectionUrls.forEach((url) => this.relayIdleTracker.delete(url))
+    super.close(connectionUrls)
   }
 
   getTrackedRelayUrls() {
