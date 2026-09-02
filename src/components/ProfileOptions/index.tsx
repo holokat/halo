@@ -1,4 +1,3 @@
-import PrivateNoteDialog from '@/components/PrivateNoteDialog'
 import PubkeyCopy from '@/components/PubkeyCopy'
 import QrCodeComponent from '@/components/QrCode'
 import UserAvatar from '@/components/UserAvatar'
@@ -17,7 +16,7 @@ import { pubkeyToNpub } from '@/lib/pubkey'
 import { useMuteList } from '@/providers/MuteListProvider'
 import { useNostr } from '@/providers/NostrProvider'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
-import { Bell, BellOff, Copy, Ellipsis, QrCode, StickyNote } from 'lucide-react'
+import { Bell, BellOff, Copy, Ellipsis, QrCode } from 'lucide-react'
 import { nip19 } from 'nostr-tools'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -29,7 +28,6 @@ export default function ProfileOptions({ pubkey }: { pubkey: string }) {
   const { mutePubkeySet, mutePubkey, unmutePubkey } = useMuteList()
   const isMuted = useMemo(() => mutePubkeySet.has(pubkey), [mutePubkeySet, pubkey])
   const [menuOpen, setMenuOpen] = useState(false)
-  const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false)
   const [isQrCodeOpen, setIsQrCodeOpen] = useState(false)
   const deferAction = useDeferredAction()
   const isSelf = pubkey === accountPubkey
@@ -48,15 +46,17 @@ export default function ProfileOptions({ pubkey }: { pubkey: string }) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent>
-          <DropdownMenuItem onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(pubkeyToNpub(pubkey) ?? '')
-              toast.success('Public key copied')
-            } catch (error) {
-              console.error('Failed to copy public key:', error)
-              toast.error('Failed to copy')
-            }
-          }}>
+          <DropdownMenuItem
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(pubkeyToNpub(pubkey) ?? '')
+                toast.success('Public key copied')
+              } catch (error) {
+                console.error('Failed to copy public key:', error)
+                toast.error('Failed to copy')
+              }
+            }}
+          >
             <Copy />
             {t('Copy public key')}
           </DropdownMenuItem>
@@ -71,15 +71,6 @@ export default function ProfileOptions({ pubkey }: { pubkey: string }) {
           </DropdownMenuItem>
           {!isSelf && (
             <>
-              <DropdownMenuItem
-                onSelect={(e) => {
-                  e.preventDefault()
-                  openDialogFromMenu(setIsNoteDialogOpen)
-                }}
-              >
-                <StickyNote />
-                {t('Add private note')}
-              </DropdownMenuItem>
               {isMuted ? (
                 <DropdownMenuItem
                   onClick={() => {
@@ -107,18 +98,7 @@ export default function ProfileOptions({ pubkey }: { pubkey: string }) {
           )}
         </DropdownMenuContent>
       </DropdownMenu>
-      <NpubQrCodeDialog
-        open={isQrCodeOpen}
-        onOpenChange={setIsQrCodeOpen}
-        pubkey={pubkey}
-      />
-      {!isSelf && (
-        <PrivateNoteDialog
-          open={isNoteDialogOpen}
-          onOpenChange={setIsNoteDialogOpen}
-          pubkey={pubkey}
-        />
-      )}
+      <NpubQrCodeDialog open={isQrCodeOpen} onOpenChange={setIsQrCodeOpen} pubkey={pubkey} />
     </>
   )
 }
@@ -128,8 +108,8 @@ function NpubQrCodeDialog({
   open,
   onOpenChange
 }: {
-  pubkey: string;
-  open: boolean;
+  pubkey: string
+  open: boolean
   onOpenChange: (open: boolean) => void
 }) {
   const { isSmallScreen } = useScreenSize()

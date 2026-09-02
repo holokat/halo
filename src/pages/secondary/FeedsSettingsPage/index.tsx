@@ -16,7 +16,7 @@ import { useCustomFeeds } from '@/providers/CustomFeedsProvider'
 import { useFavoriteRelays } from '@/providers/FavoriteRelaysProvider'
 import { useFeed } from '@/providers/FeedProvider'
 import { useNostr } from '@/providers/NostrProvider'
-import { useWidgets } from '@/providers/WidgetsProvider'
+import { useNewsFeedSettings } from '@/providers/NewsFeedSettingsProvider'
 import { Plus, X } from 'lucide-react'
 import { FormEvent, forwardRef, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -28,7 +28,7 @@ const FeedsSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
   const { customFeeds, addCustomFeed, updateCustomFeed } = useCustomFeeds()
   const { favoriteRelays, addFavoriteRelays, deleteFavoriteRelays } = useFavoriteRelays()
   const { feedInfo, switchFeed } = useFeed()
-  const { newsWidgetRelays, addNewsWidgetRelay, removeNewsWidgetRelay } = useWidgets()
+  const { newsRelays, addNewsRelay, removeNewsRelay } = useNewsFeedSettings()
   const [newHashtag, setNewHashtag] = useState('')
   const [draftHashtags, setDraftHashtags] = useState<string[]>([])
   const [hashtagsError, setHashtagsError] = useState<string | null>(null)
@@ -59,9 +59,7 @@ const FeedsSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
 
     const normalizedHashtag = normalizeCustomFeedHashtag(newHashtag)
     if (!normalizedHashtag) {
-      setHashtagsError(
-        t('Enter a hashtag to add', { defaultValue: 'Enter a hashtag to add' })
-      )
+      setHashtagsError(t('Enter a hashtag to add', { defaultValue: 'Enter a hashtag to add' }))
       return
     }
 
@@ -122,18 +120,20 @@ const FeedsSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
       return
     }
 
-    if (newsWidgetRelays.includes(normalizedRelay)) {
-      setNewsRelayError(t('That relay is already included', { defaultValue: 'That relay is already included' }))
+    if (newsRelays.includes(normalizedRelay)) {
+      setNewsRelayError(
+        t('That relay is already included', { defaultValue: 'That relay is already included' })
+      )
       return
     }
 
-    addNewsWidgetRelay(normalizedRelay)
+    addNewsRelay(normalizedRelay)
     setNewNewsRelay('')
     setNewsRelayError(null)
   }
 
   const handleRemoveNewsRelay = (relay: string) => {
-    removeNewsWidgetRelay(relay)
+    removeNewsRelay(relay)
     setNewsRelayError(null)
   }
 
@@ -174,8 +174,8 @@ const FeedsSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
           <CardHeader>
             <CardTitle>{t('Interests', { defaultValue: 'Interests' })}</CardTitle>
             <CardDescription>
-              {t('Pick a few hashtags for your Interests feed.', {
-                defaultValue: 'Pick a few hashtags for your Interests feed.'
+              {t('Configure hashtags for the optional Interests feed.', {
+                defaultValue: 'Configure hashtags for the optional Interests feed.'
               })}
             </CardDescription>
           </CardHeader>
@@ -197,17 +197,11 @@ const FeedsSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
                   placeholder="#technology"
                   className="h-10"
                 />
-                <Button
-                  type="submit"
-                  size="icon"
-                  className="h-10 w-10 shrink-0 rounded-full"
-                >
+                <Button type="submit" size="icon" className="h-10 w-10 shrink-0 rounded-full">
                   <Plus className="h-4 w-4" />
                 </Button>
               </form>
-              {hashtagsError ? (
-                <p className="text-xs text-destructive">{hashtagsError}</p>
-              ) : null}
+              {hashtagsError ? <p className="text-xs text-destructive">{hashtagsError}</p> : null}
             </div>
 
             {draftHashtags.length > 0 ? (
@@ -257,8 +251,8 @@ const FeedsSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
           <CardHeader>
             <CardTitle>{t('News', { defaultValue: 'News' })}</CardTitle>
             <CardDescription>
-              {t('Choose the relays that power your News feed.', {
-                defaultValue: 'Choose the relays that power your News feed.'
+              {t('Choose relays for the optional News feed.', {
+                defaultValue: 'Choose relays for the optional News feed.'
               })}
             </CardDescription>
           </CardHeader>
@@ -280,22 +274,16 @@ const FeedsSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
                   placeholder="wss://news.utxo.one"
                   className="h-10"
                 />
-                <Button
-                  type="submit"
-                  size="icon"
-                  className="h-10 w-10 shrink-0 rounded-full"
-                >
+                <Button type="submit" size="icon" className="h-10 w-10 shrink-0 rounded-full">
                   <Plus className="h-4 w-4" />
                 </Button>
               </form>
-              {newsRelayError ? (
-                <p className="text-xs text-destructive">{newsRelayError}</p>
-              ) : null}
+              {newsRelayError ? <p className="text-xs text-destructive">{newsRelayError}</p> : null}
             </div>
 
-            {newsWidgetRelays.length > 0 ? (
+            {newsRelays.length > 0 ? (
               <div className="flex flex-wrap gap-2">
-                {newsWidgetRelays.map((relay) => (
+                {newsRelays.map((relay) => (
                   <Badge
                     key={relay}
                     variant="secondary"
@@ -327,8 +315,8 @@ const FeedsSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
           <CardHeader>
             <CardTitle>{t('Bookmarked relays', { defaultValue: 'Bookmarked relays' })}</CardTitle>
             <CardDescription>
-              {t('These show up under More in the feed menu.', {
-                defaultValue: 'These show up under More in the feed menu.'
+              {t('Manage your saved relay bookmarks.', {
+                defaultValue: 'Manage your saved relay bookmarks.'
               })}
             </CardDescription>
           </CardHeader>
@@ -352,11 +340,7 @@ const FeedsSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
                       placeholder="wss://relay.example.com"
                       className="h-10"
                     />
-                    <Button
-                      type="submit"
-                      size="icon"
-                      className="h-10 w-10 shrink-0 rounded-full"
-                    >
+                    <Button type="submit" size="icon" className="h-10 w-10 shrink-0 rounded-full">
                       <Plus className="h-4 w-4" />
                     </Button>
                   </form>

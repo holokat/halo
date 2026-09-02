@@ -1,6 +1,6 @@
-import { getCustomFeedHashtags, INTERESTS_FEED_ID } from '@/lib/custom-feed'
 import { FEED_INFO_CHANGED_EVENT, TFeedInfoChangedDetail } from '@/lib/feed-sync'
 import { getRelaySetFromEvent } from '@/lib/event-metadata'
+import { normalizeVisibleFeedInfo } from '@/lib/feed-policy'
 import { isWebsocketUrl, normalizeUrl } from '@/lib/url'
 import { getPubkeysFromPTags } from '@/lib/tag'
 import indexedDb from '@/services/indexed-db.service'
@@ -22,6 +22,7 @@ type TFeedContext = {
       pubkey?: string
       relay?: string | null
       customFeedId?: string
+      persist?: boolean
     }
   ) => Promise<void>
 }
@@ -46,7 +47,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
   const [relayUrls, setRelayUrls] = useState<string[]>([])
   const [isReady, setIsReady] = useState(false)
   const [feedInfo, setFeedInfo] = useState<TFeedInfo>({
-    feedType: 'news'
+    feedType: 'trending'
   })
   const feedInfoRef = useRef<TFeedInfo>(feedInfo)
 
@@ -56,73 +57,33 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
-      let feedInfo: TFeedInfo
+      let nextFeedInfo: TFeedInfo
+      let shouldPersistFeedInfo = true
       if (pubkey) {
-        // For logged in users, check stored feed or default based on follow list
         const storedFeedInfo = storage.getFeedInfo(pubkey)
         if (storedFeedInfo) {
-          feedInfo = storedFeedInfo
+          nextFeedInfo = normalizeVisibleFeedInfo(storedFeedInfo, pubkey)
+          shouldPersistFeedInfo = false
         } else {
-          const interestsFeed = storage
-            .getCustomFeeds(pubkey)
-            .find((feed) => feed.id === INTERESTS_FEED_ID && getCustomFeedHashtags(feed).length > 0)
-
-          if (interestsFeed) {
-            feedInfo = { feedType: 'custom', id: interestsFeed.id }
-            return await switchFeed('custom', { customFeedId: interestsFeed.id })
-          }
-
-          // Check if user has any followings
           const followings = followListEvent ? getPubkeysFromPTags(followListEvent.tags) : []
-
-          if (followings.length === 0) {
-            feedInfo = { feedType: 'news' }
-            return await switchFeed('news')
-          } else {
-            // Users with followings default to following feed
-            feedInfo = { feedType: 'following' }
-            return await switchFeed('following', { pubkey })
+          nextFeedInfo = {
+            feedType: followings.length > 0 ? 'following' : 'trending'
           }
         }
       } else {
-        feedInfo = { feedType: 'news' }
+        nextFeedInfo = { feedType: 'trending' }
       }
 
-      if (feedInfo.feedType === 'relays') {
-        return await switchFeed('relays', { activeRelaySetId: feedInfo.id })
+      if (nextFeedInfo.feedType === 'trending') {
+        return await switchFeed('trending', { persist: shouldPersistFeedInfo })
       }
 
-      if (feedInfo.feedType === 'relay') {
-        return await switchFeed('relay', { relay: feedInfo.id })
+      if (nextFeedInfo.feedType === 'following' && pubkey) {
+        return await switchFeed('following', { pubkey, persist: shouldPersistFeedInfo })
       }
 
-      if (feedInfo.feedType === 'trending') {
-        return await switchFeed('trending')
-      }
-
-      if (feedInfo.feedType === 'news') {
-        return await switchFeed('news')
-      }
-
-      // update following feed if pubkey changes
-      if (feedInfo.feedType === 'following' && pubkey) {
-        return await switchFeed('following', { pubkey })
-      }
-
-      if (feedInfo.feedType === 'bookmarks' && pubkey) {
-        return await switchFeed('bookmarks', { pubkey })
-      }
-
-      if (feedInfo.feedType === 'custom') {
-        return await switchFeed('custom', { customFeedId: feedInfo.id })
-      }
-
-      if (feedInfo.feedType === 'one-per-person' && pubkey) {
-        return await switchFeed('one-per-person', { pubkey })
-      }
-
-      if (feedInfo.feedType === 'polls' && pubkey) {
-        return await switchFeed('polls', { pubkey })
+      if (nextFeedInfo.feedType === 'bookmarks' && pubkey) {
+        return await switchFeed('bookmarks', { pubkey, persist: shouldPersistFeedInfo })
       }
     }
 
@@ -140,53 +101,26 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
-      const nextFeedInfo = detail?.feedInfo ?? storage.getFeedInfo(pubkey)
-      if (!nextFeedInfo) {
+      const storedFeedInfo = detail?.feedInfo ?? storage.getFeedInfo(pubkey)
+      if (!storedFeedInfo) {
         return
       }
 
-      if (nextFeedInfo.feedType === 'relays') {
-        void switchFeed('relays', { activeRelaySetId: nextFeedInfo.id })
-        return
-      }
-
-      if (nextFeedInfo.feedType === 'relay') {
-        void switchFeed('relay', { relay: nextFeedInfo.id })
-        return
-      }
+      const nextFeedInfo = normalizeVisibleFeedInfo(storedFeedInfo, pubkey)
 
       if (nextFeedInfo.feedType === 'trending') {
-        void switchFeed('trending')
-        return
-      }
-
-      if (nextFeedInfo.feedType === 'news') {
-        void switchFeed('news')
+        void switchFeed('trending', { persist: false })
         return
       }
 
       if (nextFeedInfo.feedType === 'following') {
-        void switchFeed('following', { pubkey })
+        void switchFeed('following', { pubkey, persist: false })
         return
       }
 
       if (nextFeedInfo.feedType === 'bookmarks') {
-        void switchFeed('bookmarks', { pubkey })
+        void switchFeed('bookmarks', { pubkey, persist: false })
         return
-      }
-
-      if (nextFeedInfo.feedType === 'custom') {
-        void switchFeed('custom', { customFeedId: nextFeedInfo.id })
-        return
-      }
-
-      if (nextFeedInfo.feedType === 'one-per-person') {
-        void switchFeed('one-per-person', { pubkey })
-        return
-      }
-
-      if (nextFeedInfo.feedType === 'polls') {
-        void switchFeed('polls', { pubkey })
       }
     }
 
@@ -204,9 +138,19 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       pubkey?: string | null
       relay?: string | null
       customFeedId?: string | null
+      persist?: boolean
     } = {}
   ) => {
     setIsReady(false)
+
+    const applyFeedInfo = (newFeedInfo: TFeedInfo) => {
+      setFeedInfo(newFeedInfo)
+      feedInfoRef.current = newFeedInfo
+      if (options.persist !== false) {
+        storage.setFeedInfo(newFeedInfo, pubkey)
+      }
+    }
+
     if (feedType === 'relay') {
       const normalizedUrl = normalizeUrl(options.relay ?? '')
       if (!normalizedUrl || !isWebsocketUrl(normalizedUrl)) {
@@ -215,10 +159,8 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       }
 
       const newFeedInfo = { feedType, id: normalizedUrl }
-      setFeedInfo(newFeedInfo)
-      feedInfoRef.current = newFeedInfo
+      applyFeedInfo(newFeedInfo)
       setRelayUrls([normalizedUrl])
-      storage.setFeedInfo(newFeedInfo, pubkey)
       setIsReady(true)
       return
     }
@@ -244,10 +186,8 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       }
       if (relaySet) {
         const newFeedInfo = { feedType, id: relaySet.id }
-        setFeedInfo(newFeedInfo)
-        feedInfoRef.current = newFeedInfo
+        applyFeedInfo(newFeedInfo)
         setRelayUrls(relaySet.relayUrls)
-        storage.setFeedInfo(newFeedInfo, pubkey)
         setIsReady(true)
       }
       setIsReady(true)
@@ -259,9 +199,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         return
       }
       const newFeedInfo = { feedType }
-      setFeedInfo(newFeedInfo)
-      feedInfoRef.current = newFeedInfo
-      storage.setFeedInfo(newFeedInfo, pubkey)
+      applyFeedInfo(newFeedInfo)
 
       setRelayUrls([])
       setIsReady(true)
@@ -269,9 +207,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
     }
     if (feedType === 'trending') {
       const newFeedInfo = { feedType }
-      setFeedInfo(newFeedInfo)
-      feedInfoRef.current = newFeedInfo
-      storage.setFeedInfo(newFeedInfo, pubkey)
+      applyFeedInfo(newFeedInfo)
 
       setRelayUrls([])
       setIsReady(true)
@@ -279,9 +215,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
     }
     if (feedType === 'news') {
       const newFeedInfo = { feedType }
-      setFeedInfo(newFeedInfo)
-      feedInfoRef.current = newFeedInfo
-      storage.setFeedInfo(newFeedInfo, pubkey)
+      applyFeedInfo(newFeedInfo)
 
       setRelayUrls([])
       setIsReady(true)
@@ -294,9 +228,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       }
 
       const newFeedInfo = { feedType }
-      setFeedInfo(newFeedInfo)
-      feedInfoRef.current = newFeedInfo
-      storage.setFeedInfo(newFeedInfo, pubkey)
+      applyFeedInfo(newFeedInfo)
 
       setRelayUrls([])
       setIsReady(true)
@@ -309,9 +241,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       }
 
       const newFeedInfo = { feedType, id: options.customFeedId }
-      setFeedInfo(newFeedInfo)
-      feedInfoRef.current = newFeedInfo
-      storage.setFeedInfo(newFeedInfo, pubkey)
+      applyFeedInfo(newFeedInfo)
 
       setRelayUrls([])
       setIsReady(true)
@@ -324,9 +254,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       }
 
       const newFeedInfo = { feedType }
-      setFeedInfo(newFeedInfo)
-      feedInfoRef.current = newFeedInfo
-      storage.setFeedInfo(newFeedInfo, pubkey)
+      applyFeedInfo(newFeedInfo)
 
       setRelayUrls([])
       setIsReady(true)
@@ -339,9 +267,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       }
 
       const newFeedInfo = { feedType }
-      setFeedInfo(newFeedInfo)
-      feedInfoRef.current = newFeedInfo
-      storage.setFeedInfo(newFeedInfo, pubkey)
+      applyFeedInfo(newFeedInfo)
 
       setRelayUrls([])
       setIsReady(true)

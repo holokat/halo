@@ -1,151 +1,38 @@
 import Icon from '@/assets/Icon'
 import Logo from '@/assets/Logo'
-import LogoEmoji from '@/components/LogoEmoji'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { useCompactSidebar } from '@/providers/CompactSidebarProvider'
-import { useLogoStyle } from '@/providers/LogoStyleProvider'
-import { useLogoFontSize } from '@/providers/LogoFontSizeProvider'
-import { useMenuItems } from '@/providers/MenuItemsProvider'
-import { useScreenSize } from '@/providers/ScreenSizeProvider'
-import { useLayoutMode } from '@/providers/LayoutModeProvider'
 import { usePrimaryPage } from '@/PageManager'
-import { LAYOUT_MODE } from '@/constants'
-import { cn } from '@/lib/utils'
 import AccountButton from './AccountButton'
-import RelaysButton from './ExploreButton'
+import SearchButton from './ExploreButton'
 import HomeButton from './HomeButton'
 import NotificationsButton from './NotificationButton'
-import PostButton from './PostButton'
-import ReadsButton from './ReadsButton'
-import ListsButton from './ListsButton'
-import LiveStreamsButton from './LiveStreamsButton'
-import MultiColumnToggle from './MultiColumnToggle'
-import { forwardRef } from 'react'
-import { useTranslation } from 'react-i18next'
-
-// Wrapper component to add opacity effect to nav items
-const NavItemWrapper = forwardRef<
-  HTMLDivElement,
-  { children: React.ReactNode; dimmed?: boolean; active?: boolean }
->(({ children, dimmed = false, active = false }, ref) => {
-  if (!dimmed) {
-    return <>{children}</>
-  }
-  return (
-    <div
-      ref={ref}
-      className={cn(
-        'transition-opacity duration-300',
-        active ? 'opacity-100' : 'opacity-40 hover:opacity-100'
-      )}
-    >
-      {children}
-    </div>
-  )
-})
-NavItemWrapper.displayName = 'NavItemWrapper'
 
 export default function PrimaryPageSidebar() {
-  const { t } = useTranslation()
-  const { isSmallScreen } = useScreenSize()
-  const { compactSidebar } = useCompactSidebar()
-  const { logoStyle, customLogoText, customLogoEmoji } = useLogoStyle()
-  const { logoFontSize } = useLogoFontSize()
-  const { menuItems } = useMenuItems()
-  const { layoutMode } = useLayoutMode()
-  const { current, navigate } = usePrimaryPage()
-
-  if (isSmallScreen) return null
-
-  const isIslandMode = layoutMode === LAYOUT_MODE.ISLAND
-
-  // Get visible menu items sorted by order
-  const visibleMenuItems = menuItems
-    .filter((item) => item.visible && item.canReorder && item.id !== 'lists' && item.id !== 'livestreams')
-    .sort((a, b) => a.order - b.order)
-
-  // Get deck toggle visibility
-  const deckItem = menuItems.find((item) => item.id === 'deck')
-  const showDeck = deckItem?.visible ?? true
-
-  // Map menu item IDs to components
-  const menuItemComponents: Record<string, JSX.Element> = {
-    home: <HomeButton />,
-    reads: <ReadsButton />,
-    lists: <ListsButton />,
-    explore: <RelaysButton />,
-    notifications: <NotificationsButton />,
-    livestreams: <LiveStreamsButton />,
-    post: <PostButton />
-  }
+  const { navigate } = usePrimaryPage()
 
   return (
     <TooltipProvider>
       <nav
-        className={cn(
-          'flex flex-col pb-2 pt-4 px-2 h-full shrink-0 transition-all duration-300',
-          compactSidebar ? 'w-16' : 'w-16 xl:w-52 xl:px-4',
-          isIslandMode && 'bg-card/80 backdrop-blur-sm shadow-lg',
-          isIslandMode ? 'justify-start' : 'justify-between'
-        )}
+        className="flex h-full w-16 shrink-0 flex-col px-2 pb-3 pt-4 xl:w-52 xl:px-4"
         aria-label="Primary navigation"
       >
-        <div
-          className={cn(
-            'mb-6 w-full transition-[padding] duration-300',
-            compactSidebar ? '' : 'xl:px-4'
-          )}
+        <button
+          type="button"
+          className="mb-8 flex h-12 w-12 items-center justify-center rounded-xl bg-transparent p-0 xl:w-full xl:justify-start xl:px-3"
+          onClick={() => navigate('home')}
+          aria-label="Home"
         >
-          {logoStyle === 'emoji' ? (
-            <button
-              type="button"
-              className={cn(
-                'flex items-center justify-center w-12 h-12 cursor-pointer border-0 bg-transparent p-0',
-                compactSidebar ? '' : 'xl:w-full xl:justify-start'
-              )}
-              onClick={() => navigate('home')}
-              aria-label={t('Home')}
-            >
-              <LogoEmoji emoji={customLogoEmoji} size={logoFontSize} />
-            </button>
-          ) : (
-            <>
-              <Icon className={cn(compactSidebar ? '' : 'xl:hidden')} />
-              {logoStyle === 'image' ? (
-                <Logo className={cn(compactSidebar ? 'hidden' : 'max-xl:hidden')} />
-              ) : (
-                <div
-                  className={cn(
-                    'font-bold max-xl:hidden cursor-pointer',
-                    compactSidebar && 'hidden'
-                  )}
-                  style={{ fontSize: `${logoFontSize}px` }}
-                  onClick={() => navigate('home')}
-                >
-                  {customLogoText}
-                </div>
-              )}
-            </>
-          )}
-        </div>
-        <div className={cn('space-y-2', isIslandMode && 'flex-1 flex flex-col justify-center')}>
-          {visibleMenuItems.map((item) => {
-            const component = menuItemComponents[item.id]
-            if (!component) return null
+          <Icon className="xl:hidden" />
+          <Logo className="hidden max-h-8 max-w-[8rem] xl:block" />
+        </button>
 
-            return (
-              <NavItemWrapper key={item.id} dimmed active={current === item.id}>
-                {component}
-              </NavItemWrapper>
-            )
-          })}
+        <div className="space-y-1">
+          <HomeButton />
+          <SearchButton />
+          <NotificationsButton />
         </div>
-        <div className="space-y-2 mt-auto">
-          {showDeck && (
-            <NavItemWrapper dimmed>
-              <MultiColumnToggle />
-            </NavItemWrapper>
-          )}
+
+        <div className="mt-auto pt-6">
           <AccountButton />
         </div>
       </nav>

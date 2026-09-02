@@ -6,7 +6,9 @@ import { Skeleton } from './components/ui/skeleton'
 const AppearanceSettingsPage = lazy(() => import('./pages/secondary/AppearanceSettingsPage'))
 const ArticlePage = lazy(() => import('./pages/secondary/ArticlePage'))
 const BackupSettingsPage = lazy(() => import('./pages/secondary/BackupSettingsPage'))
-const ContentPrivacySettingsPage = lazy(() => import('./pages/secondary/ContentPrivacySettingsPage'))
+const ContentPrivacySettingsPage = lazy(
+  () => import('./pages/secondary/ContentPrivacySettingsPage')
+)
 const FeedsSettingsPage = lazy(() => import('./pages/secondary/FeedsSettingsPage'))
 const FollowingListPage = lazy(() => import('./pages/secondary/FollowingListPage'))
 const GeneralSettingsPage = lazy(() => import('./pages/secondary/GeneralSettingsPage'))
@@ -23,7 +25,7 @@ const RelayReviewsPage = lazy(() => import('./pages/secondary/RelayReviewsPage')
 const RelaySettingsPage = lazy(() => import('./pages/secondary/RelaySettingsPage'))
 const SearchPage = lazy(() => import('./pages/secondary/SearchPage'))
 const SettingsPage = lazy(() => import('./pages/secondary/SettingsPage'))
-const WidgetsSettingsPage = lazy(() => import('./pages/secondary/WidgetsSettingsPage'))
+const SettingsGroupPage = lazy(() => import('./pages/secondary/SettingsGroupPage'))
 const ScheduledPostsPage = lazy(() => import('./pages/secondary/ScheduledPostsPage'))
 const ListsIndexPage = lazy(() => import('./pages/secondary/ListsIndexPage'))
 const ListPage = lazy(() => import('./pages/secondary/ListPage'))
@@ -42,10 +44,7 @@ function PageLoadingFallback() {
 }
 
 // Wrapper to add Suspense to lazy components
-function withSuspense<P extends object>(
-  LazyComponent: ComponentType<P>,
-  displayName?: string
-) {
+function withSuspense<P extends object>(LazyComponent: ComponentType<P>, displayName?: string) {
   const AnyLazyComponent = LazyComponent as ComponentType<any>
   const WrappedComponent = forwardRef<any, P>((props, ref) => (
     <Suspense fallback={<PageLoadingFallback />}>
@@ -57,10 +56,16 @@ function withSuspense<P extends object>(
 }
 
 // Create suspended versions of all components
-const SuspendedAppearanceSettingsPage = withSuspense(AppearanceSettingsPage, 'AppearanceSettingsPage')
+const SuspendedAppearanceSettingsPage = withSuspense(
+  AppearanceSettingsPage,
+  'AppearanceSettingsPage'
+)
 const SuspendedArticlePage = withSuspense(ArticlePage, 'ArticlePage')
 const SuspendedBackupSettingsPage = withSuspense(BackupSettingsPage, 'BackupSettingsPage')
-const SuspendedContentPrivacySettingsPage = withSuspense(ContentPrivacySettingsPage, 'ContentPrivacySettingsPage')
+const SuspendedContentPrivacySettingsPage = withSuspense(
+  ContentPrivacySettingsPage,
+  'ContentPrivacySettingsPage'
+)
 const SuspendedFeedsSettingsPage = withSuspense(FeedsSettingsPage, 'FeedsSettingsPage')
 const SuspendedFollowingListPage = withSuspense(FollowingListPage, 'FollowingListPage')
 const SuspendedGeneralSettingsPage = withSuspense(GeneralSettingsPage, 'GeneralSettingsPage')
@@ -68,7 +73,10 @@ const SuspendedKeysSettingsPage = withSuspense(KeysSettingsPage, 'KeysSettingsPa
 const SuspendedMuteListPage = withSuspense(MuteListPage, 'MuteListPage')
 const SuspendedNoteListPage = withSuspense(NoteListPage, 'NoteListPage')
 const SuspendedNotePage = withSuspense(NotePage, 'NotePage')
-const SuspendedOthersRelaySettingsPage = withSuspense(OthersRelaySettingsPage, 'OthersRelaySettingsPage')
+const SuspendedOthersRelaySettingsPage = withSuspense(
+  OthersRelaySettingsPage,
+  'OthersRelaySettingsPage'
+)
 const SuspendedPostSettingsPage = withSuspense(PostSettingsPage, 'PostSettingsPage')
 const SuspendedProfileListPage = withSuspense(ProfileListPage, 'ProfileListPage')
 const SuspendedProfilePage = withSuspense(ProfilePage, 'ProfilePage')
@@ -77,7 +85,7 @@ const SuspendedRelayReviewsPage = withSuspense(RelayReviewsPage, 'RelayReviewsPa
 const SuspendedRelaySettingsPage = withSuspense(RelaySettingsPage, 'RelaySettingsPage')
 const SuspendedSearchPage = withSuspense(SearchPage, 'SearchPage')
 const SuspendedSettingsPage = withSuspense(SettingsPage, 'SettingsPage')
-const SuspendedWidgetsSettingsPage = withSuspense(WidgetsSettingsPage, 'WidgetsSettingsPage')
+const SuspendedSettingsGroupPage = withSuspense(SettingsGroupPage, 'SettingsGroupPage')
 const SuspendedScheduledPostsPage = withSuspense(ScheduledPostsPage, 'ScheduledPostsPage')
 const SuspendedListsIndexPage = withSuspense(ListsIndexPage, 'ListsIndexPage')
 const SuspendedListPage = withSuspense(ListPage, 'ListPage')
@@ -96,6 +104,11 @@ const ROUTES = [
   { path: '/relays/:url/reviews', element: <SuspendedRelayReviewsPage /> },
   { path: '/search', element: <SuspendedSearchPage /> },
   { path: '/settings', element: <SuspendedSettingsPage /> },
+  {
+    path: '/settings/account-security',
+    element: <SuspendedSettingsGroupPage group="account-security" />
+  },
+  { path: '/settings/advanced', element: <SuspendedSettingsGroupPage group="advanced" /> },
   { path: '/settings/relays', element: <SuspendedRelaySettingsPage /> },
   { path: '/settings/posts', element: <SuspendedPostSettingsPage /> },
   { path: '/settings/general', element: <SuspendedGeneralSettingsPage /> },
@@ -103,7 +116,7 @@ const ROUTES = [
   { path: '/settings/keys', element: <SuspendedKeysSettingsPage /> },
   { path: '/settings/content-privacy', element: <SuspendedContentPrivacySettingsPage /> },
   { path: '/settings/appearance', element: <SuspendedAppearanceSettingsPage /> },
-  { path: '/settings/widgets', element: <SuspendedWidgetsSettingsPage /> },
+  { path: '/settings/widgets', element: <SuspendedSettingsGroupPage group="advanced" /> },
   { path: '/settings/backup', element: <SuspendedBackupSettingsPage /> },
   { path: '/settings/scheduled', element: <SuspendedScheduledPostsPage /> },
   { path: '/mutes', element: <SuspendedMuteListPage /> },

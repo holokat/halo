@@ -2,14 +2,8 @@ import UserAvatar from '@/components/UserAvatar'
 import { Button } from '@/components/ui/button'
 import { deleteDraftEventCache } from '@/lib/draft-event'
 import { minePow } from '@/lib/event'
-import { toScheduledPostsSettings } from '@/lib/link'
-import {
-  createDefaultPollCreateData,
-  getDefaultPollEndsAt,
-  normalizePollCreateData
-} from '@/lib/poll'
-import { cn, isTouchDevice } from '@/lib/utils'
-import { useSecondaryPage } from '@/PageManager'
+import { createDefaultPollCreateData, normalizePollCreateData } from '@/lib/poll'
+import { cn } from '@/lib/utils'
 import { useNostr } from '@/providers/NostrProvider'
 import { useReply } from '@/providers/ReplyProvider'
 import { useNoteExpiration } from '@/providers/NoteExpirationProvider'
@@ -18,32 +12,17 @@ import storage from '@/services/local-storage.service'
 import postEditorCache, { ImageAttachment } from '@/services/post-editor-cache.service'
 import scheduledPostsService from '@/services/scheduled-posts.service'
 import { TLocalPostDraft, TPollCreateData } from '@/types'
-import {
-  CircleUserRound,
-  Clock,
-  HelpCircle,
-  ImageUp,
-  ListTodo,
-  LoaderCircle,
-  Settings,
-  Smile,
-  X
-} from 'lucide-react'
+import { CircleUserRound, ImageUp, LoaderCircle, X } from 'lucide-react'
 import { Event, kinds, nip19 } from 'nostr-tools'
 import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import EmojiPickerDialog from '../EmojiPickerDialog'
-import GifPicker from '../GifPicker'
 import Mentions from './Mentions'
 import PostRelaySelector from './PostRelaySelector'
-import PostSchedulePopover from './PostSchedulePopover'
 import PollEditor from './PollEditor'
 import PostOptions from './PostOptions'
 import PostTextarea, { TPostTextareaHandle } from './PostTextarea'
 import Uploader from './Uploader'
-import ComposerHelpDialog from './ComposerHelpDialog'
-import GifIcon from '@/components/icons/GifIcon'
 import { hasPrivateKeyInDraft, extractPrivateKeyCandidates } from './post-content/private-key'
 import {
   appendExpirationTag,
@@ -84,7 +63,6 @@ export default function PostContent({
   setAdditionalRelayUrls?: Dispatch<SetStateAction<string[]>>
 }) {
   const { t } = useTranslation()
-  const { push } = useSecondaryPage()
   const { account, pubkey, publish, checkLogin, signEvent } = useNostr()
   const { addReplies, removeReplies } = useReply()
   const { defaultExpiration, getExpirationTimestamp } = useNoteExpiration()
@@ -95,7 +73,6 @@ export default function PostContent({
     { file: File; progress: number; cancel: () => void }[]
   >([])
   const [images, setImages] = useState<ImageAttachment[]>([])
-  const [showMoreOptions, setShowMoreOptions] = useState(false)
   const [addClientTag, setAddClientTag] = useState(false)
   const [mentions, setMentions] = useState<string[]>([])
   const [isNsfw, setIsNsfw] = useState(false)
@@ -259,7 +236,6 @@ export default function PostContent({
     setScheduledFor(draft.scheduledFor)
     setMinPow(draft.minPow)
     setActiveLocalDraftId(draft.id)
-    setShowMoreOptions(false)
   }, [])
 
   const handleDeleteLocalDraft = useCallback(
@@ -545,52 +521,6 @@ export default function PostContent({
     [scheduledFor, schedulePost, hasDetectedPrivateKey, post, t]
   )
 
-  const handlePollToggle = () => {
-    if (parentEvent) return
-
-    if (isMobileComposer) {
-      setIsPoll((prev) => {
-        if (prev) return prev
-
-        const isPristinePollDraft =
-          !pollCreateData.isMultipleChoice &&
-          pollCreateData.relays.length === 0 &&
-          pollCreateData.options.every((option) => !option.label.trim() && !option.image)
-
-        if (isPristinePollDraft && typeof pollCreateData.endsAt !== 'number') {
-          setPollCreateData((current) => ({
-            ...current,
-            endsAt: getDefaultPollEndsAt()
-          }))
-        }
-
-        return true
-      })
-      setPollEditorOpen(true)
-      return
-    }
-
-    setIsPoll((prev) => {
-      const next = !prev
-
-      if (next) {
-        const isPristinePollDraft =
-          !pollCreateData.isMultipleChoice &&
-          pollCreateData.relays.length === 0 &&
-          pollCreateData.options.every((option) => !option.label.trim() && !option.image)
-
-        if (isPristinePollDraft && typeof pollCreateData.endsAt !== 'number') {
-          setPollCreateData((current) => ({
-            ...current,
-            endsAt: getDefaultPollEndsAt()
-          }))
-        }
-      }
-
-      return next
-    })
-  }
-
   useEffect(() => {
     if (!isPoll) {
       setPollEditorOpen(false)
@@ -639,13 +569,6 @@ export default function PostContent({
   const handleRemoveImage = useCallback((index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index))
   }, [])
-
-  const handleViewScheduledQueue = useCallback(() => {
-    close()
-    window.setTimeout(() => {
-      push(toScheduledPostsSettings())
-    }, 0)
-  }, [close, push])
 
   const hasRelaySelector = !!(setIsProtectedEvent && setAdditionalRelayUrls)
   const mobilePlaceholder = parentEvent
@@ -732,84 +655,25 @@ export default function PostContent({
     ) : null
 
   const composerTools = (
-    <>
-      <Uploader
-        onUploadSuccess={({ url }) => {
-          handleImageUploadSuccess(url)
-        }}
-        onUploadStart={handleUploadStart}
-        onUploadEnd={handleUploadEnd}
-        onProgress={handleUploadProgress}
-        accept="image/*,video/*,audio/*"
-      >
-        <Button variant="ghost" size="icon" className={toolButtonClass}>
-          <ImageUp />
-        </Button>
-      </Uploader>
-      <GifPicker
-        onGifSelect={(attachment) => {
-          setImages((prev) => [...prev, attachment])
-        }}
-      >
-        <Button variant="ghost" size="icon" className={toolButtonClass}>
-          <GifIcon />
-        </Button>
-      </GifPicker>
-      {/* I'm not sure why, but after triggering the virtual keyboard,
-          opening the emoji picker drawer causes an issue,
-          the emoji I tap isn't the one that gets inserted. */}
-      {!isTouchDevice() && (
-        <EmojiPickerDialog
-          onEmojiClick={(emoji) => {
-            if (!emoji) return
-            textareaRef.current?.insertEmoji(emoji)
-          }}
-        >
-          <Button variant="ghost" size="icon" className={toolButtonClass}>
-            <Smile />
-          </Button>
-        </EmojiPickerDialog>
-      )}
-      {!parentEvent && (
-        <Button
-          variant="ghost"
-          size="icon"
-          title={t('Create Poll')}
-          className={cn(toolButtonClass, isPoll && 'bg-accent')}
-          onClick={handlePollToggle}
-        >
-          <ListTodo />
-        </Button>
-      )}
-      <PostSchedulePopover
-        scheduledFor={scheduledFor}
-        onScheduledForChange={setScheduledFor}
-        signerType={account?.signerType}
-        onViewQueue={handleViewScheduledQueue}
-        buttonClassName={isMobileComposer ? 'h-10 w-10 [&_svg]:size-5' : undefined}
-      />
+    <Uploader
+      onUploadSuccess={({ url }) => {
+        handleImageUploadSuccess(url)
+      }}
+      onUploadStart={handleUploadStart}
+      onUploadEnd={handleUploadEnd}
+      onProgress={handleUploadProgress}
+      accept="image/*,video/*,audio/*"
+    >
       <Button
         variant="ghost"
         size="icon"
-        className={cn(toolButtonClass, showMoreOptions && 'bg-accent')}
-        onClick={() => setShowMoreOptions((pre) => !pre)}
+        className={toolButtonClass}
+        title={t('Add media', { defaultValue: 'Add media' })}
+        aria-label={t('Add media', { defaultValue: 'Add media' })}
       >
-        <Settings />
+        <ImageUp />
       </Button>
-      <ComposerHelpDialog>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn(
-            'text-muted-foreground/60 hover:bg-foreground/5 hover:text-muted-foreground',
-            isMobileComposer && 'h-10 w-10 [&_svg]:size-5'
-          )}
-          title={t('Composer Help')}
-        >
-          <HelpCircle className="h-4 w-4" />
-        </Button>
-      </ComposerHelpDialog>
-    </>
+    </Uploader>
   )
 
   if (isMobileComposer) {
@@ -829,13 +693,15 @@ export default function PostContent({
             </Button>
             <div className="flex items-center gap-1">
               {hasRelaySelector && (
-                <PostRelaySelector
-                  parentEvent={parentEvent}
-                  openFrom={openFrom}
-                  mobileCompact
-                  setIsProtectedEvent={setIsProtectedEvent!}
-                  setAdditionalRelayUrls={setAdditionalRelayUrls!}
-                />
+                <span className="hidden">
+                  <PostRelaySelector
+                    parentEvent={parentEvent}
+                    openFrom={openFrom}
+                    mobileCompact
+                    setIsProtectedEvent={setIsProtectedEvent!}
+                    setAdditionalRelayUrls={setAdditionalRelayUrls!}
+                  />
+                </span>
               )}
               <Button
                 type="submit"
@@ -874,7 +740,7 @@ export default function PostContent({
               <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
                 {composerTools}
               </div>
-              <div className="shrink-0">
+              <div className="hidden">
                 <Mentions
                   content={text}
                   parentEvent={parentEvent}
@@ -887,7 +753,7 @@ export default function PostContent({
             <div className="px-1 pt-3">
               <PostOptions
                 posting={posting}
-                show={showMoreOptions}
+                show={false}
                 addClientTag={addClientTag}
                 setAddClientTag={setAddClientTag}
                 isNsfw={isNsfw}
@@ -938,12 +804,14 @@ export default function PostContent({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">{composerTools}</div>
         <div className="flex items-center gap-2">
-          <Mentions
-            content={text}
-            parentEvent={parentEvent}
-            mentions={mentions}
-            setMentions={setMentions}
-          />
+          <div className="hidden">
+            <Mentions
+              content={text}
+              parentEvent={parentEvent}
+              mentions={mentions}
+              setMentions={setMentions}
+            />
+          </div>
           <div className="flex items-center gap-2">
             <Button
               variant="secondary"
@@ -969,7 +837,7 @@ export default function PostContent({
       </div>
       <PostOptions
         posting={posting}
-        show={showMoreOptions}
+        show={false}
         addClientTag={addClientTag}
         setAddClientTag={setAddClientTag}
         isNsfw={isNsfw}

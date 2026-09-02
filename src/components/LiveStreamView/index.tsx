@@ -11,7 +11,6 @@ import {
   Pause,
   Volume2,
   VolumeX,
-  Pin,
   PictureInPicture2,
   Maximize2,
   Minimize2
@@ -44,7 +43,6 @@ export default function LiveStreamView({
     isFullscreen,
     isInPopout,
     isLoading,
-    isPinnedToWidget,
     isSending,
     isSmallScreen,
     isVideoMuted,
@@ -65,7 +63,6 @@ export default function LiveStreamView({
     t,
     title,
     toggleFullscreen,
-    togglePinToWidget,
     toggleVideoMute,
     toggleVideoPlayback,
     videoContainerRef,
@@ -122,7 +119,10 @@ export default function LiveStreamView({
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
               <Username userId={liveEvent.pubkey} noLink className="truncate" />
-              <Badge variant="destructive" className="flex items-center gap-1 bg-red-600 text-white">
+              <Badge
+                variant="destructive"
+                className="flex items-center gap-1 bg-red-600 text-white"
+              >
                 <Radio className="h-3 w-3 animate-pulse" />
                 {status === 'live' ? t('LIVE') : status?.toUpperCase()}
               </Badge>
@@ -151,7 +151,10 @@ export default function LiveStreamView({
       <div className="grid min-h-0 min-w-0 flex-1 grid-rows-[minmax(220px,42vh)_minmax(0,1fr)]">
         <div className="flex min-h-0 min-w-0 flex-col overflow-x-hidden border-b bg-black">
           {streamingUrl ? (
-            <div ref={videoContainerRef} className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-black">
+            <div
+              ref={videoContainerRef}
+              className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-black"
+            >
               <video
                 ref={videoRef}
                 src={streamingUrl}
@@ -183,7 +186,11 @@ export default function LiveStreamView({
                     className="h-8 w-8 shrink-0 bg-black/10 text-white/80 hover:bg-white/10 hover:text-white"
                     onClick={toggleVideoMute}
                   >
-                    {isVideoMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                    {isVideoMuted ? (
+                      <VolumeX className="h-4 w-4" />
+                    ) : (
+                      <Volume2 className="h-4 w-4" />
+                    )}
                   </Button>
 
                   <div className="flex min-w-0 flex-1 items-center gap-1.5">
@@ -230,23 +237,14 @@ export default function LiveStreamView({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className={`h-8 w-8 shrink-0 text-white/80 hover:bg-white/10 hover:text-white ${
-                        isPinnedToWidget ? 'bg-white/20 text-white' : ''
-                      }`}
-                      onClick={togglePinToWidget}
-                      disabled={!streamingUrl || !naddr}
-                      title={isPinnedToWidget ? t('Pinned to widget') : t('Pin to widget')}
-                    >
-                      <Pin className="h-4 w-4" />
-                    </Button>
-
-                    <Button
-                      variant="ghost"
-                      size="icon"
                       className="h-8 w-8 shrink-0 text-white/80 hover:bg-white/10 hover:text-white"
                       onClick={toggleFullscreen}
                     >
-                      {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                      {isFullscreen ? (
+                        <Minimize2 className="h-4 w-4" />
+                      ) : (
+                        <Maximize2 className="h-4 w-4" />
+                      )}
                     </Button>
                   </div>
                 </div>

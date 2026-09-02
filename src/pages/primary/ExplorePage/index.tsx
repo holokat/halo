@@ -1,9 +1,6 @@
 import Explore from '@/components/Explore'
-import MobileTopNavMenuButton from '@/components/MobileTopNavMenuButton'
-import PinButton from '@/components/PinButton'
 import SearchBar from '@/components/SearchBar'
 import PrimaryPageLayout from '@/layouts/PrimaryPageLayout'
-import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import { TSearchParams } from '@/types'
 
 import { forwardRef, useState } from 'react'
@@ -57,11 +54,8 @@ function ExplorePageTitlebar({
   searchParams: TSearchParams | null
   onSearch: (params: TSearchParams | null) => void
 }) {
-  const { isSmallScreen } = useScreenSize()
-
   return (
     <div className="flex items-center gap-2 justify-between h-full">
-      {isSmallScreen && <MobileTopNavMenuButton />}
       <div className="flex-1 min-w-0">
         <SearchBar
           input={input}
@@ -71,18 +65,6 @@ function ExplorePageTitlebar({
           className="h-full"
           searchInputClassName="!bg-transparent !shadow-none !border-0 !px-0 md:!pl-2 rounded-none [&_input]:mx-2 [&_input]:font-semibold [&_input]:text-[length:var(--title-font-size,18px)] [&_input]:placeholder:font-semibold [&_input]:placeholder:text-foreground/60 [&_svg]:text-muted-foreground"
         />
-      </div>
-      <div className="flex gap-1 items-center">
-        {searchParams && (
-          <PinButton
-            column={{
-              type: 'search',
-              props: { searchParams }
-            }}
-            size="titlebar-icon"
-          />
-        )}
-        <PinButton column={{ type: 'explore' }} size="titlebar-icon" />
       </div>
     </div>
   )

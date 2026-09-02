@@ -1,10 +1,6 @@
-import { DECK_VIEW_MODE, LAYOUT_MODE } from '@/constants'
 import { cn } from '@/lib/utils'
 import { CurrentRelaysProvider } from '@/providers/CurrentRelaysProvider'
-import { useDeckView } from '@/providers/DeckViewProvider'
-import { useLayoutMode } from '@/providers/LayoutModeProvider'
 import { usePageTheme } from '@/providers/PageThemeProvider'
-import { useCompactSidebar } from '@/providers/CompactSidebarProvider'
 import {
   forwardRef,
   HTMLAttributes,
@@ -17,7 +13,6 @@ import {
 import { normalizeUrl } from './lib/url'
 import { NotificationProvider } from './providers/NotificationProvider'
 import { useScreenSize } from './providers/ScreenSizeProvider'
-import { useWidgetSidebarDismissed } from './providers/WidgetSidebarDismissedProvider'
 import modalManager from './services/modal-manager.service'
 import { PRIMARY_PAGE_MAP, PRIMARY_PAGE_REF_MAP } from './page-manager/page-registry'
 import { PrimaryPageContext, SecondaryPageContext, useSecondaryPage } from './page-manager/contexts'
@@ -40,20 +35,7 @@ export function PageManager({ maxStackSize = 5 }: { maxStackSize?: number }) {
   ])
   const [secondaryStack, setSecondaryStack] = useState<TStackItem[]>([])
   const { isSmallScreen } = useScreenSize()
-  const { layoutMode } = useLayoutMode()
-  const { deckViewMode, pinnedColumns, unpinColumn } = useDeckView()
-  const { setCompactSidebar } = useCompactSidebar()
-  const { widgetSidebarDismissed } = useWidgetSidebarDismissed()
   const ignorePopStateRef = useRef(false)
-
-  // Auto-collapse sidebar when in multi-column mode or island mode
-  useEffect(() => {
-    if (layoutMode === LAYOUT_MODE.ISLAND) {
-      setCompactSidebar(true)
-    } else if (layoutMode === LAYOUT_MODE.FULL_WIDTH && deckViewMode === DECK_VIEW_MODE.MULTI_COLUMN) {
-      setCompactSidebar(true)
-    }
-  }, [layoutMode, deckViewMode, setCompactSidebar])
 
   useEffect(() => {
     if (['/npub1', '/nprofile1'].some((prefix) => window.location.pathname.startsWith(prefix))) {
@@ -119,7 +101,8 @@ export function PageManager({ maxStackSize = 5 }: { maxStackSize?: number }) {
         const currentItem = pre[pre.length - 1] as TStackItem | undefined
         const currentIndex = currentItem?.index
         if (!state) {
-          const currentUrl = window.location.pathname + window.location.search + window.location.hash
+          const currentUrl =
+            window.location.pathname + window.location.search + window.location.hash
           if (currentUrl !== '/') {
             // State is null but URL is not root - this shouldn't happen normally
             // Clear the stack and let the system navigate to the URL
@@ -132,7 +115,8 @@ export function PageManager({ maxStackSize = 5 }: { maxStackSize?: number }) {
 
         // Ensure state has a valid URL
         if (!state.url) {
-          const currentUrl = window.location.pathname + window.location.search + window.location.hash
+          const currentUrl =
+            window.location.pathname + window.location.search + window.location.hash
           if (currentUrl === '/') {
             return []
           }
@@ -205,9 +189,7 @@ export function PageManager({ maxStackSize = 5 }: { maxStackSize?: number }) {
     if (needScrollToTop) {
       PRIMARY_PAGE_REF_MAP[page].current?.scrollToTop('smooth')
     }
-    if (isSmallScreen) {
-      clearSecondaryPages()
-    }
+    clearSecondaryPages()
   }
 
   const pushSecondaryPage = (url: string, index?: number) => {
@@ -271,14 +253,10 @@ export function PageManager({ maxStackSize = 5 }: { maxStackSize?: number }) {
             <NotificationProvider>
               <PageManagerShell
                 isSmallScreen={isSmallScreen}
-                layoutMode={layoutMode}
-                deckViewMode={deckViewMode}
                 pageTheme={pageTheme}
                 primaryPages={primaryPages}
                 currentPrimaryPage={currentPrimaryPage}
                 secondaryStack={secondaryStack}
-                pinnedColumns={pinnedColumns}
-                widgetSidebarDismissed={widgetSidebarDismissed}
               />
             </NotificationProvider>
           </CurrentRelaysProvider>
@@ -292,7 +270,7 @@ export function PageManager({ maxStackSize = 5 }: { maxStackSize?: number }) {
       value={{
         navigate: navigatePrimaryPage,
         current: currentPrimaryPage,
-        display: true
+        display: secondaryStack.length === 0
       }}
     >
       <SecondaryPageContext.Provider
@@ -307,14 +285,10 @@ export function PageManager({ maxStackSize = 5 }: { maxStackSize?: number }) {
           <NotificationProvider>
             <PageManagerShell
               isSmallScreen={isSmallScreen}
-              layoutMode={layoutMode}
-              deckViewMode={deckViewMode}
               pageTheme={pageTheme}
               primaryPages={primaryPages}
               currentPrimaryPage={currentPrimaryPage}
               secondaryStack={secondaryStack}
-              pinnedColumns={pinnedColumns}
-              widgetSidebarDismissed={widgetSidebarDismissed}
             />
           </NotificationProvider>
         </CurrentRelaysProvider>
@@ -329,40 +303,41 @@ type SecondaryPageLinkProps = HTMLAttributes<HTMLSpanElement | HTMLDivElement> &
   as?: 'span' | 'div'
 }
 
-export const SecondaryPageLink = forwardRef<HTMLSpanElement | HTMLDivElement, SecondaryPageLinkProps>(
-  ({ to, children, className, onClick, as = 'span', ...props }, ref) => {
-    const { push } = useSecondaryPage()
-    const handleClick = (e: MouseEvent<HTMLSpanElement | HTMLDivElement>) => {
-      onClick?.(e)
-      if (!e.defaultPrevented) {
-        push(to)
-      }
+export const SecondaryPageLink = forwardRef<
+  HTMLSpanElement | HTMLDivElement,
+  SecondaryPageLinkProps
+>(({ to, children, className, onClick, as = 'span', ...props }, ref) => {
+  const { push } = useSecondaryPage()
+  const handleClick = (e: MouseEvent<HTMLSpanElement | HTMLDivElement>) => {
+    onClick?.(e)
+    if (!e.defaultPrevented) {
+      push(to)
     }
+  }
 
-    if (as === 'div') {
-      return (
-        <div
-          ref={ref as React.ForwardedRef<HTMLDivElement>}
-          className={cn('cursor-pointer', className)}
-          onClick={handleClick}
-          {...(props as HTMLAttributes<HTMLDivElement>)}
-        >
-          {children}
-        </div>
-      )
-    }
-
+  if (as === 'div') {
     return (
-      <span
-        ref={ref as React.ForwardedRef<HTMLSpanElement>}
+      <div
+        ref={ref as React.ForwardedRef<HTMLDivElement>}
         className={cn('cursor-pointer', className)}
         onClick={handleClick}
-        {...(props as HTMLAttributes<HTMLSpanElement>)}
+        {...(props as HTMLAttributes<HTMLDivElement>)}
       >
         {children}
-      </span>
+      </div>
     )
   }
-)
+
+  return (
+    <span
+      ref={ref as React.ForwardedRef<HTMLSpanElement>}
+      className={cn('cursor-pointer', className)}
+      onClick={handleClick}
+      {...(props as HTMLAttributes<HTMLSpanElement>)}
+    >
+      {children}
+    </span>
+  )
+})
 
 SecondaryPageLink.displayName = 'SecondaryPageLink'

@@ -1,13 +1,10 @@
 import { cn } from '@/lib/utils'
-import PostEditor from '@/components/PostEditor'
-import { useNostr } from '@/providers/NostrProvider'
-import { Plus } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import BackgroundAudio from '../BackgroundAudio'
 import ExploreButton from './ExploreButton'
 import HomeButton from './HomeButton'
 import NotificationsButton from './NotificationsButton'
-import { Button } from '../ui/button'
+import AccountButton from './AccountButton'
 
 export default function BottomNavigationBar() {
   const [isVisible, setIsVisible] = useState(true)
@@ -54,7 +51,6 @@ export default function BottomNavigationBar() {
 
   return (
     <>
-      <FloatingComposeButton isNavVisible={isVisible} />
       <nav
         className={cn(
           'fixed bottom-0 left-0 right-0 w-full z-40 bg-background/80 backdrop-blur-xl transition-transform duration-300',
@@ -81,37 +77,9 @@ export default function BottomNavigationBar() {
           <HomeButton />
           <ExploreButton />
           <NotificationsButton />
+          <AccountButton />
         </div>
       </nav>
-    </>
-  )
-}
-
-function FloatingComposeButton({ isNavVisible }: { isNavVisible: boolean }) {
-  const { checkLogin } = useNostr()
-  const [open, setOpen] = useState(false)
-
-  return (
-    <>
-      <Button
-        type="button"
-        className={cn(
-          'fixed right-4 z-50 h-14 w-14 rounded-full shadow-lg [&_svg]:size-6 transition-all duration-300',
-          isNavVisible
-            ? 'bottom-[calc(env(safe-area-inset-bottom)+4.75rem)]'
-            : 'bottom-[calc(env(safe-area-inset-bottom)+1rem)]'
-        )}
-        onClick={(e) => {
-          e.stopPropagation()
-          checkLogin(() => {
-            setOpen(true)
-          })
-        }}
-        aria-label="New note"
-      >
-        <Plus />
-      </Button>
-      <PostEditor open={open} setOpen={setOpen} />
     </>
   )
 }

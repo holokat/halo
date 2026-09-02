@@ -1,6 +1,6 @@
 import BookmarkList from '@/components/BookmarkList'
-import MobileTopNavMenuButton from '@/components/MobileTopNavMenuButton'
 import NormalFeed from '@/components/NormalFeed'
+import PostEditor from '@/components/PostEditor'
 import RelayInfo from '@/components/RelayInfo'
 import PinButton from '@/components/PinButton'
 import TrendingNotes from '@/components/TrendingNotes'
@@ -17,7 +17,7 @@ import { useFeed } from '@/providers/FeedProvider'
 import { useNostr } from '@/providers/NostrProvider'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import { TPageRef } from '@/types'
-import { Info } from 'lucide-react'
+import { Info, Plus } from 'lucide-react'
 import {
   Dispatch,
   forwardRef,
@@ -197,25 +197,37 @@ function NoteListPageTitlebar({
   if (feedInfo.feedType === 'bookmarks') {
     pinButton = <PinButton column={{ type: 'bookmarks' }} size="titlebar-icon" />
   } else if (feedInfo.feedType === 'relay' && feedInfo.id) {
-    pinButton = <PinButton column={{ type: 'relay', props: { url: feedInfo.id } }} size="titlebar-icon" />
+    pinButton = (
+      <PinButton column={{ type: 'relay', props: { url: feedInfo.id } }} size="titlebar-icon" />
+    )
   } else if (feedInfo.feedType === 'relays' && feedInfo.id) {
-    pinButton = <PinButton column={{ type: 'relays', props: { activeRelaySetId: feedInfo.id } }} size="titlebar-icon" />
+    pinButton = (
+      <PinButton
+        column={{ type: 'relays', props: { activeRelaySetId: feedInfo.id } }}
+        size="titlebar-icon"
+      />
+    )
   } else if (feedInfo.feedType === 'custom' && feedInfo.id) {
     const customFeed = customFeeds.find((f) => f.id === feedInfo.id)
     if (customFeed) {
-      pinButton = <PinButton column={{ type: 'custom', props: { customFeedId: feedInfo.id } }} size="titlebar-icon" />
+      pinButton = (
+        <PinButton
+          column={{ type: 'custom', props: { customFeedId: feedInfo.id } }}
+          size="titlebar-icon"
+        />
+      )
     }
   }
 
   if (isSmallScreen) {
     return (
-      <div className="grid h-full w-full grid-cols-[auto_1fr_auto] items-center gap-2">
-        <MobileTopNavMenuButton />
+      <div className="grid h-full w-full grid-cols-[1fr_auto] items-center gap-2 pl-1">
         <div className="min-w-0">
-          <FeedButton className="mx-auto max-w-[min(70vw,20rem)] justify-center" />
+          <FeedButton className="max-w-[min(74vw,20rem)]" />
         </div>
         <div className="shrink-0 flex gap-1 items-center">
           <SlowConnectionToggle />
+          <HomeComposeButton />
         </div>
       </div>
     )
@@ -243,7 +255,31 @@ function NoteListPageTitlebar({
             <Info />
           </Button>
         )}
+        <HomeComposeButton />
       </div>
     </div>
+  )
+}
+
+function HomeComposeButton() {
+  const { t } = useTranslation()
+  const { checkLogin } = useNostr()
+  const [open, setOpen] = useState(false)
+
+  return (
+    <>
+      <Button
+        size="titlebar-icon"
+        onClick={(event) => {
+          event.stopPropagation()
+          checkLogin(() => setOpen(true))
+        }}
+        aria-label={t('New note', { defaultValue: 'New note' })}
+        title={t('New note', { defaultValue: 'New note' })}
+      >
+        <Plus />
+      </Button>
+      <PostEditor open={open} setOpen={setOpen} />
+    </>
   )
 }

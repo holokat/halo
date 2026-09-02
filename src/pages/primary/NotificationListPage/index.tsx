@@ -1,5 +1,4 @@
 import HideUntrustedContentButton from '@/components/HideUntrustedContentButton'
-import MobileTopNavMenuButton from '@/components/MobileTopNavMenuButton'
 import NotificationList from '@/components/NotificationList'
 import PinButton from '@/components/PinButton'
 import PrimaryPageLayout from '@/layouts/PrimaryPageLayout'
@@ -48,7 +47,6 @@ function NotificationListPageTitlebar() {
       )}
     >
       <div className="flex items-center gap-2 min-w-0">
-        {isSmallScreen && <MobileTopNavMenuButton />}
         <div
           className="text-lg font-semibold truncate"
           style={{ fontSize: `var(--title-font-size, ${isSmallScreen ? 19 : 18}px)` }}

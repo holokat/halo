@@ -7,7 +7,7 @@ import {
   DEFAULT_MEDIA_RADIUS,
   DEFAULT_FONT_FAMILY,
   DEFAULT_FONT_SIZE,
-  DEFAULT_NEWS_WIDGET_RELAYS,
+  DEFAULT_NEWS_WIDGET_RELAYS as DEFAULT_NEWS_FEED_RELAYS,
   DEFAULT_TITLE_FONT_SIZE,
   DEFAULT_LOGO_FONT_SIZE,
   DEFAULT_NIP_96_SERVICE,
@@ -112,36 +112,14 @@ class LocalStorageService {
   private cardRadius: number = DEFAULT_CARD_RADIUS
   private mediaRadius: number = DEFAULT_MEDIA_RADIUS
   private pageTheme: TPageTheme = DEFAULT_PAGE_THEME
-  private trendingNotesDismissed: boolean = false
   private compactSidebar: boolean = true
   private logoStyle: TLogoStyle = 'image'
   private customLogoText: string = 'Halo'
   private customLogoEmoji: string | TEmoji = '⚡'
   private logoFontSize: number = DEFAULT_LOGO_FONT_SIZE
-  private widgetSidebarTitle: string = 'Widgets'
   private maxHashtags: number = 3
   private maxMentions: number = 0
-  private widgetSidebarIcon: string | null = null
-  private hideWidgetTitles: boolean = false
-  private enabledWidgets: string[] = []
-  private collapsedWidgets: string[] = []
-  private widgetHeights: Record<string, number> = {}
-  private pinnedNoteWidgets: { id: string; eventId: string }[] = []
-  private liveStreamWidgets: {
-    id: string
-    naddr: string
-    streamingUrl: string
-    title: string
-    image?: string
-  }[] = []
-  private trendingNotesHeight: 'short' | 'medium' | 'tall' | 'remaining' = 'medium'
-  private bitcoinTickerAlignment: 'left' | 'center' = 'left'
-  private bitcoinTickerTextSize: 'large' | 'small' = 'large'
-  private bitcoinTickerShowBlockHeight: boolean = false
-  private bitcoinTickerShowSatsMode: boolean = false
-  private stockTrackerSymbols: string[] = []
-  private newsWidgetRelays: string[] = DEFAULT_NEWS_WIDGET_RELAYS
-  private newsWidgetHashtags: string[] = []
+  private newsFeedRelays: string[] = DEFAULT_NEWS_FEED_RELAYS
   private customFeedsMap: Record<string, TCustomFeed[]> = {}
   private localPostDraftsMap: Record<string, TLocalPostDraft[]> = {}
   private distractionFreeMode: TDistractionFreeMode = DISTRACTION_FREE_MODE.DRAIN_MY_TIME
@@ -185,7 +163,7 @@ class LocalStorageService {
   init() {
     this.initCoreState()
     this.initDisplayState()
-    this.initWidgetState()
+    this.initFeedAndDraftState()
     this.initCollectionState()
     this.cleanupDeprecatedStorage()
   }
@@ -367,7 +345,6 @@ class LocalStorageService {
       ['default', 'pure-black'] as const,
       DEFAULT_PAGE_THEME
     )
-    this.trendingNotesDismissed = readStoredBoolean(StorageKey.TRENDING_NOTES_DISMISSED)
     this.compactSidebar = readStoredBoolean(StorageKey.COMPACT_SIDEBAR, true)
     this.logoStyle = readStoredEnum(
       StorageKey.LOGO_STYLE,
@@ -403,105 +380,16 @@ class LocalStorageService {
       }
     }
 
-    const widgetSidebarTitle = readStoredStringValue(StorageKey.WIDGET_SIDEBAR_TITLE)
-    if (widgetSidebarTitle) {
-      this.widgetSidebarTitle = widgetSidebarTitle
-    }
-
-    const widgetSidebarIcon = readStoredStringValue(StorageKey.WIDGET_SIDEBAR_ICON)
-    if (widgetSidebarIcon) {
-      this.widgetSidebarIcon = widgetSidebarIcon
-    }
-
-    const hideWidgetTitles = readStoredStringValue(StorageKey.HIDE_WIDGET_TITLES)
-    if (hideWidgetTitles) {
-      this.hideWidgetTitles = hideWidgetTitles === 'true'
-    }
   }
 
-  private initWidgetState() {
-    const enabledWidgetsStr = readStoredStringValue(StorageKey.ENABLED_WIDGETS)
-    if (enabledWidgetsStr) {
-      this.enabledWidgets = JSON.parse(enabledWidgetsStr)
-    } else {
-      // Default to trending notes and invite widget enabled for new users.
-      this.enabledWidgets = ['trending-notes', 'invite']
-      window.localStorage.setItem(StorageKey.ENABLED_WIDGETS, JSON.stringify(this.enabledWidgets))
-    }
-
-    const collapsedWidgets = readStoredJson<string[]>(StorageKey.COLLAPSED_WIDGETS, [])
-    if (Array.isArray(collapsedWidgets)) {
-      this.collapsedWidgets = Array.from(
-        new Set(
-          collapsedWidgets.filter(
-            (widgetId): widgetId is string =>
-              typeof widgetId === 'string' && widgetId.trim().length > 0
-          )
-        )
-      )
-    }
-
-    this.widgetHeights = sanitizeWidgetHeights(
-      readStoredJson<Record<string, number>>(StorageKey.WIDGET_HEIGHTS, {})
-    )
-
-    const pinnedNoteWidgetsStr = readStoredStringValue(StorageKey.PINNED_NOTE_WIDGETS)
-    if (pinnedNoteWidgetsStr) {
-      this.pinnedNoteWidgets = JSON.parse(pinnedNoteWidgetsStr)
-    }
-
-    const liveStreamWidgetsStr = readStoredStringValue(StorageKey.LIVE_STREAM_WIDGETS)
-    if (liveStreamWidgetsStr) {
-      this.liveStreamWidgets = JSON.parse(liveStreamWidgetsStr)
-    }
-
-    this.trendingNotesHeight = readStoredEnum(
-      StorageKey.TRENDING_NOTES_HEIGHT,
-      ['short', 'medium', 'tall', 'remaining'] as const,
-      'medium'
-    )
-    this.bitcoinTickerAlignment = readStoredEnum(
-      StorageKey.BITCOIN_TICKER_ALIGNMENT,
-      ['left', 'center'] as const,
-      'left'
-    )
-    this.bitcoinTickerTextSize = readStoredEnum(
-      StorageKey.BITCOIN_TICKER_TEXT_SIZE,
-      ['large', 'small'] as const,
-      'large'
-    )
-
-    const bitcoinTickerShowBlockHeight = readStoredBooleanValue(
-      StorageKey.BITCOIN_TICKER_SHOW_BLOCK_HEIGHT
-    )
-    if (bitcoinTickerShowBlockHeight !== null) {
-      this.bitcoinTickerShowBlockHeight = bitcoinTickerShowBlockHeight
-    }
-
-    const bitcoinTickerShowSatsMode = readStoredBooleanValue(
-      StorageKey.BITCOIN_TICKER_SHOW_SATS_MODE
-    )
-    if (bitcoinTickerShowSatsMode !== null) {
-      this.bitcoinTickerShowSatsMode = bitcoinTickerShowSatsMode
-    }
-
-    const stockTrackerSymbols = readStoredJson<string[]>(StorageKey.STOCK_TRACKER_SYMBOLS, [])
-    if (Array.isArray(stockTrackerSymbols)) {
-      this.stockTrackerSymbols = stockTrackerSymbols.filter((symbol) => typeof symbol === 'string')
-    }
-
-    this.newsWidgetRelays = readStoredStringArray(
+  private initFeedAndDraftState() {
+    this.newsFeedRelays = readStoredStringArray(
       StorageKey.NEWS_WIDGET_RELAYS,
-      DEFAULT_NEWS_WIDGET_RELAYS,
+      DEFAULT_NEWS_FEED_RELAYS,
       (relay) => {
         const normalizedRelay = normalizeUrl(relay)
         return normalizedRelay && isWebsocketUrl(normalizedRelay) ? normalizedRelay : null
       }
-    )
-    this.newsWidgetHashtags = readStoredStringArray(
-      StorageKey.NEWS_WIDGET_HASHTAGS,
-      [],
-      normalizeWidgetHashtag
     )
 
     const storedCustomFeeds = readStoredJson<unknown>(StorageKey.CUSTOM_FEEDS, {})
@@ -1032,15 +920,6 @@ class LocalStorageService {
     this.setString(StorageKey.PAGE_THEME, pageTheme)
   }
 
-  getTrendingNotesDismissed() {
-    return this.trendingNotesDismissed
-  }
-
-  setTrendingNotesDismissed(dismissed: boolean) {
-    this.trendingNotesDismissed = dismissed
-    this.setBoolean(StorageKey.TRENDING_NOTES_DISMISSED, dismissed)
-  }
-
   getCompactSidebar() {
     return this.compactSidebar
   }
@@ -1086,220 +965,14 @@ class LocalStorageService {
     this.setNumber(StorageKey.LOGO_FONT_SIZE, size)
   }
 
-  getWidgetSidebarTitle() {
-    return this.widgetSidebarTitle
+  getNewsFeedRelays() {
+    return this.newsFeedRelays
   }
 
-  setWidgetSidebarTitle(title: string) {
-    this.widgetSidebarTitle = title
-    this.setString(StorageKey.WIDGET_SIDEBAR_TITLE, title)
-  }
-
-  getWidgetSidebarIcon() {
-    return this.widgetSidebarIcon
-  }
-
-  setWidgetSidebarIcon(icon: string | null) {
-    this.widgetSidebarIcon = icon
-    if (icon === null) {
-      removeStorageItem(StorageKey.WIDGET_SIDEBAR_ICON)
-    } else {
-      this.setString(StorageKey.WIDGET_SIDEBAR_ICON, icon)
-    }
-  }
-
-  getHideWidgetTitles() {
-    return this.hideWidgetTitles
-  }
-
-  setHideWidgetTitles(hide: boolean) {
-    this.hideWidgetTitles = hide
-    this.setBoolean(StorageKey.HIDE_WIDGET_TITLES, hide)
-  }
-
-  getEnabledWidgets() {
-    return this.enabledWidgets
-  }
-
-  setEnabledWidgets(widgets: string[]) {
-    this.enabledWidgets = widgets
-    this.setJson(StorageKey.ENABLED_WIDGETS, widgets)
-  }
-
-  getCollapsedWidgets() {
-    return this.collapsedWidgets
-  }
-
-  setCollapsedWidgets(widgets: string[]) {
-    this.collapsedWidgets = Array.from(
-      new Set(
-        widgets.filter(
-          (widgetId): widgetId is string =>
-            typeof widgetId === 'string' && widgetId.trim().length > 0
-        )
-      )
-    )
-    this.setJson(StorageKey.COLLAPSED_WIDGETS, this.collapsedWidgets)
-  }
-
-  getWidgetHeights() {
-    return this.widgetHeights
-  }
-
-  setWidgetHeights(heights: Record<string, number>) {
-    this.widgetHeights = sanitizeWidgetHeights(heights)
-    this.setJson(StorageKey.WIDGET_HEIGHTS, this.widgetHeights)
-  }
-
-  getWidgetHeight(widgetId: string) {
-    return this.widgetHeights[widgetId]
-  }
-
-  setWidgetHeight(widgetId: string, height: number) {
-    const normalizedHeight = normalizeWidgetHeight(height)
-    if (!widgetId || normalizedHeight === null) {
-      return
-    }
-
-    this.widgetHeights = {
-      ...this.widgetHeights,
-      [widgetId]: normalizedHeight
-    }
-    this.setJson(StorageKey.WIDGET_HEIGHTS, this.widgetHeights)
-  }
-
-  clearWidgetHeight(widgetId: string) {
-    if (!widgetId || !(widgetId in this.widgetHeights)) {
-      return
-    }
-
-    const nextHeights = { ...this.widgetHeights }
-    delete nextHeights[widgetId]
-    this.widgetHeights = nextHeights
-    this.setJson(StorageKey.WIDGET_HEIGHTS, this.widgetHeights)
-  }
-
-  getTrendingNotesHeight() {
-    return this.trendingNotesHeight
-  }
-
-  setTrendingNotesHeight(height: 'short' | 'medium' | 'tall' | 'remaining') {
-    this.trendingNotesHeight = height
-    this.setString(StorageKey.TRENDING_NOTES_HEIGHT, height)
-  }
-
-  getBitcoinTickerAlignment() {
-    return this.bitcoinTickerAlignment
-  }
-
-  setBitcoinTickerAlignment(alignment: 'left' | 'center') {
-    this.bitcoinTickerAlignment = alignment
-    this.setString(StorageKey.BITCOIN_TICKER_ALIGNMENT, alignment)
-  }
-
-  getBitcoinTickerTextSize() {
-    return this.bitcoinTickerTextSize
-  }
-
-  setBitcoinTickerTextSize(size: 'large' | 'small') {
-    this.bitcoinTickerTextSize = size
-    this.setString(StorageKey.BITCOIN_TICKER_TEXT_SIZE, size)
-  }
-
-  getBitcoinTickerShowBlockHeight() {
-    return this.bitcoinTickerShowBlockHeight
-  }
-
-  setBitcoinTickerShowBlockHeight(show: boolean) {
-    this.bitcoinTickerShowBlockHeight = show
-    this.setBoolean(StorageKey.BITCOIN_TICKER_SHOW_BLOCK_HEIGHT, show)
-  }
-
-  getBitcoinTickerShowSatsMode() {
-    return this.bitcoinTickerShowSatsMode
-  }
-
-  setBitcoinTickerShowSatsMode(show: boolean) {
-    this.bitcoinTickerShowSatsMode = show
-    this.setBoolean(StorageKey.BITCOIN_TICKER_SHOW_SATS_MODE, show)
-  }
-
-  getStockTrackerSymbols() {
-    return this.stockTrackerSymbols
-  }
-
-  setStockTrackerSymbols(symbols: string[]) {
-    this.stockTrackerSymbols = symbols
-    this.setJson(StorageKey.STOCK_TRACKER_SYMBOLS, symbols)
-  }
-
-  getNewsWidgetRelays() {
-    return this.newsWidgetRelays
-  }
-
-  setNewsWidgetRelays(relays: string[]) {
-    this.newsWidgetRelays = relays
+  setNewsFeedRelays(relays: string[]) {
+    this.newsFeedRelays = relays
     this.setJson(StorageKey.NEWS_WIDGET_RELAYS, relays)
   }
-
-  getNewsWidgetHashtags() {
-    return this.newsWidgetHashtags
-  }
-
-  setNewsWidgetHashtags(hashtags: string[]) {
-    this.newsWidgetHashtags = hashtags
-    this.setJson(StorageKey.NEWS_WIDGET_HASHTAGS, hashtags)
-  }
-
-  getPinnedNoteWidgets() {
-    return this.pinnedNoteWidgets
-  }
-
-  setPinnedNoteWidgets(widgets: { id: string; eventId: string }[]) {
-    this.pinnedNoteWidgets = widgets
-    this.setJson(StorageKey.PINNED_NOTE_WIDGETS, widgets)
-  }
-
-  addPinnedNoteWidget(eventId: string) {
-    const id = `pinned-note-${Date.now()}`
-    this.pinnedNoteWidgets.push({ id, eventId })
-    this.setJson(StorageKey.PINNED_NOTE_WIDGETS, this.pinnedNoteWidgets)
-    return id
-  }
-
-  removePinnedNoteWidget(id: string) {
-    this.pinnedNoteWidgets = this.pinnedNoteWidgets.filter((widget) => widget.id !== id)
-    this.setJson(StorageKey.PINNED_NOTE_WIDGETS, this.pinnedNoteWidgets)
-  }
-
-  getLiveStreamWidgets() {
-    return this.liveStreamWidgets
-  }
-
-  setLiveStreamWidgets(
-    widgets: { id: string; naddr: string; streamingUrl: string; title: string; image?: string }[]
-  ) {
-    this.liveStreamWidgets = widgets
-    this.setJson(StorageKey.LIVE_STREAM_WIDGETS, widgets)
-  }
-
-  addLiveStreamWidget(payload: {
-    naddr: string
-    streamingUrl: string
-    title: string
-    image?: string
-  }) {
-    const id = `live-stream-${Date.now()}`
-    this.liveStreamWidgets.push({ id, ...payload })
-    this.setJson(StorageKey.LIVE_STREAM_WIDGETS, this.liveStreamWidgets)
-    return id
-  }
-
-  removeLiveStreamWidget(id: string) {
-    this.liveStreamWidgets = this.liveStreamWidgets.filter((widget) => widget.id !== id)
-    this.setJson(StorageKey.LIVE_STREAM_WIDGETS, this.liveStreamWidgets)
-  }
-
 
   private getCustomFeedsOwnerKey(pubkey?: string | null) {
     return pubkey ?? this.currentAccount?.pubkey ?? 'default'
@@ -1638,10 +1311,6 @@ class LocalStorageService {
 const instance = new LocalStorageService()
 export default instance
 
-function normalizeWidgetHashtag(tag: string) {
-  return tag.trim().replace(/^#/, '').toLowerCase()
-}
-
 function sanitizeLocalPostDraft(value: unknown): TLocalPostDraft | null {
   if (!value || typeof value !== 'object') {
     return null
@@ -1717,32 +1386,4 @@ function cloneDraftContent(value: unknown): JSONContent | string {
 
 function cloneSerializable<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
-}
-
-function sanitizeWidgetHeights(heights: Record<string, number> | null | undefined) {
-  if (!heights || typeof heights !== 'object') {
-    return {}
-  }
-
-  return Object.fromEntries(
-    Object.entries(heights)
-      .map(([widgetId, height]) => [widgetId, normalizeWidgetHeight(height)])
-      .filter(
-        (entry): entry is [string, number] =>
-          typeof entry[0] === 'string' && entry[0].trim().length > 0 && entry[1] !== null
-      )
-  )
-}
-
-function normalizeWidgetHeight(height: number) {
-  if (!Number.isFinite(height)) {
-    return null
-  }
-
-  const roundedHeight = Math.round(height)
-  if (roundedHeight < 120 || roundedHeight > 1200) {
-    return null
-  }
-
-  return roundedHeight
 }

@@ -50,11 +50,7 @@ export default function FeedButton({ className }: { className?: string }) {
       <PopoverTrigger asChild>
         <FeedSwitcherTrigger className={className} />
       </PopoverTrigger>
-      <PopoverContent
-        sideOffset={0}
-        side="bottom"
-        className="w-96 p-4 max-h-[80vh] overflow-auto scrollbar-hide"
-      >
+      <PopoverContent sideOffset={0} side="bottom" className="w-72 p-3">
         <FeedSwitcher close={() => setOpen(false)} />
       </PopoverContent>
     </Popover>
@@ -88,7 +84,7 @@ const FeedSwitcherTrigger = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEle
         return t('News', { defaultValue: 'News' })
       }
       if (feedInfo.feedType === 'bookmarks') {
-        return t('Bookmarks')
+        return t('Saved', { defaultValue: 'Saved' })
       }
       if (feedInfo.feedType === 'polls') {
         return t('Polls')
@@ -145,12 +141,20 @@ const FeedSwitcherTrigger = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEle
 
     return (
       <div
-        className={cn('flex items-center gap-2 clickable px-3 h-full rounded-2xl [&_svg]:text-muted-foreground', className)}
+        className={cn(
+          'flex items-center gap-2 clickable px-3 h-full rounded-2xl [&_svg]:text-muted-foreground',
+          className
+        )}
         ref={ref}
         {...props}
       >
         {icon}
-        <div className="text-lg font-semibold truncate" style={{ fontSize: `var(--title-font-size, 18px)` }}>{title}</div>
+        <div
+          className="text-lg font-semibold truncate"
+          style={{ fontSize: `var(--title-font-size, 18px)` }}
+        >
+          {title}
+        </div>
         <ChevronDown />
       </div>
     )

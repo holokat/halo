@@ -1,22 +1,21 @@
 # Halo
 
-A customizable Nostr client focused on real-time social feeds, lists, reads, live activity, and widgets.
+A focused Nostr client for reading, searching, and publishing notes.
 
 Live site: [https://haloapp.fyi](https://haloapp.fyi)
 
-## What Halo Includes
+## What Halo includes
 
 - Multi-account Nostr login flows (`nsec`, `npub`, NIP-07 extension, Bunker, and Nostr Connection)
-- Core social surfaces: Home, Explore, Reads, Notifications, Search, Profile
-- Rich feed switching: following, bookmarks, one-note-per-person, relay sets, custom feeds
-- List system: create/edit/follow/share lists, list pages, and list previews
-- Long-form article support with markdown rendering and Nostr-aware links
-- Live stream support (NIP-53 style flows): discovery and live detail view
+- Four primary surfaces: Home, Search, Notifications, and Account
+- Three visible feeds: Following, Trending, and Saved
+- A centered reading column on desktop and mobile
+- Contextual note composition from Home
+- Nostr note rendering, replies, reactions, moderation, and relay-backed publishing
+- Long-form article and live-stream deep links
 - Backup and restore via local JSON export/import and Nostr sync using NIP-78
-- Highly customizable UI (themes, palette, font controls, radii, media style, sidebar/menu controls, widget sidebar controls)
-- Optional widgets including Trending Notes, Bitcoin Ticker, Pinned Note widgets, and Invite widget
-- Media and post tooling: image/gallery flows, GIF picker, polls, note expiration, relay targeting, upload service settings
-- PWA setup via `vite-plugin-pwa` and route-level lazy loading for better performance
+- Advanced relay, publishing, specialist-feed, and scheduled-post settings
+- PWA setup via `vite-plugin-pwa` and route-level lazy loading
 
 ## Tech Stack
 

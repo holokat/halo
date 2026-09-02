@@ -1,4 +1,3 @@
-import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
@@ -13,7 +12,6 @@ import { useRTL } from '@/providers/RTLProvider'
 import { useTextOnlyMode } from '@/providers/TextOnlyModeProvider'
 import { useLowBandwidthMode } from '@/providers/LowBandwidthModeProvider'
 import { useDisableAvatarAnimations } from '@/providers/DisableAvatarAnimationsProvider'
-import { useLiveReactionFountain } from '@/providers/LiveReactionFountainProvider'
 import { SelectValue } from '@radix-ui/react-select'
 import { Check, BellOff, BellRing } from 'lucide-react'
 import { forwardRef, HTMLProps, useState } from 'react'
@@ -34,8 +32,6 @@ const GeneralSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
   const { textOnlyMode, setTextOnlyMode } = useTextOnlyMode()
   const { lowBandwidthMode, setLowBandwidthMode } = useLowBandwidthMode()
   const { disableAvatarAnimations, setDisableAvatarAnimations } = useDisableAvatarAnimations()
-  const { reactionFountainEnabled, setReactionFountainEnabled, previewReactionFountain } =
-    useLiveReactionFountain()
 
   const handleLanguageChange = (value: TLanguage) => {
     i18n.changeLanguage(value)
@@ -51,7 +47,7 @@ const GeneralSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
   const optionCardStyle = { borderRadius: 'var(--card-radius, 8px)' }
 
   return (
-    <SecondaryPageLayout ref={ref} index={index} title={t('General')}>
+    <SecondaryPageLayout ref={ref} index={index} title={t('Reading')}>
       <div className="mt-3">
         <Tabs tabs={tabDefinitions} value={activeTab} onTabChange={setActiveTab} threshold={0} />
 
@@ -133,26 +129,6 @@ const GeneralSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
                 checked={disableAvatarAnimations}
                 onCheckedChange={setDisableAvatarAnimations}
               />
-            </SettingItem>
-            <SettingItem className="flex-col items-start gap-3">
-              <div className="flex w-full items-start justify-between gap-4">
-                <div className="flex flex-col gap-1 pr-4">
-                  <Label htmlFor="reaction-fountain" className="text-base font-normal">
-                    {t('Reaction Fountain')}
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    {t('Animate incoming reactions in real time while the app is open.')}
-                  </p>
-                </div>
-                <Switch
-                  id="reaction-fountain"
-                  checked={reactionFountainEnabled}
-                  onCheckedChange={setReactionFountainEnabled}
-                />
-              </div>
-              <Button type="button" variant="outline" size="sm" onClick={previewReactionFountain}>
-                {t('Preview Reaction Fountain')}
-              </Button>
             </SettingItem>
             <SettingItem className="flex-col items-start gap-3">
               <Label className="text-base font-normal">{t('Distraction-Free Mode')}</Label>

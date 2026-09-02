@@ -15,7 +15,6 @@ import RelayIcon from '../RelayIcon'
 import SaveRelayDropdownMenu from '../SaveRelayDropdownMenu'
 import UserAvatar from '../UserAvatar'
 import Username from '../Username'
-import RelayReviewsPreview from './RelayReviewsPreview'
 
 export default function RelayInfo({ url, className }: { url: string; className?: string }) {
   const { t } = useTranslation()
@@ -88,7 +87,9 @@ export default function RelayInfo({ url, className }: { url: string; className?:
               <div className="flex gap-8 pb-2">
                 {relayInfo.pubkey && (
                   <div className="space-y-2 w-fit">
-                    <div className="text-sm font-semibold text-muted-foreground">{t('Operator')}</div>
+                    <div className="text-sm font-semibold text-muted-foreground">
+                      {t('Operator')}
+                    </div>
                     <div className="flex gap-2 items-center">
                       <UserAvatar userId={relayInfo.pubkey} size="small" />
                       <Username userId={relayInfo.pubkey} className="font-semibold text-nowrap" />
@@ -97,7 +98,9 @@ export default function RelayInfo({ url, className }: { url: string; className?:
                 )}
                 {relayInfo.contact && (
                   <div className="space-y-2 w-fit">
-                    <div className="text-sm font-semibold text-muted-foreground">{t('Contact')}</div>
+                    <div className="text-sm font-semibold text-muted-foreground">
+                      {t('Contact')}
+                    </div>
                     <div className="flex gap-2 items-center font-semibold select-text text-nowrap">
                       <Mail />
                       {relayInfo.contact}
@@ -106,7 +109,9 @@ export default function RelayInfo({ url, className }: { url: string; className?:
                 )}
                 {relayInfo.software && (
                   <div className="space-y-2 w-fit">
-                    <div className="text-sm font-semibold text-muted-foreground">{t('Software')}</div>
+                    <div className="text-sm font-semibold text-muted-foreground">
+                      {t('Software')}
+                    </div>
                     <div className="flex gap-2 items-center font-semibold select-text text-nowrap">
                       <SquareCode />
                       {formatSoftware(relayInfo.software)}
@@ -115,7 +120,9 @@ export default function RelayInfo({ url, className }: { url: string; className?:
                 )}
                 {relayInfo.version && (
                   <div className="space-y-2 w-fit">
-                    <div className="text-sm font-semibold text-muted-foreground">{t('Version')}</div>
+                    <div className="text-sm font-semibold text-muted-foreground">
+                      {t('Version')}
+                    </div>
                     <div className="flex gap-2 items-center font-semibold select-text text-nowrap">
                       <GitBranch />
                       {relayInfo.version}
@@ -138,7 +145,6 @@ export default function RelayInfo({ url, className }: { url: string; className?:
         </div>
         <PostEditor open={open} setOpen={setOpen} openFrom={[relayInfo.url]} />
       </div>
-      <RelayReviewsPreview relayUrl={url} />
     </div>
   )
 }

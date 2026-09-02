@@ -18,15 +18,15 @@ export default function Title({
 
   return (
     <div className="flex items-center justify-between w-full gap-4">
-      <div className="shrink-0">
-        {parentEvent ? t('Reply to') : t('New Note')}
-      </div>
-      <PostRelaySelector
-        parentEvent={parentEvent}
-        openFrom={openFrom}
-        setIsProtectedEvent={setIsProtectedEvent}
-        setAdditionalRelayUrls={setAdditionalRelayUrls}
-      />
+      <div className="shrink-0">{parentEvent ? t('Reply to') : t('New Note')}</div>
+      <span className="hidden">
+        <PostRelaySelector
+          parentEvent={parentEvent}
+          openFrom={openFrom}
+          setIsProtectedEvent={setIsProtectedEvent}
+          setAdditionalRelayUrls={setAdditionalRelayUrls}
+        />
+      </span>
     </div>
   )
 }

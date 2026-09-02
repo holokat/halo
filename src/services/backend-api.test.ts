@@ -219,82 +219,6 @@ test('provider error details and secrets do not leak into responses or structure
   })
 })
 
-test('Polymarket route preserves its two-query normalization contract without module caching', async () => {
-  const upstreamUrls: URL[] = []
-  const event = {
-    id: 'event-1',
-    slug: 'election-market',
-    title: 'Election market',
-    active: true,
-    closed: false,
-    tags: [{ slug: 'politics', label: 'Politics' }],
-    markets: [
-      {
-        id: 'market-1',
-        slug: 'candidate-wins',
-        question: 'Will the candidate win?',
-        active: true,
-        closed: false,
-        volume24hr: 42,
-        volume: 100,
-        outcomes: '["Yes","No"]',
-        outcomePrices: '["0.65","0.35"]'
-      }
-    ]
-  }
-  const fetchStub: typeof fetch = async (input, init) => {
-    const request = new Request(input, init)
-    upstreamUrls.push(new URL(request.url))
-    return Response.json([event])
-  }
-
-  await withFetchStub(fetchStub, async () => {
-    const firstResponse = await handleApiRequest(
-      new Request('https://haloapp.fyi/v1/polymarket/markets'),
-      {}
-    )
-    const secondResponse = await handleApiRequest(
-      new Request('https://haloapp.fyi/v1/polymarket/markets'),
-      {}
-    )
-
-    assert.equal(firstResponse.status, 200)
-    assert.equal(secondResponse.status, 200)
-    const payload = (await firstResponse.json()) as {
-      fetchedAt: number
-      categories: { slug: string; label: string }[]
-      markets: Record<string, unknown>[]
-    }
-    assert.equal(Number.isFinite(payload.fetchedAt), true)
-    assert.deepEqual(payload.categories, [
-      { slug: 'all', label: 'All' },
-      { slug: 'politics', label: 'Politics' }
-    ])
-    assert.equal(payload.markets.length, 1)
-    assert.equal(payload.markets[0].id, 'market-1')
-    assert.equal(payload.markets[0].leadingOutcomeLabel, 'Yes')
-    assert.equal(payload.markets[0].leadingOutcomeProbability, 0.65)
-
-    assert.equal(upstreamUrls.length, 4)
-    const firstRequestOrders = upstreamUrls
-      .slice(0, 2)
-      .map((url) => url.searchParams.get('order'))
-      .sort()
-    assert.deepEqual(firstRequestOrders, ['createdAt', 'volume24hr'])
-    for (const url of upstreamUrls) {
-      assert.equal(url.origin, 'https://gamma-api.polymarket.com')
-      assert.equal(url.pathname, '/events')
-      assert.equal(url.searchParams.get('active'), 'true')
-      assert.equal(url.searchParams.get('closed'), 'false')
-      assert.equal(url.searchParams.get('ascending'), 'false')
-      assert.equal(
-        url.searchParams.get('limit'),
-        url.searchParams.get('order') === 'createdAt' ? '80' : '160'
-      )
-    }
-  })
-})
-
 test('Worker routes backend paths, serves assets, and caches only successful API GETs', async () => {
   const cache = new MemoryDefaultCache()
   const providerRequests: Request[] = []
@@ -375,6 +299,41 @@ test('Worker routes backend paths, serves assets, and caches only successful API
       assert.deepEqual(assetRequests, ['https://haloapp.fyi/settings'])
     })
   })
+})
+
+test('Worker keeps the production site on HTTPS and redirects www to the apex domain', async () => {
+  const { default: worker } = await loadWorker()
+  const env: RuntimeEnvironment = {
+    ASSETS: {
+      async fetch() {
+        throw new Error('assets should not be called for canonical redirects')
+      }
+    }
+  }
+  const ctx: RuntimeContext = {
+    waitUntil() {
+      throw new Error('waitUntil should not be called for canonical redirects')
+    }
+  }
+
+  const insecureResponse = await worker.fetch(
+    new Request('http://haloapp.fyi/settings?tab=reading'),
+    env,
+    ctx
+  )
+  assert.equal(insecureResponse.status, 308)
+  assert.equal(
+    insecureResponse.headers.get('location'),
+    'https://haloapp.fyi/settings?tab=reading'
+  )
+
+  const wwwResponse = await worker.fetch(
+    new Request('https://www.haloapp.fyi/search?q=nostr'),
+    env,
+    ctx
+  )
+  assert.equal(wwwResponse.status, 308)
+  assert.equal(wwwResponse.headers.get('location'), 'https://haloapp.fyi/search?q=nostr')
 })
 
 test('Worker does not write API failures to cache', async () => {

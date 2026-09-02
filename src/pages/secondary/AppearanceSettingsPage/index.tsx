@@ -50,13 +50,7 @@ import { useTranslation } from 'react-i18next'
 
 function getInitialTab() {
   const tab = new URLSearchParams(window.location.search).get('tab')
-  if (
-    tab === 'theme' ||
-    tab === 'navigation' ||
-    tab === 'layout' ||
-    tab === 'typography' ||
-    tab === 'styling'
-  ) {
+  if (tab === 'theme' || tab === 'typography' || tab === 'styling') {
     return tab
   }
   return 'theme'
@@ -155,8 +149,6 @@ const AppearanceSettingsPage = forwardRef(({ index }: { index?: number }, ref) =
 
   const tabDefinitions = [
     { value: 'theme', label: t('Theme') },
-    { value: 'navigation', label: t('Navigation') },
-    { value: 'layout', label: t('Layout') },
     { value: 'typography', label: t('Typography') },
     { value: 'styling', label: t('Styling') }
   ]

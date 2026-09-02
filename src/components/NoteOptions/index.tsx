@@ -1,19 +1,15 @@
-import PrivateNoteDialog from '@/components/PrivateNoteDialog'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import { Ellipsis } from 'lucide-react'
 import { Event } from 'nostr-tools'
 import { useState } from 'react'
 import { DesktopMenu } from './DesktopMenu'
 import { MobileMenu } from './MobileMenu'
-import RawEventDialog from './RawEventDialog'
 import ReportDialog from './ReportDialog'
 import { SubMenuAction, useMenuActions } from './useMenuActions'
 
 export default function NoteOptions({ event, className }: { event: Event; className?: string }) {
   const { isSmallScreen } = useScreenSize()
-  const [isRawEventDialogOpen, setIsRawEventDialogOpen] = useState(false)
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false)
-  const [isPrivateNoteDialogOpen, setIsPrivateNoteDialogOpen] = useState(false)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [showSubMenu, setShowSubMenu] = useState(false)
   const [activeSubMenu, setActiveSubMenu] = useState<SubMenuAction[]>([])
@@ -28,20 +24,10 @@ export default function NoteOptions({ event, className }: { event: Event; classN
     setShowSubMenu(false)
   }
 
-  const showSubMenuActions = (subMenu: SubMenuAction[], title: string) => {
-    setActiveSubMenu(subMenu)
-    setSubMenuTitle(title)
-    setShowSubMenu(true)
-  }
-
   const menuActions = useMenuActions({
     event,
     closeDrawer,
-    showSubMenuActions,
-    setIsRawEventDialogOpen,
-    setIsReportDialogOpen,
-    setIsPrivateNoteDialogOpen,
-    isSmallScreen
+    setIsReportDialogOpen
   })
 
   const trigger = (
@@ -71,21 +57,10 @@ export default function NoteOptions({ event, className }: { event: Event; classN
         <DesktopMenu menuActions={menuActions} trigger={trigger} />
       )}
 
-      <RawEventDialog
-        event={event}
-        isOpen={isRawEventDialogOpen}
-        onClose={() => setIsRawEventDialogOpen(false)}
-      />
       <ReportDialog
         event={event}
         isOpen={isReportDialogOpen}
         closeDialog={() => setIsReportDialogOpen(false)}
-      />
-      <PrivateNoteDialog
-        open={isPrivateNoteDialogOpen}
-        onOpenChange={setIsPrivateNoteDialogOpen}
-        pubkey={event.pubkey}
-        noteEventId={event.id}
       />
     </div>
   )

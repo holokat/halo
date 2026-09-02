@@ -4,7 +4,6 @@ import { Event as NostrEvent } from 'nostr-tools'
 import { useNostr } from '@/providers/NostrProvider'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import { useLiveStreamPopout } from '@/providers/LiveStreamPopoutProvider'
-import { useWidgets } from '@/providers/WidgetsProvider'
 import client from '@/services/client.service'
 import mediaManager from '@/services/media-manager.service'
 import liveStreamSyncService, { TLiveStreamSyncCommand } from '@/services/live-stream-sync.service'
@@ -30,7 +29,6 @@ export function useLiveStreamView({
   const { pubkey, checkLogin, publish } = useNostr()
   const { isSmallScreen } = useScreenSize()
   const { openPopout, isPopoutOpenForUrl } = useLiveStreamPopout()
-  const { pinLiveStreamWidget, unpinLiveStreamByNaddr, isLiveStreamPinned } = useWidgets()
   const decodedEvent = useMemo(() => decodeLiveNaddr(naddr), [naddr])
   const [liveEvent, setLiveEvent] = useState<NostrEvent | null>(null)
   const [chatMessages, setChatMessages] = useState<NostrEvent[]>([])
@@ -61,7 +59,6 @@ export function useLiveStreamView({
     [liveEvent]
   )
   const isInPopout = isPopoutOpenForUrl(activeStreamingUrl)
-  const isPinnedToWidget = isLiveStreamPinned(naddr)
   const relayCount = useMemo(
     () => (decodedEvent ? getStreamRelays(decodedEvent).length : 0),
     [decodedEvent]
@@ -187,7 +184,6 @@ export function useLiveStreamView({
         }
       )
       closers.push(chatSub)
-
     }
 
     const queryLiveEvent = (targetRelays: string[]) =>
@@ -215,13 +211,16 @@ export function useLiveStreamView({
     })
 
     if (fallbackRelays.length > 0) {
-      fallbackTimer = setTimeout(() => {
-        if (isDisposed) return
-        subscribeToRelays(fallbackRelays)
-        if (!hasLiveEvent) {
-          queryLiveEvent(fallbackRelays)
-        }
-      }, hydratedInitialEvent ? 2500 : 1200)
+      fallbackTimer = setTimeout(
+        () => {
+          if (isDisposed) return
+          subscribeToRelays(fallbackRelays)
+          if (!hasLiveEvent) {
+            queryLiveEvent(fallbackRelays)
+          }
+        },
+        hydratedInitialEvent ? 2500 : 1200
+      )
     }
 
     return () => {
@@ -527,21 +526,6 @@ export function useLiveStreamView({
     })
   }, [image, naddr, openPopout, streamingUrl, title])
 
-  const togglePinToWidget = useCallback(() => {
-    if (!naddr) return
-    if (isPinnedToWidget) {
-      unpinLiveStreamByNaddr(naddr)
-      return
-    }
-    if (!streamingUrl) return
-    pinLiveStreamWidget({
-      naddr,
-      streamingUrl,
-      title,
-      image
-    })
-  }, [image, isPinnedToWidget, naddr, pinLiveStreamWidget, streamingUrl, title, unpinLiveStreamByNaddr])
-
   const retry = useCallback(() => {
     setLoadAttempt((prev) => prev + 1)
   }, [])
@@ -628,7 +612,6 @@ export function useLiveStreamView({
     isFullscreen,
     isInPopout,
     isLoading,
-    isPinnedToWidget,
     isSending,
     isSmallScreen,
     isVideoMuted,
@@ -659,7 +642,6 @@ export function useLiveStreamView({
     t,
     title,
     toggleFullscreen,
-    togglePinToWidget,
     toggleVideoMute,
     toggleVideoPlayback,
     videoContainerRef,

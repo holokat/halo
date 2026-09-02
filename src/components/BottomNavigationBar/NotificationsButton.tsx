@@ -3,8 +3,10 @@ import { useNostr } from '@/providers/NostrProvider'
 import { useNotification } from '@/providers/NotificationProvider'
 import { Bell } from 'lucide-react'
 import BottomNavigationBarItem from './BottomNavigationBarItem'
+import { useTranslation } from 'react-i18next'
 
 export default function NotificationsButton() {
+  const { t } = useTranslation()
   const { checkLogin } = useNostr()
   const { navigate, current, display } = usePrimaryPage()
   const { hasNewNotification } = useNotification()
@@ -13,6 +15,7 @@ export default function NotificationsButton() {
     <BottomNavigationBarItem
       active={current === 'notifications' && display}
       onClick={() => checkLogin(() => navigate('notifications'))}
+      aria-label={t('Notifications')}
     >
       <div className="relative">
         <Bell />

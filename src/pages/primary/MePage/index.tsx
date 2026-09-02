@@ -10,23 +10,27 @@ import { SimpleUsername } from '@/components/Username'
 import PrimaryPageLayout from '@/layouts/PrimaryPageLayout'
 import { toProfile, toSettings } from '@/lib/link'
 import { cn } from '@/lib/utils'
-import { usePrimaryPage, useSecondaryPage } from '@/PageManager'
+import { useSecondaryPage } from '@/PageManager'
 import { useNostr } from '@/providers/NostrProvider'
-import { useScreenSize } from '@/providers/ScreenSizeProvider'
 
 import { pubkeyToNpub } from '@/lib/pubkey'
 import { toast } from 'sonner'
 import {
   ArrowDownUp,
-  ChevronLeft,
   ChevronRight,
   LogOut,
   Settings,
   UserRound,
   QrCode as QrCodeIcon,
-  Star
+  UserPlus
 } from 'lucide-react'
-import { forwardRef, HTMLProps, useState, useMemo } from 'react'
+import {
+  forwardRef,
+  type ButtonHTMLAttributes,
+  type ReactNode,
+  useMemo,
+  useState
+} from 'react'
 import { useTranslation } from 'react-i18next'
 
 const MePage = forwardRef((_, ref) => {
@@ -41,15 +45,22 @@ const MePage = forwardRef((_, ref) => {
   const inviteLink = useMemo(() => {
     if (!pubkey) return ''
     const npub = pubkeyToNpub(pubkey)
+    if (!npub) return ''
     return `${window.location.origin}?invite=${npub}`
   }, [pubkey])
 
   const handleCopyInvite = async () => {
+    if (!inviteLink) return
+
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(inviteLink)
         setInviteCopied(true)
-        toast.success(t('Invite link copied to clipboard!'))
+        toast.success(
+          t('Invite link copied to clipboard!', {
+            defaultValue: 'Invite link copied to clipboard!'
+          })
+        )
         setTimeout(() => setInviteCopied(false), 2000)
       } else {
         const textArea = document.createElement('textarea')
@@ -66,7 +77,11 @@ const MePage = forwardRef((_, ref) => {
 
         if (successful) {
           setInviteCopied(true)
-          toast.success(t('Invite link copied to clipboard!'))
+          toast.success(
+            t('Invite link copied to clipboard!', {
+              defaultValue: 'Invite link copied to clipboard!'
+            })
+          )
           setTimeout(() => setInviteCopied(false), 2000)
         } else {
           throw new Error('Copy command was unsuccessful')
@@ -74,7 +89,11 @@ const MePage = forwardRef((_, ref) => {
       }
     } catch (error) {
       console.error('Failed to copy:', error)
-      toast.error(t('Failed to copy invite link'))
+      toast.error(
+        t('Failed to copy invite link', {
+          defaultValue: 'Failed to copy invite link'
+        })
+      )
     }
   }
 
@@ -82,7 +101,7 @@ const MePage = forwardRef((_, ref) => {
     return (
       <PrimaryPageLayout
         ref={ref}
-        pageName="home"
+        pageName="me"
         titlebar={<MePageTitlebar />}
         hideTitlebarBottomBorder
       >
@@ -96,7 +115,7 @@ const MePage = forwardRef((_, ref) => {
   return (
     <PrimaryPageLayout
       ref={ref}
-      pageName="home"
+      pageName="me"
       titlebar={<MePageTitlebar />}
       hideTitlebarBottomBorder
     >
@@ -108,28 +127,37 @@ const MePage = forwardRef((_, ref) => {
             userId={pubkey}
             skeletonClassName="h-6 w-32"
           />
-          <div className="flex gap-1 mt-1">
+          <div className="mt-1 flex items-center gap-2">
             <PubkeyCopy pubkey={pubkey} />
+            <Button
+              variant="secondary"
+              size="icon"
+              className="size-10 rounded-full"
+              onClick={() => setQrDialogOpen(true)}
+              aria-label={t('Show public key QR code', {
+                defaultValue: 'Show public key QR code'
+              })}
+              title={t('Show public key QR code', {
+                defaultValue: 'Show public key QR code'
+              })}
+            >
+              <QrCodeIcon className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </div>
 
-      {/* Invite and QR buttons */}
       <div className="flex gap-2 px-4 pb-3">
         <Button
           variant="default"
           className="w-fit gap-2 px-3"
           onClick={handleCopyInvite}
+          disabled={!inviteLink}
         >
-          <Star className="h-4 w-4" />
-          {inviteCopied ? t('Copied!') : t('Copy Invite Link')}
-        </Button>
-        <Button
-          variant="secondary"
-          size="icon"
-          onClick={() => setQrDialogOpen(true)}
-        >
-          <QrCodeIcon className="h-4 w-4" />
+          <UserPlus className="h-4 w-4" />
+          {inviteCopied
+            ? t('Copied!')
+            : t('Copy invite link', { defaultValue: 'Copy invite link' })}
         </Button>
       </div>
 
@@ -166,30 +194,12 @@ export default MePage
 
 function MePageTitlebar() {
   const { t } = useTranslation()
-  const { navigate } = usePrimaryPage()
-  const { isSmallScreen } = useScreenSize()
-
-  if (!isSmallScreen) {
-    return (
-      <div className="flex justify-end items-center">
-      </div>
-    )
-  }
 
   return (
-    <div className="flex gap-2 items-center justify-between h-full">
-      <Button
-        className="flex gap-1 items-center w-fit justify-start pl-2 pr-3"
-        variant="ghost"
-        size="titlebar-icon"
-        title={t('back')}
-        onClick={() => navigate('home')}
-      >
-        <ChevronLeft />
-        <div className="text-lg font-semibold" style={{ fontSize: `var(--title-font-size, 18px)` }}>
-          {t('Account')}
-        </div>
-      </Button>
+    <div className="flex h-full items-center px-3">
+      <div className="text-lg font-semibold" style={{ fontSize: 'var(--title-font-size, 18px)' }}>
+        {t('Account')}
+      </div>
     </div>
   )
 }
@@ -199,28 +209,30 @@ function Item({
   className,
   hideChevron = false,
   ...props
-}: HTMLProps<HTMLDivElement> & { hideChevron?: boolean }) {
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  children: ReactNode
+  hideChevron?: boolean
+}) {
   const childArray = Array.isArray(children) ? children : [children]
   const icon = childArray[0]
   const label = childArray.slice(1)
 
   return (
-    <div
+    <button
+      type="button"
       className={cn(
-        'flex clickable justify-between items-center px-4 py-2 h-[52px] rounded-lg',
+        'flex h-[52px] w-full items-center justify-between rounded-lg px-4 py-2 text-left transition-colors hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         className
       )}
       {...props}
     >
       <div className="flex items-center gap-4">
-        {/* Icon with circular background using foreground color */}
         <div className="w-9 h-9 rounded-full bg-foreground/10 flex items-center justify-center [&_svg]:size-4 [&_svg]:shrink-0">
           {icon}
         </div>
-        {/* Label */}
         <span>{label}</span>
       </div>
       {!hideChevron && <ChevronRight className="size-4 shrink-0" />}
-    </div>
+    </button>
   )
 }

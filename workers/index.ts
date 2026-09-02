@@ -2,7 +2,7 @@ import { handleApiRequest } from '../netlify/functions/api.mjs'
 
 const CLIENT_API_CACHE_CONTROL = 'public, max-age=60, stale-while-revalidate=300'
 const STOCK_EDGE_CACHE_TTL_SECONDS = 15 * 60
-const POLYMARKET_EDGE_CACHE_TTL_SECONDS = 2 * 60
+const CANONICAL_HOSTNAME = 'haloapp.fyi'
 
 type ApiCachePolicy = {
   edgeTtlSeconds: number
@@ -10,7 +10,13 @@ type ApiCachePolicy = {
 
 export default {
   async fetch(request, env, ctx): Promise<Response> {
-    const pathname = new URL(request.url).pathname
+    const url = new URL(request.url)
+    const canonicalRedirect = getCanonicalRedirect(url)
+    if (canonicalRedirect) {
+      return canonicalRedirect
+    }
+
+    const pathname = url.pathname
 
     if (isBackendRoute(pathname)) {
       return handleWorkerApiRequest(request, env, ctx)
@@ -19,6 +25,22 @@ export default {
     return env.ASSETS.fetch(request)
   }
 } satisfies ExportedHandler<Env>
+
+function getCanonicalRedirect(url: URL) {
+  const isApex = url.hostname === CANONICAL_HOSTNAME
+  const isWww = url.hostname === `www.${CANONICAL_HOSTNAME}`
+  if (!isApex && !isWww) {
+    return null
+  }
+
+  if (url.protocol === 'https:' && isApex) {
+    return null
+  }
+
+  url.protocol = 'https:'
+  url.hostname = CANONICAL_HOSTNAME
+  return Response.redirect(url.toString(), 308)
+}
 
 async function handleWorkerApiRequest(
   request: Request,
@@ -68,10 +90,6 @@ function getApiCachePolicy(pathname: string): ApiCachePolicy | null {
     return { edgeTtlSeconds: STOCK_EDGE_CACHE_TTL_SECONDS }
   }
 
-  if (pathname === '/v1/polymarket/markets') {
-    return { edgeTtlSeconds: POLYMARKET_EDGE_CACHE_TTL_SECONDS }
-  }
-
   return null
 }
 
@@ -85,8 +103,6 @@ function createApiCacheKey(request: Request) {
     if (symbol) {
       url.searchParams.set('symbol', symbol)
     }
-  } else if (url.pathname === '/v1/polymarket/markets') {
-    url.search = ''
   }
 
   return new Request(url.toString(), { method: 'GET' })

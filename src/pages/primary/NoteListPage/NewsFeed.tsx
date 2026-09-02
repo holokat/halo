@@ -3,20 +3,20 @@ import { Button } from '@/components/ui/button'
 import { toFeedsSettings } from '@/lib/link'
 import { useSecondaryPage } from '@/PageManager'
 import { useFeed } from '@/providers/FeedProvider'
-import { useWidgets } from '@/providers/WidgetsProvider'
+import { useNewsFeedSettings } from '@/providers/NewsFeedSettingsProvider'
 import { useTranslation } from 'react-i18next'
 
 export default function NewsFeed() {
   const { t } = useTranslation()
   const { push } = useSecondaryPage()
   const { feedInfo } = useFeed()
-  const { newsWidgetRelays } = useWidgets()
+  const { newsRelays } = useNewsFeedSettings()
 
   if (feedInfo.feedType !== 'news') {
     return null
   }
 
-  if (newsWidgetRelays.length === 0) {
+  if (newsRelays.length === 0) {
     return (
       <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed px-4 py-10 text-center">
         <div className="text-sm text-muted-foreground">
@@ -31,5 +31,5 @@ export default function NewsFeed() {
     )
   }
 
-  return <NormalFeed subRequests={[{ urls: newsWidgetRelays, filter: {} }]} isMainFeed />
+  return <NormalFeed subRequests={[{ urls: newsRelays, filter: {} }]} isMainFeed />
 }
