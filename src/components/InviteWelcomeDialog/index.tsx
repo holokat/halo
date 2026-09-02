@@ -34,7 +34,8 @@ export default function InviteWelcomeDialog({
   const { t } = useTranslation()
   const { pubkey } = useNostr()
   const { profile: inviterProfile, isFetching: fetchingProfile } = useFetchProfile(inviterPubkey)
-  const { followings: inviterFollowings } = useFetchFollowings(inviterPubkey)
+  const { followings: inviterFollowings, isFetching: fetchingFollowings } =
+    useFetchFollowings(inviterPubkey)
   const { followMultiple } = useFollowList()
   const [followInviter, setFollowInviter] = useState(true)
   const [followInviterFollows, setFollowInviterFollows] = useState(true)
@@ -47,7 +48,7 @@ export default function InviteWelcomeDialog({
   }, [inviterFollowings, pubkey])
 
   const handleContinue = async () => {
-    if (!pubkey || isProcessing) return
+    if (!pubkey || isProcessing || fetchingFollowings) return
 
     setIsProcessing(true)
     try {
@@ -182,7 +183,9 @@ export default function InviteWelcomeDialog({
                   })}
                 </Label>
                 <p className="text-sm text-muted-foreground">
-                  {filteredInviterFollowings.length > 0 ? (
+                  {fetchingFollowings ? (
+                    <Skeleton className="inline-block h-3 w-24" />
+                  ) : filteredInviterFollowings.length > 0 ? (
                     <>
                       <Users className="inline h-3 w-3 mr-1" />
                       {t('Follow {{count}} people to get started', {
@@ -201,7 +204,9 @@ export default function InviteWelcomeDialog({
         <DialogFooter className="flex-col gap-2 sm:flex-col">
           <Button
             onClick={handleContinue}
-            disabled={isProcessing || (!followInviter && !followInviterFollows)}
+            disabled={
+              isProcessing || fetchingFollowings || (!followInviter && !followInviterFollows)
+            }
             className="w-full rounded-xl"
           >
             {isProcessing ? t('Processing...') : t('Continue')}

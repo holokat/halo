@@ -1,43 +1,21 @@
 import NormalFeed from '@/components/NormalFeed'
 import StockQuoteCard from '@/components/StockQuoteCard'
-import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { BIG_RELAY_URLS, SEARCHABLE_RELAY_URLS } from '@/constants'
 import SecondaryPageLayout from '@/layouts/SecondaryPageLayout'
-import { randomString } from '@/lib/random'
-import { useCustomFeeds } from '@/providers/CustomFeedsProvider'
 import { useNostr } from '@/providers/NostrProvider'
-import { TCustomFeed, TFeedSubRequest } from '@/types'
-import { Plus } from 'lucide-react'
+import { TFeedSubRequest } from '@/types'
 import React, { forwardRef, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
 
 const NoteListPage = forwardRef(({ index }: { index?: number }, ref) => {
   const { t } = useTranslation()
   const { relayList } = useNostr()
-  const { addCustomFeed } = useCustomFeeds()
   const [title, setTitle] = useState<React.ReactNode>(null)
-  const [controls, setControls] = useState<React.ReactNode>(null)
-  const [data, setData] = useState<
-    | {
-        type: 'hashtag' | 'search' | 'externalContent'
-        kinds?: number[]
-      }
-    | null
-  >(null)
+  const [data, setData] = useState<{
+    type: 'hashtag' | 'search' | 'externalContent'
+    kinds?: number[]
+  } | null>(null)
   const [subRequests, setSubRequests] = useState<TFeedSubRequest[]>([])
-  const [showSaveDialog, setShowSaveDialog] = useState(false)
-  const [feedName, setFeedName] = useState('')
-  const [currentHashtag, setCurrentHashtag] = useState<string | null>(null)
   const [currentStockSymbol, setCurrentStockSymbol] = useState<string | null>(null)
 
   useEffect(() => {
@@ -53,8 +31,6 @@ const NoteListPage = forwardRef(({ index }: { index?: number }, ref) => {
         const normalizedStockTag = normalizedStockSymbol.toLowerCase()
         setData({ type: 'search' })
         setTitle(`$${normalizedStockSymbol}`)
-        setControls(null)
-        setCurrentHashtag(null)
         setCurrentStockSymbol(normalizedStockSymbol)
         setSubRequests([
           {
@@ -72,22 +48,7 @@ const NoteListPage = forwardRef(({ index }: { index?: number }, ref) => {
       if (hashtag) {
         setData({ type: 'hashtag' })
         setTitle(`# ${hashtag}`)
-        setCurrentHashtag(hashtag)
         setCurrentStockSymbol(null)
-        setControls(
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1"
-            onClick={() => {
-              setFeedName(`#${hashtag}`)
-              setShowSaveDialog(true)
-            }}
-          >
-            <Plus className="size-4" />
-            <span className="hidden sm:inline">{t('Save feed')}</span>
-          </Button>
-        )
         setSubRequests([
           {
             filter: { '#t': [hashtag], ...(kinds.length > 0 ? { kinds } : {}) },
@@ -100,8 +61,6 @@ const NoteListPage = forwardRef(({ index }: { index?: number }, ref) => {
       if (search) {
         setData({ type: 'search' })
         setTitle(`${t('Search')}: ${search}`)
-        setControls(null)
-        setCurrentHashtag(null)
         setCurrentStockSymbol(null)
         setSubRequests([
           {
@@ -115,8 +74,6 @@ const NoteListPage = forwardRef(({ index }: { index?: number }, ref) => {
       if (externalContentId) {
         setData({ type: 'externalContent' })
         setTitle(externalContentId)
-        setControls(null)
-        setCurrentHashtag(null)
         setCurrentStockSymbol(null)
         setSubRequests([
           {
@@ -130,25 +87,6 @@ const NoteListPage = forwardRef(({ index }: { index?: number }, ref) => {
     init()
   }, [])
 
-  const handleSaveFeed = () => {
-    if (!currentHashtag || !feedName.trim()) return
-
-    const feed: TCustomFeed = {
-      id: randomString(),
-      name: feedName.trim(),
-      searchParams: {
-        type: 'hashtag',
-        search: currentHashtag,
-        input: `#${currentHashtag}`
-      }
-    }
-
-    addCustomFeed(feed)
-    setShowSaveDialog(false)
-    setFeedName('')
-    toast.success(t('Feed saved successfully'))
-  }
-
   let content: React.ReactNode = null
   if (data) {
     content = (
@@ -160,48 +98,9 @@ const NoteListPage = forwardRef(({ index }: { index?: number }, ref) => {
   }
 
   return (
-    <>
-      <SecondaryPageLayout
-        ref={ref}
-        index={index}
-        title={title}
-        controls={controls}
-        displayScrollToTopButton
-      >
-        {content}
-      </SecondaryPageLayout>
-
-      <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('Save Custom Feed')}</DialogTitle>
-            <DialogDescription>
-              {t('Give this search feed a name to quickly access it later.')}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <Input
-              placeholder={t('Feed name')}
-              value={feedName}
-              onChange={(e) => setFeedName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleSaveFeed()
-                }
-              }}
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
-              {t('Cancel')}
-            </Button>
-            <Button onClick={handleSaveFeed} disabled={!feedName.trim()}>
-              {t('Save')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+    <SecondaryPageLayout ref={ref} index={index} title={title} displayScrollToTopButton>
+      {content}
+    </SecondaryPageLayout>
   )
 })
 NoteListPage.displayName = 'NoteListPage'

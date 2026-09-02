@@ -45,13 +45,7 @@ const SearchPage = forwardRef((_, ref) => {
       pageName="search"
       titlebar={
         <div className="flex gap-2 items-center h-full w-full">
-          <SearchBar
-            ref={searchBarRef}
-            onSearch={onSearch}
-            input={input}
-            setInput={setInput}
-            currentSearchParams={searchParams}
-          />
+          <SearchBar ref={searchBarRef} onSearch={onSearch} input={input} setInput={setInput} />
           {searchParams && (
             <PinButton
               column={{

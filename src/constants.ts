@@ -29,7 +29,7 @@ export const DEFAULT_FAVORITE_RELAYS = [
   'wss://news.utxo.one/'
 ]
 
-export const DEFAULT_NEWS_WIDGET_RELAYS = ['wss://news.utxo.one/']
+export const DEFAULT_NEWS_FEED_RELAYS = ['wss://news.utxo.one/']
 
 export const RECOMMENDED_RELAYS = DEFAULT_FAVORITE_RELAYS.concat(['wss://yabu.me/'])
 
@@ -76,28 +76,12 @@ export const StorageKey = {
   MEDIA_RADIUS: 'mediaRadius',
   PAGE_THEME: 'pageTheme',
   PRIVATE_NOTES: 'privateNotes',
-  TRENDING_NOTES_DISMISSED: 'trendingNotesDismissed',
-  TRENDING_NOTES_HEIGHT: 'trendingNotesHeight',
-  BITCOIN_TICKER_ALIGNMENT: 'bitcoinTickerAlignment',
-  BITCOIN_TICKER_TEXT_SIZE: 'bitcoinTickerTextSize',
-  BITCOIN_TICKER_SHOW_BLOCK_HEIGHT: 'bitcoinTickerShowBlockHeight',
-  BITCOIN_TICKER_SHOW_SATS_MODE: 'bitcoinTickerShowSatsMode',
-  STOCK_TRACKER_SYMBOLS: 'stockTrackerSymbols',
   COMPACT_SIDEBAR: 'compactSidebar',
   LOGO_STYLE: 'logoStyle',
   CUSTOM_LOGO_TEXT: 'customLogoText',
   CUSTOM_LOGO_EMOJI: 'customLogoEmoji',
   LOGO_FONT_SIZE: 'logoFontSize',
-  WIDGET_SIDEBAR_TITLE: 'widgetSidebarTitle',
-  WIDGET_SIDEBAR_ICON: 'widgetSidebarIcon',
-  HIDE_WIDGET_TITLES: 'hideWidgetTitles',
-  ENABLED_WIDGETS: 'enabledWidgets',
-  COLLAPSED_WIDGETS: 'collapsedWidgets',
-  WIDGET_HEIGHTS: 'widgetHeights',
-  NEWS_WIDGET_RELAYS: 'newsWidgetRelays',
-  NEWS_WIDGET_HASHTAGS: 'newsWidgetHashtags',
-  PINNED_NOTE_WIDGETS: 'pinnedNoteWidgets',
-  LIVE_STREAM_WIDGETS: 'liveStreamWidgets',
+  NEWS_FEED_RELAYS: 'newsFeedRelays',
   FONT_FAMILY: 'fontFamily',
   CUSTOM_FEEDS: 'customFeeds',
   LOCAL_POST_DRAFTS: 'localPostDrafts',

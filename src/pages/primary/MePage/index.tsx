@@ -9,11 +9,11 @@ import { SimpleUserAvatar } from '@/components/UserAvatar'
 import { SimpleUsername } from '@/components/Username'
 import PrimaryPageLayout from '@/layouts/PrimaryPageLayout'
 import { toProfile, toSettings } from '@/lib/link'
+import { buildInviteUrl } from '@/lib/invite'
 import { cn } from '@/lib/utils'
 import { useSecondaryPage } from '@/PageManager'
 import { useNostr } from '@/providers/NostrProvider'
 
-import { pubkeyToNpub } from '@/lib/pubkey'
 import { toast } from 'sonner'
 import {
   ArrowDownUp,
@@ -24,13 +24,7 @@ import {
   QrCode as QrCodeIcon,
   UserPlus
 } from 'lucide-react'
-import {
-  forwardRef,
-  type ButtonHTMLAttributes,
-  type ReactNode,
-  useMemo,
-  useState
-} from 'react'
+import { forwardRef, type ButtonHTMLAttributes, type ReactNode, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 const MePage = forwardRef((_, ref) => {
@@ -44,9 +38,7 @@ const MePage = forwardRef((_, ref) => {
 
   const inviteLink = useMemo(() => {
     if (!pubkey) return ''
-    const npub = pubkeyToNpub(pubkey)
-    if (!npub) return ''
-    return `${window.location.origin}?invite=${npub}`
+    return buildInviteUrl(pubkey, window.location.origin) ?? ''
   }, [pubkey])
 
   const handleCopyInvite = async () => {

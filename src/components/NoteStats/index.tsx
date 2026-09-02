@@ -11,7 +11,6 @@ import LikeButton from './LikeButton'
 import Likes from './Likes'
 import ReplyButton from './ReplyButton'
 import RepostButton from './RepostButton'
-import SeenOnButton from './SeenOnButton'
 import ShareButton from './ShareButton'
 
 export default function NoteStats({
@@ -64,7 +63,6 @@ export default function NoteStats({
             {!lowBandwidthMode && <LikeButton event={event} />}
           </div>
           <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
-            <SeenOnButton event={event} />
             <BookmarkButton event={event} />
             <BookmarkTagManager event={event} onTagsChange={onTagsChange} bookmarkId={bookmarkId} />
           </div>
@@ -89,7 +87,6 @@ export default function NoteStats({
         <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
           <BookmarkButton event={event} />
           <BookmarkTagManager event={event} onTagsChange={onTagsChange} bookmarkId={bookmarkId} />
-          <SeenOnButton event={event} />
         </div>
       </div>
     </div>

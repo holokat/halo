@@ -35,7 +35,8 @@ export default function InviteWelcomeFlow({
   const { t } = useTranslation()
   const { publish, updateFollowListEvent } = useNostr()
   const { profile: inviterProfile, isFetching: fetchingProfile } = useFetchProfile(inviterPubkey)
-  const { followings: inviterFollowings } = useFetchFollowings(inviterPubkey)
+  const { followings: inviterFollowings, isFetching: fetchingFollowings } =
+    useFetchFollowings(inviterPubkey)
 
   const [currentStep, setCurrentStep] = useState<FlowStep>('welcome')
   const [followInviterFollows, setFollowInviterFollows] = useState(true)
@@ -135,7 +136,7 @@ export default function InviteWelcomeFlow({
             {/* Join Button */}
             <Button
               onClick={handleJoinClick}
-              disabled={isProcessing}
+              disabled={isProcessing || fetchingProfile || fetchingFollowings}
               size="lg"
               className="w-full rounded-xl"
             >

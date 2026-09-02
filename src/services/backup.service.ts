@@ -1,4 +1,5 @@
 import { StorageKey } from '@/constants'
+import { migrateLegacyNewsFeedBackupStorage } from '@/lib/storage-migrations'
 import { Event } from 'nostr-tools'
 import indexedDb from './indexed-db.service'
 import storage from './local-storage.service'
@@ -140,8 +141,10 @@ class BackupService {
       throw new Error('Invalid backup format')
     }
 
+    const migratedLocalStorage = migrateLegacyNewsFeedBackupStorage(backup.localStorage)
+
     // Restore LocalStorage
-    Object.entries(backup.localStorage).forEach(([key, value]) => {
+    Object.entries(migratedLocalStorage).forEach(([key, value]) => {
       // Skip sensitive keys if not including private keys
       if (!includePrivateKeys && SENSITIVE_STORAGE_KEYS.includes(key)) {
         return

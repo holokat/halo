@@ -7,7 +7,7 @@ import {
   DEFAULT_MEDIA_RADIUS,
   DEFAULT_FONT_FAMILY,
   DEFAULT_FONT_SIZE,
-  DEFAULT_NEWS_WIDGET_RELAYS as DEFAULT_NEWS_FEED_RELAYS,
+  DEFAULT_NEWS_FEED_RELAYS,
   DEFAULT_TITLE_FONT_SIZE,
   DEFAULT_LOGO_FONT_SIZE,
   DEFAULT_NIP_96_SERVICE,
@@ -30,6 +30,7 @@ import {
 import { isSameAccount } from '@/lib/account'
 import { normalizePollCreateData } from '@/lib/poll'
 import { randomString } from '@/lib/random'
+import { LEGACY_NEWS_RELAYS_STORAGE_KEY } from '@/lib/storage-migrations'
 import { isWebsocketUrl, normalizeUrl } from '@/lib/url'
 import {
   TAccount,
@@ -379,18 +380,27 @@ class LocalStorageService {
         this.logoFontSize = size
       }
     }
-
   }
 
   private initFeedAndDraftState() {
-    this.newsFeedRelays = readStoredStringArray(
-      StorageKey.NEWS_WIDGET_RELAYS,
+    const normalizeNewsRelay = (relay: string) => {
+      const normalizedRelay = normalizeUrl(relay)
+      return normalizedRelay && isWebsocketUrl(normalizedRelay) ? normalizedRelay : null
+    }
+    const legacyNewsFeedRelays = readStoredStringArray(
+      LEGACY_NEWS_RELAYS_STORAGE_KEY,
       DEFAULT_NEWS_FEED_RELAYS,
-      (relay) => {
-        const normalizedRelay = normalizeUrl(relay)
-        return normalizedRelay && isWebsocketUrl(normalizedRelay) ? normalizedRelay : null
-      }
+      normalizeNewsRelay
     )
+    this.newsFeedRelays = readStoredStringArray(
+      StorageKey.NEWS_FEED_RELAYS,
+      legacyNewsFeedRelays,
+      normalizeNewsRelay
+    )
+    if (readStoredStringValue(StorageKey.NEWS_FEED_RELAYS) === null) {
+      this.setJson(StorageKey.NEWS_FEED_RELAYS, this.newsFeedRelays)
+    }
+    removeStorageItem(LEGACY_NEWS_RELAYS_STORAGE_KEY)
 
     const storedCustomFeeds = readStoredJson<unknown>(StorageKey.CUSTOM_FEEDS, {})
     if (Array.isArray(storedCustomFeeds)) {
@@ -971,7 +981,7 @@ class LocalStorageService {
 
   setNewsFeedRelays(relays: string[]) {
     this.newsFeedRelays = relays
-    this.setJson(StorageKey.NEWS_WIDGET_RELAYS, relays)
+    this.setJson(StorageKey.NEWS_FEED_RELAYS, relays)
   }
 
   private getCustomFeedsOwnerKey(pubkey?: string | null) {

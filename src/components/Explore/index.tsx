@@ -43,12 +43,7 @@ export default function Explore({
     <div className="pb-5">
       {showInlineSearch && (
         <div className="px-4 pt-4">
-          <SearchBar
-            onSearch={handleSearch}
-            input={input}
-            setInput={setInput}
-            currentSearchParams={searchParams}
-          />
+          <SearchBar onSearch={handleSearch} input={input} setInput={setInput} />
         </div>
       )}
 

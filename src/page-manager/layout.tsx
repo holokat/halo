@@ -53,18 +53,18 @@ export function PageManagerShell({
   const isShowingSecondaryPage = secondaryStack.length > 0
 
   return (
-    <div className="h-[var(--vh)] overflow-hidden bg-surface-background">
-      <div
+    <div className="grid h-[var(--vh)] grid-cols-[4rem_minmax(0,736px)_4rem] justify-center overflow-hidden bg-surface-background xl:grid-cols-[13rem_minmax(0,736px)_13rem]">
+      <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-20 shrink-0 border-r border-border/70 bg-background',
+          'h-full border-r border-border/70 bg-background',
           pageTheme === 'pure-black' && 'border-neutral-900'
         )}
       >
         <Sidebar />
-      </div>
+      </aside>
 
-      <main className="h-full min-w-0 pl-16 xl:pl-52">
-        <div className="mx-auto h-full w-full max-w-[736px] px-2 py-2">
+      <main className="h-full min-w-0">
+        <div className="h-full w-full px-2 py-2">
           <div
             className={cn(
               'h-full min-h-0 min-w-0 overflow-hidden bg-card',
@@ -100,6 +100,8 @@ export function PageManagerShell({
           </div>
         </div>
       </main>
+
+      <div aria-hidden="true" />
 
       <BackgroundAudio className="fixed bottom-5 right-0 z-50 w-80 overflow-hidden rounded-l-full rounded-r-none border shadow-lg" />
     </div>

@@ -61,7 +61,6 @@ function ExplorePageTitlebar({
           input={input}
           setInput={setInput}
           onSearch={onSearch}
-          currentSearchParams={searchParams}
           className="h-full"
           searchInputClassName="!bg-transparent !shadow-none !border-0 !px-0 md:!pl-2 rounded-none [&_input]:mx-2 [&_input]:font-semibold [&_input]:text-[length:var(--title-font-size,18px)] [&_input]:placeholder:font-semibold [&_input]:placeholder:text-foreground/60 [&_svg]:text-muted-foreground"
         />
