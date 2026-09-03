@@ -9,12 +9,13 @@ import LogoutDialog from '@/components/LogoutDialog'
 import { SimpleUserAvatar } from '@/components/UserAvatar'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { bottomNavigationItemClassName } from '@/components/BottomNavigationBar/BottomNavigationBarItem'
+import { cn } from '@/lib/utils'
 import {
   ArrowDownUp,
   Bell,
   BookOpen,
   Check,
-  CircleUserRound,
   Copy,
   Home,
   KeyRound,
@@ -38,36 +39,50 @@ type TMobileMenuItem = {
   requiresLogin?: boolean
 }
 
-export default function MobileTopNavMenuButton() {
+export default function MobileTopNavMenuButton({
+  variant = 'titlebar',
+  active = false
+}: {
+  variant?: 'titlebar' | 'bottom-navigation'
+  active?: boolean
+}) {
+  const { t } = useTranslation()
   const { pubkey } = useNostr()
   const [open, setOpen] = useState(false)
+  const isBottomNavigation = variant === 'bottom-navigation'
 
   return (
     <>
       <Button
         variant="ghost"
-        size="titlebar-icon"
-        className="rounded-full p-0"
+        size={isBottomNavigation ? undefined : 'titlebar-icon'}
+        className={cn(
+          'rounded-full p-0',
+          isBottomNavigation && bottomNavigationItemClassName(active)
+        )}
         onClick={() => setOpen(true)}
-        aria-label="Open menu"
+        aria-label={t('Account')}
+        aria-current={active ? 'page' : undefined}
       >
         {pubkey ? (
           <SimpleUserAvatar userId={pubkey} size="small" />
         ) : (
-          <CircleUserRound className="size-5 text-muted-foreground" />
+          <UserRound className="size-5 text-muted-foreground" />
         )}
       </Button>
-      <MobileNavSheet open={open} onOpenChange={setOpen} />
+      <MobileNavSheet open={open} onOpenChange={setOpen} accountOnly={isBottomNavigation} />
     </>
   )
 }
 
 function MobileNavSheet({
   open,
-  onOpenChange
+  onOpenChange,
+  accountOnly = false
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
+  accountOnly?: boolean
 }) {
   const { t } = useTranslation()
   const { menuItems } = useMenuItems()
@@ -86,9 +101,7 @@ function MobileNavSheet({
   }, [npub])
   const displayName = useMemo(
     () =>
-      profile?.original_username ||
-      profile?.username ||
-      (npub ? formatNpub(npub, 22) : t('Login')),
+      profile?.original_username || profile?.username || (npub ? formatNpub(npub, 22) : t('Login')),
     [profile?.original_username, profile?.username, npub, t]
   )
 
@@ -125,7 +138,14 @@ function MobileNavSheet({
 
   const visibleItems = useMemo(() => {
     return menuItems
-      .filter((item) => item.visible && item.canReorder && item.id !== 'post' && item.id !== 'lists' && item.id !== 'livestreams')
+      .filter(
+        (item) =>
+          item.visible &&
+          item.canReorder &&
+          item.id !== 'post' &&
+          item.id !== 'lists' &&
+          item.id !== 'livestreams'
+      )
       .sort((a, b) => a.order - b.order)
       .map((item) => menuDefinitions[item.id as TMobileMenuItem['id']])
       .filter(Boolean)
@@ -178,8 +198,22 @@ function MobileNavSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="left" hideClose className="w-[82vw] max-w-[22rem] p-0">
-        <div className="h-full overflow-y-auto py-3">
+      <SheetContent
+        side={accountOnly ? 'bottom' : 'left'}
+        hideClose
+        className={cn(
+          'p-0',
+          accountOnly
+            ? 'mx-auto max-h-[82vh] w-full max-w-md rounded-t-[2rem] border-x border-t'
+            : 'w-[82vw] max-w-[22rem]'
+        )}
+      >
+        <div
+          className={cn(
+            'overflow-y-auto py-3',
+            accountOnly ? 'max-h-[82vh] pb-[calc(env(safe-area-inset-bottom)+1rem)]' : 'h-full'
+          )}
+        >
           {pubkey && npub ? (
             <div className="px-4 pb-3">
               <button
@@ -189,7 +223,9 @@ function MobileNavSheet({
               >
                 <SimpleUserAvatar userId={pubkey} size="big" />
                 <div className="min-w-0">
-                  <div className="truncate text-base font-semibold leading-tight">{displayName}</div>
+                  <div className="truncate text-base font-semibold leading-tight">
+                    {displayName}
+                  </div>
                 </div>
               </button>
 
@@ -224,11 +260,7 @@ function MobileNavSheet({
                   size="icon"
                   className="h-10 w-10 rounded-full"
                   onClick={() =>
-                    void handleCopy(
-                      npub,
-                      t('Public key copied to clipboard!'),
-                      setNpubCopied
-                    )
+                    void handleCopy(npub, t('Public key copied to clipboard!'), setNpubCopied)
                   }
                   aria-label={t('Copy npub')}
                 >
@@ -255,7 +287,7 @@ function MobileNavSheet({
                 onClick={handleProfilePress}
               >
                 <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                  <CircleUserRound className="size-7" />
+                  <UserRound className="size-7" />
                 </div>
                 <div className="min-w-0">
                   <div className="truncate text-base font-semibold leading-tight">{t('Login')}</div>
@@ -273,35 +305,41 @@ function MobileNavSheet({
             </div>
           )}
 
-          <div className="my-2 h-px bg-border" />
+          {!accountOnly && (
+            <>
+              <div className="my-2 h-px bg-border" />
 
-          <div className="px-2">
-            {visibleItems.map((item) => {
-              const Icon = item.icon
-              const active = current === item.page
-              return (
-                <Button
-                  key={item.id}
-                  variant="ghost"
-                  className="mb-0.5 h-11 w-full justify-start gap-3 px-3 text-[15px] font-medium [&_svg]:size-5"
-                  onClick={() => {
-                    if (item.requiresLogin) {
-                      closeThen(() => {
-                        void checkLogin(() => navigate(item.page))
-                      })
-                      return
-                    }
-                    closeThen(() => navigate(item.page))
-                  }}
-                >
-                  <Icon className={active ? 'text-foreground' : 'text-muted-foreground'} />
-                  <span className={active ? 'font-semibold text-foreground' : ''}>
-                    {item.label}
-                  </span>
-                </Button>
-              )
-            })}
-          </div>
+              <div className="px-2">
+                {visibleItems.map((item) => {
+                  const Icon = item.icon
+                  const itemIsActive = current === item.page
+                  return (
+                    <Button
+                      key={item.id}
+                      variant="ghost"
+                      className="mb-0.5 h-11 w-full justify-start gap-3 px-3 text-[15px] font-medium [&_svg]:size-5"
+                      onClick={() => {
+                        if (item.requiresLogin) {
+                          closeThen(() => {
+                            void checkLogin(() => navigate(item.page))
+                          })
+                          return
+                        }
+                        closeThen(() => navigate(item.page))
+                      }}
+                    >
+                      <Icon
+                        className={itemIsActive ? 'text-foreground' : 'text-muted-foreground'}
+                      />
+                      <span className={itemIsActive ? 'font-semibold text-foreground' : ''}>
+                        {item.label}
+                      </span>
+                    </Button>
+                  )
+                })}
+              </div>
+            </>
+          )}
 
           <div className="my-2 h-px bg-border" />
 

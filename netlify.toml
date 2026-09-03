@@ -15,3 +15,8 @@ from = "/.well-known/nostr.json"
 to = "/.netlify/functions/api/.well-known/nostr.json"
 status = 200
 force = true
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200

@@ -449,7 +449,7 @@ export const LAYOUT_MODE = {
   ISLAND: 'island'
 } as const
 
-export const DEFAULT_LAYOUT_MODE = 'boxed'
+export const DEFAULT_LAYOUT_MODE = LAYOUT_MODE.ISLAND
 
 export const DECK_VIEW_MODE = {
   STANDARD: 'standard',

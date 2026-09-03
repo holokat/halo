@@ -1,5 +1,5 @@
 import { usePrimaryPage } from '@/PageManager'
-import { Home } from 'lucide-react'
+import HaloMark from '@/components/HaloMark'
 import BottomNavigationBarItem from './BottomNavigationBarItem'
 import { useTranslation } from 'react-i18next'
 
@@ -13,7 +13,7 @@ export default function HomeButton() {
       onClick={() => navigate('home')}
       aria-label={t('Home')}
     >
-      <Home />
+      <HaloMark className="size-8" />
     </BottomNavigationBarItem>
   )
 }

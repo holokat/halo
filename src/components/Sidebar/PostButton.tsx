@@ -11,18 +11,18 @@ export default function PostButton() {
   const [open, setOpen] = useState(false)
 
   return (
-    <div className="pt-5">
+    <>
       <SidebarItem
         title={t('New note')}
+        className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
         onClick={(event) => {
           event.stopPropagation()
           checkLogin(() => setOpen(true))
         }}
-        className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground xl:justify-center"
       >
         <Plus />
       </SidebarItem>
       <PostEditor open={open} setOpen={setOpen} />
-    </div>
+    </>
   )
 }

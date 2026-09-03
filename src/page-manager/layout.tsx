@@ -1,6 +1,4 @@
-import BackgroundAudio from '@/components/BackgroundAudio'
 import BottomNavigationBar from '@/components/BottomNavigationBar'
-import Sidebar from '@/components/Sidebar'
 import { cn } from '@/lib/utils'
 import { cloneElement, type ReactElement, type ReactNode } from 'react'
 import { type TPrimaryPageName, type TStackItem } from './types'
@@ -53,21 +51,12 @@ export function PageManagerShell({
   const isShowingSecondaryPage = secondaryStack.length > 0
 
   return (
-    <div className="grid h-[var(--vh)] grid-cols-[4rem_minmax(0,736px)_4rem] justify-center overflow-hidden bg-surface-background xl:grid-cols-[13rem_minmax(0,736px)_13rem]">
-      <aside
-        className={cn(
-          'h-full border-r border-border/70 bg-background',
-          pageTheme === 'pure-black' && 'border-neutral-900'
-        )}
-      >
-        <Sidebar />
-      </aside>
-
-      <main className="h-full min-w-0">
-        <div className="h-full w-full px-2 py-2">
+    <div className="flex h-[var(--vh)] justify-center overflow-hidden bg-surface-background">
+      <main className="flex h-full min-h-0 min-w-0 w-full max-w-[736px] flex-1 flex-col">
+        <div className="flex h-full min-h-0 w-full flex-1 flex-col px-2 py-2">
           <div
             className={cn(
-              'h-full min-h-0 min-w-0 overflow-hidden bg-card',
+              'flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-card',
               pageTheme === 'pure-black' && 'border border-neutral-900',
               pageTheme === 'white' ? 'border border-border' : 'shadow-lg'
             )}
@@ -100,10 +89,7 @@ export function PageManagerShell({
           </div>
         </div>
       </main>
-
-      <div aria-hidden="true" />
-
-      <BackgroundAudio className="fixed bottom-5 right-0 z-50 w-80 overflow-hidden rounded-l-full rounded-r-none border shadow-lg" />
+      <BottomNavigationBar />
     </div>
   )
 }

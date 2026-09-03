@@ -86,15 +86,13 @@ const PrimaryPageLayout = forwardRef(
             <div
               ref={smallScreenScrollAreaRef}
               style={{
-                paddingBottom: 'calc(env(safe-area-inset-bottom) + 3rem)'
+                paddingBottom: 'calc(env(safe-area-inset-bottom) + 5.5rem)'
               }}
             >
               <PrimaryPageTitlebar hideBottomBorder={hideTitlebarBottomBorder}>
                 {titlebar}
               </PrimaryPageTitlebar>
-              <main id="main-content">
-                {children}
-              </main>
+              <main id="main-content">{children}</main>
             </div>
             {displayScrollToTopButton && <ScrollToTopButton />}
           </DeepBrowsingProvider>
@@ -104,7 +102,10 @@ const PrimaryPageLayout = forwardRef(
 
     return (
       <ScrollVisibilityProvider isSmallScreen={isSmallScreen}>
-        <DeepBrowsingProvider active={current === pageName && display} scrollAreaRef={scrollAreaRef}>
+        <DeepBrowsingProvider
+          active={current === pageName && display}
+          scrollAreaRef={scrollAreaRef}
+        >
           <a
             href="#main-content"
             className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:bg-primary focus:text-primary-foreground focus:px-4 focus:py-2 focus:rounded"
@@ -112,17 +113,15 @@ const PrimaryPageLayout = forwardRef(
             Skip to main content
           </a>
           <ScrollArea
-            className="h-full"
+            className="h-full min-h-0 overflow-auto"
             scrollBarClassName={cn('z-50 pt-12', hideScrollBar && 'opacity-0 pointer-events-none')}
             ref={scrollAreaRef}
           >
             <PrimaryPageTitlebar hideBottomBorder={hideTitlebarBottomBorder}>
               {titlebar}
             </PrimaryPageTitlebar>
-            <main id="main-content">
-              {children}
-            </main>
-            {!hideBottomSpacer && <div className="h-4" />}
+            <main id="main-content">{children}</main>
+            {!hideBottomSpacer && <div className="h-24" />}
           </ScrollArea>
           {displayScrollToTopButton && <ScrollToTopButton scrollAreaRef={scrollAreaRef} />}
         </DeepBrowsingProvider>

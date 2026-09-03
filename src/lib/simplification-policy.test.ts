@@ -20,15 +20,19 @@ test('default reading surfaces omit expert-only feed and relay controls', () => 
   assert.doesNotMatch(defaultSurfaceSources, /SeenOnButton/)
 })
 
-test('desktop navigation sits beside an exactly centered reading column', () => {
+test('floating navigation hugs its controls below an exactly centered reading column', () => {
   const shellSource = readProjectFile('src/page-manager/layout.tsx')
+  const bottomNavigationSource = readProjectFile('src/components/BottomNavigationBar/index.tsx')
+  const accountMenuSource = readProjectFile('src/components/MobileTopNavMenuButton/index.tsx')
 
-  assert.match(
-    shellSource,
-    /grid-cols-\[4rem_minmax\(0,736px\)_4rem\].*xl:grid-cols-\[13rem_minmax\(0,736px\)_13rem\]/
-  )
-  assert.doesNotMatch(shellSource, /fixed inset-y-0 left-0/)
-  assert.doesNotMatch(shellSource, /pl-16 xl:pl-52/)
+  assert.match(shellSource, /justify-center/)
+  assert.match(shellSource, /max-w-\[736px\]/)
+  assert.equal(shellSource.match(/<BottomNavigationBar \/>/g)?.length, 2)
+  assert.doesNotMatch(shellSource, /<Sidebar \/>|<aside/)
+  assert.match(bottomNavigationSource, /w-fit max-w-\[calc\(100%-2rem\)\]/)
+  assert.match(bottomNavigationSource, /flex items-center gap-1 p-1\.5/)
+  assert.doesNotMatch(bottomNavigationSource, /grid-cols-4/)
+  assert.doesNotMatch(accountMenuSource, /CircleUserRound/)
 })
 
 test('invite links wait for account restoration before choosing an onboarding flow', () => {

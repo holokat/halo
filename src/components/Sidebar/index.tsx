@@ -6,6 +6,8 @@ import AccountButton from './AccountButton'
 import SearchButton from './ExploreButton'
 import HomeButton from './HomeButton'
 import NotificationsButton from './NotificationButton'
+import PostButton from './PostButton'
+import ProfileButton from './ProfileButton'
 
 export default function PrimaryPageSidebar() {
   const { navigate } = usePrimaryPage()
@@ -30,6 +32,8 @@ export default function PrimaryPageSidebar() {
           <HomeButton />
           <SearchButton />
           <NotificationsButton />
+          <ProfileButton />
+          <PostButton />
         </div>
 
         <div className="mt-auto pt-6">

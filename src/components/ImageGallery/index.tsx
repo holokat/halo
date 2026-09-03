@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next'
 import Lightbox from 'yet-another-react-lightbox'
 import Zoom from 'yet-another-react-lightbox/plugins/zoom'
 import Image from '../Image'
+import ObscuredImagePreview from './ObscuredImagePreview'
 
 // Calculate aspect ratio string from dimensions, with fallback
 function getAspectRatio(dim?: { width: number; height: number }): string | undefined {
@@ -37,6 +38,7 @@ export default function ImageGallery({
 }) {
   const id = useMemo(() => `image-gallery-${randomString()}`, [])
   const { t } = useTranslation()
+  const viewImageLabel = t('View image', { defaultValue: 'View image' })
   const { autoLoadMedia, shouldAutoLoadMedia } = useContentPolicy()
   const { mediaStyle } = useMediaStyle()
   const [index, setIndex] = useState(-1)
@@ -74,6 +76,7 @@ export default function ImageGallery({
 
   if (!mustLoad && !autoLoadMedia) {
     let imageContent: ReactNode | null = null
+    const singleImageIsLoaded = displayImages.length === 1 && loadedImages.has(start)
 
     // For compact media
     if (compactMedia) {
@@ -85,13 +88,14 @@ export default function ImageGallery({
 
             if (!isLoaded) {
               return (
-                <div
+                <ObscuredImagePreview
                   key={i}
-                  className="w-20 h-20 border rounded flex items-center justify-center text-xs text-primary hover:bg-accent cursor-pointer"
-                  onClick={(e) => handleLoadImage(e, actualIndex)}
-                >
-                  [{t('Load')}]
-                </div>
+                  image={image}
+                  label={viewImageLabel}
+                  compact
+                  className="h-20 w-20"
+                  onView={(e) => handleLoadImage(e, actualIndex)}
+                />
               )
             }
 
@@ -118,12 +122,16 @@ export default function ImageGallery({
 
       if (!isLoaded) {
         imageContent = (
-          <div
-            className="text-primary hover:underline truncate w-fit cursor-pointer"
-            onClick={(e) => handleLoadImage(e, actualIndex)}
-          >
-            [{t('Click to load image')}]
-          </div>
+          <ObscuredImagePreview
+            image={displayImages[0]}
+            label={viewImageLabel}
+            className={cn(
+              'min-h-48 w-full',
+              isFullWidth ? 'min-h-56' : 'max-h-[80vh] sm:max-h-[50vh]'
+            )}
+            style={aspectRatio ? { aspectRatio } : { aspectRatio: '16 / 9' }}
+            onView={(e) => handleLoadImage(e, actualIndex)}
+          />
         )
       } else {
         imageContent = (
@@ -158,13 +166,13 @@ export default function ImageGallery({
 
             if (!isLoaded) {
               return (
-                <div
+                <ObscuredImagePreview
                   key={i}
-                  className="aspect-square border rounded flex items-center justify-center text-sm text-primary hover:bg-accent cursor-pointer"
-                  onClick={(e) => handleLoadImage(e, actualIndex)}
-                >
-                  [{t('Load')}]
-                </div>
+                  image={image}
+                  label={viewImageLabel}
+                  className="aspect-square w-full"
+                  onView={(e) => handleLoadImage(e, actualIndex)}
+                />
               )
             }
 
@@ -199,13 +207,13 @@ export default function ImageGallery({
 
             if (!isLoaded) {
               return (
-                <div
+                <ObscuredImagePreview
                   key={i}
-                  className="aspect-square border rounded flex items-center justify-center text-sm text-primary hover:bg-accent cursor-pointer"
-                  onClick={(e) => handleLoadImage(e, actualIndex)}
-                >
-                  [{t('Load')}]
-                </div>
+                  image={image}
+                  label={viewImageLabel}
+                  className="aspect-square w-full"
+                  onView={(e) => handleLoadImage(e, actualIndex)}
+                />
               )
             }
 
@@ -237,13 +245,13 @@ export default function ImageGallery({
 
             if (!isLoaded) {
               return (
-                <div
+                <ObscuredImagePreview
                   key={i}
-                  className="aspect-square border rounded flex items-center justify-center text-xs text-primary hover:bg-accent cursor-pointer"
-                  onClick={(e) => handleLoadImage(e, actualIndex)}
-                >
-                  [{t('Load')}]
-                </div>
+                  image={image}
+                  label={viewImageLabel}
+                  className="aspect-square w-full"
+                  onView={(e) => handleLoadImage(e, actualIndex)}
+                />
               )
             }
 
@@ -272,7 +280,7 @@ export default function ImageGallery({
           compactMedia
             ? 'w-full'
             : displayImages.length === 1
-              ? isFullWidth
+              ? isFullWidth || !singleImageIsLoaded
                 ? 'w-full'
                 : 'w-fit max-w-full'
               : 'w-full',

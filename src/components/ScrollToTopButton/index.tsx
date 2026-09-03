@@ -1,7 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useDeepBrowsing } from '@/providers/DeepBrowsingProvider'
-import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import { hasBackgroundAudioAtom } from '@/services/media-manager.service'
 import { useAtomValue } from 'jotai'
 import { ChevronUp } from 'lucide-react'
@@ -13,11 +12,10 @@ export default function ScrollToTopButton({
   scrollAreaRef?: React.RefObject<HTMLDivElement>
   className?: string
 }) {
-  const { isSmallScreen } = useScreenSize()
   const { deepBrowsing, lastScrollTop } = useDeepBrowsing()
   const hasBackgroundAudio = useAtomValue(hasBackgroundAudioAtom)
   const visible = !deepBrowsing && lastScrollTop > 800
-  const mobileBottomOffsetRem = hasBackgroundAudio ? 10.75 : 8.5
+  const bottomOffsetRem = hasBackgroundAudio ? 10.75 : 6
 
   const handleScrollToTop = () => {
     if (!scrollAreaRef) {
@@ -34,9 +32,7 @@ export default function ScrollToTopButton({
         className
       )}
       style={{
-        bottom: isSmallScreen
-          ? `calc(env(safe-area-inset-bottom) + ${mobileBottomOffsetRem}rem)`
-          : `calc(env(safe-area-inset-bottom) + 0.85rem)`
+        bottom: `calc(env(safe-area-inset-bottom) + ${bottomOffsetRem}rem)`
       }}
     >
       <Button

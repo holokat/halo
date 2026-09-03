@@ -255,7 +255,6 @@ function NoteListPageTitlebar({
             <Info />
           </Button>
         )}
-        <HomeComposeButton />
       </div>
     </div>
   )

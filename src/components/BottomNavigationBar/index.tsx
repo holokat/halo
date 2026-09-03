@@ -1,79 +1,22 @@
-import { cn } from '@/lib/utils'
-import { useEffect, useRef, useState } from 'react'
 import BackgroundAudio from '../BackgroundAudio'
+import AccountButton from './AccountButton'
 import ExploreButton from './ExploreButton'
 import HomeButton from './HomeButton'
 import NotificationsButton from './NotificationsButton'
-import AccountButton from './AccountButton'
 
 export default function BottomNavigationBar() {
-  const [isVisible, setIsVisible] = useState(true)
-  const lastScrollYRef = useRef(0)
-  const scrollDirectionRef = useRef<'up' | 'down'>('up')
-  const scrollAccumulatorRef = useRef(0)
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY
-      const scrollDelta = currentScrollY - lastScrollYRef.current
-
-      if (scrollDelta === 0) {
-        return
-      }
-
-      const newDirection = scrollDelta > 0 ? 'down' : 'up'
-
-      if (newDirection !== scrollDirectionRef.current) {
-        scrollAccumulatorRef.current = 0
-        scrollDirectionRef.current = newDirection
-      }
-
-      scrollAccumulatorRef.current += Math.abs(scrollDelta)
-
-      if (currentScrollY < 50) {
-        setIsVisible(true)
-      } else if (newDirection === 'down' && scrollAccumulatorRef.current > 50) {
-        setIsVisible(false)
-        scrollAccumulatorRef.current = 0
-      } else if (newDirection === 'up' && scrollAccumulatorRef.current > 30) {
-        setIsVisible(true)
-        scrollAccumulatorRef.current = 0
-      }
-
-      lastScrollYRef.current = currentScrollY
-    }
-
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => {
-      window.removeEventListener('scroll', handleScroll)
-    }
-  }, [])
-
   return (
     <>
+      <BackgroundAudio className="fixed bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] left-4 right-4 z-50 mx-auto max-w-sm overflow-hidden rounded-2xl border border-foreground/10 bg-background/80 shadow-lg backdrop-blur-md" />
       <nav
-        className={cn(
-          'fixed bottom-0 left-0 right-0 w-full z-40 bg-background/80 backdrop-blur-xl transition-transform duration-300',
-          'relative before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-foreground/15',
-          isVisible ? 'translate-y-0' : 'translate-y-full'
-        )}
+        className="fixed bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] left-1/2 z-40 w-fit max-w-[calc(100%-2rem)] -translate-x-1/2 overflow-hidden rounded-[1.75rem] border border-foreground/10 bg-background/80 shadow-[0_18px_48px_rgba(0,0,0,0.18),0_2px_8px_rgba(0,0,0,0.10),inset_0_1px_0_rgba(255,255,255,0.14)] before:pointer-events-none before:absolute before:inset-0 before:rounded-[inherit] before:bg-gradient-to-b before:from-white/[0.10] before:via-transparent before:to-black/[0.04] supports-[backdrop-filter]:bg-background/65 dark:before:from-white/[0.08] dark:before:to-black/[0.12]"
         style={{
-          paddingBottom: 'env(safe-area-inset-bottom)',
-          transform: isVisible
-            ? 'translateZ(0)'
-            : 'translateY(calc(100% + env(safe-area-inset-bottom)))',
-          WebkitTransform: isVisible
-            ? 'translateZ(0)'
-            : 'translateY(calc(100% + env(safe-area-inset-bottom)))',
-          backfaceVisibility: 'hidden',
-          WebkitBackfaceVisibility: 'hidden',
-          willChange: 'transform',
-          position: 'fixed'
+          WebkitBackdropFilter: 'blur(12px) saturate(160%)',
+          backdropFilter: 'blur(12px) saturate(160%)'
         }}
         aria-label="Bottom navigation"
       >
-        <BackgroundAudio className="rounded-none border-x-0 border-t-0 border-b bg-transparent" />
-        <div className="w-full flex justify-around items-center py-1.5 [&_svg]:size-4 [&_svg]:shrink-0">
+        <div className="relative z-10 flex items-center gap-1 p-1.5">
           <HomeButton />
           <ExploreButton />
           <NotificationsButton />
