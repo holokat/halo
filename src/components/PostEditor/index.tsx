@@ -170,7 +170,11 @@ export default function PostEditor({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        className="p-0 max-w-2xl bg-card"
+        className="max-w-2xl border-0 bg-card p-0 shadow-[0_28px_80px_rgba(0,0,0,0.42),0_8px_24px_rgba(0,0,0,0.24)] sm:border-0"
+        style={{
+          backgroundColor:
+            'color-mix(in srgb, hsl(var(--background)) 90%, hsl(var(--foreground)) 10%)'
+        }}
         withoutClose
         onEscapeKeyDown={(e) => {
           if (postEditor.isSuggestionPopupOpen) {

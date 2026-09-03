@@ -1,14 +1,18 @@
 import { BIG_RELAY_URLS, ExtendedKind, NOTIFICATION_LIST_STYLE } from '@/constants'
 import { compareEvents } from '@/lib/event'
+import { useNSpamEventPartition } from '@/hooks/useNSpamEventPartition'
 import { usePrimaryPage } from '@/PageManager'
 import { useNostr } from '@/providers/NostrProvider'
 import { useNotification } from '@/providers/NotificationProvider'
+import { useSpamFilter } from '@/providers/SpamFilterProvider'
+import { useUserTrust } from '@/providers/UserTrustProvider'
 import { useUserPreferences } from '@/providers/UserPreferencesProvider'
 import client from '@/services/client.service'
 import noteStatsService from '@/services/note-stats.service'
 import { TNotificationType } from '@/types'
 import dayjs from 'dayjs'
 import { NostrEvent, kinds, matchFilter } from 'nostr-tools'
+import { RefreshCw, ShieldAlert } from 'lucide-react'
 import {
   forwardRef,
   useCallback,
@@ -25,6 +29,7 @@ import { NotificationItem } from './NotificationItem'
 import { NotificationSkeleton } from './NotificationItem/Notification'
 import { isTouchDevice } from '@/lib/utils'
 import { RefreshButton } from '../RefreshButton'
+import { Button } from '../ui/button'
 
 const LIMIT = 100
 const SHOW_COUNT = 30
@@ -36,13 +41,19 @@ const NotificationList = forwardRef(({ isInDeckView = false }: { isInDeckView?: 
   const { pubkey } = useNostr()
   const { getNotificationsSeenAt } = useNotification()
   const { notificationListStyle } = useUserPreferences()
+  const {
+    enabled: spamFilterEnabled,
+    markedPubkeys,
+    safelistedPubkeys,
+    personalizationSignature
+  } = useSpamFilter()
+  const { isUserFollowed } = useUserTrust()
   const [notificationType, setNotificationType] = useState<TNotificationType>('all')
   const [lastReadTime, setLastReadTime] = useState(0)
   const [refreshCount, setRefreshCount] = useState(0)
   const [timelineKey, setTimelineKey] = useState<string | undefined>(undefined)
   const [loading, setLoading] = useState(true)
   const [notifications, setNotifications] = useState<NostrEvent[]>([])
-  const [visibleNotifications, setVisibleNotifications] = useState<NostrEvent[]>([])
   const [showCount, setShowCount] = useState(SHOW_COUNT)
   const [until, setUntil] = useState<number | undefined>(dayjs().unix())
   const supportTouch = useMemo(() => isTouchDevice(), [])
@@ -71,6 +82,22 @@ const NotificationList = forwardRef(({ isInDeckView = false }: { isInDeckView?: 
         ]
     }
   }, [notificationType])
+  const {
+    partition: spamPartition,
+    retry: retrySpamScoring,
+    scoringError: spamScoringError
+  } = useNSpamEventPartition(notifications, {
+    currentPubkey: pubkey,
+    enabled: spamFilterEnabled,
+    isFollowed: isUserFollowed,
+    markedPubkeys,
+    safelistedPubkeys,
+    signature: personalizationSignature
+  })
+  const visibleNotifications = useMemo(
+    () => spamPartition.visible.slice(0, showCount),
+    [spamPartition.visible, showCount]
+  )
   useImperativeHandle(
     ref,
     () => ({
@@ -179,10 +206,6 @@ const NotificationList = forwardRef(({ isInDeckView = false }: { isInDeckView?: 
   }, [pubkey, active, filterKinds, handleNewEvent])
 
   useEffect(() => {
-    setVisibleNotifications(notifications.slice(0, showCount))
-  }, [notifications, showCount])
-
-  useEffect(() => {
     const options = {
       root: null,
       rootMargin: '10px',
@@ -252,8 +275,28 @@ const NotificationList = forwardRef(({ isInDeckView = false }: { isInDeckView?: 
           isNew={notification.created_at > lastReadTime}
         />
       ))}
+      {spamScoringError && spamPartition.pending.length > 0 && (
+        <div
+          className="flex items-center justify-between gap-3 border-b bg-muted/10 px-4 py-3"
+          role="status"
+        >
+          <span className="flex items-center gap-2 text-sm text-muted-foreground">
+            <ShieldAlert className="size-4 shrink-0" aria-hidden="true" />
+            {t('Spam check unavailable', { defaultValue: 'Spam check unavailable' })}
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="min-h-10 shrink-0 text-muted-foreground hover:text-foreground"
+            onClick={retrySpamScoring}
+          >
+            <RefreshCw className="size-3.5" aria-hidden="true" />
+            {t('Retry', { defaultValue: 'Retry' })}
+          </Button>
+        </div>
+      )}
       <div className="text-center text-sm text-muted-foreground">
-        {until || loading ? (
+        {until || loading || (spamPartition.pending.length > 0 && !spamScoringError) ? (
           <div ref={bottomRef}>
             <NotificationSkeleton />
           </div>

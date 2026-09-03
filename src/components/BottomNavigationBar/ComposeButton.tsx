@@ -1,10 +1,12 @@
 import PostEditor from '@/components/PostEditor'
 import { useNostr } from '@/providers/NostrProvider'
-import { CirclePlus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import BottomNavigationBarItem from './BottomNavigationBarItem'
 
-export default function ComposeButton() {
+export default function ComposeButton({ className }: { className?: string }) {
+  const { t } = useTranslation()
   const { checkLogin } = useNostr()
   const [open, setOpen] = useState(false)
 
@@ -18,9 +20,11 @@ export default function ComposeButton() {
             setOpen(true)
           })
         }}
-        className="text-primary"
+        className={className}
+        aria-label={t('New note', { defaultValue: 'New note' })}
+        title={t('New note', { defaultValue: 'New note' })}
       >
-        <CirclePlus className="!size-7" strokeWidth={1.5} />
+        <Plus className="!size-7" />
       </BottomNavigationBarItem>
       <PostEditor open={open} setOpen={setOpen} />
     </>

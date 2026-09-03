@@ -65,9 +65,20 @@ export default function MobileTopNavMenuButton({
         aria-current={active ? 'page' : undefined}
       >
         {pubkey ? (
-          <SimpleUserAvatar userId={pubkey} size="small" />
+          <SimpleUserAvatar
+            userId={pubkey}
+            size="small"
+            className={
+              active ? 'ring-2 ring-foreground ring-offset-1 ring-offset-background' : undefined
+            }
+          />
         ) : (
-          <UserRound className="size-5 text-muted-foreground" />
+          <UserRound
+            className={cn(
+              '!size-5 text-muted-foreground',
+              active && 'fill-current text-foreground'
+            )}
+          />
         )}
       </Button>
       <MobileNavSheet open={open} onOpenChange={setOpen} accountOnly={isBottomNavigation} />
@@ -204,7 +215,7 @@ function MobileNavSheet({
         className={cn(
           'p-0',
           accountOnly
-            ? 'mx-auto max-h-[82vh] w-full max-w-md rounded-t-[2rem] border-x border-t'
+            ? 'mx-auto max-h-[82vh] w-full max-w-md rounded-t-2xl border-x border-t'
             : 'w-[82vw] max-w-[22rem]'
         )}
       >
@@ -229,9 +240,9 @@ function MobileNavSheet({
                 </div>
               </button>
 
-              <div className="flex items-center gap-3">
+              <div className="scrollbar-hide flex items-center gap-1.5 overflow-x-auto">
                 <Button
-                  className="h-10 rounded-full px-4 text-sm font-semibold"
+                  className="h-10 shrink-0 rounded-full px-3 text-sm font-semibold transition-transform duration-150 active:scale-[0.96]"
                   onClick={() =>
                     void handleCopy(
                       inviteLink,
@@ -245,31 +256,55 @@ function MobileNavSheet({
                   ) : (
                     <Copy className="size-[1.125rem]" />
                   )}
-                  {inviteCopied ? t('Copied!') : t('Copy Invite Link')}
+                  {inviteCopied ? t('Copied!') : t('Invite', { defaultValue: 'Invite' })}
                 </Button>
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="h-10 w-10 rounded-full"
+                <AccountActionButton
+                  label={t('Show QR code', { defaultValue: 'Show QR code' })}
                   onClick={() => setQrDialogOpen(true)}
                 >
                   <QrCodeIcon className="size-[1.125rem]" />
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="h-10 w-10 rounded-full"
+                </AccountActionButton>
+                <AccountActionButton
+                  label={t('Copy npub')}
                   onClick={() =>
                     void handleCopy(npub, t('Public key copied to clipboard!'), setNpubCopied)
                   }
-                  aria-label={t('Copy npub')}
                 >
                   {npubCopied ? (
                     <Check className="size-[1.125rem]" />
                   ) : (
                     <KeyRound className="size-[1.125rem]" />
                   )}
-                </Button>
+                </AccountActionButton>
+                {accountOnly && (
+                  <>
+                    <AccountActionButton
+                      label={t('Settings')}
+                      onClick={() => closeThen(() => push(toSettings()))}
+                    >
+                      <Settings />
+                    </AccountActionButton>
+                    <AccountActionButton
+                      label={t('View profile', { defaultValue: 'View profile' })}
+                      onClick={handleProfilePress}
+                    >
+                      <UserRound />
+                    </AccountActionButton>
+                    <AccountActionButton
+                      label={t('Switch account')}
+                      onClick={() => closeThen(() => setLoginDialogOpen(true))}
+                    >
+                      <ArrowDownUp />
+                    </AccountActionButton>
+                    <AccountActionButton
+                      label={t('Logout')}
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => closeThen(() => setLogoutDialogOpen(true))}
+                    >
+                      <LogOut />
+                    </AccountActionButton>
+                  </>
+                )}
               </div>
 
               <NpubQrCode
@@ -296,12 +331,22 @@ function MobileNavSheet({
                   </div>
                 </div>
               </button>
-              <Button
-                className="h-10 rounded-full px-4 text-sm font-semibold"
-                onClick={handleProfilePress}
-              >
-                {t('Login')}
-              </Button>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  className="h-10 rounded-full px-4 text-sm font-semibold"
+                  onClick={handleProfilePress}
+                >
+                  {t('Login')}
+                </Button>
+                {accountOnly && (
+                  <AccountActionButton
+                    label={t('Settings')}
+                    onClick={() => closeThen(() => push(toSettings()))}
+                  >
+                    <Settings />
+                  </AccountActionButton>
+                )}
+              </div>
             </div>
           )}
 
@@ -341,49 +386,51 @@ function MobileNavSheet({
             </>
           )}
 
-          <div className="my-2 h-px bg-border" />
-
-          <div className="px-2">
-            <Button
-              variant="ghost"
-              className="h-11 w-full justify-start gap-3 px-3 text-[15px] font-medium [&_svg]:size-5"
-              onClick={() => closeThen(() => push(toSettings()))}
-            >
-              <Settings className="text-muted-foreground" />
-              {t('Settings')}
-            </Button>
-          </div>
-
-          {pubkey && (
+          {!accountOnly && (
             <>
               <div className="my-2 h-px bg-border" />
 
               <div className="px-2">
                 <Button
                   variant="ghost"
-                  className="mb-0.5 h-11 w-full justify-start gap-3 px-3 text-[15px] font-medium [&_svg]:size-5"
-                  onClick={handleProfilePress}
+                  className="h-11 w-full justify-start gap-3 px-3 text-[15px] font-medium [&_svg]:size-5"
+                  onClick={() => closeThen(() => push(toSettings()))}
                 >
-                  <UserRound className="text-muted-foreground" />
-                  {t('View profile', { defaultValue: 'View profile' })}
-                </Button>
-                <Button
-                  variant="ghost"
-                  className="mb-0.5 h-11 w-full justify-start gap-3 px-3 text-[15px] font-medium [&_svg]:size-5"
-                  onClick={() => closeThen(() => setLoginDialogOpen(true))}
-                >
-                  <ArrowDownUp className="text-muted-foreground" />
-                  {t('Switch account')}
-                </Button>
-                <Button
-                  variant="ghost"
-                  className="h-11 w-full justify-start gap-3 px-3 text-[15px] font-medium text-destructive hover:text-destructive [&_svg]:size-5"
-                  onClick={() => closeThen(() => setLogoutDialogOpen(true))}
-                >
-                  <LogOut />
-                  {t('Logout')}
+                  <Settings className="text-muted-foreground" />
+                  {t('Settings')}
                 </Button>
               </div>
+
+              {pubkey && <div className="my-2 h-px bg-border" />}
+
+              {pubkey && (
+                <div className="px-2">
+                  <Button
+                    variant="ghost"
+                    className="mb-0.5 h-11 w-full justify-start gap-3 px-3 text-[15px] font-medium [&_svg]:size-5"
+                    onClick={handleProfilePress}
+                  >
+                    <UserRound className="text-muted-foreground" />
+                    {t('View profile', { defaultValue: 'View profile' })}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="mb-0.5 h-11 w-full justify-start gap-3 px-3 text-[15px] font-medium [&_svg]:size-5"
+                    onClick={() => closeThen(() => setLoginDialogOpen(true))}
+                  >
+                    <ArrowDownUp className="text-muted-foreground" />
+                    {t('Switch account')}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="h-11 w-full justify-start gap-3 px-3 text-[15px] font-medium text-destructive hover:text-destructive [&_svg]:size-5"
+                    onClick={() => closeThen(() => setLogoutDialogOpen(true))}
+                  >
+                    <LogOut />
+                    {t('Logout')}
+                  </Button>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -391,5 +438,34 @@ function MobileNavSheet({
       <LoginDialog open={loginDialogOpen} setOpen={setLoginDialogOpen} />
       <LogoutDialog open={logoutDialogOpen} setOpen={setLogoutDialogOpen} />
     </Sheet>
+  )
+}
+
+function AccountActionButton({
+  label,
+  children,
+  className,
+  onClick
+}: {
+  label: string
+  children: React.ReactNode
+  className?: string
+  onClick: React.MouseEventHandler<HTMLButtonElement>
+}) {
+  return (
+    <Button
+      type="button"
+      variant="secondary"
+      size="icon"
+      className={cn(
+        'size-10 shrink-0 rounded-full transition-transform duration-150 active:scale-[0.96]',
+        className
+      )}
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+    >
+      {children}
+    </Button>
   )
 }

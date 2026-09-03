@@ -77,6 +77,7 @@ import {
   setStorageJson,
   setStorageNumber
 } from '@/services/local-storage/persistence'
+import { resolveTrustFilterDefaults } from '@/services/local-storage/trust-filter-defaults'
 
 class LocalStorageService {
   static instance: LocalStorageService
@@ -92,7 +93,7 @@ class LocalStorageService {
   private mediaUploadService: string = DEFAULT_NIP_96_SERVICE
   private autoplay: boolean = true
   private hideUntrustedInteractions: boolean = false
-  private hideUntrustedNotifications: boolean = false
+  private hideUntrustedNotifications: boolean = true
   private hideUntrustedNotes: boolean = false
   private trustLevel: number = 0 // 0: Everyone, 1: Network + Follows, 2: Follows only, 3: You only
   private mediaUploadServiceConfigMap: Record<string, TMediaUploadServiceConfig> = {}
@@ -194,7 +195,7 @@ class LocalStorageService {
     )
     this.autoplay = readStoredBooleanValue(StorageKey.AUTOPLAY) ?? true
 
-    const hideUntrustedEvents = readStoredBooleanValue(StorageKey.HIDE_UNTRUSTED_EVENTS) ?? false
+    const legacyHideUntrustedEvents = readStoredBooleanValue(StorageKey.HIDE_UNTRUSTED_EVENTS)
     const storedHideUntrustedInteractions = readStoredBooleanValue(
       StorageKey.HIDE_UNTRUSTED_INTERACTIONS
     )
@@ -202,9 +203,15 @@ class LocalStorageService {
       StorageKey.HIDE_UNTRUSTED_NOTIFICATIONS
     )
     const storedHideUntrustedNotes = readStoredBooleanValue(StorageKey.HIDE_UNTRUSTED_NOTES)
-    this.hideUntrustedInteractions = storedHideUntrustedInteractions ?? hideUntrustedEvents
-    this.hideUntrustedNotifications = storedHideUntrustedNotifications ?? hideUntrustedEvents
-    this.hideUntrustedNotes = storedHideUntrustedNotes ?? hideUntrustedEvents
+    const trustFilterDefaults = resolveTrustFilterDefaults({
+      legacy: legacyHideUntrustedEvents,
+      interactions: storedHideUntrustedInteractions,
+      notifications: storedHideUntrustedNotifications,
+      notes: storedHideUntrustedNotes
+    })
+    this.hideUntrustedInteractions = trustFilterDefaults.interactions
+    this.hideUntrustedNotifications = trustFilterDefaults.notifications
+    this.hideUntrustedNotes = trustFilterDefaults.notes
 
     const storedTrustLevel = readStoredStringValue(StorageKey.TRUST_LEVEL)
     this.trustLevel = storedTrustLevel ? parseInt(storedTrustLevel, 10) : 0

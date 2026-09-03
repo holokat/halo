@@ -30,11 +30,9 @@ export default function HideUntrustedContentButton({
   const title =
     type === 'notifications' ? t('Notification trust filter') : t('Activity trust filter')
   const toggleLabel =
-    type === 'notifications'
-      ? t('Hide untrusted notifications')
-      : t('Hide untrusted activity')
+    type === 'notifications' ? t('Hide untrusted notifications') : t('Hide untrusted activity')
   const description = t(
-    'When this is on, {{content}} from people outside your network is hidden. Trusted people are people you follow and people they follow.',
+    'This hides {{content}} from people outside your network. Trusted people are people you follow and people they follow.',
     { content: contentLabel }
   )
 
@@ -57,9 +55,7 @@ export default function HideUntrustedContentButton({
         <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/20 p-3">
           <div className="space-y-0.5">
             <p className="text-sm font-medium">{toggleLabel}</p>
-            <p className="text-xs text-muted-foreground">
-              {enabled ? t('On') : t('Off')}
-            </p>
+            <p className="text-xs text-muted-foreground">{enabled ? t('On') : t('Off')}</p>
           </div>
           <Switch checked={enabled} onCheckedChange={updateEnabled} />
         </div>

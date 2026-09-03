@@ -25,7 +25,7 @@ export function NotificationItem({
   const { markedPubkeys } = useSpamFilter()
   const { mutePubkeySet, getMutedWords, getMutedTags } = useMuteList()
   const { hideContentMentioningMutedUsers, hideNotificationsFromMutedUsers } = useContentPolicy()
-  const { hideUntrustedNotifications, isUserTrusted } = useUserTrust()
+  const { hideUntrustedNotifications, isUserTrustedForInteractions } = useUserTrust()
   const mutedWords = getMutedWords()
   const mutedTags = getMutedTags()
   const canShow = useMemo(() => {
@@ -37,7 +37,7 @@ export function NotificationItem({
       hideContentMentioningMutedUsers,
       hideNotificationsFromMutedUsers,
       hideUntrustedNotifications,
-      isUserTrusted,
+      isUserTrusted: isUserTrustedForInteractions,
       mutedWords,
       mutedTags,
       getProfile: (pubkey: string) => client.getCachedProfile(pubkey)
@@ -49,7 +49,7 @@ export function NotificationItem({
     hideContentMentioningMutedUsers,
     hideNotificationsFromMutedUsers,
     hideUntrustedNotifications,
-    isUserTrusted,
+    isUserTrustedForInteractions,
     mutedWords,
     mutedTags
   ])

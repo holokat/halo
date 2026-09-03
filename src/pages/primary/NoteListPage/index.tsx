@@ -1,6 +1,5 @@
 import BookmarkList from '@/components/BookmarkList'
 import NormalFeed from '@/components/NormalFeed'
-import PostEditor from '@/components/PostEditor'
 import RelayInfo from '@/components/RelayInfo'
 import PinButton from '@/components/PinButton'
 import TrendingNotes from '@/components/TrendingNotes'
@@ -17,7 +16,7 @@ import { useFeed } from '@/providers/FeedProvider'
 import { useNostr } from '@/providers/NostrProvider'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import { TPageRef } from '@/types'
-import { Info, Plus } from 'lucide-react'
+import { Info } from 'lucide-react'
 import {
   Dispatch,
   forwardRef,
@@ -28,7 +27,6 @@ import {
   useState
 } from 'react'
 import { useTranslation } from 'react-i18next'
-import SlowConnectionToggle from '@/components/Titlebar/SlowConnectionToggle'
 import FeedButton from './FeedButton'
 import FollowingFeed from './FollowingFeed'
 import NewsFeed from './NewsFeed'
@@ -221,14 +219,8 @@ function NoteListPageTitlebar({
 
   if (isSmallScreen) {
     return (
-      <div className="grid h-full w-full grid-cols-[1fr_auto] items-center gap-2 pl-1">
-        <div className="min-w-0">
-          <FeedButton className="max-w-[min(74vw,20rem)]" />
-        </div>
-        <div className="shrink-0 flex gap-1 items-center">
-          <SlowConnectionToggle />
-          <HomeComposeButton />
-        </div>
+      <div className="flex h-full w-full items-center pl-1">
+        <FeedButton className="max-w-[min(74vw,20rem)]" />
       </div>
     )
   }
@@ -257,28 +249,5 @@ function NoteListPageTitlebar({
         )}
       </div>
     </div>
-  )
-}
-
-function HomeComposeButton() {
-  const { t } = useTranslation()
-  const { checkLogin } = useNostr()
-  const [open, setOpen] = useState(false)
-
-  return (
-    <>
-      <Button
-        size="titlebar-icon"
-        onClick={(event) => {
-          event.stopPropagation()
-          checkLogin(() => setOpen(true))
-        }}
-        aria-label={t('New note', { defaultValue: 'New note' })}
-        title={t('New note', { defaultValue: 'New note' })}
-      >
-        <Plus />
-      </Button>
-      <PostEditor open={open} setOpen={setOpen} />
-    </>
   )
 }

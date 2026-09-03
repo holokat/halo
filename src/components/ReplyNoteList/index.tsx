@@ -12,7 +12,8 @@ import {
   isReplaceableEvent,
   isReplyNoteEvent
 } from '@/lib/event'
-import { partitionReplySpam, reconcileSpamRepliesExpansionScope } from '@/lib/reply-spam'
+import { reconcileSpamRepliesExpansionScope } from '@/lib/reply-spam'
+import { useNSpamEventPartition } from '@/hooks/useNSpamEventPartition'
 import { toNote } from '@/lib/link'
 import { generateBech32IdFromETag, tagNameEquals } from '@/lib/tag'
 import { useSecondaryPage } from '@/PageManager'
@@ -25,7 +26,6 @@ import { useSpamFilter } from '@/providers/SpamFilterProvider'
 import { useUserTrust } from '@/providers/UserTrustProvider'
 import { usePinnedReplies } from '@/providers/PinnedRepliesProvider'
 import client from '@/services/client.service'
-import nspamService from '@/services/nspam.service'
 import { ChevronDown, ChevronUp, Loader2, RefreshCw, ShieldAlert } from 'lucide-react'
 import { Filter, Event as NEvent, kinds } from 'nostr-tools'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -114,93 +114,18 @@ export default function ReplyNoteList({ index, event }: { index?: number; event:
     () => replies.filter(isVisibleReply),
     [replies, isVisibleReply]
   )
-  const [spamScoreRevision, setSpamScoreRevision] = useState(0)
-  const spamPartition = useMemo(() => {
-    void spamScoreRevision
-    return partitionReplySpam(trustVisibleReplies, {
-      currentPubkey: pubkey,
-      enabled: spamFilterEnabled,
-      followedPubkeys,
-      markedPubkeys,
-      safelistedPubkeys,
-      signature: personalizationSignature,
-      cachedScore: (authorPubkey, signature) => nspamService.cachedScore(authorPubkey, signature)
-    })
-  }, [
-    trustVisibleReplies,
-    pubkey,
-    spamFilterEnabled,
+  const {
+    partition: spamPartition,
+    retry: retrySpamScoring,
+    scoringError: spamScoringError
+  } = useNSpamEventPartition(trustVisibleReplies, {
+    currentPubkey: pubkey,
+    enabled: spamFilterEnabled,
     followedPubkeys,
     markedPubkeys,
     safelistedPubkeys,
-    personalizationSignature,
-    spamScoreRevision
-  ])
-  const pendingSpamWorkKey = spamPartition.pendingPubkeys
-    .map((authorPubkey) => `${authorPubkey}:${nspamService.noteRevision(authorPubkey)}`)
-    .join('|')
-  const spamScoringGenerationRef = useRef(0)
-  const spamRetryAttemptRef = useRef(0)
-  const [spamRetryNonce, setSpamRetryNonce] = useState(0)
-  const [spamScoringError, setSpamScoringError] = useState(false)
-
-  useEffect(() => {
-    spamRetryAttemptRef.current = 0
-    setSpamScoringError(false)
-  }, [pendingSpamWorkKey, personalizationSignature])
-
-  useEffect(() => {
-    const generation = ++spamScoringGenerationRef.current
-    if (spamPartition.pendingPubkeys.length === 0) return
-
-    const controller = new AbortController()
-    let retryTimer: number | undefined
-    setSpamScoringError(false)
-    const personalization = {
-      markedPubkeys,
-      safelistedPubkeys,
-      signature: personalizationSignature
-    }
-    void Promise.allSettled(
-      spamPartition.pendingPubkeys.map((authorPubkey) =>
-        nspamService.scoreAuthor(authorPubkey, personalization, controller.signal)
-      )
-    ).then((results) => {
-      if (controller.signal.aborted || spamScoringGenerationRef.current !== generation) return
-      setSpamScoreRevision((revision) => revision + 1)
-
-      const failed = results.some(
-        (result) =>
-          result.status === 'rejected' &&
-          (result.reason as Error | undefined)?.name !== 'AbortError'
-      )
-      if (!failed) {
-        spamRetryAttemptRef.current = 0
-        setSpamScoringError(false)
-        return
-      }
-
-      setSpamScoringError(true)
-      if (spamRetryAttemptRef.current < 2) {
-        const retryDelay = 1_000 * 2 ** spamRetryAttemptRef.current
-        spamRetryAttemptRef.current += 1
-        retryTimer = window.setTimeout(() => {
-          setSpamRetryNonce((nonce) => nonce + 1)
-        }, retryDelay)
-      }
-    })
-
-    return () => {
-      controller.abort()
-      if (retryTimer !== undefined) window.clearTimeout(retryTimer)
-    }
-  }, [
-    pendingSpamWorkKey,
-    personalizationSignature,
-    markedPubkeys,
-    safelistedPubkeys,
-    spamRetryNonce
-  ])
+    signature: personalizationSignature
+  })
 
   const { pinnedReplies, unpinnedReplies } = useMemo(() => {
     const threadId = event.id // Use the current event as the thread ID
@@ -579,11 +504,7 @@ export default function ReplyNoteList({ index, event }: { index?: number; event:
                 variant="ghost"
                 size="sm"
                 className="min-h-10 shrink-0 text-muted-foreground hover:text-foreground"
-                onClick={() => {
-                  spamRetryAttemptRef.current = 0
-                  setSpamScoringError(false)
-                  setSpamRetryNonce((nonce) => nonce + 1)
-                }}
+                onClick={retrySpamScoring}
               >
                 <RefreshCw className="size-3.5" aria-hidden="true" />
                 {t('Retry', { defaultValue: 'Retry' })}

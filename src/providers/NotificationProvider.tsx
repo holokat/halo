@@ -1,51 +1,54 @@
 import { BIG_RELAY_URLS, ExtendedKind } from '@/constants'
+import { useNSpamEventPartition } from '@/hooks/useNSpamEventPartition'
 import { compareEvents } from '@/lib/event'
 import { notificationFilter } from '@/lib/notification'
 import { usePrimaryPage } from '@/PageManager'
+import { NotificationContext } from '@/providers/NotificationContext'
 import client from '@/services/client.service'
 import storage from '@/services/local-storage.service'
 import { kinds, NostrEvent } from 'nostr-tools'
 import { SubCloser } from 'nostr-tools/abstract-pool'
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useContentPolicy } from './ContentPolicyProvider'
 import { useDistractionFreeMode } from './DistractionFreeModeProvider'
 import { useMuteList } from './MuteListProvider'
 import { useNostr } from '@/providers/NostrProvider'
+import { useSpamFilter } from '@/providers/SpamFilterProvider'
 import { useUserTrust } from './UserTrustProvider'
 
-type TNotificationContext = {
-  hasNewNotification: boolean
-  getNotificationsSeenAt: () => number
-  isNotificationRead: (id: string) => boolean
-  markNotificationAsRead: (id: string) => void
-}
-
-const NotificationContext = createContext<TNotificationContext | undefined>(undefined)
-
-export const useNotification = () => {
-  const context = useContext(NotificationContext)
-  if (!context) {
-    throw new Error('useNotification must be used within a NotificationProvider')
-  }
-  return context
-}
+export { useNotification } from '@/providers/NotificationContext'
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const { current } = usePrimaryPage()
   const active = useMemo(() => current === 'notifications', [current])
   const { pubkey, notificationsSeenAt, updateNotificationsSeenAt } = useNostr()
-  const { hideUntrustedNotifications, isUserTrusted } = useUserTrust()
+  const { hideUntrustedNotifications, isUserFollowed, isUserTrustedForInteractions } =
+    useUserTrust()
+  const {
+    enabled: spamFilterEnabled,
+    markedPubkeys,
+    safelistedPubkeys,
+    personalizationSignature
+  } = useSpamFilter()
   const { mutePubkeySet } = useMuteList()
   const { hideContentMentioningMutedUsers, hideNotificationsFromMutedUsers } = useContentPolicy()
   const { isDistractionFree } = useDistractionFreeMode()
   const [newNotifications, setNewNotifications] = useState<NostrEvent[]>([])
   const [readNotificationIdSet, setReadNotificationIdSet] = useState<Set<string>>(new Set())
+  const { partition: newNotificationSpamPartition } = useNSpamEventPartition(newNotifications, {
+    currentPubkey: pubkey,
+    enabled: spamFilterEnabled,
+    isFollowed: isUserFollowed,
+    markedPubkeys,
+    safelistedPubkeys,
+    signature: personalizationSignature
+  })
   const filteredNewNotifications = useMemo(() => {
     if (active || notificationsSeenAt < 0) {
       return []
     }
     const filtered: NostrEvent[] = []
-    for (const notification of newNotifications) {
+    for (const notification of newNotificationSpamPartition.visible) {
       if (notification.created_at <= notificationsSeenAt || filtered.length >= 10) {
         break
       }
@@ -56,7 +59,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           hideContentMentioningMutedUsers,
           hideNotificationsFromMutedUsers,
           hideUntrustedNotifications,
-          isUserTrusted,
+          isUserTrusted: isUserTrustedForInteractions,
           getProfile: (pubkey: string) => client.getCachedProfile(pubkey)
         })
       ) {
@@ -66,13 +69,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
     return filtered
   }, [
-    newNotifications,
+    newNotificationSpamPartition.visible,
     notificationsSeenAt,
     mutePubkeySet,
     hideContentMentioningMutedUsers,
     hideNotificationsFromMutedUsers,
     hideUntrustedNotifications,
-    isUserTrusted,
+    isUserTrustedForInteractions,
     active
   ])
 

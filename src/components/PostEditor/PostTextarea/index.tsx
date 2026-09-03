@@ -43,6 +43,9 @@ export type TPostTextareaHandle = {
   replaceContent: (content: Content) => void
 }
 
+const composerTabClassName =
+  'h-10 rounded-full px-4 py-2 text-sm font-medium text-muted-foreground shadow-none ring-offset-transparent transition-colors duration-150 hover:bg-foreground/[0.05] hover:text-foreground data-[state=active]:bg-foreground/[0.10] data-[state=active]:text-foreground data-[state=active]:shadow-none'
+
 const PostTextarea = forwardRef<
   TPostTextareaHandle,
   {
@@ -95,7 +98,7 @@ const PostTextarea = forwardRef<
     const editorClassName = cn(
       isMobileComposer
         ? 'rounded-none border-0 bg-transparent p-0 text-[16px] leading-6 focus-visible:outline-none focus-visible:ring-0'
-        : 'rounded-2xl border p-3 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+        : 'rounded-2xl border-0 bg-transparent p-3 focus-visible:outline-none focus-visible:ring-0',
       className
     )
     const editor = useEditor({
@@ -275,16 +278,21 @@ const PostTextarea = forwardRef<
         <Tabs defaultValue="edit" value={tabValue} onValueChange={(v) => setTabValue(v)}>
           <TabsList
             className={cn(
+              'h-10 gap-1 rounded-full bg-transparent p-0',
               isMobileComposer &&
                 `grid h-auto w-full ${showDraftTab ? 'grid-cols-3' : 'grid-cols-2'}`
             )}
           >
-            <TabsTrigger value="edit">{t('Edit')}</TabsTrigger>
-            <TabsTrigger value="preview">{t('Preview')}</TabsTrigger>
+            <TabsTrigger value="edit" className={composerTabClassName}>
+              {t('Edit')}
+            </TabsTrigger>
+            <TabsTrigger value="preview" className={composerTabClassName}>
+              {t('Preview')}
+            </TabsTrigger>
             {showDraftTab ? (
-              <TabsTrigger value="drafts" className="gap-2">
+              <TabsTrigger value="drafts" className={cn(composerTabClassName, 'gap-2')}>
                 <span>{draftTriggerLabel}</span>
-                <span className="rounded-full bg-foreground/10 px-1.5 py-0.5 text-[11px] leading-none">
+                <span className="min-w-5 rounded-full bg-foreground/10 px-1.5 py-0.5 text-center text-[11px] leading-none tabular-nums">
                   {localDrafts.length}
                 </span>
               </TabsTrigger>

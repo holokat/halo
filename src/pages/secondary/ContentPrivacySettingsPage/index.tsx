@@ -146,7 +146,7 @@ const ContentPrivacySettingsPage = forwardRef(({ index }: { index?: number }, re
                       >
                         <div>{t('Also filter notifications')}</div>
                         <div className="text-sm text-muted-foreground font-normal">
-                          {t('Apply the same trust level to your notifications')}
+                          {t('Hide notifications from people outside your network')}
                         </div>
                       </Label>
                       <Switch

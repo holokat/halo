@@ -1,8 +1,10 @@
 import BackgroundAudio from '../BackgroundAudio'
 import AccountButton from './AccountButton'
+import ComposeButton from './ComposeButton'
 import ExploreButton from './ExploreButton'
 import HomeButton from './HomeButton'
 import NotificationsButton from './NotificationsButton'
+import SlowConnectionButton from './SlowConnectionButton'
 
 export default function BottomNavigationBar() {
   return (
@@ -19,7 +21,9 @@ export default function BottomNavigationBar() {
         <div className="relative z-10 flex items-center gap-1 p-1.5">
           <HomeButton />
           <ExploreButton />
+          <ComposeButton className="order-last md:order-none" />
           <NotificationsButton />
+          <SlowConnectionButton className="md:hidden" />
           <AccountButton />
         </div>
       </nav>

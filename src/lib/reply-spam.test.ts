@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { Event } from 'nostr-tools'
 import {
+  partitionAuthorSpam,
   partitionReplySpam,
   reconcileSpamRepliesExpansionScope,
   reconcileSpamRepliesExpanded,
@@ -139,6 +140,27 @@ test('scores at the spam threshold are hidden and lower scores are visible', () 
 
   assert.deepEqual(result.visible, [visible])
   assert.deepEqual(result.hidden, [hidden])
+})
+
+test('the shared author partition applies nscore filtering to notifications', () => {
+  const spamMention = reply('spam-mention', 'spam-author')
+  const followedReaction = reply('followed-reaction', 'followed-author')
+  const pendingRepost = reply('pending-repost', 'pending-author')
+
+  const result = partitionAuthorSpam([spamMention, followedReaction, pendingRepost], {
+    enabled: true,
+    signature: 'notification-signature',
+    followedPubkeys: new Set(['followed-author']),
+    cachedScore: (pubkey) => {
+      if (pubkey === 'spam-author') return REPLY_SPAM_SCORE_THRESHOLD
+      return undefined
+    }
+  })
+
+  assert.deepEqual(result.visible, [followedReaction])
+  assert.deepEqual(result.hidden, [spamMention])
+  assert.deepEqual(result.pending, [pendingRepost])
+  assert.deepEqual(result.pendingPubkeys, ['pending-author'])
 })
 
 test('the expanded spam group stays expanded as new hidden replies arrive', () => {

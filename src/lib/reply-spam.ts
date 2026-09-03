@@ -20,6 +20,9 @@ export type TReplySpamPartition = {
   pendingPubkeys: string[]
 }
 
+export type TAuthorSpamOptions = TReplySpamOptions
+export type TAuthorSpamPartition = TReplySpamPartition
+
 export function reconcileSpamRepliesExpanded(isExpanded: boolean, hiddenReplyCount: number) {
   return hiddenReplyCount > 0 && isExpanded
 }
@@ -112,4 +115,5 @@ export function partitionReplySpam(
   return { visible, hidden, pending, pendingPubkeys }
 }
 
+export const partitionAuthorSpam = partitionReplySpam
 export const partitionRepliesBySpam = partitionReplySpam
