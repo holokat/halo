@@ -17,6 +17,7 @@ const MuteListPage = lazy(() => import('./pages/secondary/MuteListPage'))
 const NoteListPage = lazy(() => import('./pages/secondary/NoteListPage'))
 const NotePage = lazy(() => import('./pages/secondary/NotePage'))
 const OthersRelaySettingsPage = lazy(() => import('./pages/secondary/OthersRelaySettingsPage'))
+const ProfileEditorPage = lazy(() => import('./pages/secondary/ProfileEditorPage'))
 const PostSettingsPage = lazy(() => import('./pages/secondary/PostSettingsPage'))
 const ProfileListPage = lazy(() => import('./pages/secondary/ProfileListPage'))
 const ProfilePage = lazy(() => import('./pages/secondary/ProfilePage'))
@@ -71,6 +72,7 @@ const SuspendedFollowingListPage = withSuspense(FollowingListPage, 'FollowingLis
 const SuspendedGeneralSettingsPage = withSuspense(GeneralSettingsPage, 'GeneralSettingsPage')
 const SuspendedKeysSettingsPage = withSuspense(KeysSettingsPage, 'KeysSettingsPage')
 const SuspendedMuteListPage = withSuspense(MuteListPage, 'MuteListPage')
+const SuspendedProfileEditorPage = withSuspense(ProfileEditorPage, 'ProfileEditorPage')
 const SuspendedNoteListPage = withSuspense(NoteListPage, 'NoteListPage')
 const SuspendedNotePage = withSuspense(NotePage, 'NotePage')
 const SuspendedOthersRelaySettingsPage = withSuspense(
@@ -120,6 +122,7 @@ const ROUTES = [
   { path: '/settings/backup', element: <SuspendedBackupSettingsPage /> },
   { path: '/settings/scheduled', element: <SuspendedScheduledPostsPage /> },
   { path: '/mutes', element: <SuspendedMuteListPage /> },
+  { path: '/profile-editor', element: <SuspendedProfileEditorPage /> },
   { path: '/lists', element: <SuspendedListsIndexPage /> },
   { path: '/lists/create', element: <SuspendedListEditorPage /> },
   { path: '/lists/:id', element: <SuspendedListPage listId="" /> },

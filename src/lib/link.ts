@@ -82,6 +82,7 @@ export const toScheduledPostsSettings = () => '/settings/scheduled'
 export const toRelay = (url: string) => `/relays/${encodeURIComponent(url)}`
 export const toRelayReviews = (url: string) => `/relays/${encodeURIComponent(url)}/reviews`
 export const toMuteList = () => '/mutes'
+export const toProfileEditor = () => '/profile-editor'
 export const toListsIndex = () => '/lists'
 export const toList = (id: string) => `/lists/${id}`
 export const toCreateList = () => '/lists/create'

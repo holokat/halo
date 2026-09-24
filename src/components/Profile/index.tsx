@@ -7,14 +7,15 @@ import ProfileBanner from '@/components/ProfileBanner'
 import ProfileOptions from '@/components/ProfileOptions'
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useFetchFollowings, useFetchProfile } from '@/hooks'
 import useModalRegistration from '@/hooks/useModalRegistration'
-import { toMuteList } from '@/lib/link'
+import { toMuteList, toProfileEditor } from '@/lib/link'
 import { generateImageByPubkey } from '@/lib/pubkey'
 import { randomString } from '@/lib/random'
 import { cn } from '@/lib/utils'
-import { SecondaryPageLink } from '@/PageManager'
+import { SecondaryPageLink, useSecondaryPage } from '@/PageManager'
 import { useMuteList } from '@/providers/MuteListProvider'
 import { useNostr } from '@/providers/NostrProvider'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
@@ -39,6 +40,7 @@ export default function Profile({
   isInDeckView?: boolean
 }) {
   const { t } = useTranslation()
+  const { push } = useSecondaryPage()
   const { profile, isFetching } = useFetchProfile(id)
   const { pubkey: accountPubkey } = useNostr()
   const { isSmallScreen } = useScreenSize()
@@ -195,6 +197,13 @@ export default function Profile({
                 <>
                   <ProfileOptions pubkey={pubkey} />
                   <NpubQrCode pubkey={pubkey} variant="button" />
+                  <Button
+                    className="w-20 min-w-20 rounded-full"
+                    variant="secondary"
+                    onClick={() => push(toProfileEditor())}
+                  >
+                    {t('Edit')}
+                  </Button>
                 </>
               ) : (
                 <>

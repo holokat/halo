@@ -1,0 +1,230 @@
+import Uploader from '@/components/PostEditor/Uploader'
+import ProfileBanner from '@/components/ProfileBanner'
+import ProfileGalleryManager from '@/components/ProfileGalleryManager'
+import UserAvatar from '@/components/UserAvatar'
+import Username from '@/components/Username'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import SecondaryPageLayout from '@/layouts/SecondaryPageLayout'
+import { createProfileDraftEvent } from '@/lib/draft-event'
+import { generateImageByPubkey } from '@/lib/pubkey'
+import { toProfile } from '@/lib/link'
+import { SecondaryPageLink, useSecondaryPage } from '@/PageManager'
+import { useNostr } from '@/providers/NostrProvider'
+import { TGalleryImage } from '@/types'
+import { Loader, Upload, UserPlus, Calendar } from 'lucide-react'
+import { forwardRef, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+
+const ProfileEditorPage = forwardRef(({ index }: { index?: number }, ref) => {
+  const { t } = useTranslation()
+  const { pop } = useSecondaryPage()
+  const { account, profile, profileEvent, publish, updateProfileEvent } = useNostr()
+  const [banner, setBanner] = useState<string>('')
+  const [avatar, setAvatar] = useState<string>('')
+  const [username, setUsername] = useState<string>('')
+  const [about, setAbout] = useState<string>('')
+  const [website, setWebsite] = useState<string>('')
+  const [hasChanged, setHasChanged] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [uploadingBanner, setUploadingBanner] = useState(false)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [galleryImageEventIds, setGalleryImageEventIds] = useState<string[]>([])
+  const [gallery, setGallery] = useState<TGalleryImage[]>([])
+  const defaultImage = useMemo(
+    () => (account ? generateImageByPubkey(account.pubkey) : undefined),
+    [account]
+  )
+
+  useEffect(() => {
+    if (profile) {
+      setBanner(profile.banner ?? '')
+      setAvatar(profile.avatar ?? '')
+      setUsername(profile.original_username ?? '')
+      setAbout(profile.about ?? '')
+      setWebsite(profile.website ?? '')
+      setGallery(profile.gallery || [])
+    } else {
+      setBanner('')
+      setAvatar('')
+      setUsername('')
+      setAbout('')
+      setWebsite('')
+      setGallery([])
+    }
+  }, [profile])
+
+  if (!account || !profile) return null
+
+  const save = async () => {
+    const oldProfileContent = profileEvent ? JSON.parse(profileEvent.content) : {}
+    const newProfileContent = {
+      ...oldProfileContent,
+      display_name: username,
+      displayName: username,
+      name: oldProfileContent.name ?? username,
+      about,
+      website,
+      banner,
+      picture: avatar
+    }
+
+    // Remove legacy gallery from kind 0 (we're using kind 30001 now)
+    delete newProfileContent.gallery
+
+    setSaving(true)
+    setHasChanged(false)
+
+    try {
+      // Save profile metadata (kind 0)
+      const profileDraftEvent = createProfileDraftEvent(
+        JSON.stringify(newProfileContent),
+        profileEvent?.tags
+      )
+      const newProfileEvent = await publish(profileDraftEvent)
+      await updateProfileEvent(newProfileEvent)
+
+      // Note: Gallery list (kind 30001) is automatically published by ProfileGalleryManager
+
+      pop()
+    } catch (err) {
+      console.error('Failed to save profile:', err)
+      setHasChanged(true)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const onBannerUploadSuccess = ({ url }: { url: string }) => {
+    setBanner(url)
+    setHasChanged(true)
+  }
+
+  const onAvatarUploadSuccess = ({ url }: { url: string }) => {
+    setAvatar(url)
+    setHasChanged(true)
+  }
+
+  const controls = (
+    <div className="pr-3">
+      <Button className="w-16 rounded-full" onClick={save} disabled={saving || !hasChanged}>
+        {saving ? <Loader className="animate-spin" /> : t('Save')}
+      </Button>
+    </div>
+  )
+
+  return (
+    <SecondaryPageLayout ref={ref} index={index} title={profile.username} controls={controls}>
+      <div className="relative bg-cover bg-center mb-2">
+        <Uploader
+          onUploadSuccess={onBannerUploadSuccess}
+          onUploadStart={() => setUploadingBanner(true)}
+          onUploadEnd={() => setUploadingBanner(false)}
+          className="w-full relative cursor-pointer"
+        >
+          <ProfileBanner banner={banner} pubkey={account.pubkey} className="w-full aspect-[3/1]" />
+          <div className="absolute top-0 bg-muted/30 w-full h-full flex flex-col justify-center items-center">
+            {uploadingBanner ? <Loader size={36} className="animate-spin" /> : <Upload size={36} />}
+          </div>
+        </Uploader>
+        <Uploader
+          onUploadSuccess={onAvatarUploadSuccess}
+          onUploadStart={() => setUploadingAvatar(true)}
+          onUploadEnd={() => setUploadingAvatar(false)}
+          className="w-24 h-24 absolute bottom-0 left-4 translate-y-1/2 border-4 border-background cursor-pointer rounded-full"
+        >
+          <Avatar className="w-full h-full">
+            <AvatarImage src={avatar} className="object-cover object-center" />
+            <AvatarFallback>
+              <img src={defaultImage} />
+            </AvatarFallback>
+          </Avatar>
+          <div className="absolute top-0 bg-muted/30 w-full h-full rounded-full flex flex-col justify-center items-center">
+            {uploadingAvatar ? <Loader className="animate-spin" /> : <Upload />}
+          </div>
+        </Uploader>
+      </div>
+      <div className="pt-14 px-4 flex flex-col gap-4">
+        <Item>
+          <Label htmlFor="profile-username-input">{t('Display Name')}</Label>
+          <Input
+            id="profile-username-input"
+            value={username}
+            onChange={(e) => {
+              setUsername(e.target.value)
+              setHasChanged(true)
+            }}
+          />
+        </Item>
+        <Item>
+          <Label htmlFor="profile-about-textarea">{t('Bio')}</Label>
+          <Textarea
+            id="profile-about-textarea"
+            className="h-24"
+            value={about}
+            onChange={(e) => {
+              setAbout(e.target.value)
+              setHasChanged(true)
+            }}
+          />
+        </Item>
+        <Item>
+          <Label htmlFor="profile-website-input">{t('Website')}</Label>
+          <Input
+            id="profile-website-input"
+            value={website}
+            onChange={(e) => {
+              setWebsite(e.target.value)
+              setHasChanged(true)
+            }}
+          />
+        </Item>
+        <Item>
+          <ProfileGalleryManager
+            onChange={(imageEventIds) => {
+              setGalleryImageEventIds(imageEventIds)
+              setHasChanged(true)
+            }}
+          />
+        </Item>
+        {/* Display join information if available (read-only) */}
+        {(profile.joined_through || profile.joined_at) && (
+          <Item>
+            <Label>{t('Join Information')}</Label>
+            <div className="bg-muted/50 rounded-lg p-3 space-y-2 text-sm">
+              {profile.joined_through && (
+                <div className="flex items-center gap-2">
+                  <UserPlus className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="text-muted-foreground">{t('Joined through')}</span>
+                  <SecondaryPageLink
+                    to={toProfile(profile.joined_through)}
+                    className="flex items-center gap-2 hover:text-foreground transition-colors"
+                  >
+                    <UserAvatar userId={profile.joined_through} size="xSmall" />
+                    <Username userId={profile.joined_through} />
+                  </SecondaryPageLink>
+                </div>
+              )}
+              {profile.joined_at && (
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="text-muted-foreground">{t('Joined')}</span>
+                  <span>{new Date(profile.joined_at * 1000).toLocaleDateString()}</span>
+                </div>
+              )}
+            </div>
+          </Item>
+        )}
+      </div>
+    </SecondaryPageLayout>
+  )
+})
+ProfileEditorPage.displayName = 'ProfileEditorPage'
+export default ProfileEditorPage
+
+function Item({ children }: { children: React.ReactNode }) {
+  return <div className="grid gap-2">{children}</div>
+}
