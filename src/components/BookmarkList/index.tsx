@@ -5,7 +5,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import NoteCard, { NoteCardLoadingSkeleton } from '../NoteCard'
 import { Badge } from '@/components/ui/badge'
-import { X, Tag } from 'lucide-react'
+import { IconCrossLarge as X } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCrossLarge'
+import { IconTag as Tag } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconTag'
 import localStorageService from '@/services/local-storage.service'
 import {
   AlertDialog,

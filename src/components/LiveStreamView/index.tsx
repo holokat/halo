@@ -3,18 +3,16 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Slider } from '@/components/ui/slider'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  Radio,
-  Users,
-  Send,
-  Play,
-  Pause,
-  Volume2,
-  VolumeX,
-  PictureInPicture2,
-  Maximize2,
-  Minimize2
-} from 'lucide-react'
+import { IconRadio as Radio } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconRadio'
+import { IconUserGroup as Users } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconUserGroup'
+import { IconPaperPlane as Send } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconPaperPlane'
+import { IconPlay as Play } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconPlay'
+import { IconPause as Pause } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconPause'
+import { IconVolumeUp as Volume2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconVolumeUp'
+import { IconVolumeOff as VolumeX } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconVolumeOff'
+import { IconPictureInPicture as PictureInPicture2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconPictureInPicture'
+import { IconExpand as Maximize2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconExpand'
+import { IconMinimize as Minimize2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconMinimize'
 import UserAvatar from '@/components/UserAvatar'
 import Username from '@/components/Username'
 import RelayFetchState from '@/components/RelayFetchState'

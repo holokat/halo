@@ -12,16 +12,14 @@ import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import { TRelaySet } from '@/types'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import {
-  Check,
-  ChevronDown,
-  Edit,
-  EllipsisVertical,
-  FolderClosed,
-  GripVertical,
-  Link,
-  Trash2
-} from 'lucide-react'
+import { IconCheckmark1 as Check } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCheckmark1'
+import { IconChevronBottom as ChevronDown } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconChevronBottom'
+import { IconPencil as Edit } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconPencil'
+import { IconDotGrid1x3Vertical as EllipsisVertical } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconDotGrid1x3Vertical'
+import { IconFolder1 as FolderClosed } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconFolder1'
+import { IconDotGrid2x3 as GripVertical } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconDotGrid2x3'
+import { IconChainLink1 as Link } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconChainLink1'
+import { IconTrashCan as Trash2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconTrashCan'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'

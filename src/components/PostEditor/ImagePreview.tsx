@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { ImageAttachment } from '@/services/post-editor-cache.service'
-import { X } from 'lucide-react'
+import { IconCrossLarge as X } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCrossLarge'
 import { useTranslation } from 'react-i18next'
 
 // Helper function to detect if a URL is a video

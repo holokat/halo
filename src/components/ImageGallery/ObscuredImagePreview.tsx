@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
 import { TImetaInfo } from '@/types'
-import { Eye } from 'lucide-react'
+import { IconEyeOpen as Eye } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconEyeOpen'
 import { CSSProperties, MouseEventHandler } from 'react'
 import Image from '../Image'
 

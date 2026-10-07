@@ -12,7 +12,7 @@ const SidebarItem = forwardRef<
   const button = (
     <Button
       className={cn(
-        'm-0 flex h-12 w-12 items-center gap-4 rounded-xl bg-transparent p-3 font-medium shadow-none transition-colors [&_svg]:size-5 [&_svg]:stroke-[1.8]',
+        'm-0 flex h-12 w-12 items-center gap-4 rounded-xl bg-transparent p-3 font-medium shadow-none transition-colors [&_svg]:size-5',
         'xl:h-11 xl:w-full xl:justify-start xl:px-3',
         !active && 'text-foreground/80 hover:bg-accent/60 hover:text-foreground',
         active && 'bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary',

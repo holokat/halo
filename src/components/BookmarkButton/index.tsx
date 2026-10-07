@@ -1,8 +1,10 @@
+import { IconBookmark as FilledBookmark } from '@central-icons-react/round-filled-radius-2-stroke-1.5/IconBookmark'
 import { getReplaceableCoordinateFromEvent, isReplaceableEvent } from '@/lib/event'
 import { useBookmarks } from '@/providers/BookmarksProvider'
 import { useNostr } from '@/providers/NostrProvider'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
-import { BookmarkIcon, Loader } from 'lucide-react'
+import { IconBookmark as BookmarkIcon } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconBookmark'
+import { IconLoadingCircle as Loader } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconLoadingCircle'
 import { Event } from 'nostr-tools'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -77,8 +79,10 @@ export default function BookmarkButton({ event }: { event: Event }) {
     >
       {updating ? (
         <Loader className="animate-spin" aria-hidden="true" />
+      ) : isBookmarked ? (
+        <FilledBookmark aria-hidden="true" />
       ) : (
-        <BookmarkIcon className={isBookmarked ? 'fill-primary' : ''} aria-hidden="true" />
+        <BookmarkIcon aria-hidden="true" />
       )}
     </button>
   )

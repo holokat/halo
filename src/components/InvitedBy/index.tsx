@@ -5,7 +5,7 @@ import { SecondaryPageLink } from '@/PageManager'
 import { toProfile } from '@/lib/link'
 import { userIdToPubkey } from '@/lib/pubkey'
 import { useTranslation } from 'react-i18next'
-import { Calendar } from 'lucide-react'
+import { IconCalendar1 as Calendar } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCalendar1'
 import { useMemo } from 'react'
 
 interface InvitedByProps {

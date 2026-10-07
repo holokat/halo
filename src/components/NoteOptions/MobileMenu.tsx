@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { Drawer, DrawerContent, DrawerOverlay } from '@/components/ui/drawer'
-import { ArrowLeft } from 'lucide-react'
+import { IconArrowLeft as ArrowLeft } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconArrowLeft'
 import { MenuAction, SubMenuAction } from './useMenuActions'
 
 interface MobileMenuProps {

@@ -9,7 +9,11 @@ import scheduledPostsService, {
   TScheduledPost
 } from '@/services/scheduled-posts.service'
 import dayjs from 'dayjs'
-import { CalendarClock, CircleAlert, Clock3, RefreshCcw, Trash2 } from 'lucide-react'
+import { IconCalendarClock as CalendarClock } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCalendarClock'
+import { IconExclamationCircle as CircleAlert } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconExclamationCircle'
+import { IconClock3OClock as Clock3 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconClock3OClock'
+import { IconArrowRotateLeftRight as RefreshCcw } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconArrowRotateLeftRight'
+import { IconTrashCan as Trash2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconTrashCan'
 import { forwardRef, useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'

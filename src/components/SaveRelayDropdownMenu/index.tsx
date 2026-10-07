@@ -1,3 +1,4 @@
+import { IconStar as FilledStar } from '@central-icons-react/round-filled-radius-2-stroke-1.5/IconStar'
 import { Button } from '@/components/ui/button'
 import {
   Drawer,
@@ -20,7 +21,10 @@ import { useFavoriteRelays } from '@/providers/FavoriteRelaysProvider'
 import { useNostr } from '@/providers/NostrProvider'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import { TRelaySet } from '@/types'
-import { Check, FolderPlus, Plus, Star } from 'lucide-react'
+import { IconCheckmark1 as Check } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCheckmark1'
+import { IconFolderAddRight as FolderPlus } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconFolderAddRight'
+import { IconPlusLarge as Plus } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconPlusLarge'
+import { IconStar as Star } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconStar'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import DrawerMenuItem from '../DrawerMenuItem'
@@ -52,7 +56,7 @@ export default function SaveRelayDropdownMenu({
       style={{ borderRadius: '9999px' }}
       onClick={() => setIsDrawerOpen(true)}
     >
-      <Star className={alreadySaved ? 'fill-primary stroke-primary' : ''} />
+      {alreadySaved ? <FilledStar className="text-primary" /> : <Star />}
     </Button>
   ) : (
     <button
@@ -62,7 +66,7 @@ export default function SaveRelayDropdownMenu({
         setIsDrawerOpen(true)
       }}
     >
-      <Star className={alreadySaved ? 'fill-primary stroke-primary' : ''} />
+      {alreadySaved ? <FilledStar className="text-primary" /> : <Star />}
     </button>
   )
 

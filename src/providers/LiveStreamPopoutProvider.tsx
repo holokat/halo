@@ -1,3 +1,4 @@
+import { IconResize } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconResize'
 import {
   PointerEvent as ReactPointerEvent,
   createContext,
@@ -10,7 +11,12 @@ import {
   useState
 } from 'react'
 import { createPortal } from 'react-dom'
-import { Pause, PictureInPicture2, Play, Volume2, VolumeX, X } from 'lucide-react'
+import { IconPause as Pause } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconPause'
+import { IconPictureInPicture as PictureInPicture2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconPictureInPicture'
+import { IconPlay as Play } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconPlay'
+import { IconVolumeUp as Volume2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconVolumeUp'
+import { IconVolumeOff as VolumeX } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconVolumeOff'
+import { IconCrossLarge as X } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCrossLarge'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import mediaManager from '@/services/media-manager.service'
@@ -661,11 +667,7 @@ export function LiveStreamPopoutProvider({ children }: { children: ReactNode }) 
               aria-label="Resize popout player"
               title="Resize"
             >
-              <svg viewBox="0 0 16 16" fill="none" className="h-full w-full">
-                <path d="M3 13L13 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-                <path d="M7 13L13 7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-                <path d="M11 13L13 11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-              </svg>
+              <IconResize className="h-full w-full" />
             </button>
           </div>
         </div>,

@@ -1,3 +1,4 @@
+import { PullToRefreshIndicator } from '@/components/icons/PullToRefreshIndicator'
 import { BIG_RELAY_URLS, ExtendedKind, NOTIFICATION_LIST_STYLE } from '@/constants'
 import { compareEvents } from '@/lib/event'
 import { useNSpamEventPartition } from '@/hooks/useNSpamEventPartition'
@@ -12,7 +13,8 @@ import noteStatsService from '@/services/note-stats.service'
 import { TNotificationType } from '@/types'
 import dayjs from 'dayjs'
 import { NostrEvent, kinds, matchFilter } from 'nostr-tools'
-import { RefreshCw, ShieldAlert } from 'lucide-react'
+import { IconArrowRotateRightLeft as RefreshCw } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconArrowRotateRightLeft'
+import { IconShieldCrossed as ShieldAlert } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconShieldCrossed'
 import {
   forwardRef,
   useCallback,
@@ -326,6 +328,7 @@ const NotificationList = forwardRef(({ isInDeckView = false }: { isInDeckView?: 
       <div ref={topRef} className="scroll-mt-[calc(6rem+1px)]" />
       {supportTouch ? (
         <PullToRefresh
+            refreshingContent={<PullToRefreshIndicator />}
           onRefresh={async () => {
             refresh()
             await new Promise((resolve) => setTimeout(resolve, 1000))

@@ -2,7 +2,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import gifService, { type GifData } from '@/services/gif.service'
 import { SuggestionKeyDownProps } from '@tiptap/suggestion'
-import { Loader2 } from 'lucide-react'
+import { IconLoadingCircle as Loader2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconLoadingCircle'
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 

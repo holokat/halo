@@ -35,6 +35,19 @@ test('floating navigation hugs its controls below an exactly centered reading co
   assert.doesNotMatch(accountMenuSource, /CircleUserRound/)
 })
 
+test('photo viewer uses Central icons for every visible lightbox control', () => {
+  const imageLightboxSource = readProjectFile('src/components/ImageWithLightbox/index.tsx')
+
+  const lightboxSource = readProjectFile('src/components/icons/lightbox.tsx')
+  assert.match(lightboxSource, /@central-icons-react\/round-outlined-radius-2-stroke-1\.5/)
+  assert.match(lightboxSource, /iconPrev: \(\) => <IconChevronLeft/)
+  assert.match(lightboxSource, /iconNext: \(\) => <IconChevronRight/)
+  assert.match(lightboxSource, /iconZoomIn: \(\) => <IconZoomIn/)
+  assert.match(lightboxSource, /iconZoomOut: \(\) => <IconZoomOut/)
+  assert.match(lightboxSource, /iconClose: \(\) => <IconCrossLarge/)
+  assert.match(imageLightboxSource, /render=\{lightboxRender\}/)
+})
+
 test('invite links wait for account restoration before choosing an onboarding flow', () => {
   const inviteHandlerSource = readProjectFile('src/components/InviteHandler/index.tsx')
 

@@ -6,7 +6,9 @@ import relayRecommendationsService, {
   TRelayRecommendation
 } from '@/services/relay-recommendations.service'
 import { useNostr } from '@/providers/NostrProvider'
-import { Loader, Plus, Users } from 'lucide-react'
+import { IconLoadingCircle as Loader } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconLoadingCircle'
+import { IconPlusLarge as Plus } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconPlusLarge'
+import { IconUserGroup as Users } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconUserGroup'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 

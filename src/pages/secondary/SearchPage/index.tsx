@@ -5,7 +5,7 @@ import SecondaryPageLayout from '@/layouts/SecondaryPageLayout'
 import { toSearch } from '@/lib/link'
 import { useSecondaryPage } from '@/PageManager'
 import { TSearchParams } from '@/types'
-import { ChevronLeft } from 'lucide-react'
+import { IconChevronLeft as ChevronLeft } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconChevronLeft'
 import { forwardRef, useEffect, useMemo, useRef, useState } from 'react'
 
 const SearchPage = forwardRef(({ index }: { index?: number }, ref) => {

@@ -1,5 +1,5 @@
 import { usePrimaryPage } from '@/PageManager'
-import { BookOpen } from 'lucide-react'
+import { IconBook as BookOpen } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconBook'
 import BottomNavigationBarItem from './BottomNavigationBarItem'
 
 export default function ReadsButton() {

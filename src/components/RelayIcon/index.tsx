@@ -1,7 +1,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useFetchRelayInfo } from '@/hooks'
 import { cn } from '@/lib/utils'
-import { Server } from 'lucide-react'
+import { IconServer as Server } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconServer'
 import { useMemo } from 'react'
 
 export default function RelayIcon({

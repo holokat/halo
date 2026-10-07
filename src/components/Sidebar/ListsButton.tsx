@@ -1,5 +1,5 @@
 import { usePrimaryPage } from '@/PageManager'
-import { List } from 'lucide-react'
+import { IconListBullets as List } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconListBullets'
 import { useTranslation } from 'react-i18next'
 import SidebarItem from './SidebarItem'
 
@@ -9,7 +9,7 @@ export default function ListsButton() {
 
   return (
     <SidebarItem title={t('Lists')} onClick={() => navigate('lists')} active={current === 'lists'}>
-      <List strokeWidth={1.3} />
+      <List />
     </SidebarItem>
   )
 }

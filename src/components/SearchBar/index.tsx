@@ -7,7 +7,10 @@ import { cn } from '@/lib/utils'
 import { useSecondaryPage } from '@/PageManager'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import { TSearchParams } from '@/types'
-import { Hash, Notebook, Search, Server } from 'lucide-react'
+import { IconHashtag as Hash } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconHashtag'
+import { IconNotebook as Notebook } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconNotebook'
+import { IconMagnifyingGlass as Search } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconMagnifyingGlass'
+import { IconServer as Server } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconServer'
 import { nip19 } from 'nostr-tools'
 import {
   forwardRef,

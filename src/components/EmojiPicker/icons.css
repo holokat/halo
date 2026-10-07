@@ -1,0 +1,100 @@
+.halo-emoji-picker .epr-cat-btn {
+  background-image: none !important;
+  color: var(--epr-text-color);
+}
+
+.halo-emoji-picker .epr-cat-btn::after {
+  content: '';
+  display: block;
+  width: 20px;
+  height: 20px;
+  margin: auto;
+  pointer-events: none;
+  background-color: currentColor;
+  -webkit-mask-image: var(--halo-emoji-picker-icon);
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-image: var(--halo-emoji-picker-icon);
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+}
+
+.halo-emoji-picker .epr-cat-btn:hover,
+.halo-emoji-picker .epr-cat-btn:focus,
+.halo-emoji-picker .epr-cat-btn.epr-active {
+  color: var(--epr-category-icon-active-color);
+}
+
+.halo-emoji-picker .epr-icn-suggested {
+  --halo-emoji-picker-icon: url('/generated/central-icons/suggested-clock.svg');
+}
+
+.halo-emoji-picker .epr-icn-smileys_people {
+  --halo-emoji-picker-icon: url('/generated/central-icons/smileys-people.svg');
+}
+
+.halo-emoji-picker .epr-icn-animals_nature {
+  --halo-emoji-picker-icon: url('/generated/central-icons/animals-nature.svg');
+}
+
+.halo-emoji-picker .epr-icn-food_drink {
+  --halo-emoji-picker-icon: url('/generated/central-icons/food-drink.svg');
+}
+
+.halo-emoji-picker .epr-icn-travel_places {
+  --halo-emoji-picker-icon: url('/generated/central-icons/travel-places.svg');
+}
+
+.halo-emoji-picker .epr-icn-activities {
+  --halo-emoji-picker-icon: url('/generated/central-icons/activities.svg');
+}
+
+.halo-emoji-picker .epr-icn-objects {
+  --halo-emoji-picker-icon: url('/generated/central-icons/objects.svg');
+}
+
+.halo-emoji-picker .epr-icn-symbols {
+  --halo-emoji-picker-icon: url('/generated/central-icons/symbols.svg');
+}
+
+.halo-emoji-picker .epr-icn-flags {
+  --halo-emoji-picker-icon: url('/generated/central-icons/flags.svg');
+}
+
+.halo-emoji-picker .epr-icn-custom {
+  --halo-emoji-picker-icon: url('/generated/central-icons/custom.svg');
+}
+
+.halo-emoji-picker .epr-icn-search,
+.halo-emoji-picker .epr-icn-clear-search,
+.halo-emoji-picker button[aria-label='Show all Emojis']::after {
+  background-image: none !important;
+  background-position: center !important;
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-color: currentColor;
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+}
+
+.halo-emoji-picker .epr-icn-search {
+  color: var(--epr-text-color);
+  -webkit-mask-image: url('/generated/central-icons/search.svg');
+  mask-image: url('/generated/central-icons/search.svg');
+}
+
+.halo-emoji-picker .epr-icn-clear-search {
+  -webkit-mask-image: url('/generated/central-icons/clear.svg');
+  mask-image: url('/generated/central-icons/clear.svg');
+}
+
+.halo-emoji-picker button[aria-label='Show all Emojis']::after {
+  -webkit-mask-image: url('/generated/central-icons/plus.svg');
+  mask-image: url('/generated/central-icons/plus.svg');
+}

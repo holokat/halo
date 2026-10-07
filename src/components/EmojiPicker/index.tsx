@@ -13,6 +13,7 @@ import EmojiPickerReact, {
 } from 'emoji-picker-react'
 import { useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
+import './icons.css'
 
 // Storage key used by emoji-picker-react for suggested emojis
 const EMOJI_PICKER_STORAGE_KEY = 'epr_suggested'
@@ -57,6 +58,7 @@ export default function EmojiPicker({
 
   return (
     <EmojiPickerReact
+      className="halo-emoji-picker"
       theme={
         themeSetting === 'system' ? Theme.AUTO : themeSetting === 'dark' ? Theme.DARK : Theme.LIGHT
       }

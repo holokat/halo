@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils'
 import useModalRegistration from '@/hooks/useModalRegistration'
 import { useContentPolicy } from '@/providers/ContentPolicyProvider'
 import { TImetaInfo } from '@/types'
+import { lightboxRender } from '@/components/icons/lightbox'
 import { useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
@@ -70,6 +71,7 @@ export default function ImageWithLightbox({
               index={index}
               slides={[{ src: image.url, alt: image.alt || '' }]}
               plugins={[Zoom]}
+              render={lightboxRender}
               open={index >= 0}
               close={() => setIndex(-1)}
               controller={{

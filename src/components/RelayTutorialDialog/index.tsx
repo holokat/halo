@@ -12,7 +12,9 @@ import {
 import { cn } from '@/lib/utils'
 import { useNostr } from '@/providers/NostrProvider'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
-import { ArrowLeft, ArrowRight, CheckCircle2 } from 'lucide-react'
+import { IconArrowLeft as ArrowLeft } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconArrowLeft'
+import { IconArrowRight as ArrowRight } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconArrowRight'
+import { IconCircleCheck as CheckCircle2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCircleCheck'
 import { useState, type ReactNode } from 'react'
 
 type TRelayTutorialSlide = {

@@ -15,15 +15,13 @@ import { useSecondaryPage } from '@/PageManager'
 import { useNostr } from '@/providers/NostrProvider'
 
 import { toast } from 'sonner'
-import {
-  ArrowDownUp,
-  ChevronRight,
-  LogOut,
-  Settings,
-  UserRound,
-  QrCode as QrCodeIcon,
-  UserPlus
-} from 'lucide-react'
+import { IconSortArrowUpDown as ArrowDownUp } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconSortArrowUpDown'
+import { IconChevronRight as ChevronRight } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconChevronRight'
+import { IconArrowBoxLeft as LogOut } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconArrowBoxLeft'
+import { IconSettingsGear1 as Settings } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconSettingsGear1'
+import { IconUser as UserRound } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconUser'
+import { IconQrCode as QrCodeIcon } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconQrCode'
+import { IconUserAdd as UserPlus } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconUserAdd'
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 

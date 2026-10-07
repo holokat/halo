@@ -5,6 +5,7 @@ import useModalRegistration from '@/hooks/useModalRegistration'
 import { useContentPolicy } from '@/providers/ContentPolicyProvider'
 import { useMediaStyle } from '@/providers/MediaStyleProvider'
 import { TImetaInfo } from '@/types'
+import { lightboxRender } from '@/components/icons/lightbox'
 import { ReactNode, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
@@ -295,6 +296,7 @@ export default function ImageGallery({
                 index={index}
                 slides={images.map(({ url, alt }) => ({ src: url, alt: alt || '' }))}
                 plugins={[Zoom]}
+                render={lightboxRender}
                 open={index >= 0}
                 close={() => setIndex(-1)}
                 on={{
@@ -438,6 +440,7 @@ export default function ImageGallery({
               index={index}
               slides={images.map(({ url, alt }) => ({ src: url, alt: alt || '' }))}
               plugins={[Zoom]}
+              render={lightboxRender}
               open={index >= 0}
               close={() => setIndex(-1)}
               on={{

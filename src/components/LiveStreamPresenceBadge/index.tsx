@@ -2,7 +2,7 @@ import { useLiveStreamPresence } from '@/hooks/useLiveStreamPresence'
 import { getLiveStreamTitle } from '@/lib/live-stream'
 import { cn } from '@/lib/utils'
 import { usePrimaryPage } from '@/PageManager'
-import { Radio } from 'lucide-react'
+import { IconRadio as Radio } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconRadio'
 import { useTranslation } from 'react-i18next'
 
 export default function LiveStreamPresenceBadge({

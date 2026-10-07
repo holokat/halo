@@ -8,7 +8,11 @@ import {
   toGeneralSettings
 } from '@/lib/link'
 import { useSecondaryPage } from '@/PageManager'
-import { BookOpen, Info, KeyRound, ShieldCheck, SlidersHorizontal } from 'lucide-react'
+import { IconBook as BookOpen } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconBook'
+import { IconCircleInfo as Info } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCircleInfo'
+import { IconKey1 as KeyRound } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconKey1'
+import { IconShieldCheck as ShieldCheck } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconShieldCheck'
+import { IconSettingsSliderHor as SlidersHorizontal } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconSettingsSliderHor'
 import { forwardRef } from 'react'
 import { useTranslation } from 'react-i18next'
 

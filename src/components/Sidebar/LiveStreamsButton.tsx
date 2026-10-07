@@ -1,5 +1,5 @@
 import { usePrimaryPage } from '@/PageManager'
-import { Radio } from 'lucide-react'
+import { IconRadio as Radio } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconRadio'
 import SidebarItem from './SidebarItem'
 import { useTranslation } from 'react-i18next'
 
@@ -13,7 +13,7 @@ export default function LiveStreamsButton() {
       onClick={() => navigate('livestreams')}
       active={current === 'livestreams'}
     >
-      <Radio strokeWidth={1.3} />
+      <Radio />
     </SidebarItem>
   )
 }

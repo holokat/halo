@@ -2,7 +2,7 @@ import { usePrimaryPage } from '@/PageManager'
 import { useDistractionFreeMode } from '@/providers/DistractionFreeModeProvider'
 import { useNostr } from '@/providers/NostrProvider'
 import { useNotification } from '@/providers/NotificationProvider'
-import { Bell } from 'lucide-react'
+import { IconBell as Bell } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconBell'
 import { useTranslation } from 'react-i18next'
 import SidebarItem from './SidebarItem'
 
@@ -21,7 +21,7 @@ export default function NotificationsButton() {
       aria-label={hasNewNotification && !isDistractionFree ? t('Notifications') + ", new notifications" : t('Notifications')}
     >
       <div className="relative">
-        <Bell strokeWidth={1.3} />
+        <Bell />
         {hasNewNotification && !isDistractionFree && (
           <div className="absolute -top-1 right-0 w-2 h-2 ring-2 ring-background bg-primary rounded-full" aria-hidden="true" />
         )}

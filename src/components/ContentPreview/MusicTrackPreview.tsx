@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
 import { Event } from 'nostr-tools'
-import { Music2 } from 'lucide-react'
+import { IconAudio as Music2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconAudio'
 import { useTranslation } from 'react-i18next'
 
 export default function MusicTrackPreview({

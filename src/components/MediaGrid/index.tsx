@@ -1,3 +1,4 @@
+import { IconPlay } from '@central-icons-react/round-filled-radius-2-stroke-1.5/IconPlay'
 import { extractMediaUrls, hasMedia } from '@/lib/event'
 import useModalRegistration from '@/hooks/useModalRegistration'
 import { Event } from 'nostr-tools'
@@ -20,6 +21,7 @@ import { filterSpamMarkedEvents } from '@/lib/spam-filter'
 import { TFeedSubRequest } from '@/types'
 import client from '@/services/client.service'
 import { useSpamFilter } from '@/providers/SpamFilterProvider'
+import { lightboxRender } from '@/components/icons/lightbox'
 
 interface MediaItem {
   url: string
@@ -208,13 +210,7 @@ const MediaGrid = forwardRef(({ subRequests }: { subRequests?: TFeedSubRequest[]
                   preload="metadata"
                 />
                 <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                  <svg
-                    className="w-12 h-12 text-white opacity-80"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
+                  <IconPlay className="w-12 h-12 text-white opacity-80" />
                 </div>
               </div>
             )}
@@ -228,6 +224,7 @@ const MediaGrid = forwardRef(({ subRequests }: { subRequests?: TFeedSubRequest[]
               index={lightboxIndex}
               slides={lightboxSlides}
               plugins={[Zoom, Video]}
+              render={lightboxRender}
               open={lightboxIndex >= 0}
               close={() => setLightboxIndex(-1)}
               controller={{

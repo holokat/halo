@@ -1,3 +1,4 @@
+import { IconArrowLeft } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconArrowLeft'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,28 +22,26 @@ import { nsecEncode, npubEncode } from 'nostr-tools/nip19'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import {
-  BriefcaseBusiness,
-  ChartCandlestick,
-  ChevronRight,
-  Clapperboard,
-  Cpu,
-  FlaskConical,
-  Gamepad2,
-  HeartPulse,
-  Landmark,
-  Loader,
-  Music4,
-  Newspaper,
-  PawPrint,
-  Plane,
-  Rocket,
-  Trees,
-  Trophy,
-  Upload,
-  User,
-  UtensilsCrossed
-} from 'lucide-react'
+import { IconSuitcaseWork as BriefcaseBusiness } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconSuitcaseWork'
+import { IconTradingViewCandles as ChartCandlestick } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconTradingViewCandles'
+import { IconChevronRight as ChevronRight } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconChevronRight'
+import { IconClapboard as Clapperboard } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconClapboard'
+import { IconChip as Cpu } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconChip'
+import { IconLab as FlaskConical } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconLab'
+import { IconGamepad as Gamepad2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconGamepad'
+import { IconHeartBeat as HeartPulse } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconHeartBeat'
+import { IconBank as Landmark } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconBank'
+import { IconLoadingCircle as Loader } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconLoadingCircle'
+import { IconAudio as Music4 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconAudio'
+import { IconNewspaper as Newspaper } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconNewspaper'
+import { IconPets as PawPrint } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconPets'
+import { IconAirplane as Plane } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconAirplane'
+import { IconRocket as Rocket } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconRocket'
+import { IconTree as Trees } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconTree'
+import { IconTrophy as Trophy } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconTrophy'
+import { IconArrowOutOfBox as Upload } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconArrowOutOfBox'
+import { IconUser as User } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconUser'
+import { IconForkKnife as UtensilsCrossed } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconForkKnife'
 
 const INTEREST_ICON_MAP = {
   Newspaper,
@@ -240,7 +239,7 @@ export default function SignupProfile({
     return (
       <div className="flex flex-col gap-6 animate-in fade-in duration-300">
         <Button variant="ghost" onClick={back} className="w-fit text-muted-foreground -ml-2">
-          ← {t('Back')}
+          <IconArrowLeft className="h-4 w-4" /> {t('Back')}
         </Button>
 
         <div className="space-y-2 text-center">
@@ -313,7 +312,7 @@ export default function SignupProfile({
           onClick={() => setStep('identity')}
           className="w-fit text-muted-foreground -ml-2"
         >
-          ← {t('Back')}
+          <IconArrowLeft className="h-4 w-4" /> {t('Back')}
         </Button>
 
         <div className="space-y-2 text-center">
@@ -381,7 +380,7 @@ export default function SignupProfile({
           onClick={() => setStep('photo')}
           className="w-fit text-muted-foreground -ml-2"
         >
-          ← {t('Back')}
+          <IconArrowLeft className="h-4 w-4" /> {t('Back')}
         </Button>
 
         <div className="space-y-2 text-center">
@@ -418,7 +417,7 @@ export default function SignupProfile({
           onClick={() => setStep('bio')}
           className="w-fit text-muted-foreground -ml-2"
         >
-          ← {t('Back')}
+          <IconArrowLeft className="h-4 w-4" /> {t('Back')}
         </Button>
 
         <div className="space-y-2 text-center">

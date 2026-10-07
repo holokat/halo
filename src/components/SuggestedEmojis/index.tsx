@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { TEmoji } from '@/types'
-import { MoreHorizontal } from 'lucide-react'
+import { IconDotGrid1x3Horizontal as MoreHorizontal } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconDotGrid1x3Horizontal'
 import Emoji from '../Emoji'
 import { useDefaultReactionEmojis } from '@/providers/DefaultReactionEmojisProvider'
 

@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
 import { TEmoji } from '@/types'
-import { Heart } from 'lucide-react'
+import { IconHeart as Heart } from '@central-icons-react/round-filled-radius-2-stroke-1.5/IconHeart'
 import { HTMLAttributes, useState } from 'react'
 
 export default function Emoji({
@@ -17,7 +17,7 @@ export default function Emoji({
 
   if (typeof emoji === 'string') {
     return emoji === '+' ? (
-      <Heart className={cn('size-5 text-red-400 fill-red-400', classNames?.img)} />
+      <Heart className={cn('size-5 text-red-400', classNames?.img)} />
     ) : (
       <span className={cn('whitespace-nowrap', classNames?.text)}>{emoji}</span>
     )

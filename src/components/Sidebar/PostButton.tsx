@@ -1,6 +1,6 @@
 import PostEditor from '@/components/PostEditor'
 import { useNostr } from '@/providers/NostrProvider'
-import { Plus } from 'lucide-react'
+import { IconPlusLarge as Plus } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconPlusLarge'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import SidebarItem from './SidebarItem'

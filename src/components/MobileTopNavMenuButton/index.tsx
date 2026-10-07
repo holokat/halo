@@ -1,3 +1,4 @@
+import { IconUser as FilledUser } from '@central-icons-react/round-filled-radius-2-stroke-1.5/IconUser'
 import { usePrimaryPage, useSecondaryPage } from '@/PageManager'
 import { toProfile, toSettings } from '@/lib/link'
 import { formatNpub, pubkeyToNpub } from '@/lib/pubkey'
@@ -11,22 +12,20 @@ import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { bottomNavigationItemClassName } from '@/components/BottomNavigationBar/BottomNavigationBarItem'
 import { cn } from '@/lib/utils'
-import {
-  ArrowDownUp,
-  Bell,
-  BookOpen,
-  Check,
-  Copy,
-  Home,
-  KeyRound,
-  List,
-  LogOut,
-  QrCode as QrCodeIcon,
-  Radio,
-  Search,
-  Settings,
-  UserRound
-} from 'lucide-react'
+import { IconSortArrowUpDown as ArrowDownUp } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconSortArrowUpDown'
+import { IconBell as Bell } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconBell'
+import { IconBook as BookOpen } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconBook'
+import { IconCheckmark1 as Check } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCheckmark1'
+import { IconSquareBehindSquare1 as Copy } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconSquareBehindSquare1'
+import { IconHome as Home } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconHome'
+import { IconKey1 as KeyRound } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconKey1'
+import { IconListBullets as List } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconListBullets'
+import { IconArrowBoxLeft as LogOut } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconArrowBoxLeft'
+import { IconQrCode as QrCodeIcon } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconQrCode'
+import { IconRadio as Radio } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconRadio'
+import { IconMagnifyingGlass as Search } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconMagnifyingGlass'
+import { IconSettingsGear1 as Settings } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconSettingsGear1'
+import { IconUser as UserRound } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconUser'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -72,13 +71,10 @@ export default function MobileTopNavMenuButton({
               active ? 'ring-2 ring-foreground ring-offset-1 ring-offset-background' : undefined
             }
           />
+        ) : active ? (
+          <FilledUser className="!size-5 text-foreground" />
         ) : (
-          <UserRound
-            className={cn(
-              '!size-5 text-muted-foreground',
-              active && 'fill-current text-foreground'
-            )}
-          />
+          <UserRound className="!size-5 text-muted-foreground" />
         )}
       </Button>
       <MobileNavSheet open={open} onOpenChange={setOpen} accountOnly={isBottomNavigation} />

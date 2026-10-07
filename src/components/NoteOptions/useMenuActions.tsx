@@ -4,17 +4,15 @@ import { useMuteList } from '@/providers/MuteListProvider'
 import { useNostr } from '@/providers/NostrProvider'
 import { usePinList } from '@/providers/PinListProvider'
 import { useSpamFilter } from '@/providers/SpamFilterProvider'
-import {
-  Bell,
-  BellOff,
-  Link,
-  Pin,
-  PinOff,
-  ShieldAlert,
-  ShieldCheck,
-  Trash2,
-  TriangleAlert
-} from 'lucide-react'
+import { IconBell as Bell } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconBell'
+import { IconBellOff as BellOff } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconBellOff'
+import { IconChainLink1 as Link } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconChainLink1'
+import { IconPin as Pin } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconPin'
+import { IconUnpin as PinOff } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconUnpin'
+import { IconShieldCrossed as ShieldAlert } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconShieldCrossed'
+import { IconShieldCheck as ShieldCheck } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconShieldCheck'
+import { IconTrashCan as Trash2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconTrashCan'
+import { IconWarningSign as TriangleAlert } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconWarningSign'
 import { type Event, kinds } from 'nostr-tools'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'

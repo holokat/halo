@@ -9,7 +9,7 @@ import { useMemo } from 'react'
 import LiveEventList, { TLiveEventListRef } from '@/components/LiveEventList'
 import LiveStreamView from '@/components/LiveStreamView'
 import { Button } from '@/components/ui/button'
-import { ChevronLeft } from 'lucide-react'
+import { IconChevronLeft as ChevronLeft } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconChevronLeft'
 import { Event as NostrEvent } from 'nostr-tools'
 
 type LiveStreamsPageProps = {

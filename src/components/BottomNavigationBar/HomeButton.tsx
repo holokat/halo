@@ -1,5 +1,6 @@
 import { usePrimaryPage } from '@/PageManager'
-import HaloMark from '@/components/HaloMark'
+import { IconHome } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconHome'
+import { IconHome as SolidHome } from '@central-icons-react/round-filled-radius-2-stroke-1.5/IconHome'
 import BottomNavigationBarItem from './BottomNavigationBarItem'
 import { useTranslation } from 'react-i18next'
 
@@ -14,7 +15,7 @@ export default function HomeButton() {
       onClick={() => navigate('home')}
       aria-label={t('Home')}
     >
-      <HaloMark className={active ? 'size-8 text-foreground' : 'size-8 text-muted-foreground'} />
+      {active ? <SolidHome /> : <IconHome />}
     </BottomNavigationBarItem>
   )
 }

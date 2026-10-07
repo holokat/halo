@@ -1,6 +1,10 @@
 import * as React from 'react'
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu'
-import { Check, ChevronDown, ChevronRight, ChevronUp, Circle } from 'lucide-react'
+import { IconCheckmark1 as Check } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCheckmark1'
+import { IconChevronBottom as ChevronDown } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconChevronBottom'
+import { IconChevronRight as ChevronRight } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconChevronRight'
+import { IconChevronTop as ChevronUp } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconChevronTop'
+import { IconCircle as Circle } from '@central-icons-react/round-filled-radius-2-stroke-1.5/IconCircle'
 
 import { cn } from '@/lib/utils'
 
@@ -287,7 +291,7 @@ const DropdownMenuRadioItem = React.forwardRef<
   >
     <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
       <DropdownMenuPrimitive.ItemIndicator>
-        <Circle className="h-2 w-2 fill-current" />
+        <Circle className="h-2 w-2" />
       </DropdownMenuPrimitive.ItemIndicator>
     </span>
     {children}

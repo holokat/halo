@@ -2,17 +2,15 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { useMenuItems, TMenuItem, TMenuItemConfig } from '@/providers/MenuItemsProvider'
 import { cn } from '@/lib/utils'
-import {
-  GripVertical,
-  Home,
-  BookOpen,
-  List as ListIcon,
-  Search,
-  Bell,
-  PencilLine,
-  Columns,
-  Radio
-} from 'lucide-react'
+import { IconDotGrid2x3 as GripVertical } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconDotGrid2x3'
+import { IconHome as Home } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconHome'
+import { IconBook as BookOpen } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconBook'
+import { IconListBullets as ListIcon } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconListBullets'
+import { IconMagnifyingGlass as Search } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconMagnifyingGlass'
+import { IconBell as Bell } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconBell'
+import { IconPencilLine as PencilLine } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconPencilLine'
+import { IconColumns3 as Columns } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconColumns3'
+import { IconRadio as Radio } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconRadio'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'

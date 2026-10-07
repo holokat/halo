@@ -6,6 +6,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      secrets:
+        - central_license_key
       args:
         VITE_PROXY_SERVER: ${HALO_PROXY_SERVER_URL:-http://localhost:8090}
     ports:
@@ -28,3 +30,7 @@ services:
 
 networks:
   halo:
+
+secrets:
+  central_license_key:
+    environment: CENTRAL_LICENSE_KEY

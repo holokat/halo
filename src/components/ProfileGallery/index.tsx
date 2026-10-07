@@ -1,5 +1,6 @@
 import { TGalleryImage, TGalleryImageEvent } from '@/types'
-import { ExternalLink } from 'lucide-react'
+import { lightboxRender } from '@/components/icons/lightbox'
+import { IconSquareArrowTopRight as ExternalLink } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconSquareArrowTopRight'
 import { useCallback, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Lightbox from 'yet-another-react-lightbox'
@@ -129,6 +130,7 @@ export default function ProfileGallery({
                 toolbar: { paddingTop: '2.25rem' }
               }}
               render={{
+                ...lightboxRender,
                 slide: ({ slide }) => {
                   const typedSlide = slide as { src?: string; index?: number }
                   const slideIndex =

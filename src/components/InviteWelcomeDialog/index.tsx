@@ -17,7 +17,8 @@ import { useNostr } from '@/providers/NostrProvider'
 import { useFetchProfile, useFetchFollowings } from '@/hooks'
 import { useFollowList } from '@/providers/FollowListProvider'
 import { toast } from 'sonner'
-import { Users, UserPlus } from 'lucide-react'
+import { IconUserGroup as Users } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconUserGroup'
+import { IconUserAdd as UserPlus } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconUserAdd'
 import { Skeleton } from '@/components/ui/skeleton'
 
 interface InviteWelcomeDialogProps {

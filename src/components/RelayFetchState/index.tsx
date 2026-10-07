@@ -1,6 +1,8 @@
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { AlertCircle, Loader2, RotateCcw } from 'lucide-react'
+import { IconExclamationCircle as AlertCircle } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconExclamationCircle'
+import { IconLoadingCircle as Loader2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconLoadingCircle'
+import { IconArrowRotateCounterClockwise as RotateCcw } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconArrowRotateCounterClockwise'
 
 type RelayFetchMode = 'loading' | 'slow' | 'not-found'
 

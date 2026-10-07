@@ -17,7 +17,8 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { TEmoji } from '@/types'
 import Emoji from '@/components/Emoji'
-import { X, RotateCcw } from 'lucide-react'
+import { IconCrossLarge as X } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCrossLarge'
+import { IconArrowRotateCounterClockwise as RotateCcw } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconArrowRotateCounterClockwise'
 
 export default function DefaultReactionEmojisSetting() {
   const { t } = useTranslation()

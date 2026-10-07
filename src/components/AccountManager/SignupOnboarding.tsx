@@ -2,7 +2,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { persistStoredFeedInfo, upsertStoredCustomFeed } from '@/lib/feed-sync'
-import { Check, Copy, Download, Eye, EyeOff } from 'lucide-react'
+import { IconCheckmark1 as Check } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCheckmark1'
+import { IconSquareBehindSquare1 as Copy } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconSquareBehindSquare1'
+import { IconArrowInbox as Download } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconArrowInbox'
+import { IconEyeOpen as Eye } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconEyeOpen'
+import { IconEyeSlash as EyeOff } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconEyeSlash'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import SignupProfile, { createSignupKeys, TSignupProfileResult, TSignupKeys } from './SignupProfile'
@@ -113,14 +117,7 @@ Your private key is the only way to access your account. If you lose it, you los
     <div className="flex flex-col gap-6 animate-in fade-in duration-300">
       <div className="flex flex-col gap-6 text-center">
         <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mx-auto">
-          <svg
-            className="w-8 h-8 text-green-500"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
+          <Check className="w-8 h-8 text-green-500" />
         </div>
 
         <div>

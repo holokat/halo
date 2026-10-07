@@ -1,6 +1,6 @@
 import { isEventExpired } from '@/lib/event-expiration'
 import client from '@/services/client.service'
-import { Repeat } from 'lucide-react'
+import { IconArrowsRepeat as Repeat } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconArrowsRepeat'
 import { Event, validateEvent } from 'nostr-tools'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'

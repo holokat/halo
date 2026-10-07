@@ -9,7 +9,12 @@ import {
   toScheduledPostsSettings
 } from '@/lib/link'
 import { useSecondaryPage } from '@/PageManager'
-import { Cloud, Clock3, KeyRound, PencilLine, Rss, Server } from 'lucide-react'
+import { IconCloud as Cloud } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCloud'
+import { IconClock3OClock as Clock3 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconClock3OClock'
+import { IconKey1 as KeyRound } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconKey1'
+import { IconPencilLine as PencilLine } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconPencilLine'
+import { IconRssFeed as Rss } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconRssFeed'
+import { IconServer as Server } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconServer'
 import { forwardRef } from 'react'
 import { useTranslation } from 'react-i18next'
 

@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import { Repeat2 } from 'lucide-react'
+import { IconArrowsRepeat as Repeat2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconArrowsRepeat'
 import { useTranslation } from 'react-i18next'
 import Username from '../Username'
 

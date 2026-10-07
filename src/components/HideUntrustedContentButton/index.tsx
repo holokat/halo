@@ -3,7 +3,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Switch } from '@/components/ui/switch'
 import { useUserTrust } from '@/providers/UserTrustProvider'
 import { VariantProps } from 'class-variance-authority'
-import { Shield, ShieldCheck } from 'lucide-react'
+import { IconShield as Shield } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconShield'
+import { IconShieldCheck as ShieldCheck } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconShieldCheck'
 import { useTranslation } from 'react-i18next'
 
 export default function HideUntrustedContentButton({

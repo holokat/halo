@@ -4,7 +4,7 @@ import PrimaryPageLayout from '@/layouts/PrimaryPageLayout'
 import { useNostr } from '@/providers/NostrProvider'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
 
-import { UserRound } from 'lucide-react'
+import { IconUser as UserRound } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconUser'
 import { forwardRef } from 'react'
 import { useTranslation } from 'react-i18next'
 

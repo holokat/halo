@@ -1,5 +1,6 @@
 import { TRelaySet } from '@/types'
-import { ChevronDown, FolderClosed } from 'lucide-react'
+import { IconChevronBottom as ChevronDown } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconChevronBottom'
+import { IconFolder1 as FolderClosed } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconFolder1'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import PinButton from '../PinButton'

@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Info } from 'lucide-react'
+import { IconCircleInfo as Info } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCircleInfo'
 import { ReactNode } from 'react'
 
 export default function InfoPopoverButton({

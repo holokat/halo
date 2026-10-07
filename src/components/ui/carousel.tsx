@@ -1,6 +1,7 @@
 import * as React from 'react'
 import useEmblaCarousel, { type UseEmblaCarouselType } from 'embla-carousel-react'
-import { ArrowLeft, ArrowRight } from 'lucide-react'
+import { IconArrowLeft as ArrowLeft } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconArrowLeft'
+import { IconArrowRight as ArrowRight } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconArrowRight'
 
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'

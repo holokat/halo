@@ -13,7 +13,7 @@ import {
   TooltipTrigger
 } from '@/components/ui/tooltip'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
-import { Info } from 'lucide-react'
+import { IconCircleInfo as Info } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCircleInfo'
 import { ExpirationSetting, ExpirationUnit } from '@/providers/NoteExpirationProvider'
 
 interface ExpirationSelectorProps {

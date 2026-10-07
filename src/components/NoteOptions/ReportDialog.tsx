@@ -25,16 +25,14 @@ import {
 import { useNostr } from '@/providers/NostrProvider'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import { useSpamFilter } from '@/providers/SpamFilterProvider'
-import {
-  Bug,
-  CheckCircle2,
-  Loader2,
-  MessageSquare,
-  Send,
-  ShieldAlert,
-  TriangleAlert,
-  UserX
-} from 'lucide-react'
+import { IconBug as Bug } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconBug'
+import { IconCircleCheck as CheckCircle2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCircleCheck'
+import { IconLoadingCircle as Loader2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconLoadingCircle'
+import { IconBubbleWide as MessageSquare } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconBubbleWide'
+import { IconPaperPlane as Send } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconPaperPlane'
+import { IconShieldCrossed as ShieldAlert } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconShieldCrossed'
+import { IconWarningSign as TriangleAlert } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconWarningSign'
+import { IconUserBlock as UserX } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconUserBlock'
 import { NostrEvent, kinds } from 'nostr-tools'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'

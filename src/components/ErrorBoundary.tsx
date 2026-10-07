@@ -1,5 +1,7 @@
 import { Button } from '@/components/ui/button'
-import { RotateCw, Copy, Check } from 'lucide-react'
+import { IconArrowRotateClockwise as RotateCw } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconArrowRotateClockwise'
+import { IconSquareBehindSquare1 as Copy } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconSquareBehindSquare1'
+import { IconCheckmark1 as Check } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCheckmark1'
 import React, { Component, ReactNode } from 'react'
 import i18next from 'i18next'
 

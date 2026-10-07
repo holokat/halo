@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils'
-import { SearchIcon, X } from 'lucide-react'
+import { IconMagnifyingGlass as SearchIcon } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconMagnifyingGlass'
+import { IconCrossLarge as X } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCrossLarge'
 import { ComponentProps, forwardRef, useEffect, useState } from 'react'
 
 const SearchInput = forwardRef<HTMLInputElement, ComponentProps<'input'>>(
@@ -48,7 +49,7 @@ const SearchInput = forwardRef<HTMLInputElement, ComponentProps<'input'>>(
             onClick={() => onChange?.({ target: { value: '' } } as any)}
             aria-label="Clear search"
           >
-            <X className="!size-3 shrink-0 text-background" strokeWidth={4} aria-hidden="true" />
+            <X className="!size-3 shrink-0 text-background" aria-hidden="true" />
           </button>
         )}
       </div>

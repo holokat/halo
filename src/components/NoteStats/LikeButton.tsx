@@ -1,3 +1,4 @@
+import { IconHeart as FilledHeart } from '@central-icons-react/round-filled-radius-2-stroke-1.5/IconHeart'
 import { Drawer, DrawerContent, DrawerOverlay } from '@/components/ui/drawer'
 import {
   DropdownMenu,
@@ -17,7 +18,8 @@ import { useDefaultReactionEmojis } from '@/providers/DefaultReactionEmojisProvi
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import { useUserTrust } from '@/providers/UserTrustProvider'
 import { TEmoji, TNoteReaction } from '@/types'
-import { Heart, Loader } from 'lucide-react'
+import { IconHeart as Heart } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconHeart'
+import { IconLoadingCircle as Loader } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconLoadingCircle'
 import { Event } from 'nostr-tools'
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -420,7 +422,7 @@ export default function LikeButton({ event }: { event: Event }) {
                 : undefined
             }
           >
-            <Heart className={cn('fill-current', isBoostActive && 'stroke-[2.2]')} aria-hidden="true" />
+            <FilledHeart aria-hidden="true" />
           </span>
         </span>
       ) : myLastReaction ? (

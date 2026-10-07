@@ -1,7 +1,8 @@
+import { IconBell as FilledBell } from '@central-icons-react/round-filled-radius-2-stroke-1.5/IconBell'
 import { usePrimaryPage } from '@/PageManager'
 import { useNostr } from '@/providers/NostrProvider'
 import { useNotification } from '@/providers/NotificationProvider'
-import { Bell } from 'lucide-react'
+import { IconBell as Bell } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconBell'
 import BottomNavigationBarItem from './BottomNavigationBarItem'
 import { useTranslation } from 'react-i18next'
 
@@ -19,7 +20,7 @@ export default function NotificationsButton() {
       aria-label={t('Notifications')}
     >
       <div className="relative">
-        <Bell fill={active ? 'currentColor' : 'none'} />
+        {active ? <FilledBell /> : <Bell />}
         {hasNewNotification && (
           <div className="absolute -top-0.5 right-0.5 w-2 h-2 ring-2 ring-background bg-primary rounded-full" />
         )}

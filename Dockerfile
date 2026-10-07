@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Step 1: Build the application
 FROM node:20-alpine as builder
 
@@ -8,7 +9,8 @@ WORKDIR /app
 
 # Copy package files first
 COPY package*.json ./
-RUN npm install
+RUN --mount=type=secret,id=central_license_key,required=true \
+    CENTRAL_LICENSE_KEY="$(cat /run/secrets/central_license_key)" npm ci
 
 # Copy the source code to prevent invaliding cache whenever there is a change in the code
 COPY . .

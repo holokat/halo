@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useSpamFilter } from '@/providers/SpamFilterProvider'
-import { ShieldAlert } from 'lucide-react'
+import { IconShieldCrossed as ShieldAlert } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconShieldCrossed'
 import { useTranslation } from 'react-i18next'
 
 export default function SpamMarkedNotice({

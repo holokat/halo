@@ -8,7 +8,7 @@ import { useSecondaryPage } from '@/PageManager'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import { TSignerType } from '@/types'
 import dayjs from 'dayjs'
-import { Clock } from 'lucide-react'
+import { IconClock as Clock } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconClock'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 

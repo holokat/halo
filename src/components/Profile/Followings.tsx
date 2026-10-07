@@ -3,7 +3,7 @@ import { toFollowingList } from '@/lib/link'
 import { SecondaryPageLink } from '@/PageManager'
 import { useFollowList } from '@/providers/FollowListProvider'
 import { useNostr } from '@/providers/NostrProvider'
-import { Loader } from 'lucide-react'
+import { IconLoadingCircle as Loader } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconLoadingCircle'
 import { useTranslation } from 'react-i18next'
 
 export default function Followings({ pubkey }: { pubkey: string }) {

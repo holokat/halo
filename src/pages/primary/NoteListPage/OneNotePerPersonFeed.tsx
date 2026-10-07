@@ -1,3 +1,4 @@
+import { PullToRefreshIndicator } from '@/components/icons/PullToRefreshIndicator'
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { Event, kinds } from 'nostr-tools'
 import { useNostr } from '@/providers/NostrProvider'
@@ -294,7 +295,9 @@ export default function OneNotePerPersonFeed() {
 
   if (supportTouch) {
     return (
-      <PullToRefresh onRefresh={handleRefresh} isPullable={!refreshing}>
+      <PullToRefresh
+            pullingContent={<PullToRefreshIndicator loading={false} />}
+            refreshingContent={<PullToRefreshIndicator />} onRefresh={handleRefresh} isPullable={!refreshing}>
         {content}
       </PullToRefresh>
     )

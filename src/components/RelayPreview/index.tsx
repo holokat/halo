@@ -5,7 +5,7 @@ import { getRelayDisplayName } from '@/lib/relay'
 import { normalizeUrl, simplifyUrl } from '@/lib/url'
 import { cn } from '@/lib/utils'
 import { TRelayInfo } from '@/types'
-import { Server } from 'lucide-react'
+import { IconServer as Server } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconServer'
 import { useMemo } from 'react'
 import { Card } from '../ui/card'
 

@@ -1,6 +1,6 @@
 import ShareNoteDialog from '@/components/ShareNoteDialog'
 import { cn } from '@/lib/utils'
-import { Send } from 'lucide-react'
+import { IconPaperPlane as Send } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconPaperPlane'
 import { Event } from 'nostr-tools'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'

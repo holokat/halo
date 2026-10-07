@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useNostr } from '@/providers/NostrProvider'
-import { Loader } from 'lucide-react'
+import { IconLoadingCircle as Loader } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconLoadingCircle'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 

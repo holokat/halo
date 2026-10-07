@@ -2,7 +2,12 @@ import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { cn } from '@/lib/utils'
 import mediaManager from '@/services/media-manager.service'
-import { Minimize2, Pause, Play, Volume2, VolumeX, X } from 'lucide-react'
+import { IconMinimize as Minimize2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconMinimize'
+import { IconPause as Pause } from '@central-icons-react/round-filled-radius-2-stroke-1.5/IconPause'
+import { IconPlay as Play } from '@central-icons-react/round-filled-radius-2-stroke-1.5/IconPlay'
+import { IconVolumeUp as Volume2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconVolumeUp'
+import { IconVolumeOff as VolumeX } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconVolumeOff'
+import { IconCrossLarge as X } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCrossLarge'
 import { useEffect, useRef, useState } from 'react'
 import ExternalLink from '../ExternalLink'
 
@@ -182,9 +187,9 @@ export default function AudioPlayer({
         aria-label={isPlaying ? 'Pause audio' : 'Play audio'}
       >
         {isPlaying ? (
-          <Pause className="size-4" fill="currentColor" />
+          <Pause className="size-4" />
         ) : (
-          <Play className="size-4" fill="currentColor" />
+          <Play className="size-4" />
         )}
       </Button>
 

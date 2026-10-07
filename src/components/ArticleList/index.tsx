@@ -1,3 +1,4 @@
+import { PullToRefreshIndicator } from '@/components/icons/PullToRefreshIndicator'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TFeedSubRequest } from '@/types'
@@ -242,7 +243,9 @@ const ArticleList = forwardRef(
 
     if (supportTouch) {
       return (
-        <PullToRefresh onRefresh={handleRefresh} resistance={3}>
+        <PullToRefresh
+            pullingContent={<PullToRefreshIndicator loading={false} />}
+            refreshingContent={<PullToRefreshIndicator />} onRefresh={handleRefresh} resistance={3}>
           {content}
         </PullToRefresh>
       )

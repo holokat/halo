@@ -5,7 +5,7 @@ import { getLiveStreamNaddr, getLiveStreamTitle, getLiveStreamingUrl } from '@/l
 import { cn } from '@/lib/utils'
 import { usePrimaryPage } from '@/PageManager'
 import { Event } from 'nostr-tools'
-import { Radio } from 'lucide-react'
+import { IconRadio as Radio } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconRadio'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import Image from '../Image'

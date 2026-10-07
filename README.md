@@ -21,10 +21,22 @@ Live site: [https://haloapp.fyi](https://haloapp.fyi)
 
 - React + TypeScript + Vite
 - Tailwind CSS + Radix UI
+- Central Icons, rounded outlines with filled variants for selected states
 - `nostr-tools` for protocol/event handling
 - i18next for localization
 
 ## Local Development
+
+Set `CENTRAL_LICENSE_KEY` in your shell before installing dependencies or building
+with Docker. Central's licensed packages check this variable during installation.
+Docker Compose passes it as a build secret, so it stays out of the image.
+For CI and hosted builds, set the same variable in the app's build secrets.
+Never use a `VITE_` prefix for the license key or commit it to the repository.
+
+Icons use individual imports from the official `@central-icons-react` packages.
+Convert icons in newly generated UI components to Central imports too.
+`npm run dev` and `npm run build` generate the emoji picker's icon assets from
+these packages; the generated files are ignored by Git.
 
 ### Option 1: Docker (recommended for URL preview/proxy support)
 

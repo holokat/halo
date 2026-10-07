@@ -5,17 +5,15 @@ import {
   shouldBypassTrustFilterForCustomFeed
 } from '@/lib/custom-feed'
 import { TPinnedColumn, TFeedSubRequest } from '@/types'
-import {
-  X,
-  Bell,
-  UserRound,
-  Search,
-  Server,
-  Bookmark,
-  BookOpen,
-  List,
-  Users
-} from 'lucide-react'
+import { IconCrossLarge as X } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCrossLarge'
+import { IconBell as Bell } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconBell'
+import { IconUser as UserRound } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconUser'
+import { IconMagnifyingGlass as Search } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconMagnifyingGlass'
+import { IconServer as Server } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconServer'
+import { IconBookmark as Bookmark } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconBookmark'
+import { IconBook as BookOpen } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconBook'
+import { IconListBullets as List } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconListBullets'
+import { IconUserGroup as Users } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconUserGroup'
 import { useRef, useEffect, useState } from 'react'
 import Explore from '@/components/Explore'
 import NotificationList from '@/components/NotificationList'

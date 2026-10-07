@@ -1,3 +1,4 @@
+import { IconStar as FilledStar } from '@central-icons-react/round-filled-radius-2-stroke-1.5/IconStar'
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import PrimaryPageLayout from '@/layouts/PrimaryPageLayout'
@@ -9,7 +10,18 @@ import { useSecondaryPage } from '@/PageManager'
 import { useLists } from '@/providers/ListsProvider'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import { TPageRef } from '@/types'
-import { Plus, Edit, Trash2, Users, Search, ArrowLeft, UserPlus, Share2, Loader2, Star, Pin, Check } from 'lucide-react'
+import { IconPlusLarge as Plus } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconPlusLarge'
+import { IconPencil as Edit } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconPencil'
+import { IconTrashCan as Trash2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconTrashCan'
+import { IconUserGroup as Users } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconUserGroup'
+import { IconMagnifyingGlass as Search } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconMagnifyingGlass'
+import { IconArrowLeft as ArrowLeft } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconArrowLeft'
+import { IconUserAdd as UserPlus } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconUserAdd'
+import { IconShareAndroid as Share2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconShareAndroid'
+import { IconLoadingCircle as Loader2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconLoadingCircle'
+import { IconStar as Star } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconStar'
+import { IconPin as Pin } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconPin'
+import { IconCheckmark1 as Check } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCheckmark1'
 import { toCreateList, toList, toEditList } from '@/lib/link'
 import UserAvatar from '@/components/UserAvatar'
 import Username from '@/components/Username'
@@ -31,7 +43,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import { ArrowUpDown } from 'lucide-react'
+import { IconSortArrowUpDown as ArrowUpDown } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconSortArrowUpDown'
 import client from '@/services/client.service'
 import { ExtendedKind, BIG_RELAY_URLS } from '@/constants'
 import { Event, nip19 } from 'nostr-tools'
@@ -454,7 +466,7 @@ const ListsPage = forwardRef((_, ref) => {
                   onClick={(e) => toggleFavorite(e, listKey)}
                   title={isFavorite ? t('Remove from favorites') : t('Add to favorites')}
                 >
-                  <Star className={`w-4 h-4 ${isFavorite ? 'fill-current text-yellow-500' : 'text-muted-foreground'}`} />
+                  {isFavorite ? <FilledStar className="w-4 h-4 text-yellow-500" /> : <Star className="w-4 h-4 text-muted-foreground" />}
                 </Button>
                 {isOwned && (
                   <>
@@ -542,7 +554,7 @@ const ListsPage = forwardRef((_, ref) => {
                   }}
                   title={favoriteLists.includes(`${selectedList.event.pubkey}:${selectedList.id}`) ? t('Remove from favorites') : t('Add to favorites')}
                 >
-                  <Star className={`w-4 h-4 ${favoriteLists.includes(`${selectedList.event.pubkey}:${selectedList.id}`) ? 'fill-current text-yellow-500' : 'text-muted-foreground'}`} />
+                  {favoriteLists.includes(`${selectedList.event.pubkey}:${selectedList.id}`) ? <FilledStar className="w-4 h-4 text-yellow-500" /> : <Star className="w-4 h-4 text-muted-foreground" />}
                 </Button>
                 <Button
                   variant={followedLists.has(selectedListKey) ? "default" : "outline"}

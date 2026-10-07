@@ -4,7 +4,7 @@ import PrimaryPageLayout from '@/layouts/PrimaryPageLayout'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
 
 import { normalizeUrl, simplifyUrl } from '@/lib/url'
-import { Box } from 'lucide-react'
+import { IconBox as Box } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconBox'
 import { forwardRef, useMemo } from 'react'
 
 const RelayPage = forwardRef(({ url }: { url?: string }, ref) => {

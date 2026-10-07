@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import privateNotesService, { PrivateNote } from '@/services/private-notes.service'
-import { StickyNote } from 'lucide-react'
+import { IconNoteText as StickyNote } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconNoteText'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 

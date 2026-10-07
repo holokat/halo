@@ -1,6 +1,9 @@
 import RelayTutorialDialog from '@/components/RelayTutorialDialog'
 import { cn } from '@/lib/utils'
-import { Compass, Globe2, Star, Users } from 'lucide-react'
+import { IconCompassRound as Compass } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCompassRound'
+import { IconGlobe2 as Globe2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconGlobe2'
+import { IconStar as Star } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconStar'
+import { IconUserGroup as Users } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconUserGroup'
 import type { ComponentType } from 'react'
 
 type TPulseLane = {

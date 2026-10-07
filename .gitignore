@@ -39,3 +39,4 @@ dev-dist
 
 # Local Netlify folder
 .netlify
+public/generated/central-icons/

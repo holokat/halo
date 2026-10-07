@@ -8,18 +8,16 @@ import { useCustomFeeds } from '@/providers/CustomFeedsProvider'
 import { useFavoriteRelays } from '@/providers/FavoriteRelaysProvider'
 import { useFeed } from '@/providers/FeedProvider'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
-import {
-  BarChart3,
-  BookmarkIcon,
-  Box,
-  ChevronDown,
-  Hash,
-  Newspaper,
-  Search,
-  TrendingUp,
-  UserRound,
-  UsersRound
-} from 'lucide-react'
+import { IconChart1 as BarChart3 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconChart1'
+import { IconBookmark as BookmarkIcon } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconBookmark'
+import { IconBox as Box } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconBox'
+import { IconChevronBottom as ChevronDown } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconChevronBottom'
+import { IconHashtag as Hash } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconHashtag'
+import { IconNewspaper as Newspaper } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconNewspaper'
+import { IconMagnifyingGlass as Search } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconMagnifyingGlass'
+import { IconTrending1 as TrendingUp } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconTrending1'
+import { IconUser as UserRound } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconUser'
+import { IconUserGroup as UsersRound } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconUserGroup'
 import { forwardRef, HTMLAttributes, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 

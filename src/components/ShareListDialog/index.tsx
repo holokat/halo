@@ -13,7 +13,8 @@ import {
   DrawerTitle
 } from '@/components/ui/drawer'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
-import { Copy, Check } from 'lucide-react'
+import { IconSquareBehindSquare1 as Copy } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconSquareBehindSquare1'
+import { IconCheckmark1 as Check } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCheckmark1'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'

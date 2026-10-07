@@ -9,7 +9,13 @@ import { Label } from '@/components/ui/label'
 import UserAvatar from '@/components/UserAvatar'
 import { useFetchProfile, useFetchFollowings } from '@/hooks'
 import { toast } from 'sonner'
-import { Users, UserPlus, Eye, EyeOff, Download, Copy, Check } from 'lucide-react'
+import { IconUserGroup as Users } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconUserGroup'
+import { IconUserAdd as UserPlus } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconUserAdd'
+import { IconEyeOpen as Eye } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconEyeOpen'
+import { IconEyeSlash as EyeOff } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconEyeSlash'
+import { IconArrowInbox as Download } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconArrowInbox'
+import { IconSquareBehindSquare1 as Copy } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconSquareBehindSquare1'
+import { IconCheckmark1 as Check } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCheckmark1'
 import { Skeleton } from '@/components/ui/skeleton'
 import SignupProfile, {
   createSignupKeys,
@@ -299,14 +305,7 @@ Your private key is the only way to access your account. If you lose it, you los
     <div className="flex flex-col gap-6 animate-in fade-in duration-300">
       <div className="flex flex-col gap-6 text-center">
         <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mx-auto">
-          <svg
-            className="w-8 h-8 text-green-500"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
+          <Check className="w-8 h-8 text-green-500" />
         </div>
 
         <div>

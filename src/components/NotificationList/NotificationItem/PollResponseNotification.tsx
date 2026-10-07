@@ -1,6 +1,6 @@
 import { useFetchEvent } from '@/hooks'
 import { generateBech32IdFromETag, tagNameEquals } from '@/lib/tag'
-import { Vote } from 'lucide-react'
+import { IconSquareChecklist as Vote } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconSquareChecklist'
 import { Event } from 'nostr-tools'
 import { useMemo } from 'react'
 import Notification from './Notification'

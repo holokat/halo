@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { useTranslation } from 'react-i18next'
-import { ExternalLink } from 'lucide-react'
+import { IconSquareArrowTopRight as ExternalLink } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconSquareArrowTopRight'
 
 export default function CustomEmojisSetting() {
   const { t } = useTranslation()

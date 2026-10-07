@@ -1,5 +1,5 @@
 import { useLowBandwidthMode } from '@/providers/LowBandwidthModeProvider'
-import { Gauge } from 'lucide-react'
+import { IconGauge as Gauge } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconGauge'
 import { useTranslation } from 'react-i18next'
 import BottomNavigationBarItem from './BottomNavigationBarItem'
 
@@ -17,7 +17,7 @@ export default function SlowConnectionButton({ className }: { className?: string
       aria-label={`${t('Slow Connection Mode')}, ${stateLabel}`}
       aria-pressed={lowBandwidthMode}
     >
-      <Gauge strokeWidth={lowBandwidthMode ? 2.75 : 2} />
+      <Gauge />
     </BottomNavigationBarItem>
   )
 }

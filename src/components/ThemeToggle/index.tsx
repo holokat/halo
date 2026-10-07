@@ -1,6 +1,8 @@
 import { Button } from '@/components/ui/button'
 import { useTheme } from '@/providers/ThemeProvider'
-import { Moon, Sun, SunMoon } from 'lucide-react'
+import { IconMoon as Moon } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconMoon'
+import { IconSun as Sun } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconSun'
+import { IconAppearanceLightMode as SunMoon } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconAppearanceLightMode'
 import { useTranslation } from 'react-i18next'
 
 export default function ThemeToggle() {

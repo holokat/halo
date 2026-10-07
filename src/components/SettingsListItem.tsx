@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import { ChevronRight } from 'lucide-react'
+import { IconChevronRight as ChevronRight } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconChevronRight'
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react'
 
 const SettingsListItem = forwardRef<

@@ -6,7 +6,9 @@ import { useNostr } from '@/providers/NostrProvider'
 import inboxRelayRecommendationsService, {
   TInboxRelayRecommendation
 } from '@/services/inbox-relay-recommendations.service'
-import { Loader2, Plus, Sparkles } from 'lucide-react'
+import { IconLoadingCircle as Loader2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconLoadingCircle'
+import { IconPlusLarge as Plus } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconPlusLarge'
+import { IconSparklesThree as Sparkles } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconSparklesThree'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 

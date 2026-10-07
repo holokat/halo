@@ -1,4 +1,4 @@
-import { TriangleAlert } from 'lucide-react'
+import { IconWarningSign as TriangleAlert } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconWarningSign'
 
 export default function AlertCard({ title, content }: { title: string; content: string }) {
   return (

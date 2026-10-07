@@ -14,7 +14,10 @@ import {
   DrawerDescription
 } from '@/components/ui/drawer'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
-import { Code, Copy, Link, MoreVertical } from 'lucide-react'
+import { IconCode as Code } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCode'
+import { IconSquareBehindSquare1 as Copy } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconSquareBehindSquare1'
+import { IconChainLink1 as Link } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconChainLink1'
+import { IconDotGrid1x3Vertical as MoreVertical } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconDotGrid1x3Vertical'
 import { Event, nip19 } from 'nostr-tools'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'

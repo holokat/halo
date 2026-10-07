@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { RefreshCcw } from 'lucide-react'
+import { IconArrowRotateLeftRight as RefreshCcw } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconArrowRotateLeftRight'
 import { useState } from 'react'
 
 export function RefreshButton({ onClick }: { onClick: () => void }) {

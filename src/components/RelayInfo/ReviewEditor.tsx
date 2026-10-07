@@ -1,8 +1,10 @@
+import { IconStar as FilledStar } from '@central-icons-react/round-filled-radius-2-stroke-1.5/IconStar'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { createRelayReviewDraftEvent } from '@/lib/draft-event'
 import { useNostr } from '@/providers/NostrProvider'
-import { Loader2, Star } from 'lucide-react'
+import { IconLoadingCircle as Loader2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconLoadingCircle'
+import { IconStar as Star } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconStar'
 import { NostrEvent } from 'nostr-tools'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -62,8 +64,8 @@ export default function ReviewEditor({
               onMouseLeave={() => setHoverStars(0)}
             >
               {index < (hoverStars || stars) ? (
-                <Star
-                  className="size-6 text-yellow-400 fill-yellow-400"
+                <FilledStar
+                  className="size-6 text-yellow-400"
                   onClick={() => setStars(index + 1)}
                 />
               ) : (

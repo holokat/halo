@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button'
-import { Eye } from 'lucide-react'
+import { IconEyeOpen as Eye } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconEyeOpen'
 import { useTranslation } from 'react-i18next'
 
 export default function MutedNote({ show }: { show: () => void }) {

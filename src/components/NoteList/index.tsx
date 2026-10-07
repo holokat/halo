@@ -1,3 +1,4 @@
+import { PullToRefreshIndicator } from '@/components/icons/PullToRefreshIndicator'
 import NewNotesButton from '@/components/NewNotesButton'
 import { Button } from '@/components/ui/button'
 import { isTouchDevice } from '@/lib/utils'
@@ -479,6 +480,7 @@ const NoteList = forwardRef(
         <div ref={topRef} className="scroll-mt-[calc(6rem+1px)]" />
         {supportTouch ? (
           <PullToRefresh
+            refreshingContent={<PullToRefreshIndicator />}
             onRefresh={async () => {
               refresh()
               await new Promise((resolve) => setTimeout(resolve, 1000))

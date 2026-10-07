@@ -1,7 +1,7 @@
 import { SimpleUserAvatar } from '@/components/UserAvatar'
 import { usePrimaryPage } from '@/PageManager'
 import { useNostr } from '@/providers/NostrProvider'
-import { CircleUserRound } from 'lucide-react'
+import { IconCirclePerson as CircleUserRound } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCirclePerson'
 import { useTranslation } from 'react-i18next'
 import SidebarItem from './SidebarItem'
 
@@ -15,7 +15,7 @@ export default function AccountButton() {
       {pubkey ? (
         <SimpleUserAvatar userId={pubkey} size="small" />
       ) : (
-        <CircleUserRound strokeWidth={1.8} />
+        <CircleUserRound />
       )}
     </SidebarItem>
   )

@@ -1,3 +1,4 @@
+import { IconSun as FilledSun } from '@central-icons-react/round-filled-radius-2-stroke-1.5/IconSun'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
@@ -44,7 +45,20 @@ import { useTheme } from '@/providers/ThemeProvider'
 import { useColorPalette } from '@/providers/ColorPaletteProvider'
 import { useUserPreferences } from '@/providers/UserPreferencesProvider'
 import { TFontFamily, TPrimaryColor, TColorPalette } from '@/types'
-import { Check, Moon, Sun, Monitor, LayoutGrid, Maximize2, List, FileText, Columns, PencilLine, Image, Sparkles, Minus, AlignLeft } from 'lucide-react'
+import { IconCheckmark1 as Check } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCheckmark1'
+import { IconMoon as Moon } from '@central-icons-react/round-filled-radius-2-stroke-1.5/IconMoon'
+import { IconSun as Sun } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconSun'
+import { IconStudioDisplay as Monitor } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconStudioDisplay'
+import { IconLayoutGrid1 as LayoutGrid } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconLayoutGrid1'
+import { IconExpand as Maximize2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconExpand'
+import { IconListBullets as List } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconListBullets'
+import { IconFileText as FileText } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconFileText'
+import { IconColumns3 as Columns } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconColumns3'
+import { IconPencilLine as PencilLine } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconPencilLine'
+import { IconImages1 as Image } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconImages1'
+import { IconSparklesThree as Sparkles } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconSparklesThree'
+import { IconMinusLarge as Minus } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconMinusLarge'
+import { IconAlignmentLeft as AlignLeft } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconAlignmentLeft'
 import { forwardRef, HTMLProps, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -120,9 +134,9 @@ const AppearanceSettingsPage = forwardRef(({ index }: { index?: number }, ref) =
       case 'dark':
         return <Moon className="w-5 h-5" />
       case 'pure-black':
-        return <Moon className="w-5 h-5 fill-current" />
+        return <Moon className="w-5 h-5" />
       case 'white':
-        return <Sun className="w-5 h-5 stroke-[3]" />
+        return <FilledSun className="w-5 h-5" />
       case 'system':
         return <Monitor className="w-5 h-5" />
       default:

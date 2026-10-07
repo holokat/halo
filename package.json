@@ -12,6 +12,9 @@
   },
   "homepage": "https://github.com/karnagebitcoin/halo",
   "scripts": {
+    "icons:generate": "node ./scripts/generate-central-icon-assets.mjs",
+    "predev": "npm run icons:generate",
+    "prebuild": "npm run icons:generate",
     "dev": "vite --host",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
@@ -31,6 +34,8 @@
     "prepare": "npm run guardrails:install-hooks"
   },
   "dependencies": {
+    "@central-icons-react/round-filled-radius-2-stroke-1.5": "1.2.3",
+    "@central-icons-react/round-outlined-radius-2-stroke-1.5": "1.2.3",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/modifiers": "^9.0.0",
     "@dnd-kit/sortable": "^10.0.0",
@@ -85,7 +90,6 @@
     "i18next-browser-languagedetector": "^8.0.4",
     "jotai": "^2.15.0",
     "lru-cache": "^11.0.2",
-    "lucide-react": "^0.469.0",
     "next-themes": "^0.4.6",
     "nostr-tools": "^2.17.0",
     "nstart-modal": "^2.0.0",

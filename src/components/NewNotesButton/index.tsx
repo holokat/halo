@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button'
 import { SimpleUserAvatar } from '@/components/UserAvatar'
 import { cn } from '@/lib/utils'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
-import { ArrowUp } from 'lucide-react'
+import { IconArrowUp as ArrowUp } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconArrowUp'
 import { Event } from 'nostr-tools'
 import { useMemo } from 'react'
 

@@ -1,7 +1,9 @@
 import { cn } from '@/lib/utils'
 import { useFeed } from '@/providers/FeedProvider'
 import { useNostr } from '@/providers/NostrProvider'
-import { Bookmark, TrendingUp, UsersRound } from 'lucide-react'
+import { IconBookmark as Bookmark } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconBookmark'
+import { IconTrending1 as TrendingUp } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconTrending1'
+import { IconUserGroup as UsersRound } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconUserGroup'
 import { useTranslation } from 'react-i18next'
 
 export default function FeedSwitcher({ close }: { close?: () => void }) {

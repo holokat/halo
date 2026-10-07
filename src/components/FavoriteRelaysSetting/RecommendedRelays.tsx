@@ -3,7 +3,9 @@ import { useFavoriteRelays } from '@/providers/FavoriteRelaysProvider'
 import { useTranslation } from 'react-i18next'
 import { useEffect, useState } from 'react'
 import RelayIcon from '../RelayIcon'
-import { Compass, Languages, Plus } from 'lucide-react'
+import { IconCompassRound as Compass } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCompassRound'
+import { IconTranslate as Languages } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconTranslate'
+import { IconPlusLarge as Plus } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconPlusLarge'
 
 // Map browser language codes to lang.relays.land relays
 const LANGUAGE_RELAY_MAP: Record<string, string> = {

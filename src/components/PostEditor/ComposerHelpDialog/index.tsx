@@ -3,7 +3,9 @@ import { Drawer, DrawerContent, DrawerTrigger } from '@/components/ui/drawer'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Sparkles, Smile, AtSign } from 'lucide-react'
+import { IconSparklesThree as Sparkles } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconSparklesThree'
+import { IconEmojiSmile as Smile } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconEmojiSmile'
+import { IconAt as AtSign } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconAt'
 
 export default function ComposerHelpDialog({ children }: { children: React.ReactNode }) {
   const { isSmallScreen } = useScreenSize()

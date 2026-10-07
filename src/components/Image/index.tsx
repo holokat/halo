@@ -4,7 +4,7 @@ import client from '@/services/client.service'
 import { TImetaInfo } from '@/types'
 import { getHashFromURL } from 'blossom-client-sdk'
 import { decode } from 'blurhash'
-import { ImageOff } from 'lucide-react'
+import { IconCirclePlaceholderOff as ImageOff } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCirclePlaceholderOff'
 import { HTMLAttributes, useEffect, useMemo, useRef, useState } from 'react'
 
 export default function Image({

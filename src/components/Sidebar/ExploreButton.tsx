@@ -1,5 +1,5 @@
 import { usePrimaryPage } from '@/PageManager'
-import { Search } from 'lucide-react'
+import { IconMagnifyingGlass as Search } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconMagnifyingGlass'
 import { useTranslation } from 'react-i18next'
 import SidebarItem from './SidebarItem'
 
@@ -13,7 +13,7 @@ export default function RelaysButton() {
       onClick={() => navigate('explore')}
       active={current === 'explore'}
     >
-      <Search strokeWidth={1.3} />
+      <Search />
     </SidebarItem>
   )
 }

@@ -11,7 +11,8 @@ import {
 } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { TLastActivityData } from '@/hooks'
-import { Clock, Info } from 'lucide-react'
+import { IconClock as Clock } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconClock'
+import { IconCircleInfo as Info } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCircleInfo'
 import { useMemo } from 'react'
 
 export default function UserItem({

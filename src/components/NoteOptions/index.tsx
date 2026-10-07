@@ -1,5 +1,5 @@
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
-import { Ellipsis } from 'lucide-react'
+import { IconDotGrid1x3Horizontal as Ellipsis } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconDotGrid1x3Horizontal'
 import { Event } from 'nostr-tools'
 import { useState } from 'react'
 import { DesktopMenu } from './DesktopMenu'

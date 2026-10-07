@@ -5,6 +5,7 @@ import NpubQrCode from '@/components/NpubQrCode'
 import ProfileAbout from '@/components/ProfileAbout'
 import ProfileBanner from '@/components/ProfileBanner'
 import ProfileOptions from '@/components/ProfileOptions'
+import { lightboxRender } from '@/components/icons/lightbox'
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -20,7 +21,8 @@ import { useMuteList } from '@/providers/MuteListProvider'
 import { useNostr } from '@/providers/NostrProvider'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import client from '@/services/client.service'
-import { BellOff, Link } from 'lucide-react'
+import { IconBellOff as BellOff } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconBellOff'
+import { IconChainLink1 as Link } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconChainLink1'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
@@ -282,6 +284,7 @@ export default function Profile({
               index={avatarLightboxIndex}
               slides={[{ src: avatar }]}
               plugins={[Zoom]}
+              render={lightboxRender}
               open={avatarLightboxIndex >= 0}
               close={() => setAvatarLightboxIndex(-1)}
               controller={{
@@ -304,6 +307,7 @@ export default function Profile({
               index={bannerLightboxIndex}
               slides={[{ src: banner }]}
               plugins={[Zoom]}
+              render={lightboxRender}
               open={bannerLightboxIndex >= 0}
               close={() => setBannerLightboxIndex(-1)}
               controller={{

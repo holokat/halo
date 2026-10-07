@@ -5,7 +5,10 @@ import mediaManager from '@/services/media-manager.service'
 import { Event } from 'nostr-tools'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Minimize2, Music2, Pause, Play } from 'lucide-react'
+import { IconMinimize as Minimize2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconMinimize'
+import { IconAudio as Music2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconAudio'
+import { IconPause as Pause } from '@central-icons-react/round-filled-radius-2-stroke-1.5/IconPause'
+import { IconPlay as Play } from '@central-icons-react/round-filled-radius-2-stroke-1.5/IconPlay'
 import ExternalLink from '../ExternalLink'
 import Image from '../Image'
 
@@ -188,9 +191,9 @@ export default function MusicTrack({ event, className }: MusicTrackProps) {
               }}
             >
               {isPlaying ? (
-                <Pause className="h-4 w-4" fill="currentColor" />
+                <Pause className="h-4 w-4" />
               ) : (
-                <Play className="h-4 w-4" fill="currentColor" />
+                <Play className="h-4 w-4" />
               )}
             </Button>
 

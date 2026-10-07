@@ -1,7 +1,11 @@
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { TLocalPostDraft } from '@/types'
-import { Clock3, FileText, Image as ImageIcon, ListTodo, Trash2 } from 'lucide-react'
+import { IconClock3OClock as Clock3 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconClock3OClock'
+import { IconFileText as FileText } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconFileText'
+import { IconImages1 as ImageIcon } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconImages1'
+import { IconChecklist as ListTodo } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconChecklist'
+import { IconTrashCan as Trash2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconTrashCan'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 

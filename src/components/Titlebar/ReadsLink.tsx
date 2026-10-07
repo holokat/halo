@@ -1,6 +1,6 @@
 import { usePrimaryPage } from '@/PageManager'
 import { Button } from '@/components/ui/button'
-import { BookOpen } from 'lucide-react'
+import { IconBook as BookOpen } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconBook'
 
 export default function ReadsLink() {
   const { navigate, current } = usePrimaryPage()

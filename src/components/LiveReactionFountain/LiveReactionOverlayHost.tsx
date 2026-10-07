@@ -1,6 +1,6 @@
 import Emoji from '@/components/Emoji'
 import { TLiveReactionFountainVisual } from '@/lib/live-reaction-fountain'
-import { Heart } from 'lucide-react'
+import { IconHeart as Heart } from '@central-icons-react/round-filled-radius-2-stroke-1.5/IconHeart'
 import { CSSProperties } from 'react'
 
 export type TLiveReactionOverlayParticle = {
@@ -50,7 +50,7 @@ export function LiveReactionOverlayHost({
               }
             >
               {particle.visual.kind === 'heart' ? (
-                <Heart className="size-7 fill-red-400 text-red-400 drop-shadow-sm" />
+                <Heart className="size-7 text-red-400 drop-shadow-sm" />
               ) : (
                 <Emoji
                   emoji={particle.visual.emoji}

@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils'
 import { useDeepBrowsing } from '@/providers/DeepBrowsingProvider'
 import { hasBackgroundAudioAtom } from '@/services/media-manager.service'
 import { useAtomValue } from 'jotai'
-import { ChevronUp } from 'lucide-react'
+import { IconChevronTop as ChevronUp } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconChevronTop'
 
 export default function ScrollToTopButton({
   scrollAreaRef,

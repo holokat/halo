@@ -2,7 +2,8 @@ import { useDeckView } from '@/providers/DeckViewProvider'
 import { useLayoutMode } from '@/providers/LayoutModeProvider'
 import { useCompactSidebar } from '@/providers/CompactSidebarProvider'
 import { DECK_VIEW_MODE, LAYOUT_MODE } from '@/constants'
-import { Columns2, Columns } from 'lucide-react'
+import { IconLayoutColumn as Columns2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconLayoutColumn'
+import { IconColumns3 as Columns } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconColumns3'
 import { useTranslation } from 'react-i18next'
 import SidebarItem from './SidebarItem'
 
@@ -34,7 +35,7 @@ export default function MultiColumnToggle() {
       onClick={handleToggle}
       active={isMultiColumn}
     >
-      {isMultiColumn ? <Columns strokeWidth={1.3} /> : <Columns2 strokeWidth={1.3} />}
+      {isMultiColumn ? <Columns /> : <Columns2 />}
     </SidebarItem>
   )
 }

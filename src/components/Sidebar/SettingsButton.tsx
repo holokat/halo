@@ -1,6 +1,6 @@
 import { toSettings } from '@/lib/link'
 import { useSecondaryPage } from '@/PageManager'
-import { Settings } from 'lucide-react'
+import { IconSettingsGear1 as Settings } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconSettingsGear1'
 import { useTranslation } from 'react-i18next'
 import SidebarItem from './SidebarItem'
 
@@ -10,7 +10,7 @@ export default function SettingsButton() {
 
   return (
     <SidebarItem title={t('Settings')} onClick={() => push(toSettings())}>
-      <Settings strokeWidth={1.3} />
+      <Settings />
     </SidebarItem>
   )
 }
