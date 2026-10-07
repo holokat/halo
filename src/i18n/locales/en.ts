@@ -7,6 +7,20 @@ export default {
     Home: 'Home',
     'Relay settings': 'Relay settings',
     Settings: 'Settings',
+    'Language and layout': 'Language and layout',
+    'Media and bandwidth': 'Media and bandwidth',
+    'Text Only Mode': 'Text only mode',
+    'Slow Connection Mode': 'Slow connection mode',
+    'Disable Avatar Animations': 'Disable avatar animations',
+    'Distraction-Free Mode': 'Distraction-free mode',
+    'Replace images and videos with load links.': 'Replace images and videos with load links.',
+    'Use only relay.damus.io and hide reactions.': 'Use only relay.damus.io and hide reactions.',
+    'Pause profile GIFs. GIFs in notes keep playing.':
+      'Pause profile GIFs. GIFs in notes keep playing.',
+    'Hide badges, tab unread counts, and new-note prompts. Notifications still load.':
+      'Hide badges, tab unread counts, and new-note prompts. Notifications still load.',
+    'Show badges, tab unread counts, and new-note prompts.':
+      'Show badges, tab unread counts, and new-note prompts.',
     SidebarRelays: 'Relays',
     'Live Chat': 'Live Chat',
     'No messages yet. Be the first to chat!': 'No messages yet. Be the first to chat!',

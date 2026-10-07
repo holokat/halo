@@ -1,22 +1,29 @@
+import Tabs from '@/components/Tabs'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import Tabs from '@/components/Tabs'
 import { DISTRACTION_FREE_MODE } from '@/constants'
 import { LocalizedLanguageNames, TLanguage } from '@/i18n'
 import SecondaryPageLayout from '@/layouts/SecondaryPageLayout'
-import { cn } from '@/lib/utils'
+import { useDisableAvatarAnimations } from '@/providers/DisableAvatarAnimationsProvider'
 import { useDistractionFreeMode } from '@/providers/DistractionFreeModeProvider'
+import { useLowBandwidthMode } from '@/providers/LowBandwidthModeProvider'
 import { useReadsVisibility } from '@/providers/ReadsVisibilityProvider'
 import { useRTL } from '@/providers/RTLProvider'
 import { useTextOnlyMode } from '@/providers/TextOnlyModeProvider'
-import { useLowBandwidthMode } from '@/providers/LowBandwidthModeProvider'
-import { useDisableAvatarAnimations } from '@/providers/DisableAvatarAnimationsProvider'
+import { TDistractionFreeMode } from '@/types'
+import { IconAlignmentRight } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconAlignmentRight'
+import { IconBellActive } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconBellActive'
+import { IconBellOff } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconBellOff'
+import { IconBook } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconBook'
+import { IconCheckmark1 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCheckmark1'
+import { IconGlobe } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconGlobe'
+import { IconTextBlock } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconTextBlock'
+import { IconUser } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconUser'
+import { IconWifiWeak } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconWifiWeak'
+import * as RadioGroup from '@radix-ui/react-radio-group'
 import { SelectValue } from '@radix-ui/react-select'
-import { IconCheckmark1 as Check } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCheckmark1'
-import { IconBellOff as BellOff } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconBellOff'
-import { IconBellActive as BellRing } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconBellActive'
-import { forwardRef, HTMLProps, useState } from 'react'
+import { forwardRef, ReactNode, useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 function getInitialTab() {
@@ -34,6 +41,8 @@ const GeneralSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
   const { textOnlyMode, setTextOnlyMode } = useTextOnlyMode()
   const { lowBandwidthMode, setLowBandwidthMode } = useLowBandwidthMode()
   const { disableAvatarAnimations, setDisableAvatarAnimations } = useDisableAvatarAnimations()
+  const focusLabelId = useId()
+  const focusDescriptionId = useId()
 
   const handleLanguageChange = (value: TLanguage) => {
     i18n.changeLanguage(value)
@@ -45,165 +54,174 @@ const GeneralSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
     { value: 'display', label: t('Display') }
   ]
 
-  // Style object for option cards to use card radius
-  const optionCardStyle = { borderRadius: 'var(--card-radius, 8px)' }
-
   return (
     <SecondaryPageLayout ref={ref} index={index} title={t('Reading')}>
       <div className="mt-3">
         <Tabs tabs={tabDefinitions} value={activeTab} onTabChange={setActiveTab} threshold={0} />
 
-        {/* INTERFACE TAB */}
         {activeTab === 'interface' && (
-          <div className="space-y-4 mt-4">
-            <SettingItem>
-              <Label htmlFor="languages" className="text-base font-normal">
-                {t('Languages')}
-              </Label>
-              <Select defaultValue="en" value={language} onValueChange={handleLanguageChange}>
-                <SelectTrigger id="languages" className="w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(LocalizedLanguageNames).map(([key, value]) => (
-                    <SelectItem key={key} value={key}>
-                      {value}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </SettingItem>
-            {showRTLToggle && (
-              <SettingItem>
-                <Label htmlFor="rtl-mode" className="text-base font-normal">
-                  {t('Right-to-left layout')}
-                </Label>
-                <Switch id="rtl-mode" checked={isRTL} onCheckedChange={toggleRTL} />
-              </SettingItem>
-            )}
-            <SettingItem>
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="text-only-mode" className="text-base font-normal">
-                  {t('Text Only Mode')}
-                </Label>
-                <p className="text-sm text-muted-foreground">
-                  {t(
-                    'Strip media from notes and profiles to reduce bandwidth usage. Images and videos will be replaced with clickable load links.'
-                  )}
-                </p>
-              </div>
-              <Switch
-                id="text-only-mode"
-                checked={textOnlyMode}
-                onCheckedChange={setTextOnlyMode}
-              />
-            </SettingItem>
-            <SettingItem>
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="slow-connection-mode" className="text-base font-normal">
-                  {t('Slow Connection Mode')}
-                </Label>
-                <p className="text-sm text-muted-foreground">
-                  {t(
-                    'Connect to only relay.damus.io and hide reactions. Optimized for slow connections.'
-                  )}
-                </p>
-              </div>
-              <Switch
-                id="slow-connection-mode"
-                checked={lowBandwidthMode}
-                onCheckedChange={setLowBandwidthMode}
-              />
-            </SettingItem>
-            <SettingItem>
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="disable-avatar-animations" className="text-base font-normal">
-                  {t('Disable Avatar Animations')}
-                </Label>
-                <p className="text-sm text-muted-foreground">
-                  {t(
-                    'Stop animated GIFs in profile avatars. Only affects avatars, not GIFs in notes.'
-                  )}
-                </p>
-              </div>
-              <Switch
-                id="disable-avatar-animations"
-                checked={disableAvatarAnimations}
-                onCheckedChange={setDisableAvatarAnimations}
-              />
-            </SettingItem>
-            <SettingItem className="flex-col items-start gap-3">
-              <Label className="text-base font-normal">{t('Distraction-Free Mode')}</Label>
-              <p className="text-sm text-muted-foreground">
-                {t(
-                  'Choose how much attention-grabbing UI you want. Focus mode hides notification badges and new-notes nudges, but notifications still load in the Notifications page.'
+          <div className="space-y-6 px-4 py-5">
+            <section className="space-y-2.5">
+              <h2 className="px-1 text-xs font-medium text-muted-foreground">
+                {t('Language and layout')}
+              </h2>
+              <div className="divide-y divide-border/50 rounded-2xl border border-border/70 bg-card/50">
+                <SettingRow id="languages" label={t('Languages')} icon={<IconGlobe />}>
+                  <Select value={language} onValueChange={handleLanguageChange}>
+                    <SelectTrigger id="languages" className="h-10 w-36 sm:w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(LocalizedLanguageNames).map(([key, value]) => (
+                        <SelectItem key={key} value={key}>
+                          {value}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </SettingRow>
+                {showRTLToggle && (
+                  <SettingRow
+                    id="rtl-mode"
+                    label={t('Right-to-left layout')}
+                    icon={<IconAlignmentRight />}
+                  >
+                    <Switch
+                      id="rtl-mode"
+                      className="relative before:absolute before:-inset-3"
+                      checked={isRTL}
+                      onCheckedChange={toggleRTL}
+                    />
+                  </SettingRow>
                 )}
-              </p>
-              <div className="grid grid-cols-2 gap-3 w-full">
-                <button
-                  onClick={() => setDistractionFreeMode(DISTRACTION_FREE_MODE.DRAIN_MY_TIME)}
-                  style={optionCardStyle}
-                  className={cn(
-                    'relative flex flex-col items-center gap-2 p-3 border-2 transition-all hover:scale-105',
-                    distractionFreeMode === DISTRACTION_FREE_MODE.DRAIN_MY_TIME
-                      ? 'border-primary'
-                      : 'border-border hover:border-muted-foreground/30'
-                  )}
-                >
-                  <div className="flex items-center justify-center w-8 h-8">
-                    <BellRing className="w-5 h-5" />
-                  </div>
-                  <span className="text-xs font-medium">{t('Drain my time')}</span>
-                  <span className="text-[11px] text-muted-foreground text-center">
-                    {t('Show all badges and new note prompts.')}
-                  </span>
-                  {distractionFreeMode === DISTRACTION_FREE_MODE.DRAIN_MY_TIME && (
-                    <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-0.5">
-                      <Check className="w-3 h-3" />
-                    </div>
-                  )}
-                </button>
-                <button
-                  onClick={() => setDistractionFreeMode(DISTRACTION_FREE_MODE.FOCUS_MODE)}
-                  style={optionCardStyle}
-                  className={cn(
-                    'relative flex flex-col items-center gap-2 p-3 border-2 transition-all hover:scale-105',
-                    distractionFreeMode === DISTRACTION_FREE_MODE.FOCUS_MODE
-                      ? 'border-primary'
-                      : 'border-border hover:border-muted-foreground/30'
-                  )}
-                >
-                  <div className="flex items-center justify-center w-8 h-8">
-                    <BellOff className="w-5 h-5" />
-                  </div>
-                  <span className="text-xs font-medium">{t('Focus mode')}</span>
-                  <span className="text-[11px] text-muted-foreground text-center">
-                    {t('Hide badge dots, tab unread count, and new note prompts.')}
-                  </span>
-                  {distractionFreeMode === DISTRACTION_FREE_MODE.FOCUS_MODE && (
-                    <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-0.5">
-                      <Check className="w-3 h-3" />
-                    </div>
-                  )}
-                </button>
               </div>
-            </SettingItem>
+            </section>
+
+            <section className="space-y-2.5">
+              <h2 className="px-1 text-xs font-medium text-muted-foreground">
+                {t('Media and bandwidth')}
+              </h2>
+              <div className="divide-y divide-border/50 rounded-2xl border border-border/70 bg-card/50">
+                <SettingRow
+                  id="text-only-mode"
+                  label={t('Text Only Mode')}
+                  description={t('Replace images and videos with load links.')}
+                  icon={<IconTextBlock />}
+                >
+                  <Switch
+                    id="text-only-mode"
+                    aria-labelledby="text-only-mode-label"
+                    aria-describedby="text-only-mode-description"
+                    className="relative before:absolute before:-inset-3"
+                    checked={textOnlyMode}
+                    onCheckedChange={setTextOnlyMode}
+                  />
+                </SettingRow>
+                <SettingRow
+                  id="slow-connection-mode"
+                  label={t('Slow Connection Mode')}
+                  description={t('Use only relay.damus.io and hide reactions.')}
+                  icon={<IconWifiWeak />}
+                >
+                  <Switch
+                    id="slow-connection-mode"
+                    aria-labelledby="slow-connection-mode-label"
+                    aria-describedby="slow-connection-mode-description"
+                    className="relative before:absolute before:-inset-3"
+                    checked={lowBandwidthMode}
+                    onCheckedChange={setLowBandwidthMode}
+                  />
+                </SettingRow>
+                <SettingRow
+                  id="disable-avatar-animations"
+                  label={t('Disable Avatar Animations')}
+                  description={t('Pause profile GIFs. GIFs in notes keep playing.')}
+                  icon={<IconUser />}
+                >
+                  <Switch
+                    id="disable-avatar-animations"
+                    aria-labelledby="disable-avatar-animations-label"
+                    aria-describedby="disable-avatar-animations-description"
+                    className="relative before:absolute before:-inset-3"
+                    checked={disableAvatarAnimations}
+                    onCheckedChange={setDisableAvatarAnimations}
+                  />
+                </SettingRow>
+              </div>
+            </section>
+
+            <section className="space-y-2.5">
+              <h2 id={focusLabelId} className="px-1 text-xs font-medium text-muted-foreground">
+                {t('Distraction-Free Mode')}
+              </h2>
+              <div className="space-y-3 rounded-2xl border border-border/70 bg-card/50 p-3">
+                <RadioGroup.Root
+                  aria-labelledby={focusLabelId}
+                  aria-describedby={focusDescriptionId}
+                  orientation="horizontal"
+                  value={distractionFreeMode}
+                  onValueChange={(value: TDistractionFreeMode) => setDistractionFreeMode(value)}
+                  className="grid grid-cols-2 gap-2"
+                >
+                  {[
+                    {
+                      value: DISTRACTION_FREE_MODE.DRAIN_MY_TIME,
+                      label: t('Drain my time'),
+                      Icon: IconBellActive
+                    },
+                    {
+                      value: DISTRACTION_FREE_MODE.FOCUS_MODE,
+                      label: t('Focus mode'),
+                      Icon: IconBellOff
+                    }
+                  ].map(({ value, label, Icon }) => (
+                    <RadioGroup.Item
+                      key={value}
+                      value={value}
+                      className="group relative flex min-h-12 items-center justify-center gap-2 rounded-xl border border-foreground/10 bg-background/60 px-2 py-3 text-xs font-medium text-muted-foreground transition-[background-color,border-color,color,box-shadow,transform] hover:bg-muted/50 hover:text-foreground active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background data-[state=checked]:border-primary/40 data-[state=checked]:bg-primary/5 data-[state=checked]:text-foreground data-[state=checked]:shadow-sm sm:text-sm"
+                    >
+                      <Icon
+                        className="size-4 shrink-0 group-data-[state=checked]:text-primary"
+                        aria-hidden="true"
+                      />
+                      <span>{label}</span>
+                      <RadioGroup.Indicator
+                        className="absolute right-1 top-1 flex size-3 items-center justify-center rounded-full bg-primary text-primary-foreground"
+                        aria-hidden="true"
+                      >
+                        <IconCheckmark1 className="size-2" />
+                      </RadioGroup.Indicator>
+                    </RadioGroup.Item>
+                  ))}
+                </RadioGroup.Root>
+                <p id={focusDescriptionId} className="px-1 text-xs leading-5 text-muted-foreground">
+                  {distractionFreeMode === DISTRACTION_FREE_MODE.FOCUS_MODE
+                    ? t(
+                        'Hide badges, tab unread counts, and new-note prompts. Notifications still load.'
+                      )
+                    : t('Show badges, tab unread counts, and new-note prompts.')}
+                </p>
+              </div>
+            </section>
           </div>
         )}
 
-        {/* DISPLAY TAB */}
         {activeTab === 'display' && (
-          <div className="space-y-4 mt-4">
-            <SettingItem>
-              <Label htmlFor="show-reads-in-profiles" className="text-base font-normal">
-                {t('Show reads in profiles', { defaultValue: 'Show reads in profiles' })}
-              </Label>
-              <Switch
+          <div className="px-4 py-5">
+            <div className="rounded-2xl border border-border/70 bg-card/50">
+              <SettingRow
                 id="show-reads-in-profiles"
-                checked={!hideReadsInProfiles}
-                onCheckedChange={(checked) => setHideReadsInProfiles(!checked)}
-              />
-            </SettingItem>
+                label={t('Show reads in profiles', { defaultValue: 'Show reads in profiles' })}
+                icon={<IconBook />}
+              >
+                <Switch
+                  id="show-reads-in-profiles"
+                  className="relative before:absolute before:-inset-3"
+                  checked={!hideReadsInProfiles}
+                  onCheckedChange={(checked) => setHideReadsInProfiles(!checked)}
+                />
+              </SettingRow>
+            </div>
           </div>
         )}
       </div>
@@ -213,20 +231,46 @@ const GeneralSettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
 GeneralSettingsPage.displayName = 'GeneralSettingsPage'
 export default GeneralSettingsPage
 
-const SettingItem = forwardRef<HTMLDivElement, HTMLProps<HTMLDivElement>>(
-  ({ children, className, ...props }, ref) => {
-    return (
-      <div
-        className={cn(
-          'flex justify-between select-none items-center px-4 min-h-9 [&_svg]:size-4 [&_svg]:shrink-0',
-          className
-        )}
-        {...props}
-        ref={ref}
+function SettingRow({
+  id,
+  label,
+  description,
+  icon,
+  children
+}: {
+  id: string
+  label: string
+  description?: string
+  icon: ReactNode
+  children: ReactNode
+}) {
+  return (
+    <div className="flex items-center gap-3 px-4 py-3.5">
+      <Label
+        htmlFor={id}
+        className="flex min-h-10 min-w-0 flex-1 cursor-pointer items-center gap-3"
       >
-        {children}
-      </div>
-    )
-  }
-)
-SettingItem.displayName = 'SettingItem'
+        <span
+          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary [&_svg]:size-[18px]"
+          aria-hidden="true"
+        >
+          {icon}
+        </span>
+        <span className="min-w-0">
+          <span id={`${id}-label`} className="block text-sm font-medium leading-5">
+            {label}
+          </span>
+          {description && (
+            <span
+              id={`${id}-description`}
+              className="mt-1 block text-xs font-normal leading-5 text-muted-foreground"
+            >
+              {description}
+            </span>
+          )}
+        </span>
+      </Label>
+      <div className="flex min-h-10 shrink-0 items-center">{children}</div>
+    </div>
+  )
+}
