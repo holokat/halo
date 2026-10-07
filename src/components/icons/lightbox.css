@@ -1,0 +1,73 @@
+.yarl__portal {
+  --yarl__icon_size: 24px;
+  --yarl__button_padding: 10px;
+  --yarl__button_filter: none;
+  --yarl__navigation_button_padding: 10px;
+  --yarl__color_button: rgba(255, 255, 255, 0.8);
+  --yarl__color_button_disabled: rgba(255, 255, 255, 0.25);
+}
+
+.yarl__toolbar {
+  gap: 8px;
+  padding-right: max(16px, env(safe-area-inset-right));
+  padding-left: max(16px, env(safe-area-inset-left));
+}
+
+.yarl__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.06);
+  transition:
+    background-color 150ms ease,
+    color 150ms ease,
+    scale 150ms ease;
+}
+
+.yarl__button:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 3px;
+}
+
+@media (hover: hover) {
+  .yarl__button:not(:disabled):hover {
+    background-color: rgba(255, 255, 255, 0.14);
+  }
+}
+
+.yarl__button:not(:disabled):active {
+  scale: 0.96;
+}
+
+.yarl__button:disabled {
+  background-color: transparent;
+}
+
+.yarl__navigation_prev {
+  left: max(16px, env(safe-area-inset-left));
+}
+
+.yarl__navigation_next {
+  right: max(16px, env(safe-area-inset-right));
+}
+
+[dir='rtl'] .yarl__navigation_prev {
+  right: max(16px, env(safe-area-inset-right));
+}
+
+[dir='rtl'] .yarl__navigation_next {
+  left: max(16px, env(safe-area-inset-left));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yarl__button {
+    transition: none;
+  }
+
+  .yarl__button:not(:disabled):active {
+    scale: 1;
+  }
+}

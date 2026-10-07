@@ -1,3 +1,5 @@
+import './lightbox.css'
+
 import { IconChevronLeft } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconChevronLeft'
 import { IconChevronRight } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconChevronRight'
 import { IconCrossLarge } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCrossLarge'
