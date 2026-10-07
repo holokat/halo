@@ -1,3 +1,4 @@
+import Logo from '@/assets/Logo'
 import BookmarkList from '@/components/BookmarkList'
 import NormalFeed from '@/components/NormalFeed'
 import RelayInfo from '@/components/RelayInfo'
@@ -220,16 +221,18 @@ function NoteListPageTitlebar({
 
   if (isSmallScreen) {
     return (
-      <div className="flex h-full w-full items-center justify-end pr-1">
+      <div className="flex h-full w-full items-center justify-between px-1">
+        <Logo className="size-11 [&_svg]:!size-full" />
         <FeedButton />
       </div>
     )
   }
 
   return (
-    <div className="flex gap-1 items-center h-full justify-between">
-      <FeedButton className="flex-1 max-w-fit w-0" />
-      <div className="shrink-0 flex gap-1 items-center">
+    <div className="flex h-full w-full min-w-0 items-center gap-3 pl-2">
+      <Logo className="size-10 [&_svg]:!size-full" />
+      <div className="flex h-full min-w-0 flex-1 items-center justify-end gap-1">
+        <FeedButton className="min-w-0 max-w-fit" />
         {pinButton}
         {setShowRelayDetails && (
           <Button

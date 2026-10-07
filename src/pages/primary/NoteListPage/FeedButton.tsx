@@ -57,7 +57,7 @@ export default function FeedButton({ className }: { className?: string }) {
       <PopoverTrigger asChild>
         <FeedSwitcherTrigger className={className} />
       </PopoverTrigger>
-      <PopoverContent sideOffset={0} side="bottom" className="w-72 p-3">
+      <PopoverContent align="end" sideOffset={0} side="bottom" className="w-72 p-3">
         <FeedSwitcher close={() => setOpen(false)} />
       </PopoverContent>
     </Popover>
