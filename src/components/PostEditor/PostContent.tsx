@@ -1,8 +1,10 @@
+import GifPicker from '@/components/GifPicker'
+import GifIcon from '@/components/icons/GifIcon'
 import UserAvatar from '@/components/UserAvatar'
 import { Button } from '@/components/ui/button'
 import { deleteDraftEventCache } from '@/lib/draft-event'
 import { minePow } from '@/lib/event'
-import { createDefaultPollCreateData, normalizePollCreateData } from '@/lib/poll'
+import { createDefaultPollCreateData, getDefaultPollEndsAt, normalizePollCreateData } from '@/lib/poll'
 import { cn } from '@/lib/utils'
 import { useNostr } from '@/providers/NostrProvider'
 import { useReply } from '@/providers/ReplyProvider'
@@ -15,6 +17,7 @@ import { TLocalPostDraft, TPollCreateData } from '@/types'
 import { IconCirclePerson as CircleUserRound } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCirclePerson'
 import { IconAddImage as ImageUp } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconAddImage'
 import { IconLoadingCircle as LoaderCircle } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconLoadingCircle'
+import { IconChecklist as ListTodo } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconChecklist'
 import { IconCrossLarge as X } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCrossLarge'
 import { Event, kinds, nip19 } from 'nostr-tools'
 import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -530,6 +533,27 @@ export default function PostContent({
     }
   }, [isPoll])
 
+  const handlePollToggle = () => {
+    if (parentEvent) return
+
+    const isPristinePollDraft =
+      !pollCreateData.isMultipleChoice &&
+      pollCreateData.relays.length === 0 &&
+      pollCreateData.options.every((option) => !option.label.trim() && !option.image)
+
+    if (!isPoll && isPristinePollDraft && typeof pollCreateData.endsAt !== 'number') {
+      setPollCreateData((current) => ({ ...current, endsAt: getDefaultPollEndsAt() }))
+    }
+
+    if (isMobileComposer) {
+      setIsPoll(true)
+      setPollEditorOpen(true)
+      return
+    }
+
+    setIsPoll((current) => !current)
+  }
+
   const handleUploadStart = (file: File, cancel: () => void) => {
     setUploadProgresses((prev) => [...prev, { file, progress: 0, cancel }])
   }
@@ -578,8 +602,8 @@ export default function PostContent({
     ? t('Post your reply', { defaultValue: 'Post your reply' })
     : t("What's happening?", { defaultValue: "What's happening?" })
   const toolButtonClass = cn(
-    'bg-foreground/5 hover:bg-foreground/10',
-    isMobileComposer && 'h-10 w-10 [&_svg]:size-5'
+    'h-10 w-10 shrink-0 bg-foreground/5 hover:bg-foreground/10',
+    isMobileComposer && '[&_svg]:size-5'
   )
 
   const handleCancelUpload = useCallback(
@@ -658,25 +682,60 @@ export default function PostContent({
     ) : null
 
   const composerTools = (
-    <Uploader
-      onUploadSuccess={({ url }) => {
-        handleImageUploadSuccess(url)
-      }}
-      onUploadStart={handleUploadStart}
-      onUploadEnd={handleUploadEnd}
-      onProgress={handleUploadProgress}
-      accept="image/*,video/*,audio/*"
-    >
-      <Button
-        variant="ghost"
-        size="icon"
-        className={toolButtonClass}
-        title={t('Add media', { defaultValue: 'Add media' })}
-        aria-label={t('Add media', { defaultValue: 'Add media' })}
+    <>
+      <Uploader
+        onUploadSuccess={({ url }) => {
+          handleImageUploadSuccess(url)
+        }}
+        onUploadStart={handleUploadStart}
+        onUploadEnd={handleUploadEnd}
+        onProgress={handleUploadProgress}
+        accept="image/*,video/*,audio/*"
       >
-        <ImageUp />
-      </Button>
-    </Uploader>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={toolButtonClass}
+          title={t('Add media', { defaultValue: 'Add media' })}
+          aria-label={t('Add media', { defaultValue: 'Add media' })}
+        >
+          <ImageUp />
+        </Button>
+      </Uploader>
+      <GifPicker
+        onGifSelect={(attachment) => {
+          setImages((current) => [...current, attachment])
+        }}
+      >
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={toolButtonClass}
+          title={t('Add GIF')}
+          aria-label={t('Add GIF')}
+          disabled={posting}
+        >
+          <GifIcon />
+        </Button>
+      </GifPicker>
+      {!parentEvent && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={cn(toolButtonClass, isPoll && 'bg-accent')}
+          title={t('Create Poll', { defaultValue: 'Create poll' })}
+          aria-label={t('Create Poll', { defaultValue: 'Create poll' })}
+          aria-pressed={isPoll}
+          disabled={posting}
+          onClick={handlePollToggle}
+        >
+          <ListTodo />
+        </Button>
+      )}
+    </>
   )
 
   if (isMobileComposer) {

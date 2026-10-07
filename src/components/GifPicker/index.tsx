@@ -1,5 +1,11 @@
 import { Button } from '@/components/ui/button'
-import { Drawer, DrawerContent, DrawerTrigger } from '@/components/ui/drawer'
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerTitle,
+  DrawerTrigger
+} from '@/components/ui/drawer'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import GifIcon from '@/components/icons/GifIcon'
@@ -173,6 +179,7 @@ function GifPickerContent({
               variant="ghost"
               size="icon"
               className="absolute right-0 top-0 h-full w-9"
+              aria-label={t('Clear')}
               onClick={clearSearch}
               disabled={!canInteract}
             >
@@ -182,10 +189,12 @@ function GifPickerContent({
         </div>
         {onClose && (
           <Button
+            type="button"
             variant="ghost"
             size="icon"
             onClick={onClose}
             className="shrink-0"
+            aria-label={t('Close')}
             disabled={!canInteract}
           >
             <X className="h-4 w-4" />
@@ -361,6 +370,10 @@ export default function GifPicker({ onGifSelect, children }: GifPickerProps) {
           )}
         </DrawerTrigger>
         <DrawerContent>
+          <DrawerTitle className="sr-only">{t('Add GIF')}</DrawerTitle>
+          <DrawerDescription className="sr-only">
+            {t('Search and insert GIFs')}
+          </DrawerDescription>
           <GifPickerContent
             onGifClick={handleGifClick}
             isSmallScreen={isSmallScreen}
