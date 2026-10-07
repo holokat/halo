@@ -60,7 +60,7 @@ export function getEmbeddedEventReferences(content: string): TQuoteReference[] {
 
   for (const match of content.match(EMBEDDED_EVENT_REGEX) || []) {
     try {
-      const encodedId = match.split(':')[1]
+      const encodedId = match.replace(/^nostr:/, '')
       const { type, data } = nip19.decode(encodedId)
 
       if (type === 'nevent') {
@@ -152,7 +152,9 @@ export function getQuotedReplaceableCoordinatesFromTags(tags: string[][]) {
     .map((ref) => ref.coordinate)
 }
 
-export function getRenderableQuoteReferences(event: Pick<Event, 'tags' | 'content'>): TQuoteReference[] {
+export function getRenderableQuoteReferences(
+  event: Pick<Event, 'tags' | 'content'>
+): TQuoteReference[] {
   const embeddedKeys = new Set(
     getEmbeddedEventReferences(event.content).map((ref) => getQuoteReferenceKey(ref))
   )

@@ -9,6 +9,7 @@ import {
   YOUTUBE_URL_REGEX
 } from '@/constants'
 import { isImage, isMedia } from './url'
+import { nip19 } from 'nostr-tools'
 
 export type TEmbeddedNodeType =
   | 'text'
@@ -57,7 +58,10 @@ export const EmbeddedStockSymbolParser: TContentParser = (content: string) => {
     const nextChar = matchEnd < content.length ? content[matchEnd] : ''
 
     // Only match standalone cashtags, not parts of longer words or currency values.
-    if ((prevChar && /[\p{L}\p{N}_$]/u.test(prevChar)) || (nextChar && /[A-Z0-9.-]/.test(nextChar))) {
+    if (
+      (prevChar && /[\p{L}\p{N}_$]/u.test(prevChar)) ||
+      (nextChar && /[A-Z0-9.-]/.test(nextChar))
+    ) {
       continue
     }
 
@@ -96,9 +100,32 @@ export const EmbeddedLegacyMentionParser: TContentParser = {
   regex: /npub1[a-z0-9]{58}|nprofile1[a-z0-9]+/g
 }
 
-export const EmbeddedEventParser: TContentParser = {
-  type: 'event',
-  regex: EMBEDDED_EVENT_REGEX
+export const EmbeddedEventParser: TContentParser = (content: string) => {
+  const result: TEmbeddedNode[] = []
+  let lastIndex = 0
+
+  for (const match of content.matchAll(EMBEDDED_EVENT_REGEX)) {
+    const id = match[1]
+    try {
+      // Validate bare references before turning user-written text into an embed.
+      const { type } = nip19.decode(id)
+      if (!['note', 'nevent', 'naddr'].includes(type)) continue
+    } catch {
+      continue
+    }
+
+    if (match.index! > lastIndex) {
+      result.push({ type: 'text', data: content.slice(lastIndex, match.index) })
+    }
+    // Existing renderers expect a nostr URI, even when the source omits the prefix.
+    result.push({ type: 'event', data: `nostr:${id}` })
+    lastIndex = match.index! + match[0].length
+  }
+
+  if (lastIndex < content.length) {
+    result.push({ type: 'text', data: content.slice(lastIndex) })
+  }
+  return result
 }
 
 export const EmbeddedWebsocketUrlParser: TContentParser = {

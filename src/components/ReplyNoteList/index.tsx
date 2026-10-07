@@ -13,6 +13,7 @@ import {
   isReplyNoteEvent
 } from '@/lib/event'
 import { reconcileSpamRepliesExpansionScope } from '@/lib/reply-spam'
+import { buildReplyFilters } from '@/lib/reply-query'
 import { useNSpamEventPartition } from '@/hooks/useNSpamEventPartition'
 import { toNote } from '@/lib/link'
 import { generateBech32IdFromETag, tagNameEquals } from '@/lib/tag'
@@ -31,7 +32,7 @@ import { IconChevronTop as ChevronUp } from '@central-icons-react/round-outlined
 import { IconLoadingCircle as Loader2 } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconLoadingCircle'
 import { IconArrowRotateRightLeft as RefreshCw } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconArrowRotateRightLeft'
 import { IconShieldCrossed as ShieldAlert } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconShieldCrossed'
-import { Filter, Event as NEvent, kinds } from 'nostr-tools'
+import { Event as NEvent } from 'nostr-tools'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { LoadingBar } from '../LoadingBar'
@@ -259,44 +260,9 @@ export default function ReplyNoteList({ index, event }: { index?: number; event:
           }
         )
 
-        const filters: (Omit<Filter, 'since' | 'until'> & {
-          limit: number
-        })[] = []
-        if (rootInfo.type === 'E') {
-          filters.push({
-            '#e': [rootInfo.id],
-            kinds: [kinds.ShortTextNote],
-            limit: LIMIT
-          })
-          if (event.kind !== kinds.ShortTextNote) {
-            filters.push({
-              '#E': [rootInfo.id],
-              kinds: [ExtendedKind.COMMENT, ExtendedKind.VOICE_COMMENT],
-              limit: LIMIT
-            })
-          }
-        } else if (rootInfo.type === 'A') {
-          filters.push(
-            {
-              '#a': [rootInfo.id],
-              kinds: [kinds.ShortTextNote],
-              limit: LIMIT
-            },
-            {
-              '#A': [rootInfo.id],
-              kinds: [ExtendedKind.COMMENT, ExtendedKind.VOICE_COMMENT],
-              limit: LIMIT
-            }
-          )
-          if (rootInfo.relay) {
-            relayUrls.push(rootInfo.relay)
-          }
-        } else {
-          filters.push({
-            '#I': [rootInfo.id],
-            kinds: [ExtendedKind.COMMENT, ExtendedKind.VOICE_COMMENT],
-            limit: LIMIT
-          })
+        const filters = buildReplyFilters(rootInfo, LIMIT)
+        if (rootInfo.type === 'A' && rootInfo.relay) {
+          relayUrls.push(rootInfo.relay)
         }
         const { closer, timelineKey } = await client.subscribeTimeline(
           filters.map((filter) => ({

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   encodeQuoteReference,
+  getEmbeddedEventReferences,
   getQuotedEventHexIdsFromTags,
   getQuotedReplaceableCoordinatesFromTags,
   getRenderableQuoteReferences
@@ -68,4 +69,46 @@ test('encodeQuoteReference encodes replaceable quote references as naddr ids', (
   })
 
   assert.match(encoded, /^naddr1/)
+})
+
+test('bare and prefixed references dedupe by event id and preserve relay hints', () => {
+  const encoded = encodeQuoteReference({
+    type: 'event',
+    id: QUOTED_EVENT_ID,
+    relays: ['wss://relay.example']
+  })
+  assert.deepEqual(getEmbeddedEventReferences(`${encoded}\nnostr:${encoded}`), [
+    { type: 'event', id: QUOTED_EVENT_ID, relays: ['wss://relay.example'] }
+  ])
+})
+
+test('bare naddr suppresses the matching address quote while retaining other q tags', () => {
+  const encoded = encodeQuoteReference({
+    type: 'address',
+    coordinate: QUOTED_COORDINATE,
+    relays: []
+  })
+  assert.deepEqual(
+    getRenderableQuoteReferences({
+      content: encoded,
+      tags: [
+        ['q', QUOTED_COORDINATE],
+        ['q', QUOTED_EVENT_ID]
+      ]
+    }),
+    [{ type: 'event', id: QUOTED_EVENT_ID, relays: [] }]
+  )
+})
+
+test('invalid and URL-contained references do not suppress valid fallback quote previews', () => {
+  const encoded = encodeQuoteReference({ type: 'event', id: QUOTED_EVENT_ID, relays: [] })
+  for (const content of [
+    'nevent1invalid',
+    `https://example.com/${encoded}`,
+    `https://example.com/?q=${encoded}`
+  ]) {
+    assert.deepEqual(getRenderableQuoteReferences({ content, tags: [['q', QUOTED_EVENT_ID]] }), [
+      { type: 'event', id: QUOTED_EVENT_ID, relays: [] }
+    ])
+  }
 })

@@ -18,7 +18,7 @@ function extractQuotedReferences(content: string) {
 
   for (const match of matches || []) {
     try {
-      const id = match.split(':')[1]
+      const id = match.replace(/^nostr:/, '')
       const { type, data } = nip19.decode(id)
       if (type === 'nevent') {
         addUnique(quoteEventHexIds, data.id)
