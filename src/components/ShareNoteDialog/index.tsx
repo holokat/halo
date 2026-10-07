@@ -2,8 +2,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer'
 import { Input } from '@/components/ui/input'
-import { getNoteBech32Id } from '@/lib/event'
-import { toNlink } from '@/lib/link'
+import { toNoteUrl } from '@/lib/link'
 import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import { IconCheckmark1 as Check } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconCheckmark1'
 import { IconSquareBehindSquare1 as Copy } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconSquareBehindSquare1'
@@ -25,7 +24,7 @@ export default function ShareNoteDialog({
   const { t } = useTranslation()
   const { isSmallScreen } = useScreenSize()
   const [copied, setCopied] = useState(false)
-  const shareUrl = useMemo(() => toNlink(getNoteBech32Id(event)), [event])
+  const shareUrl = useMemo(() => toNoteUrl(event), [event])
 
   const copyLink = async () => {
     try {

@@ -8,6 +8,7 @@ export const toNote = (eventOrId: Event | string) => {
   const nevent = getNoteBech32Id(eventOrId)
   return `/notes/${nevent}`
 }
+export const toNoteUrl = (eventOrId: Event | string) => `https://haloapp.fyi${toNote(eventOrId)}`
 export const toNoteList = ({
   hashtag,
   stockSymbol,
@@ -91,6 +92,5 @@ export const toEditList = (id: string) => `/lists/${id}/edit`
 export const toChachiChat = (relay: string, d: string) => {
   return `https://chachi.chat/${relay.replace(/^wss?:\/\//, '').replace(/\/$/, '')}/${d}`
 }
-export const toNlink = (id: string) => `https://nlink.to/${id}`
 export const toNjump = (id: string) => `https://njump.me/${id}`
 export const toArticle = (naddr: string) => `/articles/${naddr}`

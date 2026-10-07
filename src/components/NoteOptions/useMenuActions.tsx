@@ -1,5 +1,4 @@
-import { getNoteBech32Id } from '@/lib/event'
-import { toNlink } from '@/lib/link'
+import { toNoteUrl } from '@/lib/link'
 import { useMuteList } from '@/providers/MuteListProvider'
 import { useNostr } from '@/providers/NostrProvider'
 import { usePinList } from '@/providers/PinListProvider'
@@ -58,7 +57,7 @@ export function useMenuActions({
         label: t('Copy link'),
         onClick: async () => {
           try {
-            await navigator.clipboard.writeText(toNlink(getNoteBech32Id(event)))
+            await navigator.clipboard.writeText(toNoteUrl(event))
             toast.success(t('Link copied', { defaultValue: 'Link copied' }))
           } catch (error) {
             console.error('Failed to copy share link:', error)
