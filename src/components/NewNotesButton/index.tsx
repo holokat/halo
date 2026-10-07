@@ -63,7 +63,7 @@ export default function NewNotesButton({
                 ))}
               </div>
             )}
-            <ArrowUp className="relative z-10 size-5 shrink-0" aria-hidden="true" />
+            <ArrowUp className="relative z-10 size-3 shrink-0" aria-hidden="true" />
           </button>
         </div>
       )}
