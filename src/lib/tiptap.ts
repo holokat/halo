@@ -2,6 +2,7 @@ import customEmojiService from '@/services/custom-emoji.service'
 import { emojis, shortcodeToEmoji } from '@tiptap/extension-emoji'
 import { JSONContent } from '@tiptap/react'
 import { nip19 } from 'nostr-tools'
+import { COMPOSER_QUOTE_NODE, serializeComposerQuote } from './composer-quotes'
 
 export function parseEditorJsonToText(node?: JSONContent) {
   const text = _parseEditorJsonToText(node).trim()
@@ -44,6 +45,8 @@ function _parseEditorJsonToText(node?: JSONContent): string {
       return '\n'
     case 'mention':
       return node.attrs ? `nostr:${node.attrs.id}` : ''
+    case COMPOSER_QUOTE_NODE:
+      return serializeComposerQuote(node.attrs?.id)
     case 'emoji':
       return parseEmojiNodeName(node.attrs?.name)
     default:

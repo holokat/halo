@@ -123,7 +123,8 @@
     text-align: right;
   }
 
-  [dir='rtl'] .tiptap p.is-editor-empty:first-child::before {
+  [dir='rtl'] .tiptap p.is-editor-empty:first-child::before,
+  [dir='rtl'] .tiptap p.is-empty:first-child::before {
     float: right;
   }
 
@@ -136,7 +137,8 @@
     }
   }
 
-  .tiptap p.is-editor-empty:first-child::before {
+  .tiptap p.is-editor-empty:first-child::before,
+  .tiptap p.is-empty:first-child::before {
     color: hsl(var(--muted-foreground));
     content: attr(data-placeholder);
     float: left;

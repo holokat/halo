@@ -4,6 +4,8 @@ export default {
     About: 'About',
     'New Note': 'New Note',
     Post: 'Post',
+    'Quoted note': 'Quoted note',
+    'Remove quote': 'Remove quote',
     Home: 'Home',
     'Relay settings': 'Relay settings',
     Settings: 'Settings',

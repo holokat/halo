@@ -99,6 +99,7 @@ export default function RepostButton({ event }: { event: Event }) {
       open={isPostDialogOpen}
       setOpen={setIsPostDialogOpen}
       defaultContent={'\nnostr:' + getNoteBech32Id(event)}
+      quotedEvent={event}
     />
   )
 

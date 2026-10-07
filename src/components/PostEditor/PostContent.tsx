@@ -4,7 +4,11 @@ import UserAvatar from '@/components/UserAvatar'
 import { Button } from '@/components/ui/button'
 import { deleteDraftEventCache } from '@/lib/draft-event'
 import { minePow } from '@/lib/event'
-import { createDefaultPollCreateData, getDefaultPollEndsAt, normalizePollCreateData } from '@/lib/poll'
+import {
+  createDefaultPollCreateData,
+  getDefaultPollEndsAt,
+  normalizePollCreateData
+} from '@/lib/poll'
 import { cn } from '@/lib/utils'
 import { useNostr } from '@/providers/NostrProvider'
 import { useReply } from '@/providers/ReplyProvider'
@@ -49,6 +53,7 @@ export default function PostContent({
   defaultContent = '',
   initialMentionIds = [],
   parentEvent,
+  quotedEvent,
   close,
   openFrom,
   isMobileComposer,
@@ -60,6 +65,7 @@ export default function PostContent({
   defaultContent?: string
   initialMentionIds?: string[]
   parentEvent?: Event
+  quotedEvent?: Event
   close: (options?: { saveLocalDraft?: boolean }) => void
   openFrom?: string[]
   isMobileComposer: boolean
@@ -623,6 +629,7 @@ export default function PostContent({
       setText={setText}
       defaultContent={defaultContent}
       parentEvent={parentEvent}
+      quotedEvent={quotedEvent}
       onSubmit={() => handlePrimaryAction()}
       className={isMobileComposer ? 'min-h-[44dvh]' : isPoll ? 'min-h-20' : 'min-h-32'}
       placeholder={isMobileComposer ? mobilePlaceholder : undefined}

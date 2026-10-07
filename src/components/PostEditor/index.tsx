@@ -25,6 +25,7 @@ export default function PostEditor({
   defaultContent = '',
   initialMentionIds = [],
   parentEvent,
+  quotedEvent,
   open,
   setOpen,
   openFrom
@@ -32,6 +33,7 @@ export default function PostEditor({
   defaultContent?: string
   initialMentionIds?: string[]
   parentEvent?: Event
+  quotedEvent?: Event
   open: boolean
   setOpen: Dispatch<boolean>
   openFrom?: string[]
@@ -52,7 +54,9 @@ export default function PostEditor({
 
       const rawContent = postEditorCache.getPostContentCache({ defaultContent, parentEvent })
       const settings = postEditorCache.getPostSettingsCache({ defaultContent, parentEvent })
-      const content = Array.isArray(rawContent) ? { type: 'doc', content: rawContent } : rawContent ?? ''
+      const content = Array.isArray(rawContent)
+        ? { type: 'doc', content: rawContent }
+        : (rawContent ?? '')
       const previewText =
         typeof content === 'string' ? content.trim() : parseEditorJsonToText(content).trim()
       const defaultText = defaultContent.trim()
@@ -118,6 +122,7 @@ export default function PostEditor({
         defaultContent={defaultContent}
         initialMentionIds={initialMentionIds}
         parentEvent={parentEvent}
+        quotedEvent={quotedEvent}
         close={handleClose}
         openFrom={openFrom}
         isMobileComposer={isSmallScreen}
@@ -131,6 +136,7 @@ export default function PostEditor({
     defaultContent,
     initialMentionIds,
     parentEvent,
+    quotedEvent,
     openFrom,
     isSmallScreen,
     handleClose,

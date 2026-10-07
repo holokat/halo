@@ -1,5 +1,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { parseEditorJsonToText } from '@/lib/tiptap'
+import { getComposerFocusPosition, normalizeComposerQuotes } from '@/lib/composer-quotes'
 import { cn } from '@/lib/utils'
 import customEmojiService from '@/services/custom-emoji.service'
 import postEditorCache, { type ImageAttachment } from '@/services/post-editor-cache.service'
@@ -34,6 +35,7 @@ import gifSuggestion from './Gif/suggestion'
 import Preview from './Preview'
 import ImagePreview from '../ImagePreview'
 import LocalDrafts from './LocalDrafts'
+import QuotedNote from './QuotedNote'
 
 export type TPostTextareaHandle = {
   appendText: (text: string, addNewline?: boolean) => void
@@ -53,6 +55,7 @@ const PostTextarea = forwardRef<
     setText: Dispatch<SetStateAction<string>>
     defaultContent?: string
     parentEvent?: Event
+    quotedEvent?: Event
     onSubmit?: () => void
     className?: string
     isMobileComposer?: boolean
@@ -75,6 +78,7 @@ const PostTextarea = forwardRef<
       setText,
       defaultContent,
       parentEvent,
+      quotedEvent,
       onSubmit,
       className,
       isMobileComposer = false,
@@ -99,7 +103,8 @@ const PostTextarea = forwardRef<
       isMobileComposer
         ? 'rounded-none border-0 bg-transparent p-0 text-[16px] leading-6 focus-visible:outline-none focus-visible:ring-0'
         : 'rounded-2xl border-0 bg-transparent p-3 focus-visible:outline-none focus-visible:ring-0',
-      className
+      className,
+      '[&>p:first-child]:min-h-12'
     )
     const editor = useEditor({
       extensions: [
@@ -108,6 +113,7 @@ const PostTextarea = forwardRef<
         Text,
         History,
         HardBreak,
+        QuotedNote.configure({ quotedEvent }),
         Placeholder.configure({
           placeholder: composerPlaceholder
         }),
@@ -149,13 +155,16 @@ const PostTextarea = forwardRef<
           return parseEditorJsonToText(content.toJSON())
         }
       },
-      content: postEditorCache.getPostContentCache({ defaultContent, parentEvent }),
+      content: normalizeComposerQuotes(
+        postEditorCache.getPostContentCache({ defaultContent, parentEvent })
+      ),
       onUpdate(props) {
         setText(parseEditorJsonToText(props.editor.getJSON()))
         postEditorCache.setPostContentCache({ defaultContent, parentEvent }, props.editor.getJSON())
       },
       onCreate(props) {
         setText(parseEditorJsonToText(props.editor.getJSON()))
+        postEditorCache.setPostContentCache({ defaultContent, parentEvent }, props.editor.getJSON())
       }
     })
 
@@ -164,16 +173,7 @@ const PostTextarea = forwardRef<
         if (editor) {
           let chain = editor
             .chain()
-            .focus()
-            .command(({ tr, dispatch }) => {
-              if (dispatch) {
-                const endPos = tr.doc.content.size
-                const selection = TextSelection.create(tr.doc, endPos)
-                tr.setSelection(selection)
-                dispatch(tr)
-              }
-              return true
-            })
+            .focus(getComposerFocusPosition(editor.state.doc))
             .insertContent(text)
           if (addNewline) {
             chain = chain.setHardBreak()
@@ -216,10 +216,10 @@ const PostTextarea = forwardRef<
       },
       replaceContent: (content: Content) => {
         if (!editor) return
-        editor.commands.setContent(content)
+        editor.commands.setContent(normalizeComposerQuotes(content) ?? '', true)
         window.requestAnimationFrame(() => {
           if (!editor.isDestroyed) {
-            editor.chain().focus('end').run()
+            editor.chain().focus(getComposerFocusPosition(editor.state.doc)).run()
           }
         })
       }
@@ -243,7 +243,7 @@ const PostTextarea = forwardRef<
       const timerId = window.setTimeout(
         () => {
           if (!editor.isDestroyed) {
-            editor.chain().focus('end').run()
+            editor.chain().focus(getComposerFocusPosition(editor.state.doc)).run()
           }
         },
         isMobileComposer ? 80 : 40
@@ -258,13 +258,16 @@ const PostTextarea = forwardRef<
     const handleSelectDraft = (draft: TLocalPostDraft) => {
       if (!editor) return
 
-      editor.commands.setContent(draft.content as JSONContent | string)
+      editor.commands.setContent(
+        normalizeComposerQuotes(draft.content as JSONContent | string) ?? '',
+        true
+      )
       onSelectLocalDraft?.(draft)
       setTabValue('edit')
 
       window.requestAnimationFrame(() => {
         if (!editor.isDestroyed) {
-          editor.chain().focus('end').run()
+          editor.chain().focus(getComposerFocusPosition(editor.state.doc)).run()
         }
       })
     }
