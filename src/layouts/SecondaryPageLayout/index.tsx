@@ -71,31 +71,27 @@ const SecondaryPageLayout = forwardRef(
 
     if (isSmallScreen) {
       return (
-        <ScrollVisibilityProvider isSmallScreen={isSmallScreen}>
-          <DeepBrowsingProvider active={currentIndex === index}>
-            <div
-              style={{
-                paddingBottom: 'calc(env(safe-area-inset-bottom) + 3rem)'
-              }}
-            >
-              {!hideTitlebar && (
-                <SecondaryPageTitlebar
-                  title={title}
-                  controls={controls}
-                  hideBackButton={hideBackButton}
-                  hideBottomBorder={hideTitlebarBottomBorder}
-                  titlebar={titlebar}
-                  showCloseButton={showCloseButton}
-                  onClose={onClose}
-                />
-              )}
-              <main>
-                {children}
-              </main>
-            </div>
-            {displayScrollToTopButton && <ScrollToTopButton />}
-          </DeepBrowsingProvider>
-        </ScrollVisibilityProvider>
+        <DeepBrowsingProvider active={currentIndex === index}>
+          <div
+            style={{
+              paddingBottom: 'calc(env(safe-area-inset-bottom) + 3rem)'
+            }}
+          >
+            {!hideTitlebar && (
+              <SecondaryPageTitlebar
+                title={title}
+                controls={controls}
+                hideBackButton={hideBackButton}
+                hideBottomBorder={hideTitlebarBottomBorder}
+                titlebar={titlebar}
+                showCloseButton={showCloseButton}
+                onClose={onClose}
+              />
+            )}
+            <main>{children}</main>
+          </div>
+          {displayScrollToTopButton && <ScrollToTopButton />}
+        </DeepBrowsingProvider>
       )
     }
 
@@ -118,9 +114,7 @@ const SecondaryPageLayout = forwardRef(
                 onClose={onClose}
               />
             )}
-            <main>
-              {children}
-            </main>
+            <main>{children}</main>
             <div className="h-4" />
           </ScrollArea>
           {displayScrollToTopButton && <ScrollToTopButton scrollAreaRef={scrollAreaRef} />}
@@ -164,7 +158,10 @@ export function SecondaryPageTitlebar({
       hideBottomBorder={hideBottomBorder}
     >
       {hideBackButton ? (
-        <div className="flex gap-2 items-center pl-3 w-fit truncate text-lg font-semibold" style={{ fontSize: `var(--title-font-size, 18px)` }}>
+        <div
+          className="flex gap-2 items-center pl-3 w-fit truncate text-lg font-semibold"
+          style={{ fontSize: `var(--title-font-size, 18px)` }}
+        >
           {title}
         </div>
       ) : (
@@ -193,7 +190,12 @@ function BackButton({ children }: { children?: React.ReactNode }) {
       onClick={() => pop()}
     >
       <ChevronLeft />
-      <div className="truncate text-lg font-semibold" style={{ fontSize: `var(--title-font-size, 18px)` }}>{children}</div>
+      <div
+        className="truncate text-lg font-semibold"
+        style={{ fontSize: `var(--title-font-size, 18px)` }}
+      >
+        {children}
+      </div>
     </Button>
   )
 }

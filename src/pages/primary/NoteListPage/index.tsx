@@ -168,6 +168,7 @@ const NoteListPage = forwardRef((_, ref) => {
         />
       }
       displayScrollToTopButton
+      mobileFloatingTitlebar
     >
       {content}
     </PrimaryPageLayout>
@@ -219,8 +220,8 @@ function NoteListPageTitlebar({
 
   if (isSmallScreen) {
     return (
-      <div className="flex h-full w-full items-center pl-1">
-        <FeedButton className="max-w-[min(74vw,20rem)]" />
+      <div className="flex h-full w-full items-center justify-end pr-1">
+        <FeedButton />
       </div>
     )
   }

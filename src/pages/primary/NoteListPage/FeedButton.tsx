@@ -1,5 +1,6 @@
 import FeedSwitcher from '@/components/FeedSwitcher'
-import { Drawer, DrawerContent } from '@/components/ui/drawer'
+import FloatingGlassButton from '@/components/FloatingGlassButton'
+import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer'
 import { getCustomFeedHashtags, INTERESTS_FEED_ID } from '@/lib/custom-feed'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { simplifyUrl } from '@/lib/url'
@@ -18,19 +19,27 @@ import { IconMagnifyingGlass as Search } from '@central-icons-react/round-outlin
 import { IconTrending1 as TrendingUp } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconTrending1'
 import { IconUser as UserRound } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconUser'
 import { IconUserGroup as UsersRound } from '@central-icons-react/round-outlined-radius-2-stroke-1.5/IconUserGroup'
-import { forwardRef, HTMLAttributes, useMemo, useState } from 'react'
+import { forwardRef, type ButtonHTMLAttributes, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 export default function FeedButton({ className }: { className?: string }) {
+  const { t } = useTranslation()
   const { isSmallScreen } = useScreenSize()
   const [open, setOpen] = useState(false)
 
   if (isSmallScreen) {
     return (
       <>
-        <FeedSwitcherTrigger className={className} onClick={() => setOpen(true)} />
+        <FeedSwitcherTrigger
+          className={className}
+          aria-expanded={open}
+          onClick={() => setOpen(true)}
+        />
         <Drawer open={open} onOpenChange={setOpen}>
           <DrawerContent className="max-h-[80vh]">
+            <DrawerTitle className="sr-only">
+              {t('Choose feed', { defaultValue: 'Choose feed' })}
+            </DrawerTitle>
             <div
               className="overflow-y-auto overscroll-contain py-2 px-4"
               style={{ touchAction: 'pan-y' }}
@@ -55,12 +64,13 @@ export default function FeedButton({ className }: { className?: string }) {
   )
 }
 
-const FeedSwitcherTrigger = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
+const FeedSwitcherTrigger = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLButtonElement>>(
   ({ className, ...props }, ref) => {
     const { t } = useTranslation()
     const { feedInfo, relayUrls } = useFeed()
     const { relaySets } = useFavoriteRelays()
     const { customFeeds } = useCustomFeeds()
+    const { isSmallScreen } = useScreenSize()
     const activeRelaySet = useMemo(() => {
       return feedInfo.feedType === 'relays' && feedInfo.id
         ? relaySets.find((set) => set.id === feedInfo.id)
@@ -137,8 +147,23 @@ const FeedSwitcherTrigger = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEle
       return <Box />
     }, [feedInfo, activeCustomFeed])
 
+    if (isSmallScreen) {
+      return (
+        <FloatingGlassButton
+          ref={ref}
+          aria-label={`${title}: ${t('Choose feed', { defaultValue: 'Choose feed' })}`}
+          aria-haspopup="dialog"
+          className={className}
+          {...props}
+        >
+          {icon}
+        </FloatingGlassButton>
+      )
+    }
+
     return (
-      <div
+      <button
+        type="button"
         className={cn(
           'flex items-center gap-2 clickable px-3 h-full rounded-2xl [&_svg]:text-muted-foreground',
           className
@@ -153,8 +178,8 @@ const FeedSwitcherTrigger = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEle
         >
           {title}
         </div>
-        <ChevronDown />
-      </div>
+        <ChevronDown className="size-4 shrink-0" aria-hidden="true" />
+      </button>
     )
   }
 )

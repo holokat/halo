@@ -133,6 +133,7 @@ class RelayInfoService {
   private async fetchRelayNip11(url: string) {
     try {
       const connectionUrl = normalizeRelayConnectionUrl(url)
+      if (!connectionUrl) return undefined
       const res = await fetch(normalizeHttpUrl(connectionUrl), {
         headers: { Accept: 'application/nostr+json' }
       })

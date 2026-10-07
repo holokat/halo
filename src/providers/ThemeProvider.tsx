@@ -4,7 +4,6 @@ import { createContext, useContext, useEffect, useState } from 'react'
 
 type ThemeProviderProps = {
   children: React.ReactNode
-  defaultTheme?: TTheme
 }
 
 type ThemeProviderState = {
@@ -19,24 +18,11 @@ function getSystemTheme() {
 
 const ThemeProviderContext = createContext<ThemeProviderState | undefined>(undefined)
 
-export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
-  const [themeSetting, setThemeSetting] = useState<TThemeSetting>(
-    (localStorage.getItem('themeSetting') as TThemeSetting | null) ?? 'dark'
+export function ThemeProvider({ children }: ThemeProviderProps) {
+  const [themeSetting, setThemeSetting] = useState<TThemeSetting>(() => storage.getThemeSetting())
+  const [theme, setTheme] = useState<TTheme>(() =>
+    themeSetting === 'system' ? getSystemTheme() : themeSetting
   )
-  const [theme, setTheme] = useState<TTheme>('dark')
-
-  useEffect(() => {
-    const init = async () => {
-      const themeSetting = storage.getThemeSetting()
-      if (themeSetting === 'system') {
-        setTheme(getSystemTheme())
-        return
-      }
-      setTheme(themeSetting)
-    }
-
-    init()
-  }, [])
 
   useEffect(() => {
     if (themeSetting !== 'system') return
@@ -54,18 +40,17 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
   }, [themeSetting])
 
   useEffect(() => {
-    const updateTheme = async () => {
-      const root = window.document.documentElement
-      root.classList.remove('light', 'dark')
-      root.classList.add(theme)
-      localStorage.setItem('theme', theme)
-    }
-    updateTheme()
+    const root = window.document.documentElement
+    root.classList.remove('light', 'dark')
+    root.classList.add(theme)
+    root.style.colorScheme = theme
+    document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
+      meta.setAttribute('content', theme === 'dark' ? '#171717' : '#FFFFFF')
+    })
   }, [theme])
 
   return (
     <ThemeProviderContext.Provider
-      {...props}
       value={{
         themeSetting: themeSetting,
         theme: theme,

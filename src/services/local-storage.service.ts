@@ -83,7 +83,7 @@ class LocalStorageService {
   static instance: LocalStorageService
 
   private relaySets: TRelaySet[] = []
-  private themeSetting: TThemeSetting = 'dark'
+  private themeSetting: TThemeSetting = 'system'
   private colorPalette: TColorPalette = 'default'
   private accounts: TAccount[] = []
   private currentAccount: TAccount | null = null
@@ -171,7 +171,11 @@ class LocalStorageService {
   }
 
   private initCoreState() {
-    this.themeSetting = readStoredString(StorageKey.THEME_SETTING, 'dark') as TThemeSetting
+    this.themeSetting = readStoredEnum(
+      StorageKey.THEME_SETTING,
+      ['light', 'dark', 'system'] as const,
+      'system'
+    )
     this.colorPalette = readStoredString(StorageKey.COLOR_PALETTE, 'default') as TColorPalette
     this.accounts = readStoredJson<TAccount[]>(StorageKey.ACCOUNTS, [])
     this.currentAccount = readStoredJson<TAccount | null>(StorageKey.CURRENT_ACCOUNT, null)

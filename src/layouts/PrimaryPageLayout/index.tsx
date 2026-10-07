@@ -16,6 +16,7 @@ const PrimaryPageLayout = forwardRef(
       pageName,
       displayScrollToTopButton = false,
       hideTitlebarBottomBorder = false,
+      mobileFloatingTitlebar = false,
       hideBottomSpacer = false,
       hideScrollBar = false
     }: {
@@ -24,6 +25,7 @@ const PrimaryPageLayout = forwardRef(
       pageName: TPrimaryPageName
       displayScrollToTopButton?: boolean
       hideTitlebarBottomBorder?: boolean
+      mobileFloatingTitlebar?: boolean
       hideBottomSpacer?: boolean
       hideScrollBar?: boolean
     },
@@ -75,28 +77,29 @@ const PrimaryPageLayout = forwardRef(
 
     if (isSmallScreen) {
       return (
-        <ScrollVisibilityProvider isSmallScreen={isSmallScreen}>
-          <DeepBrowsingProvider active={current === pageName && display}>
-            <a
-              href="#main-content"
-              className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:bg-primary focus:text-primary-foreground focus:px-4 focus:py-2 focus:rounded"
+        <DeepBrowsingProvider active={current === pageName && display}>
+          <a
+            href="#main-content"
+            className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:bg-primary focus:text-primary-foreground focus:px-4 focus:py-2 focus:rounded"
+          >
+            Skip to main content
+          </a>
+          <div
+            ref={smallScreenScrollAreaRef}
+            style={{
+              paddingBottom: 'calc(env(safe-area-inset-bottom) + 5.5rem)'
+            }}
+          >
+            <PrimaryPageTitlebar
+              hideBottomBorder={hideTitlebarBottomBorder}
+              floatingMobile={mobileFloatingTitlebar}
             >
-              Skip to main content
-            </a>
-            <div
-              ref={smallScreenScrollAreaRef}
-              style={{
-                paddingBottom: 'calc(env(safe-area-inset-bottom) + 5.5rem)'
-              }}
-            >
-              <PrimaryPageTitlebar hideBottomBorder={hideTitlebarBottomBorder}>
-                {titlebar}
-              </PrimaryPageTitlebar>
-              <main id="main-content">{children}</main>
-            </div>
-            {displayScrollToTopButton && <ScrollToTopButton />}
-          </DeepBrowsingProvider>
-        </ScrollVisibilityProvider>
+              {titlebar}
+            </PrimaryPageTitlebar>
+            <main id="main-content">{children}</main>
+          </div>
+          {displayScrollToTopButton && <ScrollToTopButton />}
+        </DeepBrowsingProvider>
       )
     }
 
@@ -138,13 +141,25 @@ export type TPrimaryPageLayoutRef = {
 
 function PrimaryPageTitlebar({
   children,
-  hideBottomBorder = false
+  hideBottomBorder = false,
+  floatingMobile = false
 }: {
   children?: React.ReactNode
   hideBottomBorder?: boolean
+  floatingMobile?: boolean
 }) {
+  const { isSmallScreen } = useScreenSize()
+
   return (
-    <Titlebar className="p-1" hideBottomBorder={hideBottomBorder}>
+    <Titlebar
+      className={cn(
+        'p-1',
+        isSmallScreen &&
+          floatingMobile &&
+          'pointer-events-none !bg-transparent !backdrop-blur-none [&>*]:pointer-events-auto'
+      )}
+      hideBottomBorder={hideBottomBorder}
+    >
       {children}
     </Titlebar>
   )

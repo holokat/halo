@@ -1,5 +1,6 @@
 import AboutInfoDialog from '@/components/AboutInfoDialog'
 import SettingsListItem from '@/components/SettingsListItem'
+import ThemeSetting from '@/components/ThemeSetting'
 import SecondaryPageLayout from '@/layouts/SecondaryPageLayout'
 import {
   toAccountSecuritySettings,
@@ -28,6 +29,8 @@ const SettingsPage = forwardRef(({ index }: { index?: number }, ref) => {
             defaultValue: 'Adjust how Halo reads, protects, and connects your account.'
           })}
         </p>
+
+        <ThemeSetting />
 
         <div className="space-y-1 rounded-3xl border border-border/70 bg-card/50 p-1.5">
           <SettingsListItem

@@ -1,5 +1,6 @@
 import BottomNavigationBar from '@/components/BottomNavigationBar'
 import { cn } from '@/lib/utils'
+import { ScrollVisibilityProvider } from '@/providers/ScrollVisibilityProvider'
 import { cloneElement, type ReactElement, type ReactNode } from 'react'
 import { type TPrimaryPageName, type TStackItem } from './types'
 
@@ -24,27 +25,30 @@ export function PageManagerShell({
 }) {
   if (isSmallScreen) {
     return (
-      <div>
-        {secondaryStack.map((item, index) => (
-          <div
-            key={item.index}
-            style={{ display: index === secondaryStack.length - 1 ? 'block' : 'none' }}
-          >
-            {item.component}
-          </div>
-        ))}
-        {primaryPages.map(({ name, element, props }) => (
-          <div
-            key={name}
-            style={{
-              display: secondaryStack.length === 0 && currentPrimaryPage === name ? 'block' : 'none'
-            }}
-          >
-            {props ? cloneElement(element as ReactElement, props) : element}
-          </div>
-        ))}
-        <BottomNavigationBar />
-      </div>
+      <ScrollVisibilityProvider isSmallScreen>
+        <div>
+          {secondaryStack.map((item, index) => (
+            <div
+              key={item.index}
+              style={{ display: index === secondaryStack.length - 1 ? 'block' : 'none' }}
+            >
+              {item.component}
+            </div>
+          ))}
+          {primaryPages.map(({ name, element, props }) => (
+            <div
+              key={name}
+              style={{
+                display:
+                  secondaryStack.length === 0 && currentPrimaryPage === name ? 'block' : 'none'
+              }}
+            >
+              {props ? cloneElement(element as ReactElement, props) : element}
+            </div>
+          ))}
+          <BottomNavigationBar />
+        </div>
+      </ScrollVisibilityProvider>
     )
   }
 

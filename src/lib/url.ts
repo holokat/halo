@@ -37,12 +37,14 @@ export function normalizeRelayConnectionUrl(
   pageProtocol = typeof window === 'undefined' ? undefined : window.location.protocol
 ): string {
   const normalizedUrl = normalizeUrl(url)
-  if (!normalizedUrl || pageProtocol !== 'https:' || !normalizedUrl.startsWith('ws://')) {
+  if (!normalizedUrl || !isWebsocketUrl(normalizedUrl) || isLocalNetworkUrl(normalizedUrl)) {
+    return ''
+  }
+  if (pageProtocol !== 'https:' || !normalizedUrl.startsWith('ws://')) {
     return normalizedUrl
   }
 
-  // HTTPS pages must never open insecure WebSockets. Local ws:// relays remain
-  // available when Halo itself runs over HTTP.
+  // HTTPS pages must never open insecure WebSockets.
   return normalizedUrl.replace(/^ws:/, 'wss:')
 }
 
@@ -81,44 +83,50 @@ export function simplifyUrl(url: string): string {
     .replace(/\/$/, '')
 }
 
+function isLocalIpv4(a: number, b: number): boolean {
+  return (
+    a === 0 ||
+    a === 10 ||
+    a === 127 ||
+    (a === 100 && b >= 64 && b <= 127) ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168)
+  )
+}
+
 export function isLocalNetworkUrl(urlString: string): boolean {
   try {
-    const url = new URL(urlString)
-    const hostname = url.hostname
-
-    // Check if it's localhost
-    if (hostname === 'localhost' || hostname === '::1') {
+    // URL canonicalizes short, integer, hexadecimal and octal IPv4 forms.
+    const hostname = new URL(urlString).hostname.toLowerCase().replace(/\.$/, '')
+    if (
+      hostname === 'localhost' ||
+      hostname.endsWith('.localhost') ||
+      hostname.endsWith('.local') ||
+      (!hostname.includes('.') && !hostname.includes(':'))
+    ) {
       return true
     }
 
-    // Check if it's an IPv4 local network address
-    const ipv4Match = hostname.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/)
-    if (ipv4Match) {
-      const [, a, b, c, d] = ipv4Match.map(Number)
-      return (
-        a === 10 ||
-        (a === 172 && b >= 16 && b <= 31) ||
-        (a === 192 && b === 168) ||
-        (a === 127 && b === 0 && c === 0 && d === 1)
-      )
-    }
+    const ipv4 = hostname.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/)
+    if (ipv4) return isLocalIpv4(Number(ipv4[1]), Number(ipv4[2]))
 
-    // Check if it's an IPv6 address
-    if (hostname.includes(':')) {
-      if (hostname === '::1') {
-        return true // IPv6 loopback address
-      }
-      if (hostname.startsWith('fe80:')) {
-        return true // Link-local address
-      }
-      if (hostname.startsWith('fc') || hostname.startsWith('fd')) {
-        return true // Unique local address (ULA)
+    const ipv6 = hostname.replace(/^\[|\]$/g, '')
+    if (ipv6.includes(':')) {
+      if (ipv6 === '::' || ipv6 === '::1') return true
+      const firstWord = parseInt(ipv6.split(':')[0] || '0', 16)
+      if ((firstWord & 0xfe00) === 0xfc00 || (firstWord & 0xffc0) === 0xfe80) return true
+
+      // URL serializes IPv4-mapped IPv6 addresses as two hexadecimal words.
+      const mapped = ipv6.match(/^::ffff:([0-9a-f]+):([0-9a-f]+)$/)
+      if (mapped) {
+        const high = parseInt(mapped[1], 16)
+        return isLocalIpv4(high >> 8, high & 255)
       }
     }
-
     return false
   } catch {
-    return false // Return false for invalid URLs
+    return false
   }
 }
 

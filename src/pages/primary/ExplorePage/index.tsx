@@ -1,6 +1,8 @@
 import Explore from '@/components/Explore'
+import MobileSearchButton from '@/components/MobileSearchButton'
 import SearchBar from '@/components/SearchBar'
 import PrimaryPageLayout from '@/layouts/PrimaryPageLayout'
+import { useScreenSize } from '@/providers/ScreenSizeProvider'
 import { TSearchParams } from '@/types'
 
 import { forwardRef, useState } from 'react'
@@ -29,6 +31,7 @@ const ExplorePage = forwardRef((_, ref) => {
         />
       }
       displayScrollToTopButton
+      mobileFloatingTitlebar
     >
       <Explore
         input={input}
@@ -54,6 +57,16 @@ function ExplorePageTitlebar({
   searchParams: TSearchParams | null
   onSearch: (params: TSearchParams | null) => void
 }) {
+  const { isSmallScreen } = useScreenSize()
+
+  if (isSmallScreen) {
+    return (
+      <div className="flex h-full w-full items-center justify-end pr-1">
+        <MobileSearchButton input={input} setInput={setInput} onSearch={onSearch} />
+      </div>
+    )
+  }
+
   return (
     <div className="flex items-center gap-2 justify-between h-full">
       <div className="flex-1 min-w-0">

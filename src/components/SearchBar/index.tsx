@@ -35,8 +35,9 @@ const SearchBar = forwardRef<
     className?: string
     searchInputClassName?: string
     trailingContent?: ReactNode
+    mobileInlineResults?: boolean
   }
->(({ input, setInput, onSearch, className, searchInputClassName, trailingContent }, ref) => {
+>(({ input, setInput, onSearch, className, searchInputClassName, trailingContent, mobileInlineResults = false }, ref) => {
   const { t } = useTranslation()
   const { push } = useSecondaryPage()
   const { isSmallScreen } = useScreenSize()
@@ -267,9 +268,9 @@ const SearchBar = forwardRef<
           <div
             className={cn(
               'bg-surface-background rounded-b-lg shadow-lg z-50',
-              isSmallScreen
+              isSmallScreen && !mobileInlineResults
                 ? 'fixed top-12 inset-x-0'
-                : 'absolute top-full -translate-y-1 inset-x-0 pt-1 '
+                : 'absolute top-full -translate-y-1 inset-x-0 max-h-[min(60vh,28rem)] overflow-y-auto overscroll-contain pt-1'
             )}
             onMouseDown={(e) => e.preventDefault()}
           >

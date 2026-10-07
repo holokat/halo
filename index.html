@@ -42,6 +42,29 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#171717" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
+    <script>
+      // Apply the saved preference before the app loads to avoid flashing the wrong theme.
+      ;(() => {
+        let setting = 'system'
+        try {
+          const savedSetting = localStorage.getItem('themeSetting')
+          if (['light', 'dark', 'system'].includes(savedSetting)) setting = savedSetting
+        } catch {
+          // Follow the system when browser storage is unavailable.
+        }
+        const theme =
+          setting === 'system'
+            ? window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light'
+            : setting
+        document.documentElement.classList.add(theme)
+        document.documentElement.style.colorScheme = theme
+        document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
+          meta.setAttribute('content', theme === 'dark' ? '#171717' : '#FFFFFF')
+        })
+      })()
+    </script>
 
     <meta property="og:url" content="https://haloapp.fyi" />
     <meta property="og:type" content="website" />
